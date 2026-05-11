@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { anthropic, MODEL } from '@/lib/claude/client'
 import { supabase } from '@/lib/supabase'
-import type { ChatMessage, TrainingPlan, Workout, ICUWellness } from '@/types'
+import type { ChatMessage, TrainingPlan, Workout, ICUWellness, ICUSyncData } from '@/types'
 
 function buildSystemPrompt(
   plan: TrainingPlan | null,
@@ -37,12 +37,24 @@ Answer questions about training, recovery, pacing, nutrition, and race strategy.
 }
 
 export async function POST(req: NextRequest) {
-  const { message, syncData, currentFTP } = await req.json()
+  // Parse and validate input
+  let message: string
+  let syncData: ICUSyncData | null
+  let currentFTP: number
+  try {
+    const body = await req.json()
+    message = body.message
+    syncData = body.syncData ?? null
+    currentFTP = body.currentFTP ?? 200
+  } catch {
+    return new Response('Invalid request body', { status: 400 })
+  }
 
-  // Save user message
-  await supabase.from('chat_messages').insert({ role: 'user', content: message })
+  if (!message?.trim()) {
+    return new Response('Message is required', { status: 400 })
+  }
 
-  // Load context
+  // Load context first (BEFORE saving user message, so it's not included in history)
   const [{ data: plan }, { data: recentMessages }, { data: upcomingWorkouts }] = await Promise.all([
     supabase.from('training_plans').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('chat_messages').select('*').order('created_at', { ascending: false }).limit(20),
@@ -52,9 +64,15 @@ export async function POST(req: NextRequest) {
       .order('date'),
   ])
 
+  // Build message history (chronological order) then append current message
   const messages = ((recentMessages ?? []) as ChatMessage[])
     .reverse()
     .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+
+  messages.push({ role: 'user', content: message })
+
+  // Save user message to DB
+  await supabase.from('chat_messages').insert({ role: 'user', content: message })
 
   const latestWellness = syncData?.wellness?.slice(-1)[0] ?? null
 
@@ -75,15 +93,18 @@ export async function POST(req: NextRequest) {
   let fullResponse = ''
   const readable = new ReadableStream({
     async start(controller) {
-      for await (const chunk of stream) {
-        if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-          fullResponse += chunk.delta.text
-          controller.enqueue(new TextEncoder().encode(chunk.delta.text))
+      try {
+        for await (const chunk of stream) {
+          if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+            fullResponse += chunk.delta.text
+            controller.enqueue(new TextEncoder().encode(chunk.delta.text))
+          }
         }
+        await supabase.from('chat_messages').insert({ role: 'assistant', content: fullResponse })
+        controller.close()
+      } catch (err) {
+        controller.error(err)
       }
-      // Save assistant response
-      await supabase.from('chat_messages').insert({ role: 'assistant', content: fullResponse })
-      controller.close()
     },
   })
 
