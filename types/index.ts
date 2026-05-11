@@ -1,0 +1,139 @@
+export type WorkoutType = 'endurance' | 'threshold' | 'intervals' | 'recovery'
+export type WorkoutStatus = 'planned' | 'completed' | 'skipped'
+export type PlanStatus = 'active' | 'archived'
+export type EventPriority = 'A' | 'B' | 'C'
+export type EventType = 'sportive' | 'race' | 'holiday' | 'fitness'
+export type PlanPhase = 'base' | 'build' | 'peak' | 'taper'
+
+export interface TrainingEvent {
+  name: string
+  date: string           // YYYY-MM-DD
+  type: EventType
+  priority: EventPriority
+}
+
+export interface UserProfile {
+  id?: number
+  goals: string
+  events: TrainingEvent[]
+  weekly_hours: number
+  rest_days: string[]    // e.g. ['monday', 'friday']
+  current_ftp: number
+  weight_kg: number
+  intervals_icu_athlete_id: string
+  intervals_icu_api_key: string
+  updated_at?: string
+}
+
+export interface TrainingPlan {
+  id: string
+  status: PlanStatus
+  target_event_name: string
+  target_event_date: string
+  phase: PlanPhase
+  rationale: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Workout {
+  id: string
+  plan_id: string
+  date: string
+  type: WorkoutType
+  duration_minutes: number
+  description: string
+  target_zones: string
+  intervals_icu_event_id: string | null
+  status: WorkoutStatus
+  created_at: string
+}
+
+export interface WorkoutChange {
+  workout_id: string
+  field: 'duration_minutes' | 'description' | 'type' | 'status'
+  old_value: string | number
+  new_value: string | number
+  reason: string
+}
+
+export interface ProposedAdjustment {
+  summary: string
+  changes: WorkoutChange[]
+}
+
+export interface SessionFeedback {
+  id: string
+  workout_id: string | null
+  activity_id: string
+  feedback_text: string
+  activity_tss: number | null
+  activity_avg_power: number | null
+  activity_avg_hr: number | null
+  proposed_adjustment: ProposedAdjustment | null
+  approved: boolean | null
+  created_at: string
+}
+
+export interface FTPPrediction {
+  id: string
+  predicted_ftp: number
+  reasoning: string
+  confidence: 'high' | 'medium' | 'low'
+  activity_ids: string[]
+  confirmed: boolean
+  created_at: string
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
+}
+
+// intervals.icu API types
+export interface ICUActivity {
+  id: string
+  start_date_local: string
+  type: string
+  moving_time: number
+  name: string
+  average_watts: number | null
+  max_watts: number | null
+  weighted_average_watts: number | null
+  average_heartrate: number | null
+  training_load: number | null   // TSS
+}
+
+export interface ICUWellness {
+  id: string    // YYYY-MM-DD
+  ctl: number | null
+  atl: number | null
+  form: number | null
+  hrv: number | null
+  resting_hr: number | null
+  sleep_secs: number | null
+}
+
+export interface ICUSyncData {
+  activities: ICUActivity[]
+  wellness: ICUWellness[]
+  athlete_ftp: number | null
+  athlete_weight: number | null
+}
+
+// Claude structured output types
+export interface GeneratedPlan {
+  rationale: string
+  target_event_name: string
+  target_event_date: string
+  phase: PlanPhase
+  workouts: Array<{
+    date: string
+    type: WorkoutType
+    duration_minutes: number
+    description: string
+    target_zones: string
+  }>
+}
