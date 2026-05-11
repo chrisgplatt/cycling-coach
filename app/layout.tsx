@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import ChatPanel from '@/components/ChatPanel'
+import Link from 'next/link'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,10 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="flex min-h-screen bg-gray-50">
           <div className="flex-1 flex flex-col">
             <nav className="bg-white border-b border-gray-200 px-6 py-3 flex gap-6 text-sm font-medium text-gray-600">
-              <a href="/dashboard" className="hover:text-blue-600">Dashboard</a>
-              <a href="/calendar" className="hover:text-blue-600">Calendar</a>
-              <a href="/fitness" className="hover:text-blue-600">Fitness</a>
-              <a href="/settings" className="hover:text-blue-600">Settings</a>
+              <Link href="/dashboard" className="hover:text-blue-600">Dashboard</Link>
+              <Link href="/calendar" className="hover:text-blue-600">Calendar</Link>
+              <Link href="/fitness" className="hover:text-blue-600">Fitness</Link>
+              <Link href="/settings" className="hover:text-blue-600">Settings</Link>
             </nav>
             <main className="flex-1 p-6">{children}</main>
           </div>
