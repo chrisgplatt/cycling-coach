@@ -32,13 +32,37 @@ export async function POST(req: NextRequest) {
 
 // PATCH — approve a generated plan: archive current, save new, upload to intervals.icu
 export async function PATCH(req: NextRequest) {
-  const { plan, profile }: { plan: GeneratedPlan; profile: { intervals_icu_athlete_id: string; intervals_icu_api_key: string } } = await req.json()
+  let plan: GeneratedPlan
+  try {
+    const body = await req.json()
+    plan = body.plan
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+
+  if (!plan?.workouts?.length) {
+    return NextResponse.json({ error: 'Invalid plan data' }, { status: 400 })
+  }
+
+  // Read credentials from DB (not from client)
+  const { data: profile } = await supabase
+    .from('user_profile')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key')
+    .single()
+
+  if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
+    return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
+  }
 
   // Archive existing active plan
-  await supabase
+  const { error: archiveError } = await supabase
     .from('training_plans')
     .update({ status: 'archived' })
     .eq('status', 'active')
+
+  if (archiveError) {
+    return NextResponse.json({ error: 'Failed to archive existing plan' }, { status: 500 })
+  }
 
   // Save new plan
   const { data: savedPlan, error: planError } = await supabase
@@ -71,7 +95,6 @@ export async function PATCH(req: NextRequest) {
           duration_minutes: w.duration_minutes,
         })
       } catch {
-        // Log but don't fail the whole plan save if one event upload fails
         console.error(`Failed to upload event for ${w.date}`)
       }
       return {
@@ -87,7 +110,10 @@ export async function PATCH(req: NextRequest) {
     })
   )
 
-  await supabase.from('workouts').insert(workoutsToInsert)
+  const { error: workoutsError } = await supabase.from('workouts').insert(workoutsToInsert)
+  if (workoutsError) {
+    return NextResponse.json({ error: 'Failed to save workouts' }, { status: 500 })
+  }
 
   return NextResponse.json({ plan: savedPlan })
 }
