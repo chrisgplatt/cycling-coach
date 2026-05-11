@@ -4,25 +4,22 @@ import type { FTPPrediction, ICUSyncData } from '@/types'
 
 export default function FitnessPage() {
   const [predictions, setPredictions] = useState<FTPPrediction[]>([])
-  const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [currentFTP, setCurrentFTP] = useState(200)
   const [predicting, setPredicting] = useState(false)
 
   useEffect(() => {
-    fetch('/api/ftp').then(r => r.json()).then(setPredictions)
+    fetch('/api/ftp').then(r => r.json()).then(setPredictions).catch(() => {})
     fetch('/api/sync', { method: 'POST' }).then(r => r.json()).then((data: ICUSyncData) => {
-      setSyncData(data)
       if (data?.athlete_ftp) setCurrentFTP(data.athlete_ftp)
-    })
+    }).catch(() => {})
   }, [])
 
   async function predictFTP() {
-    if (!syncData?.activities?.length) return
     setPredicting(true)
     const res = await fetch('/api/ftp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ activities: syncData.activities, currentFTP }),
+      body: JSON.stringify({ currentFTP }),
     })
     if (res.ok) {
       const p = await res.json()

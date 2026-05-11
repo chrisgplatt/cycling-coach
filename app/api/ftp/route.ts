@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { IntervalsClient } from '@/lib/intervals/client'
 import { predictFTP } from '@/lib/claude/ftp'
-import type { ICUActivity } from '@/types'
 
 export async function GET() {
   const { data } = await supabase
@@ -14,9 +14,17 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { activities, currentFTP }: { activities: ICUActivity[]; currentFTP: number } = await req.json()
+  const { currentFTP } = await req.json()
+  const { data: profileData } = await supabase.from('user_profile').select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp').maybeSingle()
+  if (!profileData?.intervals_icu_athlete_id || !profileData?.intervals_icu_api_key) {
+    return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
+  }
+  const client = new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
+  const syncResult = await client.sync(8)
+  const activities = syncResult.activities
+  const resolvedFTP = currentFTP ?? profileData.current_ftp ?? 200
 
-  const result = await predictFTP(activities, currentFTP)
+  const result = await predictFTP(activities, resolvedFTP)
 
   const { data } = await supabase
     .from('ftp_predictions')

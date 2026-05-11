@@ -35,13 +35,15 @@ export default function FeedbackModal({ workout, onClose }: Props) {
 
   async function approveAdjustment(approve: boolean) {
     if (!proposed) return
-    await fetch('/api/feedback', {
+    const res = await fetch('/api/feedback', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ feedbackId: proposed.feedbackId, approved: approve }),
     })
-    setDone(true)
-    setTimeout(onClose, 1000)
+    if (res.ok) {
+      setDone(true)
+      setTimeout(onClose, 1000)
+    }
   }
 
   return (

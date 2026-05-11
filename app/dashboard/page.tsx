@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
+import FeedbackModal from '@/components/FeedbackModal'
 import type { ICUSyncData, Workout, ICUWellness } from '@/types'
 
 export default function DashboardPage() {
@@ -12,9 +13,12 @@ export default function DashboardPage() {
 
   async function doSync() {
     setSyncing(true)
-    const res = await fetch('/api/sync', { method: 'POST' })
-    if (res.ok) setSyncData(await res.json())
-    setSyncing(false)
+    try {
+      const res = await fetch('/api/sync', { method: 'POST' })
+      if (res.ok) setSyncData(await res.json())
+    } finally {
+      setSyncing(false)
+    }
   }
 
   async function loadPlan() {
@@ -76,6 +80,13 @@ export default function DashboardPage() {
           )
         })}
       </div>
+
+      {feedbackWorkout && (
+        <FeedbackModal
+          workout={feedbackWorkout}
+          onClose={() => setFeedbackWorkout(null)}
+        />
+      )}
     </div>
   )
 }

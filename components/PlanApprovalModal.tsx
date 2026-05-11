@@ -10,16 +10,27 @@ interface Props {
 
 export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) {
   const [approving, setApproving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function approve() {
     setApproving(true)
-    await fetch('/api/plan', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan }),
-    })
-    setApproving(false)
-    onApprove()
+    try {
+      const res = await fetch('/api/plan', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? 'Failed to save plan')
+        return
+      }
+      onApprove()
+    } catch {
+      setError('Network error')
+    } finally {
+      setApproving(false)
+    }
   }
 
   return (
@@ -54,6 +65,8 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
             )}
           </div>
         </div>
+
+        {error && <p className="text-sm text-red-600 px-6 pb-2">{error}</p>}
 
         <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
           <button onClick={onReject} className="text-sm text-gray-500 hover:text-gray-700">

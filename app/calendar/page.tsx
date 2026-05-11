@@ -20,7 +20,7 @@ export default function CalendarPage() {
   useEffect(() => {
     fetch('/api/plan').then(r => r.json()).then(plan => {
       if (plan?.workouts) setWorkouts(plan.workouts)
-    })
+    }).catch(() => {})
   }, [])
 
   const firstDay = new Date(year, month, 1).getDay()

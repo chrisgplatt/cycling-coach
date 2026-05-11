@@ -11,58 +11,91 @@ const DEFAULT_PROFILE: UserProfile = {
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE)
+  const [profileId, setProfileId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
 
   useEffect(() => {
-    // Load profile from localStorage (persisted from previous visits)
-    const stored = localStorage.getItem('cc_profile')
-    if (stored) {
-      try { setProfile(JSON.parse(stored)) } catch {}
-    }
-    // Sync from intervals.icu to get current FTP/weight
-    fetch('/api/sync', { method: 'POST' }).then(r => r.json()).then((data: ICUSyncData) => {
-      setSyncData(data)
-      if (data?.athlete_ftp) setProfile(p => ({ ...p, current_ftp: data.athlete_ftp! }))
-      if (data?.athlete_weight) setProfile(p => ({ ...p, weight_kg: data.athlete_weight! }))
-    }).catch(() => {})
+    fetch('/api/profile')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          setProfileId(data.id)
+          setProfile({
+            goals: data.goals ?? '',
+            events: data.events ?? [],
+            weekly_hours: data.weekly_hours ?? 8,
+            rest_days: data.rest_days ?? ['monday'],
+            current_ftp: data.current_ftp ?? 200,
+            weight_kg: data.weight_kg ?? 70,
+            intervals_icu_athlete_id: data.intervals_icu_athlete_id ?? '',
+            intervals_icu_api_key: data.intervals_icu_api_key ?? '',
+          })
+        }
+      })
+      .catch(() => {})
+
+    fetch('/api/sync', { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then((data: ICUSyncData | null) => {
+        if (!data) return
+        setSyncData(data)
+        if (data.athlete_ftp) setProfile(p => ({ ...p, current_ftp: data.athlete_ftp! }))
+        if (data.athlete_weight) setProfile(p => ({ ...p, weight_kg: data.athlete_weight! }))
+      })
+      .catch(() => {})
   }, [])
 
   async function saveProfile() {
+    if (!profileId) {
+      setSaveError('Profile not loaded yet')
+      return
+    }
     setSaving(true)
-    localStorage.setItem('cc_profile', JSON.stringify(profile))
-    setSaved(true)
-    setSaving(false)
-    setTimeout(() => setSaved(false), 2000)
+    setSaveError(null)
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: profileId, ...profile }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.error ?? 'Save failed')
+      } else {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      }
+    } catch {
+      setSaveError('Network error')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function generatePlan() {
     setGenerating(true)
-    const res = await fetch('/api/plan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profile, syncData }),
-    })
-    if (res.ok) setGeneratedPlan(await res.json())
-    setGenerating(false)
+    try {
+      const res = await fetch('/api/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ syncData }),
+      })
+      if (res.ok) setGeneratedPlan(await res.json())
+    } finally {
+      setGenerating(false)
+    }
   }
 
   function addEvent() {
     setProfile(p => ({
       ...p,
-      events: [...p.events, { name: '', date: '', type: 'sportive', priority: 'B' } as TrainingEvent],
+      events: [...p.events, { name: '', date: '', type: 'sportive' as TrainingEvent['type'], priority: 'B' as TrainingEvent['priority'], _key: Date.now() }],
     }))
-  }
-
-  function updateEvent(i: number, patch: Partial<TrainingEvent>) {
-    setProfile(p => {
-      const events = [...p.events]
-      events[i] = { ...events[i], ...patch }
-      return { ...p, events }
-    })
   }
 
   return (
@@ -71,20 +104,22 @@ export default function SettingsPage() {
 
       <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
         <h2 className="font-medium text-gray-700">intervals.icu</h2>
-        <input
-          type="text"
-          value={profile.intervals_icu_athlete_id}
-          onChange={e => setProfile(p => ({ ...p, intervals_icu_athlete_id: e.target.value }))}
-          placeholder="Athlete ID (e.g. i12345)"
-          className="w-full text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <input
-          type="password"
-          value={profile.intervals_icu_api_key}
-          onChange={e => setProfile(p => ({ ...p, intervals_icu_api_key: e.target.value }))}
-          placeholder="API Key"
-          className="w-full text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div className="space-y-3">
+          <input
+            type="text"
+            value={profile.intervals_icu_athlete_id}
+            onChange={e => setProfile(p => ({ ...p, intervals_icu_athlete_id: e.target.value }))}
+            placeholder="Athlete ID (e.g. i12345)"
+            className="w-full text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="password"
+            value={profile.intervals_icu_api_key}
+            onChange={e => setProfile(p => ({ ...p, intervals_icu_api_key: e.target.value }))}
+            placeholder="API Key"
+            className="w-full text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </section>
 
       <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
@@ -124,15 +159,15 @@ export default function SettingsPage() {
           <button onClick={addEvent} className="text-sm text-blue-600 hover:underline">+ Add event</button>
         </div>
         {profile.events.map((event, i) => (
-          <div key={i} className="grid grid-cols-2 gap-2">
+          <div key={(event as { _key?: number })._key ?? i} className="grid grid-cols-2 gap-2">
             <input type="text" value={event.name} placeholder="Event name"
-              onChange={e => updateEvent(i, { name: e.target.value })}
+              onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], name: e.target.value }; setProfile(p => ({ ...p, events: ev })) }}
               className="text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <input type="date" value={event.date}
-              onChange={e => updateEvent(i, { date: e.target.value })}
+              onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], date: e.target.value }; setProfile(p => ({ ...p, events: ev })) }}
               className="text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <select value={event.type}
-              onChange={e => updateEvent(i, { type: e.target.value as TrainingEvent['type'] })}
+              onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], type: e.target.value as TrainingEvent['type'] }; setProfile(p => ({ ...p, events: ev })) }}
               className="text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="sportive">Sportive</option>
               <option value="race">Race</option>
@@ -140,7 +175,7 @@ export default function SettingsPage() {
               <option value="fitness">Fitness</option>
             </select>
             <select value={event.priority}
-              onChange={e => updateEvent(i, { priority: e.target.value as TrainingEvent['priority'] })}
+              onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], priority: e.target.value as TrainingEvent['priority'] }; setProfile(p => ({ ...p, events: ev })) }}
               className="text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="A">A — Peak for this</option>
               <option value="B">B — Important</option>
@@ -150,12 +185,17 @@ export default function SettingsPage() {
         ))}
       </section>
 
+      {saveError && (
+        <p className="text-sm text-red-600">{saveError}</p>
+      )}
+
       <div className="flex gap-3">
         <button onClick={saveProfile} disabled={saving}
           className="bg-gray-800 text-white text-sm px-6 py-2 rounded hover:bg-gray-900 disabled:opacity-50">
           {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Profile'}
         </button>
         <button onClick={generatePlan} disabled={generating || !profile.events.length}
+          title={!profile.events.length ? 'Add at least one event first' : undefined}
           className="bg-blue-600 text-white text-sm px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
           {generating ? 'Generating plan…' : 'Build New Plan'}
         </button>

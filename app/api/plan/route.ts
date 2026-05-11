@@ -19,7 +19,10 @@ export async function GET() {
 
 // POST — generate a new plan (returns proposal, does NOT save yet)
 export async function POST(req: NextRequest) {
-  const { profile, syncData } = await req.json()
+  const { syncData } = await req.json()
+  const { data: profileData } = await supabase.from('user_profile').select('*').maybeSingle()
+  if (!profileData) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
+  const profile = profileData
 
   try {
     const generatedPlan = await generatePlan(profile, syncData)
