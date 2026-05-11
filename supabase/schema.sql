@@ -45,7 +45,7 @@ create table if not exists workouts (
 
 create table if not exists session_feedback (
   id uuid primary key default gen_random_uuid(),
-  workout_id uuid references workouts(id),
+  workout_id uuid references workouts(id) on delete set null,
   activity_id text not null,
   feedback_text text not null,
   activity_tss numeric,
