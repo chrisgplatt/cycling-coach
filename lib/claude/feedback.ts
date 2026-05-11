@@ -49,7 +49,8 @@ If no changes needed: {"summary": "No adjustments needed", "changes": []}`
     messages: [{ role: 'user', content: prompt }],
   })
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
+  const block = response.content.find(b => b.type === 'text')
+  const text = block?.type === 'text' ? block.text : ''
   try {
     return JSON.parse(text) as ProposedAdjustment
   } catch {

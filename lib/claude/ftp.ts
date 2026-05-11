@@ -20,14 +20,15 @@ export async function predictFTP(
     .map(a => `- ${a.start_date_local.split('T')[0]}: ${a.name}, ${Math.round(a.moving_time / 60)}min, NP ${a.weighted_average_watts}W, max ${a.max_watts}W, TSS ${a.training_load ?? '?'}`)
     .join('\n')
 
-  const best20min = Math.max(
-    ...activities.map(a => a.weighted_average_watts ?? 0).filter(Boolean)
-  )
+  const validWatts = activities
+    .map(a => a.weighted_average_watts ?? 0)
+    .filter(w => w > 0)
+  const best20min = validWatts.length ? Math.max(...validWatts) : null
 
   const prompt = `Estimate FTP from recent ride data.
 
 Current stated FTP: ${currentFTP}W
-Best weighted average power from recent rides: ${best20min}W
+Best weighted average power from recent rides: ${best20min !== null ? `${best20min}W` : 'unknown'}
 
 Recent rides with power data:
 ${rideData || 'No power data available'}
@@ -46,7 +47,8 @@ Return ONLY:
     messages: [{ role: 'user', content: prompt }],
   })
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
+  const block = response.content.find(b => b.type === 'text')
+  const text = block?.type === 'text' ? block.text : ''
   try {
     return JSON.parse(text) as FTPPredictionResult
   } catch {
