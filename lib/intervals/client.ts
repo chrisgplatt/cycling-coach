@@ -28,6 +28,7 @@ export class IntervalsClient {
     if (!res.ok) {
       throw new Error(`intervals.icu API error ${res.status}: ${await res.text()}`)
     }
+    if (res.status === 204) return undefined as T
     return res.json()
   }
 
@@ -86,9 +87,9 @@ export class IntervalsClient {
 
   async updateEvent(eventId: string, params: Partial<CreateEventParams>): Promise<void> {
     const body: Record<string, unknown> = {}
-    if (params.name) body.name = params.name
-    if (params.description) body.description = params.description
-    if (params.duration_minutes) body.moving_time = params.duration_minutes * 60
+    if (params.name !== undefined) body.name = params.name
+    if (params.description !== undefined) body.description = params.description
+    if (params.duration_minutes !== undefined) body.moving_time = params.duration_minutes * 60
     await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
       method: 'PUT',
       body: JSON.stringify(body),
