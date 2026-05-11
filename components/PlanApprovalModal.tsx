@@ -1,0 +1,73 @@
+'use client'
+import { useState } from 'react'
+import type { GeneratedPlan } from '@/types'
+
+interface Props {
+  plan: GeneratedPlan
+  onApprove: () => void
+  onReject: () => void
+}
+
+export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) {
+  const [approving, setApproving] = useState(false)
+
+  async function approve() {
+    setApproving(true)
+    await fetch('/api/plan', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    })
+    setApproving(false)
+    onApprove()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="font-semibold text-gray-800">New Training Plan</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {plan.target_event_name} — {plan.target_event_date} ({plan.phase} phase)
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="bg-blue-50 border border-blue-100 rounded p-3 text-sm text-blue-800">
+            {plan.rationale}
+          </div>
+
+          <h3 className="text-sm font-medium text-gray-700">
+            {plan.workouts.length} workouts scheduled
+          </h3>
+
+          <div className="space-y-2">
+            {plan.workouts.slice(0, 10).map((w, i) => (
+              <div key={i} className="flex gap-3 text-sm items-start">
+                <span className="text-gray-400 w-20 shrink-0">{w.date}</span>
+                <span className="font-medium w-24 shrink-0 capitalize">{w.type}</span>
+                <span className="text-gray-600">{w.duration_minutes}min — {w.description}</span>
+              </div>
+            ))}
+            {plan.workouts.length > 10 && (
+              <p className="text-xs text-gray-400">…and {plan.workouts.length - 10} more workouts</p>
+            )}
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+          <button onClick={onReject} className="text-sm text-gray-500 hover:text-gray-700">
+            Reject
+          </button>
+          <button
+            onClick={approve}
+            disabled={approving}
+            className="bg-blue-600 text-white text-sm px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {approving ? 'Saving…' : 'Approve & Upload to intervals.icu'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
