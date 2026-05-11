@@ -3,7 +3,7 @@ import { createSessionToken, COOKIE_NAME, COOKIE_MAX_AGE } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   const { password } = await req.json()
-  const token = createSessionToken(password)
+  const token = await createSessionToken(password)
 
   if (!token) {
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
