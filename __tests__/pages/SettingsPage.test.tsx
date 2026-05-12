@@ -21,6 +21,7 @@ function setupFetch(syncEventsOk: boolean, syncEventsData: unknown) {
       return Promise.resolve({ ok: true, json: async () => profileData } as Response)
     }
     if (url === '/api/sync') {
+      // suppress the startup intervals.icu sync — not under test here
       return Promise.resolve({ ok: false, json: async () => ({}) } as Response)
     }
     if (url === '/api/events/sync') {
