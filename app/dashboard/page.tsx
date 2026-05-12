@@ -3,19 +3,26 @@ import { useEffect, useState } from 'react'
 import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
 import FeedbackModal from '@/components/FeedbackModal'
+import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { ICUSyncData, Workout, ICUWellness } from '@/types'
 
 export default function DashboardPage() {
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
+  const [athleteId, setAthleteId] = useState('')
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [syncing, setSyncing] = useState(false)
+  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
 
   async function doSync() {
     setSyncing(true)
     try {
       const res = await fetch('/api/sync', { method: 'POST' })
-      if (res.ok) setSyncData(await res.json())
+      if (res.ok) {
+        const data = await res.json()
+        setSyncData(data)
+        if (data.athlete_id) setAthleteId(data.athlete_id)
+      }
     } finally {
       setSyncing(false)
     }
@@ -71,7 +78,10 @@ export default function DashboardPage() {
               </div>
               <div className="flex-1">
                 {dayWorkout ? (
-                  <WorkoutCard workout={dayWorkout} onFeedback={setFeedbackWorkout} />
+                  <WorkoutCard
+                    workout={dayWorkout}
+                    onClick={() => setSelectedWorkout(dayWorkout)}
+                  />
                 ) : (
                   <div className="text-sm text-gray-300 py-2">Rest</div>
                 )}
@@ -80,6 +90,27 @@ export default function DashboardPage() {
           )
         })}
       </div>
+
+      {selectedWorkout && (
+        <WorkoutDetailModal
+          workout={selectedWorkout}
+          athleteId={athleteId}
+          activitiesOnDate={
+            syncData?.activities.filter(a =>
+              a.start_date_local.startsWith(selectedWorkout.date)
+            ) ?? []
+          }
+          onClose={() => setSelectedWorkout(null)}
+          onFeedback={() => {
+            setFeedbackWorkout(selectedWorkout)
+            setSelectedWorkout(null)
+          }}
+          onStatusChange={() => {
+            setSelectedWorkout(null)
+            loadPlan()
+          }}
+        />
+      )}
 
       {feedbackWorkout && (
         <FeedbackModal
