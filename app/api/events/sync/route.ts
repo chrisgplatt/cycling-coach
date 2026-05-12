@@ -47,6 +47,7 @@ export async function POST() {
       date: e.start_date_local.split('T')[0],
       type: 'race' as const,
       priority: (e.category === 'RACE_A' ? 'A' : e.category === 'RACE_B' ? 'B' : 'C') as TrainingEvent['priority'],
+      icu_event_id: e.id,
     }))
 
   if (!newEvents.length) {

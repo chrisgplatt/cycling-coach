@@ -10,6 +10,7 @@ export interface TrainingEvent {
   date: string           // YYYY-MM-DD
   type: EventType
   priority: EventPriority
+  icu_event_id?: string  // set when imported from intervals.icu; used for deletion
 }
 
 export interface UserProfile {

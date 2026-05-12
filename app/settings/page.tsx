@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [clearResult, setClearResult] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
+  const [deletingEvent, setDeletingEvent] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/profile')
@@ -145,6 +146,31 @@ export default function SettingsPage() {
     }
   }
 
+  async function deleteEvent(name: string, date: string) {
+    const key = `${name}|${date}`
+    setDeletingEvent(key)
+    try {
+      const res = await fetch('/api/events/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, date }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setSyncResult(`Error deleting event: ${data.error ?? 'Failed'}`)
+        return
+      }
+      setProfile(p => ({ ...p, events: p.events.filter(e => !(e.name === name && e.date === date)) }))
+      if (data.icu_delete_failed) {
+        setSyncResult('Event removed locally but could not delete from intervals.icu')
+      }
+    } catch {
+      setSyncResult('Network error')
+    } finally {
+      setDeletingEvent(null)
+    }
+  }
+
   function addEvent() {
     setProfile(p => ({
       ...p,
@@ -245,6 +271,15 @@ export default function SettingsPage() {
               <option value="B">B — Important</option>
               <option value="C">C — Secondary</option>
             </select>
+            <div className="col-span-2 flex justify-end">
+              <button
+                onClick={() => deleteEvent(event.name, event.date)}
+                disabled={deletingEvent === `${event.name}|${event.date}`}
+                className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+              >
+                {deletingEvent === `${event.name}|${event.date}` ? 'Deleting…' : 'Delete event'}
+              </button>
+            </div>
           </div>
         ))}
       </section>
