@@ -27,6 +27,7 @@ export interface UserProfile {
 
 export interface TrainingPlan {
   id: string
+  name: string
   status: PlanStatus
   target_event_name: string
   target_event_date: string
