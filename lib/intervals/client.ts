@@ -46,9 +46,18 @@ export class IntervalsClient {
   }
 
   async getWellness(start: string, end: string): Promise<ICUWellness[]> {
-    return this.request<ICUWellness[]>(
+    const raw = await this.request<Array<Record<string, unknown>>>(
       `/athlete/${this.athleteId}/wellness?start=${start}&end=${end}`
     )
+    return raw.map(w => ({
+      id: w.id as string,
+      ctl: (w.ctl ?? null) as number | null,
+      atl: (w.atl ?? null) as number | null,
+      form: (w.form ?? null) as number | null,
+      hrv: (w.hrv ?? null) as number | null,
+      resting_hr: ((w.restingHR ?? w.resting_hr) ?? null) as number | null,
+      sleep_secs: ((w.sleepSecs ?? w.sleep_secs) ?? null) as number | null,
+    }))
   }
 
   async sync(weeksBack = 6): Promise<ICUSyncData> {
