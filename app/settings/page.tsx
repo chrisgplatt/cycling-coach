@@ -22,7 +22,6 @@ export default function SettingsPage() {
   const [clearResult, setClearResult] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
-  const [syncDebug, setSyncDebug] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/profile')
@@ -126,7 +125,6 @@ export default function SettingsPage() {
   async function syncEvents() {
     setSyncing(true)
     setSyncResult(null)
-    setSyncDebug(null)
     try {
       const res = await fetch('/api/events/sync', { method: 'POST' })
       const data = await res.json()
@@ -140,9 +138,6 @@ export default function SettingsPage() {
           ? `Added ${data.added} event(s) from intervals.icu`
           : 'No new events found'
       )
-      if (data._debug_categories) {
-        setSyncDebug(JSON.stringify(data._debug_categories, null, 2))
-      }
     } catch {
       setSyncResult('Network error')
     } finally {
@@ -227,7 +222,6 @@ export default function SettingsPage() {
           </div>
         </div>
         {syncResult && <p className="text-xs text-gray-500">{syncResult}</p>}
-        {syncDebug && <pre className="text-xs bg-gray-100 p-2 rounded mt-1 overflow-x-auto">{syncDebug}</pre>}
         {profile.events.map((event, i) => (
           <div key={(event as { _key?: number })._key ?? i} className="grid grid-cols-2 gap-2">
             <input type="text" value={event.name} placeholder="Event name"

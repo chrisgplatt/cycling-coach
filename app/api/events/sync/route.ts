@@ -37,7 +37,7 @@ export async function POST() {
   )
 
   const newEvents: TrainingEvent[] = icuEvents
-    .filter(e => e.category === 'RACE')
+    .filter(e => e.category === 'RACE_A' || e.category === 'RACE_B' || e.category === 'RACE_C')
     .filter(e => {
       const date = e.start_date_local.split('T')[0]
       return !existingKeys.has(`${e.name.trim().toLowerCase()}|${date}`)
@@ -46,11 +46,11 @@ export async function POST() {
       name: e.name.trim(),
       date: e.start_date_local.split('T')[0],
       type: 'race' as const,
-      priority: 'B' as const,
+      priority: (e.category === 'RACE_A' ? 'A' : e.category === 'RACE_B' ? 'B' : 'C') as TrainingEvent['priority'],
     }))
 
   if (!newEvents.length) {
-    return NextResponse.json({ added: 0, events: existing, _debug_categories: icuEvents.map(e => ({ name: e.name, category: e.category, date: e.start_date_local })) })
+    return NextResponse.json({ added: 0, events: existing })
   }
 
   const merged = [...existing, ...newEvents]
