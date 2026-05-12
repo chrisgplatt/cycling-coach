@@ -22,10 +22,11 @@ export async function POST(req: NextRequest) {
   const { syncData } = await req.json()
   const { data: profileData } = await supabase.from('user_profile').select('*').maybeSingle()
   if (!profileData) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
+  if (!profileData.events?.length) return NextResponse.json({ error: 'Add and save at least one event in Settings before generating a plan' }, { status: 400 })
   const profile = profileData
 
   try {
-    const generatedPlan = await generatePlan(profile, syncData)
+    const generatedPlan = await generatePlan(profile, syncData ?? { activities: [], wellness: [], athlete_ftp: null, athlete_weight: null })
     return NextResponse.json(generatedPlan)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Plan generation failed'
