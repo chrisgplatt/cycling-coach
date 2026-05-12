@@ -77,7 +77,7 @@ Return ONLY this JSON:
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 8192,
+    max_tokens: 16000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
   })
