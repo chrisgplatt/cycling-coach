@@ -21,6 +21,7 @@ insert into user_profile (goals) values ('') on conflict do nothing;
 
 create table if not exists training_plans (
   id uuid primary key default gen_random_uuid(),
+  name text not null default '',
   status text not null default 'active' check (status in ('active', 'archived')),
   target_event_name text not null,
   target_event_date date not null,
