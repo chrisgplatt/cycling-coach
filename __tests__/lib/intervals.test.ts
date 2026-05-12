@@ -89,6 +89,9 @@ describe('IntervalsClient', () => {
 
     expect(events).toHaveLength(2)
     expect(events[0].category).toBe('RACE')
+    expect(events[0].id).toBe('evt1')
+    expect(events[0].name).toBe('Dragon Ride')
+    expect(events[0].start_date_local).toBe('2026-09-14T00:00:00')
     expect(events[1].category).toBe('WORKOUT')
     const calledUrl = mockFetch.mock.calls[0][0] as string
     expect(calledUrl).toContain('/athlete/i12345/events?oldest=2026-05-12&newest=2026-11-12')

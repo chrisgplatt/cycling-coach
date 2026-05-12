@@ -1,4 +1,4 @@
-import type { ICUActivity, ICUWellness, ICUSyncData, WorkoutStep } from '@/types'
+import type { ICUActivity, ICUWellness, ICUSyncData, WorkoutStep, ICUEvent } from '@/types'
 
 const BASE = 'https://intervals.icu/api/v1'
 
@@ -8,13 +8,6 @@ interface CreateEventParams {
   description: string
   duration_minutes: number
   steps?: WorkoutStep[]
-}
-
-export interface ICUEvent {
-  id: string
-  category: string   // 'RACE', 'WORKOUT', 'TARGET', 'HOLIDAY', etc.
-  name: string
-  start_date_local: string  // ISO datetime e.g. "2026-09-14T00:00:00"
 }
 
 // Converts flat WorkoutStep array to intervals.icu description text format.

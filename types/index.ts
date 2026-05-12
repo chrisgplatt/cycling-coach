@@ -119,6 +119,13 @@ export interface ICUWellness {
   sleep_secs: number | null
 }
 
+export interface ICUEvent {
+  id: string
+  category: string   // 'RACE', 'WORKOUT', 'TARGET', 'HOLIDAY', etc.
+  name: string
+  start_date_local: string  // ISO datetime e.g. "2026-09-14T00:00:00"
+}
+
 export interface ICUSyncData {
   activities: ICUActivity[]
   wellness: ICUWellness[]
