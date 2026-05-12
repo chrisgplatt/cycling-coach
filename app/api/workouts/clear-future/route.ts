@@ -16,6 +16,7 @@ export async function POST() {
   const { data: futureWorkouts, error } = await supabase
     .from('workouts')
     .select('id, intervals_icu_event_id, date')
+    .eq('status', 'planned')
     .gte('date', today)
     .not('intervals_icu_event_id', 'is', null)
 

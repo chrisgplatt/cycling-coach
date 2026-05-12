@@ -71,6 +71,7 @@ export async function PATCH(req: NextRequest) {
       .from('workouts')
       .select('intervals_icu_event_id')
       .eq('plan_id', activePlan.id)
+      .eq('status', 'planned')
       .gte('date', today)
       .not('intervals_icu_event_id', 'is', null)
 
