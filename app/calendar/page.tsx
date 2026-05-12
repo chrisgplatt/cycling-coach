@@ -21,8 +21,8 @@ export default function CalendarPage() {
 
   function loadPlan() {
     fetch('/api/plan').then(r => r.json()).then(plan => {
-      if (plan?.workouts) setWorkouts(plan.workouts)
-      if (plan?.name) setPlanName(plan.name)
+      setWorkouts(plan?.workouts ?? [])
+      setPlanName(plan?.name ?? '')
     }).catch(() => {})
   }
 
@@ -79,7 +79,7 @@ export default function CalendarPage() {
               <span>{day}</span>
               {workout && (
                 <>
-                  <span className={`text-[10px] font-medium capitalize ${TYPE_COLOUR[workout.type]}`}>
+                  <span className={`text-[10px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
                     {workout.type}
                   </span>
                   <span className="text-[10px] text-gray-400">{workout.duration_minutes} min</span>

@@ -1,11 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import CalendarPage from '@/app/calendar/page'
 
-const today = new Date()
-const testDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-15`
+const now = new Date()
+const testDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`
 
 beforeEach(() => {
-  global.fetch = jest.fn().mockImplementation((url: string, opts?: RequestInit) => {
+  global.fetch = jest.fn().mockImplementation((url: string) => {
     if (url === '/api/plan') {
       return Promise.resolve({
         ok: true,
