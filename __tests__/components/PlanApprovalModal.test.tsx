@@ -36,7 +36,8 @@ describe('PlanApprovalModal', () => {
   })
 
   it('sends name in PATCH body on approve', () => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    (globalThis as any).fetch = jest.fn()
+    jest.spyOn(globalThis, 'fetch' as any).mockResolvedValue({ ok: true, json: async () => ({}) } as Response)
     render(<PlanApprovalModal plan={plan} onApprove={jest.fn()} onReject={jest.fn()} />)
     fireEvent.change(screen.getByPlaceholderText(/e\.g\. base block 1/i), { target: { value: 'Base Block 1' } })
     fireEvent.click(screen.getByRole('button', { name: /approve/i }))
