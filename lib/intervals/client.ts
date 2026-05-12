@@ -10,6 +10,47 @@ interface CreateEventParams {
   steps?: WorkoutStep[]
 }
 
+function buildWorkoutNotation(steps: WorkoutStep[]): string {
+  const lines: string[] = []
+  let i = 0
+  while (i < steps.length) {
+    // Detect repeated (work + recovery) pairs: Nx Dm P% / Dm P%
+    if (i + 1 < steps.length) {
+      const a = steps[i], b = steps[i + 1]
+      let reps = 1, j = i + 2
+      while (
+        j + 1 < steps.length &&
+        steps[j].duration_minutes === a.duration_minutes &&
+        steps[j].power_pct_ftp === a.power_pct_ftp &&
+        steps[j + 1].duration_minutes === b.duration_minutes &&
+        steps[j + 1].power_pct_ftp === b.power_pct_ftp
+      ) { reps++; j += 2 }
+      if (reps > 1) {
+        lines.push(`${reps}x ${a.duration_minutes}m ${a.power_pct_ftp}% / ${b.duration_minutes}m ${b.power_pct_ftp}%`)
+        i = j; continue
+      }
+    }
+    // Detect repeated single steps: Nx Dm P%
+    {
+      const s = steps[i]
+      let reps = 1, j = i + 1
+      while (
+        j < steps.length &&
+        steps[j].duration_minutes === s.duration_minutes &&
+        steps[j].power_pct_ftp === s.power_pct_ftp
+      ) { reps++; j++ }
+      if (reps > 1) {
+        lines.push(`${reps}x ${s.duration_minutes}m ${s.power_pct_ftp}%`)
+        i = j; continue
+      }
+    }
+    // Single step
+    lines.push(`${steps[i].duration_minutes}m ${steps[i].power_pct_ftp}%`)
+    i++
+  }
+  return lines.join('\n')
+}
+
 export class IntervalsClient {
   private authHeader: string
 
@@ -80,19 +121,18 @@ export class IntervalsClient {
   }
 
   async createEvent(params: CreateEventParams): Promise<string> {
-    const stepsText = params.steps?.length
-      ? '\n\n' + params.steps
-          .map(s => `${s.duration_minutes}min @ ${s.power_pct_ftp}% FTP — ${s.label}`)
-          .join('\n')
-      : ''
+    const description = params.steps?.length
+      ? buildWorkoutNotation(params.steps)
+      : params.description
 
     const body = {
       category: 'WORKOUT',
       start_date_local: `${params.date}T08:00:00`,
       name: params.name,
-      description: params.description + stepsText,
+      description,
       type: 'Ride',
       moving_time: params.duration_minutes * 60,
+      target: 'POWER',
     }
     const data = await this.request<{ id: string }>(
       `/athlete/${this.athleteId}/events`,
