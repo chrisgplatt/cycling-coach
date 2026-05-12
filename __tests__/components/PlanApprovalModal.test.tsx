@@ -11,6 +11,8 @@ const plan: GeneratedPlan = {
 }
 
 describe('PlanApprovalModal', () => {
+  afterEach(() => { jest.restoreAllMocks() })
+
   it('renders rationale as separate paragraphs', () => {
     render(<PlanApprovalModal plan={plan} onApprove={jest.fn()} onReject={jest.fn()} />)
     expect(screen.getByText('First paragraph.')).toBeInTheDocument()
