@@ -48,8 +48,10 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div className="bg-blue-50 border border-blue-100 rounded p-3 text-sm text-blue-800">
-            {plan.rationale}
+          <div className="border border-gray-200 rounded p-4 space-y-3">
+            {plan.rationale.split('\n\n').map((para, i) => (
+              <p key={i} className="text-sm text-gray-700 leading-relaxed">{para}</p>
+            ))}
           </div>
 
           <h3 className="text-sm font-medium text-gray-700">
