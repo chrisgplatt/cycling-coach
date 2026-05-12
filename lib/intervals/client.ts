@@ -10,6 +10,13 @@ interface CreateEventParams {
   steps?: WorkoutStep[]
 }
 
+export interface ICUEvent {
+  id: string
+  category: string   // 'RACE', 'WORKOUT', 'TARGET', 'HOLIDAY', etc.
+  name: string
+  start_date_local: string  // ISO datetime e.g. "2026-09-14T00:00:00"
+}
+
 // Converts flat WorkoutStep array to intervals.icu description text format.
 // Format reference: https://forum.intervals.icu/t/workout-builder-syntax-quick-guide/123701
 function buildWorkoutNotation(steps: WorkoutStep[]): string {
@@ -122,6 +129,12 @@ export class IntervalsClient {
       resting_hr: ((w.restingHR ?? w.resting_hr) ?? null) as number | null,
       sleep_secs: ((w.sleepSecs ?? w.sleep_secs) ?? null) as number | null,
     }))
+  }
+
+  async getEvents(oldest: string, newest: string): Promise<ICUEvent[]> {
+    return this.request<ICUEvent[]>(
+      `/athlete/${this.athleteId}/events?oldest=${oldest}&newest=${newest}`
+    )
   }
 
   async sync(weeksBack = 6): Promise<ICUSyncData> {

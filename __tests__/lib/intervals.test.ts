@@ -77,4 +77,20 @@ describe('IntervalsClient', () => {
     // Prose appears before the separator
     expect(body.description.indexOf('Hard threshold')).toBeLessThan(body.description.indexOf('---'))
   })
+
+  it('getEvents returns ICUEvent array and calls correct URL', async () => {
+    const mockEvents = [
+      { id: 'evt1', category: 'RACE', name: 'Dragon Ride', start_date_local: '2026-09-14T00:00:00' },
+      { id: 'evt2', category: 'WORKOUT', name: 'Threshold Session', start_date_local: '2026-05-20T08:00:00' },
+    ]
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockEvents })
+
+    const events = await client.getEvents('2026-05-12', '2026-11-12')
+
+    expect(events).toHaveLength(2)
+    expect(events[0].category).toBe('RACE')
+    expect(events[1].category).toBe('WORKOUT')
+    const calledUrl = mockFetch.mock.calls[0][0] as string
+    expect(calledUrl).toContain('/athlete/i12345/events?oldest=2026-05-12&newest=2026-11-12')
+  })
 })
