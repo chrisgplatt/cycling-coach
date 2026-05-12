@@ -26,7 +26,7 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
         return
       }
       if (data.upload_warnings?.length) {
-        setError(`Plan saved, but ${data.upload_warnings.length} workout(s) failed to upload to intervals.icu: ${data.upload_warnings[0]}`)
+        setError(`Plan saved. Upload warnings:\n${data.upload_warnings.slice(0, 3).join('\n')}`)
         return
       }
       onApprove()
