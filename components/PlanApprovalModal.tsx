@@ -28,7 +28,6 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
       }
       if (data.upload_warnings?.length) {
         setError(`Plan saved, but ${data.upload_warnings.length} workout(s) failed to upload to intervals.icu: ${data.upload_warnings[0]}`)
-        return
       }
       onApprove()
     } catch {
@@ -47,12 +46,14 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
             {plan.target_event_name} — {plan.target_event_date} ({plan.phase} phase)
           </p>
           <div className="mt-3">
-            <label className="text-xs font-medium text-gray-600 block mb-1">Plan name</label>
+            <label htmlFor="plan-name" className="text-xs font-medium text-gray-600 block mb-1">Plan name</label>
             <input
+              id="plan-name"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Base Block 1"
+              maxLength={100}
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
