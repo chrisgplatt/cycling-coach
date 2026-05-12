@@ -26,7 +26,7 @@ export default function WorkoutDetailModal({
   const [error, setError] = useState<string | null>(null)
 
   const eventUrl = workout.intervals_icu_event_id
-    ? `https://intervals.icu/athlete/${athleteId}/calendar?event=${workout.intervals_icu_event_id}`
+    ? `https://intervals.icu/athlete/${athleteId}/calendar`
     : null
   const activityUrl = workout.icu_activity_id
     ? `https://intervals.icu/athlete/${athleteId}/activities/${workout.icu_activity_id}`
@@ -110,7 +110,7 @@ export default function WorkoutDetailModal({
                 rel="noopener noreferrer"
                 className="text-sm text-blue-600 hover:underline block"
               >
-                View planned workout in intervals.icu →
+                Open intervals.icu calendar →
               </a>
             )}
             {activityUrl && (
