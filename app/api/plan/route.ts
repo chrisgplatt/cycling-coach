@@ -88,19 +88,29 @@ export async function PATCH(req: NextRequest) {
   const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
 
   // Upload each workout and save with intervals.icu event ID
+  const uploadErrors: string[] = []
   const workoutsToInsert = await Promise.all(
     plan.workouts.map(async w => {
       let intervals_icu_event_id: string | null = null
+      const eventParams = {
+        date: w.date,
+        name: `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`,
+        description: `${w.description}\n\nTarget: ${w.target_zones}`,
+        duration_minutes: w.duration_minutes,
+      }
       try {
-        intervals_icu_event_id = await client.createEvent({
-          date: w.date,
-          name: `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`,
-          description: `${w.description}\n\nTarget: ${w.target_zones}`,
-          duration_minutes: w.duration_minutes,
-          steps: w.steps,
-        })
-      } catch {
-        console.error(`Failed to upload event for ${w.date}`)
+        // Try with structured steps first
+        intervals_icu_event_id = await client.createEvent({ ...eventParams, steps: w.steps })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        // Fall back to plain event without workout_doc
+        try {
+          intervals_icu_event_id = await client.createEvent(eventParams)
+        } catch (err2) {
+          const msg2 = err2 instanceof Error ? err2.message : String(err2)
+          uploadErrors.push(`${w.date}: ${msg2}`)
+          console.error(`Failed to upload event for ${w.date} (with steps: ${msg}, plain: ${msg2})`)
+        }
       }
       return {
         plan_id: savedPlan.id,
@@ -120,5 +130,8 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to save workouts' }, { status: 500 })
   }
 
-  return NextResponse.json({ plan: savedPlan })
+  return NextResponse.json({
+    plan: savedPlan,
+    ...(uploadErrors.length ? { upload_warnings: uploadErrors } : {}),
+  })
 }

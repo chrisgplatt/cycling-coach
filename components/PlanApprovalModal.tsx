@@ -20,9 +20,13 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan }),
       })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
         setError(data.error ?? 'Failed to save plan')
+        return
+      }
+      if (data.upload_warnings?.length) {
+        setError(`Plan saved, but ${data.upload_warnings.length} workout(s) failed to upload to intervals.icu: ${data.upload_warnings[0]}`)
         return
       }
       onApprove()
