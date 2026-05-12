@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import WorkoutCard from '@/components/WorkoutCard'
 import type { Workout } from '@/types'
 
@@ -26,5 +26,37 @@ describe('WorkoutCard', () => {
   it('shows completed badge for completed workout', () => {
     render(<WorkoutCard workout={{ ...workout, status: 'completed' }} />)
     expect(screen.getByText(/completed/i)).toBeInTheDocument()
+  })
+
+  it('shows needs review badge for needs_review workout', () => {
+    render(<WorkoutCard workout={{ ...workout, status: 'needs_review', icu_activity_id: 'act1', tss: 85 }} />)
+    expect(screen.getByText(/needs review/i)).toBeInTheDocument()
+  })
+
+  it('shows TSS badge when tss is present', () => {
+    render(<WorkoutCard workout={{ ...workout, status: 'completed', icu_activity_id: 'act1', tss: 94 }} />)
+    expect(screen.getByText(/TSS 94/)).toBeInTheDocument()
+  })
+
+  it('does not show TSS badge when tss is null', () => {
+    render(<WorkoutCard workout={workout} />)
+    expect(screen.queryByText(/TSS/)).not.toBeInTheDocument()
+  })
+
+  it('calls onClick when card is clicked', () => {
+    const onClick = jest.fn()
+    const { container } = render(<WorkoutCard workout={workout} onClick={onClick} />)
+    fireEvent.click(container.firstChild as HTMLElement)
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('applies cursor-pointer class when onClick is provided', () => {
+    const { container } = render(<WorkoutCard workout={workout} onClick={jest.fn()} />)
+    expect(container.firstChild).toHaveClass('cursor-pointer')
+  })
+
+  it('does not apply cursor-pointer when no onClick', () => {
+    const { container } = render(<WorkoutCard workout={workout} />)
+    expect(container.firstChild).not.toHaveClass('cursor-pointer')
   })
 })
