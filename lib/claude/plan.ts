@@ -45,6 +45,7 @@ ${summariseActivities(syncData.activities)}
 Plan from today (${today}) to ${targetEvent.date}.
 Use periodization: base → build → peak → taper appropriate to time available.
 Respect weekly hour limits and rest days.
+Generate at most 6 weeks of workouts (the next training block). Prioritise the most important weeks first if the event is further out.
 
 Each workout must include a "steps" array of structured intervals.
 Step rules:
@@ -77,7 +78,7 @@ Return ONLY this JSON:
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
   })
