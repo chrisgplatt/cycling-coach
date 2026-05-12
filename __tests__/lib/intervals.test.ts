@@ -53,4 +53,28 @@ describe('IntervalsClient', () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 403, text: async () => 'Forbidden' })
     await expect(client.getAthlete()).rejects.toThrow('intervals.icu API error 403')
   })
+
+  it('createEvent with steps prepends prose description before workout notation', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'evt456' }) })
+
+    await client.createEvent({
+      date: '2026-05-15',
+      name: 'Threshold Ride',
+      description: 'Hard threshold session.\n\nTarget: Zone 4, 88-95% FTP',
+      duration_minutes: 60,
+      steps: [
+        { label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 },
+        { label: 'Main Set', duration_minutes: 20, power_pct_ftp: 90 },
+        { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 55 },
+      ],
+    })
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    expect(body.description).toMatch(/Hard threshold session/)
+    expect(body.description).toMatch(/Target: Zone 4/)
+    expect(body.description).toMatch(/---/)
+    expect(body.description).toMatch(/Warm Up/)
+    // Prose appears before the separator
+    expect(body.description.indexOf('Hard threshold')).toBeLessThan(body.description.indexOf('---'))
+  })
 })

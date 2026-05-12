@@ -144,7 +144,7 @@ export class IntervalsClient {
 
   async createEvent(params: CreateEventParams): Promise<string> {
     const description = params.steps?.length
-      ? buildWorkoutNotation(params.steps)
+      ? `${params.description}\n\n---\n\n${buildWorkoutNotation(params.steps)}`
       : params.description
 
     const body = {
