@@ -42,12 +42,12 @@ Propose adjustments to upcoming workouts if needed. Return ONLY:
 }
 If no changes needed: {"summary": "No adjustments needed", "changes": []}`
 
-  const response = await anthropic.messages.create({
+  const response = await anthropic.messages.stream({
     model: MODEL,
     max_tokens: 2048,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
-  })
+  }).finalMessage()
 
   const block = response.content.find(b => b.type === 'text')
   const raw = block?.type === 'text' ? block.text : ''

@@ -40,12 +40,12 @@ Return ONLY:
   "confidence": "high|medium|low"
 }`
 
-  const response = await anthropic.messages.create({
+  const response = await anthropic.messages.stream({
     model: MODEL,
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
-  })
+  }).finalMessage()
 
   const block = response.content.find(b => b.type === 'text')
   const raw = block?.type === 'text' ? block.text : ''

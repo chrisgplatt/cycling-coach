@@ -76,12 +76,12 @@ Return ONLY this JSON:
   ]
 }`
 
-  const response = await anthropic.messages.create({
+  const response = await anthropic.messages.stream({
     model: MODEL,
     max_tokens: 32000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
-  })
+  }).finalMessage()
 
   const raw = response.content[0].type === 'text' ? response.content[0].text : ''
   const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
