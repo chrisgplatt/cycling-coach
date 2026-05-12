@@ -80,13 +80,21 @@ export default function SettingsPage() {
 
   async function generatePlan() {
     setGenerating(true)
+    setSaveError(null)
     try {
       const res = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ syncData }),
       })
-      if (res.ok) setGeneratedPlan(await res.json())
+      const data = await res.json()
+      if (!res.ok) {
+        setSaveError(data.error ?? 'Plan generation failed')
+        return
+      }
+      setGeneratedPlan(data)
+    } catch {
+      setSaveError('Network error during plan generation')
     } finally {
       setGenerating(false)
     }
