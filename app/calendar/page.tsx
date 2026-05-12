@@ -5,13 +5,14 @@ import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { Workout } from '@/types'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const TYPE_DOT: Record<string, string> = {
-  endurance: 'bg-blue-400', threshold: 'bg-orange-400',
-  intervals: 'bg-red-400', recovery: 'bg-green-400',
+const TYPE_COLOUR: Record<string, string> = {
+  endurance: 'text-blue-500', threshold: 'text-orange-500',
+  intervals: 'text-red-500', recovery: 'text-green-500',
 }
 
 export default function CalendarPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [planName, setPlanName] = useState('')
   const [athleteId, setAthleteId] = useState('')
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
@@ -21,6 +22,7 @@ export default function CalendarPage() {
   function loadPlan() {
     fetch('/api/plan').then(r => r.json()).then(plan => {
       if (plan?.workouts) setWorkouts(plan.workouts)
+      if (plan?.name) setPlanName(plan.name)
     }).catch(() => {})
   }
 
@@ -48,7 +50,10 @@ export default function CalendarPage() {
           onClick={() => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }}
           className="text-gray-400 hover:text-gray-700"
         >&#9664;</button>
-        <h1 className="text-xl font-semibold text-gray-800">{MONTHS[month]} {year}</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-gray-800">{MONTHS[month]} {year}</h1>
+          {planName && <p className="text-sm text-gray-500">{planName}</p>}
+        </div>
         <button
           onClick={() => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }}
           className="text-gray-400 hover:text-gray-700"
@@ -72,7 +77,14 @@ export default function CalendarPage() {
               `}
             >
               <span>{day}</span>
-              {workout && <div className={`w-2 h-2 rounded-full mt-0.5 ${TYPE_DOT[workout.type]}`} />}
+              {workout && (
+                <>
+                  <span className={`text-[10px] font-medium capitalize ${TYPE_COLOUR[workout.type]}`}>
+                    {workout.type}
+                  </span>
+                  <span className="text-[10px] text-gray-400">{workout.duration_minutes} min</span>
+                </>
+              )}
             </button>
           )
         })}
