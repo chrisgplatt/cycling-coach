@@ -54,6 +54,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Plan name is required' }, { status: 400 })
   }
 
+  if (name.length > 100) {
+    return NextResponse.json({ error: 'Plan name must be 100 characters or fewer' }, { status: 400 })
+  }
+
   // Read credentials from DB (not from client)
   const { data: profile } = await supabase
     .from('user_profile')
