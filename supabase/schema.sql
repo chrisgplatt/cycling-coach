@@ -72,3 +72,11 @@ create table if not exists chat_messages (
   content text not null,
   created_at timestamptz not null default now()
 );
+
+-- Disable RLS on all tables (single-user personal tool, auth via session cookie)
+alter table user_profile disable row level security;
+alter table training_plans disable row level security;
+alter table workouts disable row level security;
+alter table session_feedback disable row level security;
+alter table ftp_predictions disable row level security;
+alter table chat_messages disable row level security;
