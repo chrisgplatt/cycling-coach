@@ -50,7 +50,7 @@ export async function POST() {
     }))
 
   if (!newEvents.length) {
-    return NextResponse.json({ added: 0, events: existing })
+    return NextResponse.json({ added: 0, events: existing, _debug_categories: icuEvents.map(e => ({ name: e.name, category: e.category, date: e.start_date_local })) })
   }
 
   const merged = [...existing, ...newEvents]
