@@ -4,10 +4,14 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import type { TrainingEvent, ICUEvent } from '@/types'
 
 export async function POST() {
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('user_profile')
     .select('id, intervals_icu_athlete_id, intervals_icu_api_key, events')
-    .single()
+    .maybeSingle()
+
+  if (profileError) {
+    return NextResponse.json({ error: 'Failed to load profile' }, { status: 500 })
+  }
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
@@ -15,7 +19,9 @@ export async function POST() {
 
   const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
   const today = new Date().toISOString().split('T')[0]
-  const future = new Date(Date.now() + 18 * 30 * 864e5).toISOString().split('T')[0]
+  const futureDate = new Date()
+  futureDate.setMonth(futureDate.getMonth() + 18)
+  const future = futureDate.toISOString().split('T')[0]
 
   let icuEvents: ICUEvent[]
   try {
