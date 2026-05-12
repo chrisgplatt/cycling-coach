@@ -21,9 +21,13 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetch('/api/profile')
-      .then(r => r.ok ? r.json() : null)
+      .then(r => r.json())
       .then(data => {
-        if (data) {
+        if (data?.error) {
+          setSaveError(`Could not load profile: ${data.error}`)
+          return
+        }
+        if (data?.id) {
           setProfileId(data.id)
           setProfile({
             goals: data.goals ?? '',
@@ -37,7 +41,7 @@ export default function SettingsPage() {
           })
         }
       })
-      .catch(() => {})
+      .catch(e => setSaveError(`Could not load profile: ${e.message}`))
 
     fetch('/api/sync', { method: 'POST' })
       .then(r => r.ok ? r.json() : null)
@@ -51,17 +55,14 @@ export default function SettingsPage() {
   }, [])
 
   async function saveProfile() {
-    if (!profileId) {
-      setSaveError('Profile not loaded yet')
-      return
-    }
     setSaving(true)
     setSaveError(null)
     try {
+      const body = profileId ? { id: profileId, ...profile } : profile
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: profileId, ...profile }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))

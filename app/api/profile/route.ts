@@ -23,10 +23,23 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   const body = await req.json()
-  const { error } = await supabase
-    .from('user_profile')
-    .update(body)
-    .eq('id', body.id)
+  const { id, ...fields } = body
+
+  let error
+  if (id) {
+    ({ error } = await supabase.from('user_profile').update(fields).eq('id', id))
+  } else {
+    // No id: fetch the singleton row id, then update it
+    const { data: row, error: fetchError } = await supabase
+      .from('user_profile').select('id').maybeSingle()
+    if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    if (row) {
+      ({ error } = await supabase.from('user_profile').update(fields).eq('id', row.id))
+    } else {
+      ({ error } = await supabase.from('user_profile').insert(fields))
+    }
+  }
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
