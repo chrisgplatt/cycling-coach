@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { IntervalsClient } from '@/lib/intervals/client'
+import type { ICUActivity } from '@/types'
 
 export async function POST() {
   const { data: profile } = await supabase
@@ -16,7 +17,45 @@ export async function POST() {
 
   try {
     const syncData = await client.sync(6)
-    return NextResponse.json(syncData)
+
+    // Build date → activities index
+    const actsByDate = new Map<string, ICUActivity[]>()
+    for (const act of syncData.activities) {
+      const date = act.start_date_local.split('T')[0]
+      const existing = actsByDate.get(date) ?? []
+      actsByDate.set(date, [...existing, act])
+    }
+
+    // Find unlinked planned/needs_review workouts
+    const { data: pending } = await supabase
+      .from('workouts')
+      .select('id, date')
+      .in('status', ['planned', 'needs_review'])
+      .is('icu_activity_id', null)
+
+    if (pending?.length) {
+      await Promise.all(
+        pending
+          .map(w => {
+            const acts = actsByDate.get(w.date) ?? []
+            if (acts.length === 0) return null
+            const best = acts.reduce((a, b) =>
+              (b.training_load ?? 0) > (a.training_load ?? 0) ? b : a
+            )
+            return supabase
+              .from('workouts')
+              .update({
+                icu_activity_id: best.id,
+                tss: best.training_load,
+                status: acts.length === 1 ? 'completed' : 'needs_review',
+              })
+              .eq('id', w.id)
+          })
+          .filter(Boolean)
+      )
+    }
+
+    return NextResponse.json({ ...syncData, athlete_id: profile.intervals_icu_athlete_id })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Sync failed'
     return NextResponse.json({ error: message }, { status: 502 })
