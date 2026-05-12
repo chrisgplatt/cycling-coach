@@ -14,8 +14,8 @@ const profileData = {
 }
 
 function setupFetch(syncEventsOk: boolean, syncEventsData: unknown) {
-  ;(globalThis as unknown as { fetch: unknown }).fetch = jest.fn()
-  jest.spyOn(globalThis, 'fetch' as keyof typeof globalThis).mockImplementation((input) => {
+  global.fetch = jest.fn()
+  jest.spyOn(global, 'fetch').mockImplementation((input) => {
     const url = String(input)
     if (url === '/api/profile') {
       return Promise.resolve({ ok: true, json: async () => profileData } as Response)

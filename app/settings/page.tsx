@@ -132,7 +132,7 @@ export default function SettingsPage() {
         setSyncResult(`Error: ${data.error ?? 'Sync failed'}`)
         return
       }
-      setProfile(p => ({ ...p, events: data.events }))
+      setProfile(p => ({ ...p, events: data.events ?? p.events }))
       setSyncResult(
         data.added > 0
           ? `Added ${data.added} event(s) from intervals.icu`
