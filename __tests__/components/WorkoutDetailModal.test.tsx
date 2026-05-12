@@ -33,10 +33,11 @@ describe('WorkoutDetailModal', () => {
     expect(screen.getByText('Zone 4 (91-105% FTP)')).toBeInTheDocument()
   })
 
-  it('shows intervals.icu calendar link when event id is present', () => {
+  it('shows intervals.icu week link for the workout date when event id is present', () => {
     render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
-    const link = screen.getByRole('link', { name: /open intervals\.icu calendar/i })
-    expect(link).toHaveAttribute('href', 'https://intervals.icu/athlete/i12345/calendar')
+    // workout date is 2026-05-15 (Friday) → Monday of that week is 2026-05-11
+    const link = screen.getByRole('link', { name: /view week in intervals\.icu/i })
+    expect(link).toHaveAttribute('href', 'https://intervals.icu/?w=2026-05-11')
     expect(link).toHaveAttribute('target', '_blank')
   })
 
