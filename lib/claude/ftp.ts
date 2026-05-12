@@ -48,7 +48,8 @@ Return ONLY:
   })
 
   const block = response.content.find(b => b.type === 'text')
-  const text = block?.type === 'text' ? block.text : ''
+  const raw = block?.type === 'text' ? block.text : ''
+  const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
   try {
     return JSON.parse(text) as FTPPredictionResult
   } catch {
