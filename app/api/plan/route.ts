@@ -97,6 +97,7 @@ export async function PATCH(req: NextRequest) {
           name: `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`,
           description: `${w.description}\n\nTarget: ${w.target_zones}`,
           duration_minutes: w.duration_minutes,
+          steps: w.steps,
         })
       } catch {
         console.error(`Failed to upload event for ${w.date}`)

@@ -46,6 +46,13 @@ Plan from today (${today}) to ${targetEvent.date}.
 Use periodization: base → build → peak → taper appropriate to time available.
 Respect weekly hour limits and rest days.
 
+Each workout must include a "steps" array of structured intervals.
+Step rules:
+- Steps must sum to exactly duration_minutes
+- power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
+- Sessions >45min must include a warm-up (10-15min) and cool-down (10min)
+- For intervals, list each rep and recovery individually (do not group)
+
 Return ONLY this JSON:
 {
   "rationale": "explanation of plan approach",
@@ -58,7 +65,12 @@ Return ONLY this JSON:
       "type": "endurance|threshold|intervals|recovery",
       "duration_minutes": 90,
       "description": "what to do",
-      "target_zones": "Zone 2 (55-75% FTP)"
+      "target_zones": "Zone 2 (55-75% FTP)",
+      "steps": [
+        {"label": "Warm Up", "duration_minutes": 15, "power_pct_ftp": 60},
+        {"label": "Zone 2", "duration_minutes": 65, "power_pct_ftp": 70},
+        {"label": "Cool Down", "duration_minutes": 10, "power_pct_ftp": 55}
+      ]
     }
   ]
 }`

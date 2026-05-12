@@ -1,4 +1,4 @@
-import type { ICUActivity, ICUWellness, ICUSyncData } from '@/types'
+import type { ICUActivity, ICUWellness, ICUSyncData, WorkoutStep } from '@/types'
 
 const BASE = 'https://intervals.icu/api/v1'
 
@@ -7,6 +7,7 @@ interface CreateEventParams {
   name: string
   description: string
   duration_minutes: number
+  steps?: WorkoutStep[]
 }
 
 export class IntervalsClient {
@@ -79,7 +80,19 @@ export class IntervalsClient {
   }
 
   async createEvent(params: CreateEventParams): Promise<string> {
-    const body = {
+    const workout_doc = params.steps?.length
+      ? {
+          steps: params.steps.map(s => ({
+            duration: s.duration_minutes * 60,
+            power: s.power_pct_ftp / 100,  // intervals.icu uses FTP fraction (0.65 = 65%)
+            cadence: s.cadence ?? null,
+            rpe: null,
+            text: s.label,
+          })),
+        }
+      : undefined
+
+    const body: Record<string, unknown> = {
       category: 'WORKOUT',
       start_date_local: `${params.date}T08:00:00`,
       name: params.name,
@@ -87,6 +100,7 @@ export class IntervalsClient {
       type: 'Ride',
       moving_time: params.duration_minutes * 60,
     }
+    if (workout_doc) body.workout_doc = workout_doc
     const data = await this.request<{ id: string }>(
       `/athlete/${this.athleteId}/events`,
       { method: 'POST', body: JSON.stringify(body) }

@@ -123,6 +123,13 @@ export interface ICUSyncData {
   athlete_weight: number | null
 }
 
+export interface WorkoutStep {
+  label: string
+  duration_minutes: number
+  power_pct_ftp: number  // e.g. 65 = 65% FTP, 115 = 115% FTP
+  cadence?: number
+}
+
 // Claude structured output types
 export interface GeneratedPlan {
   rationale: string
@@ -135,5 +142,6 @@ export interface GeneratedPlan {
     duration_minutes: number
     description: string
     target_zones: string
+    steps: WorkoutStep[]
   }>
 }
