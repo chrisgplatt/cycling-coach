@@ -61,7 +61,7 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <div className="border border-gray-200 rounded p-4 space-y-3">
-            {plan.rationale.split('\n\n').map((para, i) => (
+            {plan.rationale.split(/\n+/).filter(Boolean).map((para, i) => (
               <p key={i} className="text-sm text-gray-700 leading-relaxed">{para}</p>
             ))}
           </div>

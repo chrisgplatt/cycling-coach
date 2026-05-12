@@ -56,7 +56,7 @@ Step rules:
 
 Return ONLY this JSON:
 {
-  "rationale": "explanation of plan approach",
+  "rationale": "2-3 paragraph explanation of the plan approach and reasoning. Separate paragraphs with \\n\\n.",
   "target_event_name": "event name",
   "target_event_date": "YYYY-MM-DD",
   "phase": "base|build|peak|taper",
