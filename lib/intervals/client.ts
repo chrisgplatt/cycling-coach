@@ -80,27 +80,20 @@ export class IntervalsClient {
   }
 
   async createEvent(params: CreateEventParams): Promise<string> {
-    const workout_doc = params.steps?.length
-      ? {
-          steps: params.steps.map(s => ({
-            duration: s.duration_minutes * 60,
-            power: s.power_pct_ftp / 100,  // intervals.icu uses FTP fraction (0.65 = 65%)
-            cadence: s.cadence ?? null,
-            rpe: null,
-            text: s.label,
-          })),
-        }
-      : undefined
+    const stepsText = params.steps?.length
+      ? '\n\n' + params.steps
+          .map(s => `${s.duration_minutes}min @ ${s.power_pct_ftp}% FTP — ${s.label}`)
+          .join('\n')
+      : ''
 
-    const body: Record<string, unknown> = {
+    const body = {
       category: 'WORKOUT',
       start_date_local: `${params.date}T08:00:00`,
       name: params.name,
-      description: params.description,
+      description: params.description + stepsText,
       type: 'Ride',
       moving_time: params.duration_minutes * 60,
     }
-    if (workout_doc) body.workout_doc = workout_doc
     const data = await this.request<{ id: string }>(
       `/athlete/${this.athleteId}/events`,
       { method: 'POST', body: JSON.stringify(body) }

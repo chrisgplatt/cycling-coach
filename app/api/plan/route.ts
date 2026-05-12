@@ -102,13 +102,7 @@ export async function PATCH(req: NextRequest) {
       intervals_icu_event_id = await client.createEvent({ ...eventParams, steps: w.steps })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      uploadErrors.push(`workout_doc rejected for ${w.date}: ${msg}`)
-      try {
-        intervals_icu_event_id = await client.createEvent(eventParams)
-      } catch (err2) {
-        const msg2 = err2 instanceof Error ? err2.message : String(err2)
-        uploadErrors.push(`plain upload also failed for ${w.date}: ${msg2}`)
-      }
+      uploadErrors.push(`${w.date}: ${msg}`)
     }
     workoutsToInsert.push({
       plan_id: savedPlan.id,
