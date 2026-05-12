@@ -58,6 +58,8 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
   }
 
+  const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
+
   // Delete future planned workouts from intervals.icu before archiving
   const today = new Date().toISOString().split('T')[0]
   const { data: activePlan } = await supabase
@@ -108,8 +110,6 @@ export async function PATCH(req: NextRequest) {
   if (planError || !savedPlan) {
     return NextResponse.json({ error: 'Failed to save plan' }, { status: 500 })
   }
-
-  const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
 
   // Upload each workout sequentially to avoid rate limiting
   const uploadErrors: string[] = []
