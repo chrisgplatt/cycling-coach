@@ -13,12 +13,14 @@ const workout: Workout = {
   id: 'wk1', plan_id: 'p1', date: '2026-05-10',
   type: 'threshold', duration_minutes: 60,
   description: '2x20min at threshold', target_zones: 'Zone 4 (91-105% FTP)',
-  intervals_icu_event_id: null, status: 'completed', created_at: '',
+  intervals_icu_event_id: null, status: 'completed',
+  icu_activity_id: null, tss: null,
+  created_at: '',
 }
 
 const upcomingWorkouts: Workout[] = [
   { ...workout, id: 'wk2', date: '2026-05-12', type: 'endurance',
-    duration_minutes: 90, description: 'Zone 2 ride', status: 'planned' },
+    duration_minutes: 90, description: 'Zone 2 ride', status: 'planned', icu_activity_id: null, tss: null },
 ]
 
 describe('analyseFeedback', () => {

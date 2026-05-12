@@ -6,7 +6,9 @@ const workout: Workout = {
   id: 'w1', plan_id: 'p1', date: '2026-05-15',
   type: 'threshold', duration_minutes: 60,
   description: '2x20min at threshold', target_zones: 'Zone 4 (91-105% FTP)',
-  intervals_icu_event_id: null, status: 'planned', created_at: '',
+  intervals_icu_event_id: null, status: 'planned',
+  icu_activity_id: null, tss: null,
+  created_at: '',
 }
 
 describe('WorkoutCard', () => {

@@ -11,6 +11,7 @@ const STATUS_COLOURS = {
   planned: 'bg-gray-100 text-gray-600',
   completed: 'bg-green-100 text-green-700',
   skipped: 'bg-red-100 text-red-600',
+  needs_review: 'bg-yellow-100 text-yellow-800',
 }
 
 interface Props {

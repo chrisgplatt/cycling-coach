@@ -5,7 +5,9 @@ import type { Workout } from '@/types'
 const workout: Workout = {
   id: 'w1', plan_id: 'p1', date: '2026-05-10',
   type: 'threshold', duration_minutes: 60, description: '2x20min threshold',
-  target_zones: 'Zone 4', intervals_icu_event_id: null, status: 'completed', created_at: '',
+  target_zones: 'Zone 4', intervals_icu_event_id: null, status: 'completed',
+  icu_activity_id: null, tss: null,
+  created_at: '',
 }
 
 describe('FeedbackModal', () => {

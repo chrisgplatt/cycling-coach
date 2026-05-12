@@ -1,5 +1,5 @@
 export type WorkoutType = 'endurance' | 'threshold' | 'intervals' | 'recovery'
-export type WorkoutStatus = 'planned' | 'completed' | 'skipped'
+export type WorkoutStatus = 'planned' | 'completed' | 'skipped' | 'needs_review'
 export type PlanStatus = 'active' | 'archived'
 export type EventPriority = 'A' | 'B' | 'C'
 export type EventType = 'sportive' | 'race' | 'holiday' | 'fitness'
@@ -46,6 +46,8 @@ export interface Workout {
   target_zones: string
   intervals_icu_event_id: string | null
   status: WorkoutStatus
+  icu_activity_id: string | null
+  tss: number | null
   created_at: string
 }
 
@@ -121,6 +123,7 @@ export interface ICUSyncData {
   wellness: ICUWellness[]
   athlete_ftp: number | null
   athlete_weight: number | null
+  athlete_id?: string  // added by /api/sync route, not by IntervalsClient
 }
 
 export interface WorkoutStep {
