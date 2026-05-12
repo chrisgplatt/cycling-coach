@@ -58,6 +58,29 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
   }
 
+  // Delete future planned workouts from intervals.icu before archiving
+  const today = new Date().toISOString().split('T')[0]
+  const { data: activePlan } = await supabase
+    .from('training_plans')
+    .select('id')
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (activePlan) {
+    const { data: futureWorkouts } = await supabase
+      .from('workouts')
+      .select('intervals_icu_event_id')
+      .eq('plan_id', activePlan.id)
+      .gte('date', today)
+      .not('intervals_icu_event_id', 'is', null)
+
+    for (const w of futureWorkouts ?? []) {
+      if (w.intervals_icu_event_id) {
+        try { await client.deleteEvent(w.intervals_icu_event_id) } catch { /* already deleted */ }
+      }
+    }
+  }
+
   // Archive existing active plan
   const { error: archiveError } = await supabase
     .from('training_plans')

@@ -18,6 +18,8 @@ export default function SettingsPage() {
   const [generating, setGenerating] = useState(false)
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
+  const [clearing, setClearing] = useState(false)
+  const [clearResult, setClearResult] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/profile')
@@ -97,6 +99,24 @@ export default function SettingsPage() {
       setSaveError('Network error during plan generation')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  async function clearFutureWorkouts() {
+    setClearing(true)
+    setClearResult(null)
+    try {
+      const res = await fetch('/api/workouts/clear-future', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setClearResult(`Error: ${data.error ?? 'Failed'}`)
+      } else {
+        setClearResult(`Deleted ${data.deleted} workout${data.deleted !== 1 ? 's' : ''} from intervals.icu${data.failed ? ` (${data.failed} failed)` : ''}`)
+      }
+    } catch {
+      setClearResult('Network error')
+    } finally {
+      setClearing(false)
     }
   }
 
@@ -198,7 +218,7 @@ export default function SettingsPage() {
         <p className="text-sm text-red-600">{saveError}</p>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <button onClick={saveProfile} disabled={saving}
           className="bg-gray-800 text-white text-sm px-6 py-2 rounded hover:bg-gray-900 disabled:opacity-50">
           {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Profile'}
@@ -208,7 +228,15 @@ export default function SettingsPage() {
           className="bg-blue-600 text-white text-sm px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
           {generating ? 'Generating plan…' : 'Build New Plan'}
         </button>
+        <button onClick={clearFutureWorkouts} disabled={clearing}
+          className="bg-red-600 text-white text-sm px-6 py-2 rounded hover:bg-red-700 disabled:opacity-50">
+          {clearing ? 'Clearing…' : 'Clear Future Workouts from intervals.icu'}
+        </button>
       </div>
+
+      {clearResult && (
+        <p className="text-sm text-gray-600">{clearResult}</p>
+      )}
 
       {generatedPlan && (
         <PlanApprovalModal
