@@ -9,6 +9,7 @@ interface Props {
 }
 
 export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) {
+  const [name, setName] = useState('')
   const [approving, setApproving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -18,7 +19,7 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
       const res = await fetch('/api/plan', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, name: name.trim() }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -45,6 +46,16 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
           <p className="text-sm text-gray-500 mt-1">
             {plan.target_event_name} — {plan.target_event_date} ({plan.phase} phase)
           </p>
+          <div className="mt-3">
+            <label className="text-xs font-medium text-gray-600 block mb-1">Plan name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Base Block 1"
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -80,7 +91,7 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
           </button>
           <button
             onClick={approve}
-            disabled={approving}
+            disabled={approving || name.trim() === ''}
             className="bg-blue-600 text-white text-sm px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
           >
             {approving ? 'Saving…' : 'Approve & Upload to intervals.icu'}
