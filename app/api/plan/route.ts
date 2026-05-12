@@ -37,15 +37,21 @@ export async function POST(req: NextRequest) {
 // PATCH — approve a generated plan: archive current, save new, upload to intervals.icu
 export async function PATCH(req: NextRequest) {
   let plan: GeneratedPlan
+  let name = ''
   try {
     const body = await req.json()
     plan = body.plan
+    name = (body.name ?? '').trim()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
   if (!plan?.workouts?.length) {
     return NextResponse.json({ error: 'Invalid plan data' }, { status: 400 })
+  }
+
+  if (!name) {
+    return NextResponse.json({ error: 'Plan name is required' }, { status: 400 })
   }
 
   // Read credentials from DB (not from client)
@@ -98,6 +104,7 @@ export async function PATCH(req: NextRequest) {
   const { data: savedPlan, error: planError } = await supabase
     .from('training_plans')
     .insert({
+      name,
       status: 'active',
       target_event_name: plan.target_event_name,
       target_event_date: plan.target_event_date,
@@ -119,7 +126,7 @@ export async function PATCH(req: NextRequest) {
     const eventParams = {
       date: w.date,
       name: `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`,
-      description: `${w.description}\n\nTarget: ${w.target_zones}`,
+      description: `Plan: ${name}\n\n${w.description}\n\nTarget: ${w.target_zones}`,
       duration_minutes: w.duration_minutes,
     }
     try {
