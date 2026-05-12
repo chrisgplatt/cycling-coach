@@ -10,6 +10,7 @@ export default function DashboardPage() {
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [athleteId, setAthleteId] = useState('')
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [planName, setPlanName] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
@@ -37,6 +38,7 @@ export default function DashboardPage() {
         const sunday = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
         setWorkouts(plan.workouts.filter((w: Workout) => w.date >= today && w.date <= sunday))
       }
+      if (plan?.name) setPlanName(plan.name)
     }
   }
 
@@ -55,7 +57,10 @@ export default function DashboardPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-800">This Week</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-gray-800">This Week</h1>
+          {planName && <p className="text-sm text-gray-500">{planName}</p>}
+        </div>
         <button
           onClick={doSync}
           disabled={syncing}
