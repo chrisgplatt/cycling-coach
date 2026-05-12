@@ -10,13 +10,33 @@ interface CreateEventParams {
   steps?: WorkoutStep[]
 }
 
+// Converts flat WorkoutStep array to intervals.icu description text format.
+// Format reference: https://forum.intervals.icu/t/workout-builder-syntax-quick-guide/123701
 function buildWorkoutNotation(steps: WorkoutStep[]): string {
-  const lines: string[] = []
+  const sections: string[] = []
   let i = 0
+
   while (i < steps.length) {
-    // Detect repeated (work + recovery) pairs: Nx Dm P% / Dm P%
+    const s = steps[i]
+    const label = s.label.toLowerCase()
+    const isFirst = i === 0
+    const isLast = i === steps.length - 1
+
+    // Warmup section
+    if (isFirst || label.includes('warm')) {
+      sections.push(`Warm Up\n- ${s.duration_minutes}m ${s.power_pct_ftp}%`)
+      i++; continue
+    }
+
+    // Cooldown section
+    if (isLast || label.includes('cool')) {
+      sections.push(`Cool Down\n- ${s.duration_minutes}m ${s.power_pct_ftp}%`)
+      i++; continue
+    }
+
+    // Repeated (work + recovery) pairs → "Main Set Nx\n- Dm P%\n- Dm P%"
     if (i + 1 < steps.length) {
-      const a = steps[i], b = steps[i + 1]
+      const a = s, b = steps[i + 1]
       let reps = 1, j = i + 2
       while (
         j + 1 < steps.length &&
@@ -26,13 +46,13 @@ function buildWorkoutNotation(steps: WorkoutStep[]): string {
         steps[j + 1].power_pct_ftp === b.power_pct_ftp
       ) { reps++; j += 2 }
       if (reps > 1) {
-        lines.push(`${reps}x ${a.duration_minutes}m ${a.power_pct_ftp}% / ${b.duration_minutes}m ${b.power_pct_ftp}%`)
+        sections.push(`Main Set ${reps}x\n- ${a.duration_minutes}m ${a.power_pct_ftp}%\n- ${b.duration_minutes}m ${b.power_pct_ftp}%`)
         i = j; continue
       }
     }
-    // Detect repeated single steps: Nx Dm P%
+
+    // Repeated single steps → "Main Set Nx\n- Dm P%"
     {
-      const s = steps[i]
       let reps = 1, j = i + 1
       while (
         j < steps.length &&
@@ -40,15 +60,17 @@ function buildWorkoutNotation(steps: WorkoutStep[]): string {
         steps[j].power_pct_ftp === s.power_pct_ftp
       ) { reps++; j++ }
       if (reps > 1) {
-        lines.push(`${reps}x ${s.duration_minutes}m ${s.power_pct_ftp}%`)
+        sections.push(`Main Set ${reps}x\n- ${s.duration_minutes}m ${s.power_pct_ftp}%`)
         i = j; continue
       }
     }
-    // Single step
-    lines.push(`${steps[i].duration_minutes}m ${steps[i].power_pct_ftp}%`)
+
+    // Single step — use its label as the section header
+    sections.push(`${s.label}\n- ${s.duration_minutes}m ${s.power_pct_ftp}%`)
     i++
   }
-  return lines.join('\n')
+
+  return sections.join('\n\n')
 }
 
 export class IntervalsClient {
@@ -132,7 +154,6 @@ export class IntervalsClient {
       description,
       type: 'Ride',
       moving_time: params.duration_minutes * 60,
-      target: 'POWER',
     }
     const data = await this.request<{ id: string }>(
       `/athlete/${this.athleteId}/events`,
