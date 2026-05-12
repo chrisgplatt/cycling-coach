@@ -20,6 +20,8 @@ export default function SettingsPage() {
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [clearing, setClearing] = useState(false)
   const [clearResult, setClearResult] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/profile')
@@ -120,6 +122,29 @@ export default function SettingsPage() {
     }
   }
 
+  async function syncEvents() {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch('/api/events/sync', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setSyncResult(`Error: ${data.error ?? 'Sync failed'}`)
+        return
+      }
+      setProfile(p => ({ ...p, events: data.events }))
+      setSyncResult(
+        data.added > 0
+          ? `Added ${data.added} event(s) from intervals.icu`
+          : 'No new events found'
+      )
+    } catch {
+      setSyncResult('Network error')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   function addEvent() {
     setProfile(p => ({
       ...p,
@@ -185,8 +210,18 @@ export default function SettingsPage() {
       <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-medium text-gray-700">Events</h2>
-          <button onClick={addEvent} className="text-sm text-blue-600 hover:underline">+ Add event</button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={syncEvents}
+              disabled={syncing}
+              className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+            >
+              {syncing ? 'Syncing…' : 'Sync from intervals.icu'}
+            </button>
+            <button onClick={addEvent} className="text-sm text-blue-600 hover:underline">+ Add event</button>
+          </div>
         </div>
+        {syncResult && <p className="text-xs text-gray-500">{syncResult}</p>}
         {profile.events.map((event, i) => (
           <div key={(event as { _key?: number })._key ?? i} className="grid grid-cols-2 gap-2">
             <input type="text" value={event.name} placeholder="Event name"
