@@ -103,6 +103,7 @@ export default function SettingsPage() {
     setGenerating(true)
     setSaveError(null)
     try {
+      await saveProfile()
       const res = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

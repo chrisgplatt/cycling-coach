@@ -8,6 +8,7 @@ create table if not exists user_profile (
   full_name text not null default '',
   goals text not null default '',
   events jsonb not null default '[]',
+  -- Legacy schedule fields — superseded by weekly_availability. Kept for existing rows.
   weekly_hours integer not null default 10,
   rest_days text[] not null default '{}',
   current_ftp integer not null default 200,
