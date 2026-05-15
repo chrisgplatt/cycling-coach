@@ -3,10 +3,10 @@ import { useState } from 'react'
 import type { Workout, ICUActivity, WorkoutType } from '@/types'
 
 const TYPE_COLOURS: Record<WorkoutType, string> = {
-  endurance: 'bg-blue-100 text-blue-800',
-  threshold: 'bg-orange-100 text-orange-800',
-  intervals: 'bg-red-100 text-red-800',
-  recovery: 'bg-green-100 text-green-800',
+  endurance: 'bg-blue-100 text-blue-700',
+  threshold: 'bg-orange-100 text-orange-700',
+  intervals: 'bg-red-100 text-red-700',
+  recovery: 'bg-emerald-100 text-emerald-700',
 }
 
 interface Props {
@@ -86,36 +86,38 @@ export default function WorkoutDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col">
-        <div className="p-5 border-b border-gray-200">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col">
+        <div className="p-5 border-b border-slate-100">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs font-medium px-2 py-1 rounded-full ${TYPE_COLOURS[workout.type]}`}>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${TYPE_COLOURS[workout.type]}`}>
                 {workout.type}
               </span>
-              <span className="text-sm text-gray-500">{workout.duration_minutes} min</span>
+              <span className="text-sm font-medium text-slate-500">{workout.duration_minutes} min</span>
               {workout.tss !== null && (
-                <span className="text-sm font-medium text-gray-700">TSS: {workout.tss}</span>
+                <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+                  TSS {workout.tss}
+                </span>
               )}
             </div>
-            <span className="text-sm text-gray-400 shrink-0">{workout.date}</span>
+            <span className="text-xs font-medium text-slate-400 shrink-0">{workout.date}</span>
           </div>
         </div>
 
         <div className="p-5 space-y-4 flex-1 overflow-y-auto">
           <div>
-            <p className="text-sm text-gray-700">{workout.description}</p>
-            <p className="text-xs text-gray-500 mt-1">{workout.target_zones}</p>
+            <p className="text-sm text-slate-700 leading-relaxed">{workout.description}</p>
+            <p className="text-xs text-slate-400 mt-1.5">{workout.target_zones}</p>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {eventUrl && (
               <a
                 href={eventUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline block"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium block transition-colors"
               >
                 View week in intervals.icu →
               </a>
@@ -125,45 +127,48 @@ export default function WorkoutDetailModal({
                 href={activityUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline block"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium block transition-colors"
               >
-                View Garmin activity in intervals.icu →
+                View Garmin activity →
               </a>
             )}
           </div>
 
           {workout.status === 'needs_review' && (
-            <div className="bg-amber-50 border border-amber-200 rounded p-3 space-y-2">
-              <p className="text-sm text-amber-800">
-                Auto-matched to {matchedActivity?.name ?? 'an activity'} — correct?
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+              <p className="text-sm font-medium text-amber-800">
+                Auto-matched to <span className="font-semibold">{matchedActivity?.name ?? 'an activity'}</span> — correct?
               </p>
               {!showChange ? (
                 <div className="flex gap-2">
                   <button
                     onClick={confirmMatch}
                     disabled={confirming}
-                    className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:opacity-50"
+                    className="text-sm font-medium bg-emerald-600 text-white px-4 py-1.5 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                   >
                     Confirm
                   </button>
                   <button
                     onClick={() => setShowChange(true)}
-                    className="text-sm text-amber-700 hover:underline"
+                    className="text-sm font-medium text-amber-700 hover:text-amber-900 px-3 py-1.5 transition-colors"
                   >
                     Change
                   </button>
                 </div>
               ) : (
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Select the correct activity:</p>
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Select the correct activity</p>
                   {(activitiesOnDate ?? []).map(act => (
                     <button
                       key={act.id}
                       onClick={() => selectActivity(act)}
                       disabled={confirming}
-                      className="w-full text-left text-sm px-3 py-2 rounded border border-gray-200 hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50"
+                      className="w-full text-left text-sm px-3 py-2.5 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50 transition-colors"
                     >
-                      {act.name}{act.training_load != null ? ` — TSS ${act.training_load}` : ''}
+                      <span className="font-medium text-slate-700">{act.name}</span>
+                      {act.training_load != null && (
+                        <span className="text-slate-400 ml-2">TSS {act.training_load}</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -171,18 +176,20 @@ export default function WorkoutDetailModal({
             </div>
           )}
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+          )}
         </div>
 
-        <div className="p-4 border-t border-gray-200 flex items-center justify-between">
+        <div className="p-4 border-t border-slate-100 flex items-center justify-between">
           <div>
             {(workout.status === 'completed' || workout.status === 'needs_review') && onFeedback && (
-              <button onClick={onFeedback} className="text-sm text-blue-600 hover:underline">
+              <button onClick={onFeedback} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
                 Log feedback
               </button>
             )}
           </div>
-          <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">
+          <button onClick={onClose} className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
             Close
           </button>
         </div>

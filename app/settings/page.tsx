@@ -178,87 +178,100 @@ export default function SettingsPage() {
     }))
   }
 
-  return (
-    <div className="max-w-2xl mx-auto space-y-8">
-      <h1 className="text-xl font-semibold text-gray-800">Settings</h1>
+  const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
 
-      <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
-        <h2 className="font-medium text-gray-700">intervals.icu</h2>
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Configure your profile and training preferences</p>
+      </div>
+
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">intervals.icu</h2>
         <div className="space-y-3">
           <input
             type="text"
             value={profile.intervals_icu_athlete_id}
             onChange={e => setProfile(p => ({ ...p, intervals_icu_athlete_id: e.target.value }))}
             placeholder="Athlete ID (e.g. i12345)"
-            className="w-full text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={inputClass}
           />
           <input
             type="password"
             value={profile.intervals_icu_api_key}
             onChange={e => setProfile(p => ({ ...p, intervals_icu_api_key: e.target.value }))}
             placeholder="API Key"
-            className="w-full text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={inputClass}
           />
         </div>
       </section>
 
-      <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
-        <h2 className="font-medium text-gray-700">Athlete Profile</h2>
-        <textarea
-          value={profile.goals}
-          onChange={e => setProfile(p => ({ ...p, goals: e.target.value }))}
-          placeholder="Your goals (e.g. Complete Dragon Ride, improve FTP, lose 5kg)"
-          rows={3}
-          className="w-full text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <div className="grid grid-cols-2 gap-3">
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Athlete Profile</h2>
+        <div>
+          <label className={labelClass}>Goals</label>
+          <textarea
+            value={profile.goals}
+            onChange={e => setProfile(p => ({ ...p, goals: e.target.value }))}
+            placeholder="Your goals (e.g. Complete Dragon Ride, improve FTP, lose 5kg)"
+            rows={3}
+            className={inputClass}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs text-gray-500">FTP (W)</label>
+            <label className={labelClass}>FTP (W)</label>
             <input type="number" value={profile.current_ftp}
               onChange={e => setProfile(p => ({ ...p, current_ftp: Number(e.target.value) }))}
-              className="w-full text-sm border rounded px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className={inputClass} />
           </div>
           <div>
-            <label className="text-xs text-gray-500">Weight (kg)</label>
+            <label className={labelClass}>Weight (kg)</label>
             <input type="number" step="0.5" value={profile.weight_kg}
               onChange={e => setProfile(p => ({ ...p, weight_kg: Number(e.target.value) }))}
-              className="w-full text-sm border rounded px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className={inputClass} />
           </div>
           <div>
-            <label className="text-xs text-gray-500">Weekly hours</label>
+            <label className={labelClass}>Weekly hours</label>
             <input type="number" value={profile.weekly_hours}
               onChange={e => setProfile(p => ({ ...p, weekly_hours: Number(e.target.value) }))}
-              className="w-full text-sm border rounded px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className={inputClass} />
           </div>
         </div>
       </section>
 
-      <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-medium text-gray-700">Events</h2>
+          <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Events</h2>
           <div className="flex items-center gap-3">
             <button
               onClick={syncEvents}
               disabled={syncing}
-              className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+              className="text-sm text-slate-500 hover:text-slate-700 disabled:opacity-50 transition-colors"
             >
               {syncing ? 'Syncing…' : 'Sync from intervals.icu'}
             </button>
-            <button onClick={addEvent} className="text-sm text-blue-600 hover:underline">+ Add event</button>
+            <button onClick={addEvent} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
+              + Add event
+            </button>
           </div>
         </div>
-        {syncResult && <p className="text-xs text-gray-500">{syncResult}</p>}
+        {syncResult && (
+          <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">{syncResult}</p>
+        )}
         {profile.events.map((event, i) => (
-          <div key={(event as { _key?: number })._key ?? i} className="grid grid-cols-2 gap-2">
+          <div key={(event as { _key?: number })._key ?? i} className="grid grid-cols-2 gap-2 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
             <input type="text" value={event.name} placeholder="Event name"
               onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], name: e.target.value }; setProfile(p => ({ ...p, events: ev })) }}
-              className="text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className={inputClass} />
             <input type="date" value={event.date}
               onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], date: e.target.value }; setProfile(p => ({ ...p, events: ev })) }}
-              className="text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className={inputClass} />
             <select value={event.type}
               onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], type: e.target.value as TrainingEvent['type'] }; setProfile(p => ({ ...p, events: ev })) }}
-              className="text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              className={inputClass}>
               <option value="sportive">Sportive</option>
               <option value="race">Race</option>
               <option value="holiday">Holiday riding</option>
@@ -266,7 +279,7 @@ export default function SettingsPage() {
             </select>
             <select value={event.priority}
               onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], priority: e.target.value as TrainingEvent['priority'] }; setProfile(p => ({ ...p, events: ev })) }}
-              className="text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              className={inputClass}>
               <option value="A">A — Peak for this</option>
               <option value="B">B — Important</option>
               <option value="C">C — Secondary</option>
@@ -275,7 +288,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => deleteEvent(event.name, event.date)}
                 disabled={deletingEvent === `${event.name}|${event.date}`}
-                className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                className="text-xs font-medium text-red-500 hover:text-red-700 disabled:opacity-50 transition-colors"
               >
                 {deletingEvent === `${event.name}|${event.date}` ? 'Deleting…' : 'Delete event'}
               </button>
@@ -285,27 +298,27 @@ export default function SettingsPage() {
       </section>
 
       {saveError && (
-        <p className="text-sm text-red-600">{saveError}</p>
+        <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{saveError}</div>
       )}
 
       <div className="flex gap-3 flex-wrap">
         <button onClick={saveProfile} disabled={saving}
-          className="bg-gray-800 text-white text-sm px-6 py-2 rounded hover:bg-gray-900 disabled:opacity-50">
+          className="bg-slate-800 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors shadow-sm">
           {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Profile'}
         </button>
         <button onClick={generatePlan} disabled={generating || !profile.events.length}
           title={!profile.events.length ? 'Add at least one event first' : undefined}
-          className="bg-blue-600 text-white text-sm px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
+          className="bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm">
           {generating ? 'Generating plan…' : 'Build New Plan'}
         </button>
         <button onClick={clearFutureWorkouts} disabled={clearing}
-          className="bg-red-600 text-white text-sm px-6 py-2 rounded hover:bg-red-700 disabled:opacity-50">
-          {clearing ? 'Clearing…' : 'Clear Future Workouts from intervals.icu'}
+          className="bg-red-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm">
+          {clearing ? 'Clearing…' : 'Clear Future Workouts'}
         </button>
       </div>
 
       {clearResult && (
-        <p className="text-sm text-gray-600">{clearResult}</p>
+        <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-4 py-2.5">{clearResult}</p>
       )}
 
       {generatedPlan && (

@@ -16,14 +16,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="flex min-h-screen bg-gray-50">
+        <div className="flex min-h-screen bg-slate-50">
           <div className="flex-1 flex flex-col">
-            <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-6 text-sm font-medium text-gray-600">
-              <Link href="/dashboard" className="hover:text-blue-600">Dashboard</Link>
-              <Link href="/calendar" className="hover:text-blue-600">Calendar</Link>
-              <Link href="/fitness" className="hover:text-blue-600">Fitness</Link>
-              <Link href="/settings" className="hover:text-blue-600">Settings</Link>
-              <SignOutButton />
+            <nav className="bg-slate-900 px-6 flex items-center gap-1 text-sm font-medium">
+              <span className="text-white font-bold text-base tracking-tight py-4 mr-5">
+                Cycling Coach
+              </span>
+              <Link href="/dashboard" className="text-slate-400 hover:text-white px-3 py-4 transition-colors">Dashboard</Link>
+              <Link href="/calendar" className="text-slate-400 hover:text-white px-3 py-4 transition-colors">Calendar</Link>
+              <Link href="/fitness" className="text-slate-400 hover:text-white px-3 py-4 transition-colors">Fitness</Link>
+              <Link href="/settings" className="text-slate-400 hover:text-white px-3 py-4 transition-colors">Settings</Link>
+              <div className="ml-auto">
+                <SignOutButton />
+              </div>
             </nav>
             <main className="flex-1 p-6">{children}</main>
           </div>

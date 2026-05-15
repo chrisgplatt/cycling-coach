@@ -37,51 +37,67 @@ export default function FitnessPage() {
     }
   }
 
+  const confidenceBadge = (c: string) => {
+    if (c === 'high') return 'bg-emerald-100 text-emerald-700'
+    if (c === 'medium') return 'bg-amber-100 text-amber-700'
+    return 'bg-red-100 text-red-600'
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-800">FTP & Fitness</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">FTP &amp; Fitness</h1>
+          <p className="text-sm text-slate-500 mt-0.5">AI-powered FTP predictions from your ride data</p>
+        </div>
         <button
           onClick={predictFTP}
           disabled={predicting}
-          className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          className="bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
         >
-          {predicting ? 'Predicting…' : 'Predict FTP'}
+          {predicting ? 'Analysing…' : 'Predict FTP'}
         </button>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded p-3">{error}</div>
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-4">{error}</div>
       )}
 
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h2 className="text-sm font-medium text-gray-600 mb-4">FTP History</h2>
-        {predictions.length === 0 ? (
-          <p className="text-sm text-gray-400">No predictions yet. Click &quot;Predict FTP&quot; to start.</p>
-        ) : (
-          <div className="space-y-3">
-            {predictions.map(p => (
-              <div key={p.id} className="flex items-start gap-4 py-3 border-b border-gray-100 last:border-0">
-                <div className="text-center min-w-[60px]">
-                  <div className="text-2xl font-bold text-blue-600">{p.predicted_ftp}</div>
-                  <div className="text-xs text-gray-400">W</div>
+      {predictions.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-10 text-center">
+          <p className="text-slate-400 text-sm">No predictions yet.</p>
+          <p className="text-slate-400 text-sm mt-1">Click <span className="font-medium text-slate-600">Predict FTP</span> to analyse your ride data.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Prediction history</p>
+          {predictions.map(p => (
+            <div key={p.id} className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-slate-50 border-b border-slate-100 px-5 py-3.5 flex items-center justify-between">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-black text-slate-900 tracking-tight">{p.predicted_ftp}</span>
+                  <span className="text-base font-semibold text-slate-400">W</span>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ml-1 ${confidenceBadge(p.confidence)}`}>
+                    {p.confidence} confidence
+                  </span>
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-gray-500 mb-1">
-                    {new Date(p.created_at).toLocaleDateString()} —{' '}
-                    <span className={
-                      p.confidence === 'high' ? 'text-green-600' :
-                      p.confidence === 'medium' ? 'text-yellow-600' : 'text-red-500'
-                    }>{p.confidence} confidence</span>
-                    {p.confirmed && <span className="ml-2 text-green-600">&#10003; confirmed</span>}
+                <div className="text-right">
+                  <p className="text-xs text-slate-500">
+                    {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
-                  <p className="text-sm text-gray-700">{p.reasoning}</p>
+                  {p.confirmed && (
+                    <p className="text-xs text-emerald-600 font-medium mt-0.5">&#10003; confirmed</p>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <div className="px-5 py-4">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Coach&apos;s Analysis</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{p.reasoning}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
