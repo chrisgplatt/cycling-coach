@@ -96,4 +96,21 @@ describe('IntervalsClient', () => {
     const calledUrl = mockFetch.mock.calls[0][0] as string
     expect(calledUrl).toContain('/athlete/i12345/events?oldest=2026-05-12&newest=2026-11-12')
   })
+
+  it('getPowerCurve returns power curve array and calls correct URL', async () => {
+    const mockCurve = [
+      { secs: 300, watts: 380 },
+      { secs: 1200, watts: 320 },
+      { secs: 3600, watts: 275 },
+    ]
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockCurve })
+
+    const curve = await client.getPowerCurve('2026-02-15', '2026-05-15')
+
+    expect(curve).toHaveLength(3)
+    expect(curve[0].secs).toBe(300)
+    expect(curve[0].watts).toBe(380)
+    const calledUrl = mockFetch.mock.calls[0][0] as string
+    expect(calledUrl).toContain('/athlete/i12345/power-curve?type=Ride&oldest=2026-02-15&newest=2026-05-15')
+  })
 })

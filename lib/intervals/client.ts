@@ -1,4 +1,4 @@
-import type { ICUActivity, ICUWellness, ICUSyncData, WorkoutStep, ICUEvent } from '@/types'
+import type { ICUActivity, ICUWellness, ICUSyncData, WorkoutStep, ICUEvent, ICUPowerCurvePoint } from '@/types'
 
 const BASE = 'https://intervals.icu/api/v1'
 
@@ -127,6 +127,12 @@ export class IntervalsClient {
   async getEvents(oldest: string, newest: string): Promise<ICUEvent[]> {
     return this.request<ICUEvent[]>(
       `/athlete/${this.athleteId}/events?oldest=${oldest}&newest=${newest}`
+    )
+  }
+
+  async getPowerCurve(oldest: string, newest: string): Promise<ICUPowerCurvePoint[]> {
+    return this.request<ICUPowerCurvePoint[]>(
+      `/athlete/${this.athleteId}/power-curve?type=Ride&oldest=${oldest}&newest=${newest}`
     )
   }
 
