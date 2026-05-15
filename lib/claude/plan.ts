@@ -15,6 +15,28 @@ function summariseWellness(wellness: ICUWellness[]): string {
   return `CTL: ${latest.ctl ?? '?'}, ATL: ${latest.atl ?? '?'}, Form: ${latest.form ?? '?'}, HRV: ${latest.hrv ?? '?'}`
 }
 
+function formatSchedule(availability: Array<{ day: string; duration_minutes: number }> | undefined): string {
+  if (!availability?.length) {
+    return 'Weekly training schedule: Not specified — use coaching judgement for session distribution.'
+  }
+  const orderedDays = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+  const trainingDays = orderedDays
+    .map(d => availability.find(a => a.day === d))
+    .filter((a): a is { day: string; duration_minutes: number } => !!a && a.duration_minutes > 0)
+  const restDays = orderedDays.filter(d => !trainingDays.find(a => a.day === d))
+
+  const lines = trainingDays.map(a => {
+    const h = Math.floor(a.duration_minutes / 60)
+    const m = a.duration_minutes % 60
+    const dur = h > 0 && m > 0 ? `${h}h ${m}min` : h > 0 ? `${h}h` : `${m}min`
+    return `  ${a.day.charAt(0).toUpperCase() + a.day.slice(1)}: ${dur}`
+  })
+  if (restDays.length) {
+    lines.push(`  (${restDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}: rest)`)
+  }
+  return `Weekly training schedule:\n${lines.join('\n')}`
+}
+
 const SYSTEM_PROMPT = `You are an expert road cycling coach. Generate periodized training plans based on athlete data.
 Always respond with ONLY valid JSON matching the exact schema requested. No markdown, no explanation outside the JSON.`
 
@@ -23,7 +45,8 @@ export async function generatePlan(
   syncData: ICUSyncData
 ): Promise<GeneratedPlan> {
   const today = new Date().toISOString().split('T')[0]
-  const targetEvent = profile.events.find(e => e.priority === 'A') ?? profile.events[0]
+  const allEvents = [...profile.events].sort((a, b) => a.date.localeCompare(b.date))
+  const targetEvent = allEvents.find(e => e.priority === 'A') ?? allEvents[0]
 
   const prompt = `Generate a training plan for this athlete.
 
@@ -31,10 +54,15 @@ Profile:
 - Goals: ${profile.goals}
 - FTP: ${profile.current_ftp}W
 - Weight: ${profile.weight_kg}kg
-- Weekly hours available: ${profile.weekly_hours ?? 10}
-- Rest days: ${(profile.rest_days ?? []).join(', ')}
+${formatSchedule(profile.weekly_availability)}
 
-Target event: ${targetEvent.name} on ${targetEvent.date} (${targetEvent.type}, Priority ${targetEvent.priority})
+Before designing the plan, derive training emphases from the athlete's goals:
+- Completion / endurance event (e.g. "complete", "finish", sportive, century) → prioritise long Z2 volume; build toward back-to-back riding days in the peak week
+- Performance / speed (e.g. "improve FTP", "go faster", race) → include threshold (Z4) and VO2max (Z5) blocks; reduce pure endurance volume
+- Weight loss (e.g. "lose", "lighter") → maximise Z2 volume; avoid unnecessary rest days; keep intensity moderate
+- Climbing (e.g. "climb", "mountains", "cols") → include sustained Z3–Z4 efforts; simulate long climbs in session descriptions
+- Multiple goal types → blend emphases proportionally
+Apply these emphases when selecting workout types and setting intensity distribution.
 
 Current fitness:
 ${summariseWellness(syncData.wellness)}
@@ -42,10 +70,17 @@ ${summariseWellness(syncData.wellness)}
 Recent activities (last 6 weeks):
 ${summariseActivities(syncData.activities)}
 
+Events (all priorities):
+${allEvents.map(e => `- ${e.name} | ${e.date} | ${e.type} | Priority ${e.priority}`).join('\n')}
+
+Periodization rules:
+- Priority A event: primary target. Build a full periodization arc (base → build → peak → taper) toward this date. Taper: 7–10 days of reduced volume before the event.
+- Priority B events: tune-up races. In the 3–5 days before a B event, add sharpening sessions (short, punchy, race-intensity). In the 2–3 days after, schedule easy recovery before resuming the build.
+- Priority C events: treat as a hard training day within the existing plan. No disruption to surrounding weeks.
+- If a B or C event falls within the A event taper window, honour the A event periodization.
+
 Plan from today (${today}) to ${targetEvent.date}.
-Use periodization: base → build → peak → taper appropriate to time available.
-Respect weekly hour limits and rest days.
-Generate at most 6 weeks of workouts (the next training block). Prioritise the most important weeks first if the event is further out.
+Generate at most 6 weeks of workouts (the next training block). Prioritise the most important weeks first if the A event is further out.
 
 Each workout must include a "steps" array of structured intervals.
 Step rules:
@@ -53,6 +88,7 @@ Step rules:
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
 - Sessions >45min must include a warm-up (10-15min) and cool-down (10min)
 - For intervals, list each rep and recovery individually (do not group)
+- Schedule workouts only on days listed in the weekly training schedule, matching their available durations
 
 Return ONLY this JSON:
 {
