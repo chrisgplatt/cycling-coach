@@ -111,6 +111,6 @@ describe('IntervalsClient', () => {
     expect(curve[0].secs).toBe(300)
     expect(curve[0].watts).toBe(380)
     const calledUrl = mockFetch.mock.calls[0][0] as string
-    expect(calledUrl).toContain('/athlete/i12345/power-curve?type=Ride&oldest=2026-02-15&newest=2026-05-15')
+    expect(calledUrl).toContain('/athlete/i12345/power_curve?type=Ride&oldest=2026-02-15&newest=2026-05-15')
   })
 })

@@ -6,6 +6,7 @@ export default function FitnessPage() {
   const [predictions, setPredictions] = useState<FTPPrediction[]>([])
   const [currentFTP, setCurrentFTP] = useState(200)
   const [predicting, setPredicting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/ftp').then(r => r.json()).then(setPredictions).catch(() => {})
@@ -16,16 +17,24 @@ export default function FitnessPage() {
 
   async function predictFTP() {
     setPredicting(true)
-    const res = await fetch('/api/ftp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ currentFTP }),
-    })
-    if (res.ok) {
-      const p = await res.json()
-      setPredictions(prev => [p, ...prev])
+    setError(null)
+    try {
+      const res = await fetch('/api/ftp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentFTP }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setPredictions(prev => [json, ...prev])
+      } else {
+        setError(json?.error ?? `Request failed (${res.status})`)
+      }
+    } catch {
+      setError('Network error — could not reach server')
+    } finally {
+      setPredicting(false)
     }
-    setPredicting(false)
   }
 
   return (
@@ -40,6 +49,10 @@ export default function FitnessPage() {
           {predicting ? 'Predicting…' : 'Predict FTP'}
         </button>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded p-3">{error}</div>
+      )}
 
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h2 className="text-sm font-medium text-gray-600 mb-4">FTP History</h2>
