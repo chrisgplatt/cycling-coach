@@ -4,7 +4,7 @@ import PlanApprovalModal from '@/components/PlanApprovalModal'
 import type { UserProfile, TrainingEvent, GeneratedPlan, ICUSyncData } from '@/types'
 
 const DEFAULT_PROFILE: UserProfile = {
-  full_name: '', goals: '', events: [], weekly_hours: 8, rest_days: ['monday'],
+  full_name: '', goals: '', events: [], weekly_hours: 10, rest_days: ['monday'],
   current_ftp: 200, weight_kg: 70,
   intervals_icu_athlete_id: '', intervals_icu_api_key: '',
 }
@@ -38,7 +38,8 @@ export default function SettingsPage() {
             full_name: data.full_name ?? '',
             goals: data.goals ?? '',
             events: data.events ?? [],
-            weekly_hours: data.weekly_hours ?? 8,
+            weekly_availability: data.weekly_availability ?? [],
+            weekly_hours: data.weekly_hours ?? 10,
             rest_days: data.rest_days ?? ['monday'],
             current_ftp: data.current_ftp ?? 200,
             weight_kg: data.weight_kg ?? 70,
