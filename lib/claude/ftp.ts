@@ -37,10 +37,10 @@ export async function predictFTP(input: FTPPredictionInput): Promise<FTPPredicti
 Current stated FTP: ${currentFTP}W
 Algorithmic estimate (best 20-min × 0.95): ${algorithmicEstimate !== null ? `${algorithmicEstimate}W` : 'unavailable'}
 
-Best power efforts over last 3 months:
-- 5-min best: ${powerCurve.mins5 !== null ? `${powerCurve.mins5}W` : 'none'}
-- 20-min best: ${powerCurve.mins20 !== null ? `${powerCurve.mins20}W` : 'none'}
-- 60-min best: ${powerCurve.mins60 !== null ? `${powerCurve.mins60}W` : 'none'}
+Best normalized power (NP) by ride duration over last 3 months:
+- ~5-min rides: ${powerCurve.mins5 !== null ? `${powerCurve.mins5}W NP` : 'none'}
+- ~20-min rides: ${powerCurve.mins20 !== null ? `${powerCurve.mins20}W NP` : 'none'}
+- ~60-min rides: ${powerCurve.mins60 !== null ? `${powerCurve.mins60}W NP` : 'none'}
 
 Monthly training summary:
 ${trendLines || '  No data'}

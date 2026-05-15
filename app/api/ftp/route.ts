@@ -39,16 +39,24 @@ export async function POST(req: NextRequest) {
   const oldest = new Date(Date.now() - 91 * 86400000).toISOString().split('T')[0]
 
   try {
-    const [activities, powerCurveRaw] = await Promise.all([
-      client.getActivities(oldest, newest),
-      client.getPowerCurve(oldest, newest),
-    ])
+    const activities = await client.getActivities(oldest, newest)
 
-    const find = (secs: number) => powerCurveRaw.find(p => p.secs === secs)?.watts ?? null
-    const mins5 = find(300)
-    const mins20 = find(1200)
-    const mins60 = find(3600)
-    const algorithmicEstimate = mins20 !== null ? Math.round(mins20 * 0.95) : null
+    // Derive power curve proxies from full-ride NP grouped by ride duration.
+    // NP of a ~20-min ride ≈ best 20-min power; NP of ~60-min ride ≈ FTP.
+    const bestNP = (minSecs: number, maxSecs: number) => {
+      const best = activities
+        .filter(a => a.type === 'Ride' &&
+                     a.moving_time != null && a.moving_time >= minSecs && a.moving_time <= maxSecs &&
+                     a.weighted_average_watts != null)
+        .reduce((max, a) => Math.max(max, a.weighted_average_watts!), 0)
+      return best > 0 ? best : null
+    }
+    const mins5  = bestNP(240, 480)    // 4–8 min
+    const mins20 = bestNP(900, 2100)   // 15–35 min
+    const mins60 = bestNP(2700, 5400)  // 45–90 min
+    const algorithmicEstimate =
+      mins20 !== null ? Math.round(mins20 * 0.95) :
+      mins60 !== null ? Math.round(mins60 * 0.97) : null
 
     const buckets = new Map<string, { rideCount: number; peakNP: number; totalTSS: number }>()
     for (const act of activities.filter(a => a.type === 'Ride')) {
