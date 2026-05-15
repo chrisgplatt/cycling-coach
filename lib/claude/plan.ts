@@ -46,6 +46,7 @@ export async function generatePlan(
 ): Promise<GeneratedPlan> {
   const today = new Date().toISOString().split('T')[0]
   const allEvents = [...profile.events].sort((a, b) => a.date.localeCompare(b.date))
+  if (!allEvents.length) throw new Error('Cannot generate a plan: no events configured.')
   const targetEvent = allEvents.find(e => e.priority === 'A') ?? allEvents[0]
 
   const prompt = `Generate a training plan for this athlete.
@@ -88,7 +89,7 @@ Step rules:
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
 - Sessions >45min must include a warm-up (10-15min) and cool-down (10min)
 - For intervals, list each rep and recovery individually (do not group)
-- Schedule workouts only on days listed in the weekly training schedule, matching their available durations
+- If a weekly training schedule is provided, schedule workouts only on those days, matching their available durations
 
 Return ONLY this JSON:
 {
