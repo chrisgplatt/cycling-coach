@@ -3,8 +3,11 @@ import { useEffect, useState } from 'react'
 import PlanApprovalModal from '@/components/PlanApprovalModal'
 import type { UserProfile, TrainingEvent, GeneratedPlan, ICUSyncData } from '@/types'
 
+const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const
+const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+
 const DEFAULT_PROFILE: UserProfile = {
-  full_name: '', goals: '', events: [], weekly_hours: 10, rest_days: ['monday'],
+  full_name: '', goals: '', events: [],
   current_ftp: 200, weight_kg: 70,
   intervals_icu_athlete_id: '', intervals_icu_api_key: '',
 }
@@ -23,6 +26,9 @@ export default function SettingsPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null)
+  const [schedule, setSchedule] = useState<Record<string, number>>(
+    Object.fromEntries(DAYS.map(d => [d, 0]))
+  )
 
   useEffect(() => {
     fetch('/api/profile')
@@ -38,14 +44,17 @@ export default function SettingsPage() {
             full_name: data.full_name ?? '',
             goals: data.goals ?? '',
             events: data.events ?? [],
-            weekly_availability: data.weekly_availability ?? [],
-            weekly_hours: data.weekly_hours ?? 10,
-            rest_days: data.rest_days ?? ['monday'],
             current_ftp: data.current_ftp ?? 200,
             weight_kg: data.weight_kg ?? 70,
             intervals_icu_athlete_id: data.intervals_icu_athlete_id ?? '',
             intervals_icu_api_key: data.intervals_icu_api_key ?? '',
           })
+          const avail: Array<{ day: string; duration_minutes: number }> = data.weekly_availability ?? []
+          setSchedule(
+            Object.fromEntries(
+              DAYS.map(d => [d, avail.find(a => a.day === d)?.duration_minutes ?? 0])
+            )
+          )
         }
       })
       .catch(e => setSaveError(`Could not load profile: ${e.message}`))
@@ -65,7 +74,12 @@ export default function SettingsPage() {
     setSaving(true)
     setSaveError(null)
     try {
-      const body = profileId ? { id: profileId, ...profile } : profile
+      const weekly_availability = DAYS
+        .filter(d => (schedule[d] ?? 0) > 0)
+        .map(d => ({ day: d, duration_minutes: schedule[d] }))
+      const body = profileId
+        ? { id: profileId, ...profile, weekly_availability }
+        : { ...profile, weekly_availability }
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -245,11 +259,26 @@ export default function SettingsPage() {
               onChange={e => setProfile(p => ({ ...p, weight_kg: Number(e.target.value) }))}
               className={inputClass} />
           </div>
-          <div>
-            <label className={labelClass}>Weekly hours</label>
-            <input type="number" value={profile.weekly_hours ?? 10}
-              onChange={e => setProfile(p => ({ ...p, weekly_hours: Number(e.target.value) }))}
-              className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Weekly Schedule</label>
+          <div className="space-y-2 mt-1">
+            {DAYS.map((day, i) => (
+              <div key={day} className="flex items-center gap-3">
+                <span className="text-sm text-slate-600 w-8 shrink-0">{DAY_LABELS[i]}</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={15}
+                  value={schedule[day] ?? 0}
+                  onChange={e => setSchedule(s => ({ ...s, [day]: Math.max(0, Number(e.target.value)) }))}
+                  className="w-24 text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <span className="text-xs text-slate-400 w-6">
+                  {(schedule[day] ?? 0) === 0 ? 'rest' : 'min'}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
