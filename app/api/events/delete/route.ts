@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import type { TrainingEvent } from '@/types'
 
 export async function POST(req: Request) {
+  const supabase = await createSupabaseServerClient()
   const { name, date } = await req.json() as { name: string; date: string }
 
   if (!name || !date) {
@@ -32,7 +33,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
 
-  const updated = existing.filter(e => !(e.name.trim().toLowerCase() === name.trim().toLowerCase() && e.date === date))
+  const updated = existing.filter(
+    e => !(e.name.trim().toLowerCase() === name.trim().toLowerCase() && e.date === date)
+  )
 
   const { error: saveError } = await supabase
     .from('user_profile')

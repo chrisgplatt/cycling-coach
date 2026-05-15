@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import type { ICUActivity } from '@/types'
 
 export async function POST() {
+  const supabase = await createSupabaseServerClient()
+
   const { data: profile } = await supabase
     .from('user_profile')
     .select('intervals_icu_athlete_id, intervals_icu_api_key')
-    .single()
+    .maybeSingle()
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
     return NextResponse.json({ error: 'intervals.icu not configured in settings' }, { status: 400 })
@@ -18,7 +20,6 @@ export async function POST() {
   try {
     const syncData = await client.sync(6)
 
-    // Build date → activities index
     const actsByDate = new Map<string, ICUActivity[]>()
     for (const act of syncData.activities) {
       const date = act.start_date_local.split('T')[0]
@@ -26,7 +27,6 @@ export async function POST() {
       actsByDate.set(date, [...existing, act])
     }
 
-    // Find unlinked planned/needs_review workouts
     const { data: pending } = await supabase
       .from('workouts')
       .select('id, date')

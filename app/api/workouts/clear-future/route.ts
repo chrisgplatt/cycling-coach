@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 
 export async function POST() {
+  const supabase = await createSupabaseServerClient()
+
   const { data: profile } = await supabase
     .from('user_profile')
     .select('intervals_icu_athlete_id, intervals_icu_api_key')
-    .single()
+    .maybeSingle()
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
