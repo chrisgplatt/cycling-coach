@@ -16,7 +16,7 @@ export interface FTPPredictionInput {
   currentFTP: number
 }
 
-interface FTPPredictionResult {
+export interface FTPPredictionResult {
   predicted_ftp: number
   reasoning: string
   confidence: 'high' | 'medium' | 'low'
