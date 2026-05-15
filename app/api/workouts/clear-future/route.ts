@@ -22,7 +22,6 @@ export async function POST() {
     .select('id, intervals_icu_event_id, date')
     .eq('status', 'planned')
     .gte('date', today)
-    .not('intervals_icu_event_id', 'is', null)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -38,6 +37,11 @@ export async function POST() {
     } catch {
       failed++
     }
+  }
+
+  const ids = (futureWorkouts ?? []).map(w => w.id)
+  if (ids.length > 0) {
+    await supabase.from('workouts').delete().in('id', ids)
   }
 
   return NextResponse.json({ deleted, failed })
