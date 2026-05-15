@@ -5,6 +5,8 @@ import { predictFTP } from '@/lib/claude/ftp'
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { data } = await supabase
     .from('ftp_predictions')
     .select('*')
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
       confidence: result.confidence,
       activity_ids: syncResult.activities.map(a => a.id),
       confirmed: false,
-      user_id: user!.id,
+      user_id: user.id,
     })
     .select()
     .single()

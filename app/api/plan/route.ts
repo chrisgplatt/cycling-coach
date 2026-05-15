@@ -6,6 +6,8 @@ import type { GeneratedPlan } from '@/types'
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { data: plan } = await supabase
     .from('training_plans')
     .select('*, workouts(*)')
@@ -19,6 +21,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { syncData } = await req.json()
   const { data: profileData } = await supabase.from('user_profile').select('*').maybeSingle()
   if (!profileData) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
@@ -112,7 +116,7 @@ export async function PATCH(req: NextRequest) {
       target_event_date: plan.target_event_date,
       phase: plan.phase,
       rationale: plan.rationale,
-      user_id: user!.id,
+      user_id: user.id,
     })
     .select()
     .single()
@@ -145,7 +149,7 @@ export async function PATCH(req: NextRequest) {
       target_zones: w.target_zones,
       intervals_icu_event_id,
       status: 'planned',
-      user_id: user!.id,
+      user_id: user.id,
     })
   }
 

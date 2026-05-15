@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       activity_avg_hr: activityAvgHR ?? null,
       proposed_adjustment: proposed,
       approved: null,
-      user_id: user!.id,
+      user_id: user.id,
     })
     .select()
     .single()
@@ -58,6 +58,8 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { feedbackId, approved } = await req.json()
 
   const { data: feedback } = await supabase
