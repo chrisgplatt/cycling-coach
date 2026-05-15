@@ -7,6 +7,7 @@ import type { Workout } from '@/types'
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { workoutId, activityId, feedbackText, activityTSS, activityAvgPower, activityAvgHR } = await req.json()
 
   const { data: workout } = await supabase

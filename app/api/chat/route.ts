@@ -39,7 +39,8 @@ Answer questions about training, recovery, pacing, nutrition, and race strategy.
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const userId = user!.id
+  if (!user) return new Response('Unauthorized', { status: 401 })
+  const userId = user.id
 
   let message: string
   let syncData: ICUSyncData | null

@@ -17,6 +17,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { currentFTP } = await req.json()
 
   const { data: profileData } = await supabase
