@@ -1,5 +1,20 @@
 import { anthropic, MODEL } from './client'
-import type { ICUActivity } from '@/types'
+
+export interface FTPPredictionInput {
+  powerCurve: {
+    mins5: number | null
+    mins20: number | null
+    mins60: number | null
+  }
+  algorithmicEstimate: number | null
+  monthlyTrend: Array<{
+    month: string
+    rideCount: number
+    peakNP: number
+    totalTSS: number
+  }>
+  currentFTP: number
+}
 
 interface FTPPredictionResult {
   predicted_ftp: number
@@ -10,42 +25,44 @@ interface FTPPredictionResult {
 const SYSTEM_PROMPT = `You are an expert cycling coach estimating FTP from power data.
 Always respond with ONLY valid JSON. No markdown, no text outside the JSON.`
 
-export async function predictFTP(
-  activities: ICUActivity[],
-  currentFTP: number
-): Promise<FTPPredictionResult> {
-  const rideData = activities
-    .filter(a => a.type === 'Ride' && a.weighted_average_watts)
-    .slice(-20)
-    .map(a => `- ${a.start_date_local.split('T')[0]}: ${a.name}, ${Math.round(a.moving_time / 60)}min, NP ${a.weighted_average_watts}W, max ${a.max_watts}W, TSS ${a.training_load ?? '?'}`)
+export async function predictFTP(input: FTPPredictionInput): Promise<FTPPredictionResult> {
+  const { powerCurve, algorithmicEstimate, monthlyTrend, currentFTP } = input
+
+  const trendLines = monthlyTrend
+    .map(m => `  ${m.month}: ${m.rideCount} rides, peak NP ${m.peakNP}W, TSS ${m.totalTSS}`)
     .join('\n')
 
-  const validWatts = activities
-    .map(a => a.weighted_average_watts ?? 0)
-    .filter(w => w > 0)
-  const best20min = validWatts.length ? Math.max(...validWatts) : null
-
-  const prompt = `Estimate FTP from recent ride data.
+  const prompt = `Estimate FTP from 3 months of power data.
 
 Current stated FTP: ${currentFTP}W
-Best weighted average power from recent rides: ${best20min !== null ? `${best20min}W` : 'unknown'}
+Algorithmic estimate (best 20-min × 0.95): ${algorithmicEstimate !== null ? `${algorithmicEstimate}W` : 'unavailable'}
 
-Recent rides with power data:
-${rideData || 'No power data available'}
+Best power efforts over last 3 months:
+- 5-min best: ${powerCurve.mins5 !== null ? `${powerCurve.mins5}W` : 'none'}
+- 20-min best: ${powerCurve.mins20 !== null ? `${powerCurve.mins20}W` : 'none'}
+- 60-min best: ${powerCurve.mins60 !== null ? `${powerCurve.mins60}W` : 'none'}
+
+Monthly training summary:
+${trendLines || '  No data'}
+
+Confidence guidance:
+- high: 20-min best exists and monthly ride counts are consistent (3+ rides/month)
+- medium: 20-min best exists but volume is low or inconsistent
+- low: no 20-min effort; estimate extrapolated from shorter durations
 
 Return ONLY:
 {
   "predicted_ftp": 250,
-  "reasoning": "explanation based on the data",
+  "reasoning": "plain-English explanation referencing the data above",
   "confidence": "high|medium|low"
 }`
 
-  const response = await anthropic.messages.stream({
+  const response = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
-  }).finalMessage()
+  })
 
   const block = response.content.find(b => b.type === 'text')
   const raw = block?.type === 'text' ? block.text : ''
