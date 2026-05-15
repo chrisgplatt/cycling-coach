@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import type { TrainingEvent, ICUEvent } from '@/types'
 
 export async function POST() {
+  const supabase = await createSupabaseServerClient()
+
   const { data: profile, error: profileError } = await supabase
     .from('user_profile')
     .select('id, intervals_icu_athlete_id, intervals_icu_api_key, events')

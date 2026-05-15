@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
-import { supabase } from '@/lib/supabase'
 import type { ChatMessage, TrainingPlan, Workout, ICUWellness, ICUSyncData } from '@/types'
 
 function buildSystemPrompt(
@@ -37,7 +37,10 @@ Answer questions about training, recovery, pacing, nutrition, and race strategy.
 }
 
 export async function POST(req: NextRequest) {
-  // Parse and validate input
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userId = user!.id
+
   let message: string
   let syncData: ICUSyncData | null
   let currentFTP: number
@@ -54,7 +57,6 @@ export async function POST(req: NextRequest) {
     return new Response('Message is required', { status: 400 })
   }
 
-  // Load context first (BEFORE saving user message, so it's not included in history)
   const [{ data: plan }, { data: recentMessages }, { data: upcomingWorkouts }] = await Promise.all([
     supabase.from('training_plans').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('chat_messages').select('*').order('created_at', { ascending: false }).limit(20),
@@ -64,18 +66,15 @@ export async function POST(req: NextRequest) {
       .order('date'),
   ])
 
-  // Build message history (chronological order) then append current message
   const messages = ((recentMessages ?? []) as ChatMessage[])
     .reverse()
     .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
   messages.push({ role: 'user', content: message })
 
-  // Save user message to DB
-  await supabase.from('chat_messages').insert({ role: 'user', content: message })
+  await supabase.from('chat_messages').insert({ role: 'user', content: message, user_id: userId })
 
   const latestWellness = syncData?.wellness?.slice(-1)[0] ?? null
-
   const systemPrompt = buildSystemPrompt(
     plan as TrainingPlan | null,
     (upcomingWorkouts ?? []) as Workout[],
@@ -100,7 +99,7 @@ export async function POST(req: NextRequest) {
             controller.enqueue(new TextEncoder().encode(chunk.delta.text))
           }
         }
-        await supabase.from('chat_messages').insert({ role: 'assistant', content: fullResponse })
+        await supabase.from('chat_messages').insert({ role: 'assistant', content: fullResponse, user_id: userId })
         controller.close()
       } catch (err) {
         controller.error(err)
