@@ -262,8 +262,9 @@ export default function SettingsPage() {
           </div>
         </div>
         <div>
-          <label className={labelClass}>Weekly Schedule</label>
-          <div className="space-y-2 mt-1">
+          <label className={labelClass}>Weekly Training Availability</label>
+          <p className="text-xs text-slate-400 mb-3">How many minutes you can train on each day in a typical week. Set 0 for rest days.</p>
+          <div className="space-y-2">
             {DAYS.map((day, i) => (
               <div key={day} className="flex items-center gap-3">
                 <span className="text-sm text-slate-600 w-8 shrink-0">{DAY_LABELS[i]}</span>
