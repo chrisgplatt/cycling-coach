@@ -3,12 +3,13 @@ import { useState } from 'react'
 import type { GeneratedPlan } from '@/types'
 
 interface Props {
-  plan: GeneratedPlan
+  plan: GeneratedPlan | null
+  loading?: boolean
   onApprove: () => void
   onReject: () => void
 }
 
-export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) {
+export default function PlanApprovalModal({ plan, loading = false, onApprove, onReject }: Props) {
   const [name, setName] = useState('')
   const [approving, setApproving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,6 +46,20 @@ export default function PlanApprovalModal({ plan, onApprove, onReject }: Props) 
     threshold: 'bg-orange-100 text-orange-700',
     intervals: 'bg-red-100 text-red-700',
     recovery: 'bg-green-100 text-green-700',
+  }
+
+  if (loading || !plan) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-10 flex flex-col items-center gap-5">
+          <div className="w-10 h-10 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" />
+          <div className="text-center">
+            <p className="text-base font-semibold text-slate-800">Building your training plan…</p>
+            <p className="text-sm text-slate-400 mt-1">Your coach is analysing your goals, fitness and schedule. This takes about 30 seconds.</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

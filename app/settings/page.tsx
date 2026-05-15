@@ -364,11 +364,12 @@ export default function SettingsPage() {
         <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-4 py-2.5">{clearResult}</p>
       )}
 
-      {generatedPlan && (
+      {(generating || generatedPlan) && (
         <PlanApprovalModal
           plan={generatedPlan}
+          loading={generating}
           onApprove={() => { setGeneratedPlan(null); window.location.href = '/dashboard' }}
-          onReject={() => setGeneratedPlan(null)}
+          onReject={() => { setGeneratedPlan(null) }}
         />
       )}
     </div>
