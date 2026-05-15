@@ -18,8 +18,9 @@ export interface UserProfile {
   full_name?: string
   goals: string
   events: TrainingEvent[]
-  weekly_hours: number
-  rest_days: string[]    // e.g. ['monday', 'friday']
+  weekly_hours?: number       // optional — superseded by weekly_availability
+  rest_days?: string[]        // optional — superseded by weekly_availability
+  weekly_availability?: Array<{ day: string; duration_minutes: number }>
   current_ftp: number
   weight_kg: number
   intervals_icu_athlete_id: string

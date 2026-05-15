@@ -14,11 +14,13 @@ create table if not exists user_profile (
   weight_kg numeric(5,2) not null default 70.0,
   intervals_icu_athlete_id text not null default '',
   intervals_icu_api_key text not null default '',
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  weekly_availability jsonb not null default '[]'
 );
 
 -- Migration for existing installations:
 -- alter table user_profile add column if not exists full_name text not null default '';
+-- alter table user_profile add column if not exists weekly_availability jsonb not null default '[]';
 
 create table if not exists training_plans (
   id uuid primary key default gen_random_uuid(),

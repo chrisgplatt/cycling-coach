@@ -246,7 +246,7 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className={labelClass}>Weekly hours</label>
-            <input type="number" value={profile.weekly_hours}
+            <input type="number" value={profile.weekly_hours ?? 10}
               onChange={e => setProfile(p => ({ ...p, weekly_hours: Number(e.target.value) }))}
               className={inputClass} />
           </div>

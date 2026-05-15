@@ -31,8 +31,8 @@ Profile:
 - Goals: ${profile.goals}
 - FTP: ${profile.current_ftp}W
 - Weight: ${profile.weight_kg}kg
-- Weekly hours available: ${profile.weekly_hours}
-- Rest days: ${profile.rest_days.join(', ')}
+- Weekly hours available: ${profile.weekly_hours ?? 10}
+- Rest days: ${(profile.rest_days ?? []).join(', ')}
 
 Target event: ${targetEvent.name} on ${targetEvent.date} (${targetEvent.type}, Priority ${targetEvent.priority})
 
