@@ -1,7 +1,10 @@
--- Run this once in the Supabase SQL editor for your project
+-- Multi-user schema for Cycling Coach
+-- Run this in the Supabase SQL editor for a fresh project setup.
+-- For existing projects, use the migration SQL in the project docs instead.
 
 create table if not exists user_profile (
   id serial primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
   goals text not null default '',
   events jsonb not null default '[]',
   weekly_hours integer not null default 10,
@@ -13,14 +16,9 @@ create table if not exists user_profile (
   updated_at timestamptz not null default now()
 );
 
--- Enforce single-row constraint (personal tool, one user)
-create unique index if not exists user_profile_singleton on user_profile ((true));
-
--- Insert default row if empty
-insert into user_profile (goals) values ('') on conflict do nothing;
-
 create table if not exists training_plans (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
   name text not null default '',
   status text not null default 'active' check (status in ('active', 'archived')),
   target_event_name text not null,
@@ -33,6 +31,7 @@ create table if not exists training_plans (
 
 create table if not exists workouts (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
   plan_id uuid not null references training_plans(id) on delete cascade,
   date date not null,
   type text not null check (type in ('endurance', 'threshold', 'intervals', 'recovery')),
@@ -40,12 +39,15 @@ create table if not exists workouts (
   description text not null,
   target_zones text not null,
   intervals_icu_event_id text,
-  status text not null default 'planned' check (status in ('planned', 'completed', 'skipped')),
+  icu_activity_id text,
+  tss numeric,
+  status text not null default 'planned' check (status in ('planned', 'completed', 'skipped', 'needs_review')),
   created_at timestamptz not null default now()
 );
 
 create table if not exists session_feedback (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
   workout_id uuid references workouts(id) on delete set null,
   activity_id text not null,
   feedback_text text not null,
@@ -59,6 +61,7 @@ create table if not exists session_feedback (
 
 create table if not exists ftp_predictions (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
   predicted_ftp integer not null,
   reasoning text not null,
   confidence text not null default 'medium' check (confidence in ('high', 'medium', 'low')),
@@ -69,15 +72,24 @@ create table if not exists ftp_predictions (
 
 create table if not exists chat_messages (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
   role text not null check (role in ('user', 'assistant')),
   content text not null,
   created_at timestamptz not null default now()
 );
 
--- Disable RLS on all tables (single-user personal tool, auth via session cookie)
-alter table user_profile disable row level security;
-alter table training_plans disable row level security;
-alter table workouts disable row level security;
-alter table session_feedback disable row level security;
-alter table ftp_predictions disable row level security;
-alter table chat_messages disable row level security;
+-- Enable RLS
+alter table user_profile     enable row level security;
+alter table training_plans   enable row level security;
+alter table workouts         enable row level security;
+alter table session_feedback enable row level security;
+alter table ftp_predictions  enable row level security;
+alter table chat_messages    enable row level security;
+
+-- RLS policies (each user sees only their own rows)
+create policy "own data" on user_profile     using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own data" on training_plans   using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own data" on workouts         using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own data" on session_feedback using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own data" on ftp_predictions  using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own data" on chat_messages    using (user_id = auth.uid()) with check (user_id = auth.uid());
