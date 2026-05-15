@@ -5,6 +5,8 @@ import type { TrainingEvent } from '@/types'
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { name, date } = await req.json() as { name: string; date: string }
 
   if (!name || !date) {
