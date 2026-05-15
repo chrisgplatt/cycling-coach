@@ -135,6 +135,11 @@ export interface ICUSyncData {
   athlete_id?: string  // added by /api/sync route, not by IntervalsClient
 }
 
+export interface ICUPowerCurvePoint {
+  secs: number
+  watts: number
+}
+
 export interface WorkoutStep {
   label: string
   duration_minutes: number
