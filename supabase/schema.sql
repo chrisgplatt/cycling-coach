@@ -5,6 +5,7 @@
 create table if not exists user_profile (
   id serial primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
+  full_name text not null default '',
   goals text not null default '',
   events jsonb not null default '[]',
   weekly_hours integer not null default 10,
@@ -15,6 +16,9 @@ create table if not exists user_profile (
   intervals_icu_api_key text not null default '',
   updated_at timestamptz not null default now()
 );
+
+-- Migration for existing installations:
+-- alter table user_profile add column if not exists full_name text not null default '';
 
 create table if not exists training_plans (
   id uuid primary key default gen_random_uuid(),

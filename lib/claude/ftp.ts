@@ -53,7 +53,7 @@ Confidence guidance:
 Return ONLY:
 {
   "predicted_ftp": 250,
-  "reasoning": "plain-English explanation referencing the data above",
+  "reasoning": "3-5 bullet points separated by newlines, each starting with '• '. Cover: what data drove the estimate, what the key numbers suggest, any caveats about volume or data quality, and the final recommendation. Each bullet should be one concise sentence.",
   "confidence": "high|medium|low"
 }`
 

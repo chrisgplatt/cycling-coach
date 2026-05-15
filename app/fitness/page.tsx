@@ -91,8 +91,19 @@ export default function FitnessPage() {
                 </div>
               </div>
               <div className="px-5 py-4">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Coach&apos;s Analysis</p>
-                <p className="text-sm text-slate-700 leading-relaxed">{p.reasoning}</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Coach&apos;s Analysis</p>
+                {p.reasoning.includes('•') ? (
+                  <ul className="space-y-2">
+                    {p.reasoning.split('\n').filter(l => l.trim()).map((line, i) => (
+                      <li key={i} className="flex gap-2.5 text-sm text-slate-700 leading-snug">
+                        <span className="text-blue-400 mt-0.5 shrink-0">•</span>
+                        <span>{line.replace(/^•\s*/, '')}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-700 leading-relaxed">{p.reasoning}</p>
+                )}
               </div>
             </div>
           ))}

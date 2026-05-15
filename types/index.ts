@@ -15,6 +15,7 @@ export interface TrainingEvent {
 
 export interface UserProfile {
   id?: number
+  full_name?: string
   goals: string
   events: TrainingEvent[]
   weekly_hours: number

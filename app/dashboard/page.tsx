@@ -11,6 +11,7 @@ export default function DashboardPage() {
   const [athleteId, setAthleteId] = useState('')
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [planName, setPlanName] = useState('')
+  const [firstName, setFirstName] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
@@ -42,7 +43,14 @@ export default function DashboardPage() {
     }
   }
 
-  useEffect(() => { doSync(); loadPlan() }, [])
+  useEffect(() => {
+    doSync()
+    loadPlan()
+    fetch('/api/profile').then(r => r.json()).then(data => {
+      const name: string = data?.full_name ?? ''
+      if (name) setFirstName(name.split(' ')[0])
+    }).catch(() => {})
+  }, [])
 
   const latestWellness: ICUWellness | null = syncData?.wellness?.slice(-1)[0] ?? null
 
@@ -58,8 +66,12 @@ export default function DashboardPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">This Week</h1>
-          {planName && <p className="text-sm text-slate-500 mt-0.5">{planName}</p>}
+          <h1 className="text-2xl font-bold text-slate-900">
+            {firstName ? `Hi, ${firstName}` : 'This Week'}
+          </h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {firstName ? 'This week' : ''}{planName ? (firstName ? ` — ${planName}` : planName) : ''}
+          </p>
         </div>
         <button
           onClick={doSync}

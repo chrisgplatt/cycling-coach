@@ -4,7 +4,7 @@ import PlanApprovalModal from '@/components/PlanApprovalModal'
 import type { UserProfile, TrainingEvent, GeneratedPlan, ICUSyncData } from '@/types'
 
 const DEFAULT_PROFILE: UserProfile = {
-  goals: '', events: [], weekly_hours: 8, rest_days: ['monday'],
+  full_name: '', goals: '', events: [], weekly_hours: 8, rest_days: ['monday'],
   current_ftp: 200, weight_kg: 70,
   intervals_icu_athlete_id: '', intervals_icu_api_key: '',
 }
@@ -35,6 +35,7 @@ export default function SettingsPage() {
         if (data?.id) {
           setProfileId(data.id)
           setProfile({
+            full_name: data.full_name ?? '',
             goals: data.goals ?? '',
             events: data.events ?? [],
             weekly_hours: data.weekly_hours ?? 8,
@@ -211,12 +212,22 @@ export default function SettingsPage() {
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
         <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Athlete Profile</h2>
         <div>
+          <label className={labelClass}>Full Name</label>
+          <input
+            type="text"
+            value={profile.full_name ?? ''}
+            onChange={e => setProfile(p => ({ ...p, full_name: e.target.value }))}
+            placeholder="e.g. Chris Smith"
+            className={inputClass}
+          />
+        </div>
+        <div>
           <label className={labelClass}>Goals</label>
           <textarea
             value={profile.goals}
             onChange={e => setProfile(p => ({ ...p, goals: e.target.value }))}
             placeholder="Your goals (e.g. Complete Dragon Ride, improve FTP, lose 5kg)"
-            rows={3}
+            rows={6}
             className={inputClass}
           />
         </div>
