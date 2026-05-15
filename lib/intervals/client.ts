@@ -104,9 +104,22 @@ export class IntervalsClient {
   }
 
   async getActivities(oldest: string, newest: string): Promise<ICUActivity[]> {
-    return this.request<ICUActivity[]>(
+    const raw = await this.request<Record<string, unknown>[]>(
       `/athlete/${this.athleteId}/activities?oldest=${oldest}&newest=${newest}`
     )
+    return raw.map(a => ({
+      id: a.id as string,
+      start_date_local: a.start_date_local as string,
+      type: a.type as string,
+      moving_time: a.moving_time as number,
+      name: a.name as string,
+      average_watts: (a.icu_average_watts ?? null) as number | null,
+      max_watts: (a.p_max ?? null) as number | null,
+      weighted_average_watts: (a.icu_weighted_avg_watts ?? null) as number | null,
+      average_heartrate: (a.average_heartrate ?? null) as number | null,
+      training_load: (a.icu_training_load ?? null) as number | null,
+      rolling_ftp: (a.icu_rolling_ftp ?? null) as number | null,
+    }))
   }
 
   async getWellness(start: string, end: string): Promise<ICUWellness[]> {

@@ -108,6 +108,7 @@ export interface ICUActivity {
   weighted_average_watts: number | null
   average_heartrate: number | null
   training_load: number | null   // TSS
+  rolling_ftp: number | null     // intervals.icu rolling FTP estimate
 }
 
 export interface ICUWellness {

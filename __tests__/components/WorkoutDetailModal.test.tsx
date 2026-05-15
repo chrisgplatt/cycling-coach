@@ -23,7 +23,7 @@ const activity: ICUActivity = {
   id: 'act456', start_date_local: '2026-05-15T08:00:00',
   type: 'Ride', moving_time: 3600, name: 'Morning Ride',
   average_watts: 220, max_watts: 350, weighted_average_watts: 225,
-  average_heartrate: 155, training_load: 94,
+  average_heartrate: 155, training_load: 94, rolling_ftp: null,
 }
 
 describe('WorkoutDetailModal', () => {

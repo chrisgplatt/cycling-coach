@@ -41,27 +41,33 @@ export async function POST(req: NextRequest) {
   try {
     const activities = await client.getActivities(oldest, newest)
 
-    // Derive power curve proxies from full-ride NP grouped by ride duration.
-    // NP of a ~20-min ride ≈ best 20-min power; NP of longer rides ≈ FTP.
-    const rides = activities.filter(a => a.type === 'Ride' && a.weighted_average_watts != null)
+    const rides = activities.filter(a => a.type === 'Ride')
+
+    // Best NP by duration bucket (for Claude's context)
     const bestNP = (minSecs: number, maxSecs = Infinity) => {
       const best = rides
-        .filter(a => a.moving_time != null && a.moving_time >= minSecs && a.moving_time < maxSecs)
+        .filter(a => a.weighted_average_watts != null && a.moving_time != null &&
+                     a.moving_time >= minSecs && a.moving_time < maxSecs)
         .reduce((max, a) => Math.max(max, a.weighted_average_watts!), 0)
       return best > 0 ? best : null
     }
-    const mins5  = bestNP(180, 900)    // 3–15 min
-    const mins20 = bestNP(900, 3600)   // 15–60 min
-    const mins60 = bestNP(3600)        // 60 min+ (no upper bound)
-    // fallback: best NP from any ride if duration buckets are empty
-    const bestAnyNP = rides.length > 0
-      ? rides.reduce((max, a) => Math.max(max, a.weighted_average_watts!), 0)
-      : null
-    const effectiveMins20 = mins20 ?? (bestAnyNP ? bestAnyNP : null)
-    const effectiveMins60 = mins60 ?? null
+    const mins5  = bestNP(180, 900)
+    const mins20 = bestNP(900, 3600)
+    const mins60 = bestNP(3600)
+
+    // intervals.icu's own rolling FTP is the best algorithmic estimate available.
+    // Fall back to NP-derived estimate if not present.
+    const latestRollingFTP = rides
+      .filter(a => a.rolling_ftp != null)
+      .sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))[0]?.rolling_ftp ?? null
+    const bestAnyNP = rides
+      .filter(a => a.weighted_average_watts != null)
+      .reduce((max, a) => Math.max(max, a.weighted_average_watts!), 0) || null
     const algorithmicEstimate =
-      effectiveMins20 !== null ? Math.round(effectiveMins20 * 0.95) :
-      effectiveMins60 !== null ? Math.round(effectiveMins60 * 0.97) : null
+      latestRollingFTP !== null ? latestRollingFTP :
+      mins20 !== null ? Math.round(mins20 * 0.95) :
+      mins60 !== null ? Math.round(mins60 * 0.97) :
+      bestAnyNP !== null ? Math.round(bestAnyNP * 0.90) : null
 
     const buckets = new Map<string, { rideCount: number; peakNP: number; totalTSS: number }>()
     for (const act of activities.filter(a => a.type === 'Ride')) {
@@ -80,7 +86,7 @@ export async function POST(req: NextRequest) {
     const resolvedFTP = currentFTP ?? profileData.current_ftp ?? 200
 
     const result = await predictFTP({
-      powerCurve: { mins5, mins20: effectiveMins20, mins60: effectiveMins60 },
+      powerCurve: { mins5, mins20, mins60 },
       algorithmicEstimate,
       monthlyTrend,
       currentFTP: resolvedFTP,
