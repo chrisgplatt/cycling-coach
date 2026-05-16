@@ -64,6 +64,14 @@ export default function CalendarPage() {
           onClick={() => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }}
           className="text-gray-400 hover:text-gray-700"
         >&#9654;</button>
+        {(() => { const now = new Date(); return (now.getMonth() !== month || now.getFullYear() !== year) })() && (
+          <button
+            onClick={() => { const now = new Date(); setMonth(now.getMonth()); setYear(now.getFullYear()) }}
+            className="text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-md px-2.5 py-1 transition-colors"
+          >
+            Today
+          </button>
+        )}
       </div>
 
       <div className="overflow-x-auto">
