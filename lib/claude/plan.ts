@@ -29,12 +29,24 @@ function formatSchedule(availability: Array<{ day: string; duration_minutes: num
     const h = Math.floor(a.duration_minutes / 60)
     const m = a.duration_minutes % 60
     const dur = h > 0 && m > 0 ? `${h}h ${m}min` : h > 0 ? `${h}h` : `${m}min`
-    return `  ${a.day.charAt(0).toUpperCase() + a.day.slice(1)}: ${dur}`
+    return `  ${a.day.charAt(0).toUpperCase() + a.day.slice(1)}: ${dur} (${a.duration_minutes} min — duration_minutes must equal this exactly)`
   })
   if (restDays.length) {
-    lines.push(`  (${restDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}: rest)`)
+    lines.push(`  ${restDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}: REST — do not schedule any workout on these days`)
   }
-  return `Weekly training schedule:\n${lines.join('\n')}`
+  return `Weekly training schedule (HARD CONSTRAINTS):\n${lines.join('\n')}`
+}
+
+function formatZones(ftp: number): string {
+  const z = (lo: number, hi: number) => `${Math.round(ftp * lo)}–${Math.round(ftp * hi)}W`
+  return [
+    `  Recovery  (Z1): <${Math.round(ftp * 0.55)}W`,
+    `  Endurance (Z2): ${z(0.56, 0.75)}`,
+    `  Tempo     (Z3): ${z(0.76, 0.90)}`,
+    `  Threshold (Z4): ${z(0.91, 1.05)}`,
+    `  VO2max    (Z5): ${z(1.06, 1.20)}`,
+    `  Anaerobic (Z6): >${Math.round(ftp * 1.20)}W`,
+  ].join('\n')
 }
 
 const SYSTEM_PROMPT = `You are an expert road cycling coach. Generate periodized training plans based on athlete data.
@@ -50,46 +62,54 @@ export async function generatePlan(
   if (!allEvents.length) throw new Error('Cannot generate a plan: no events configured.')
   const targetEvent = allEvents.find(e => e.priority === 'A') ?? allEvents[0]
 
+  const wPerKg = (profile.current_ftp / profile.weight_kg).toFixed(2)
+
   const prompt = `Generate a training plan for this athlete.
 
-Profile:
+ATHLETE PROFILE:
 - Goals: ${profile.goals}
-- FTP: ${profile.current_ftp}W
-- Weight: ${profile.weight_kg}kg
+- FTP: ${profile.current_ftp}W | Weight: ${profile.weight_kg}kg | Power-to-weight: ${wPerKg} W/kg
+
+TRAINING ZONES (use these exact watt ranges in descriptions and target_zones):
+${formatZones(profile.current_ftp)}
+
 ${formatSchedule(profile.weekly_availability)}
 
-Before designing the plan, derive training emphases from the athlete's goals:
+HARD SCHEDULING CONSTRAINTS — treat these as absolute rules, not suggestions:
+1. Only schedule workouts on days listed in the weekly schedule. Never place a workout on a rest day.
+2. Each workout's duration_minutes must equal exactly the available minutes for that day of the week. Do not round up, down, or substitute a different duration.
+3. Steps within each workout must sum to exactly duration_minutes.
+4. All workout dates must fall on or after ${startDate}.
+
+GOAL INTERPRETATION — before designing the plan, derive training emphases from the athlete's goals:
 - Completion / endurance event (e.g. "complete", "finish", sportive, century) → prioritise long Z2 volume; build toward back-to-back riding days in the peak week
 - Performance / speed (e.g. "improve FTP", "go faster", race) → include threshold (Z4) and VO2max (Z5) blocks; reduce pure endurance volume
 - Weight loss (e.g. "lose", "lighter") → maximise Z2 volume; avoid unnecessary rest days; keep intensity moderate
 - Climbing (e.g. "climb", "mountains", "cols") → include sustained Z3–Z4 efforts; simulate long climbs in session descriptions
 - Multiple goal types → blend emphases proportionally
-Apply these emphases when selecting workout types and setting intensity distribution.
 
-Current fitness:
+CURRENT FITNESS:
 ${summariseWellness(syncData.wellness)}
 
-Recent activities (last 6 weeks):
+RECENT ACTIVITIES (last 10):
 ${summariseActivities(syncData.activities)}
 
-Events (all priorities):
+EVENTS (all priorities):
 ${allEvents.map(e => `- ${e.name} | ${e.date} | ${e.type} | Priority ${e.priority}`).join('\n')}
 
-Periodization rules:
+PERIODIZATION RULES:
 - Priority A event: primary target. Build a full periodization arc (base → build → peak → taper) toward this date. Taper: 7–10 days of reduced volume before the event.
 - Priority B events: tune-up races. In the 3–5 days before a B event, add sharpening sessions (short, punchy, race-intensity). In the 2–3 days after, schedule easy recovery before resuming the build.
 - Priority C events: treat as a hard training day within the existing plan. No disruption to surrounding weeks.
 - If a B or C event falls within the A event taper window, honour the A event periodization.
+- If ${weeks} weeks is not enough for a complete arc, compress the base phase but always preserve the taper.
 
-Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts. The plan starts on ${startDate} — the first workout must be scheduled on ${startDate}. Prioritise the most important weeks first if the A event is further out.
+PLAN LENGTH: Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts, starting on ${startDate}.
 
-Each workout must include a "steps" array of structured intervals.
-Step rules:
-- Steps must sum to exactly duration_minutes
+STEP RULES:
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
-- Sessions >45min must include a warm-up (10-15min) and cool-down (10min)
-- For intervals, list each rep and recovery individually (do not group)
-- If a weekly training schedule is provided, schedule workouts only on those days, matching their available durations
+- Sessions >45min must include a warm-up (10-15min at Z1-Z2) and cool-down (10min at Z1)
+- For interval sessions, list each rep and each recovery period as a separate step (do not group)
 
 Return ONLY this JSON:
 {

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import PlanApprovalModal from '@/components/PlanApprovalModal'
 import PlanDurationModal from '@/components/PlanDurationModal'
 import ClearWorkoutsModal from '@/components/ClearWorkoutsModal'
+import AddEventModal from '@/components/AddEventModal'
 import type { UserProfile, TrainingEvent, GeneratedPlan, ICUSyncData } from '@/types'
 
 const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const
@@ -30,6 +31,7 @@ export default function SettingsPage() {
   const [syncResult, setSyncResult] = useState<string | null>(null)
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null)
   const [confirmingEvent, setConfirmingEvent] = useState<string | null>(null)
+  const [showAddEvent, setShowAddEvent] = useState(false)
   const [schedule, setSchedule] = useState<Record<string, number>>(
     Object.fromEntries(DAYS.map(d => [d, 0]))
   )
@@ -194,11 +196,22 @@ export default function SettingsPage() {
     }
   }
 
-  function addEvent() {
-    setProfile(p => ({
-      ...p,
-      events: [...p.events, { name: '', date: '', type: 'sportive' as TrainingEvent['type'], priority: 'B' as TrainingEvent['priority'], _key: Date.now() }],
-    }))
+  async function addEvent(event: Omit<TrainingEvent, '_key'>) {
+    const updated = { ...profile, events: [...profile.events, event] }
+    setProfile(updated)
+    const weekly_availability = Object.entries(schedule)
+      .filter(([, mins]) => mins > 0)
+      .map(([day, duration_minutes]) => ({ day, duration_minutes }))
+    const body = profileId ? { id: profileId, ...updated, weekly_availability } : { ...updated, weekly_availability }
+    const res = await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error ?? 'Save failed')
+    }
   }
 
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -307,7 +320,7 @@ export default function SettingsPage() {
             >
               {syncing ? 'Syncing…' : 'Sync from intervals.icu'}
             </button>
-            <button onClick={addEvent} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
+            <button onClick={() => setShowAddEvent(true)} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
               + Add event
             </button>
           </div>
@@ -388,6 +401,13 @@ export default function SettingsPage() {
           Clear Future Workouts
         </button>
       </div>
+
+      {showAddEvent && (
+        <AddEventModal
+          onConfirm={addEvent}
+          onClose={() => setShowAddEvent(false)}
+        />
+      )}
 
       {showClearModal && (
         <ClearWorkoutsModal
