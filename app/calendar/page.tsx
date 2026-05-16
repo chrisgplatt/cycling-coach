@@ -2,12 +2,17 @@
 import { useEffect, useState } from 'react'
 import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { Workout } from '@/types'
+import type { Workout, TrainingEvent } from '@/types'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const TYPE_COLOUR: Record<string, string> = {
   endurance: 'text-blue-500', threshold: 'text-orange-500',
   intervals: 'text-red-500', recovery: 'text-green-500',
+}
+const EVENT_COLOURS: Record<string, string> = {
+  A: 'bg-red-100 border-red-400 text-red-800',
+  B: 'bg-amber-100 border-amber-400 text-amber-800',
+  C: 'bg-slate-100 border-slate-400 text-slate-600',
 }
 
 export default function CalendarPage() {
@@ -16,6 +21,7 @@ export default function CalendarPage() {
   const [athleteId, setAthleteId] = useState('')
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
+  const [events, setEvents] = useState<TrainingEvent[]>([])
   const [month, setMonth] = useState(() => new Date().getMonth())
   const [year, setYear] = useState(() => new Date().getFullYear())
 
@@ -31,6 +37,10 @@ export default function CalendarPage() {
     fetch('/api/sync', { method: 'POST' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.athlete_id) setAthleteId(data.athlete_id) })
+      .catch(() => {})
+    fetch('/api/profile')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.events) setEvents(data.events) })
       .catch(() => {})
   }, [])
 
@@ -60,34 +70,61 @@ export default function CalendarPage() {
         >&#9654;</button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-xs text-center text-gray-400 mb-1">
-        {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => <div key={d}>{d}</div>)}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {blanks.map((_, i) => <div key={`b${i}`} />)}
-        {days.map(day => {
-          const ds = dateStr(day)
-          const workout = workouts.find(w => w.date === ds)
-          return (
-            <button
-              key={day}
-              onClick={() => workout && setSelectedWorkout(workout)}
-              className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm
-                ${workout ? 'bg-white border border-gray-200 hover:border-blue-400 cursor-pointer' : 'text-gray-300'}
-              `}
-            >
-              <span>{day}</span>
-              {workout && (
-                <>
-                  <span className={`text-[10px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
-                    {workout.type}
-                  </span>
-                  <span className="text-[10px] text-gray-400">{workout.duration_minutes} min</span>
-                </>
-              )}
-            </button>
-          )
-        })}
+      <div className="overflow-x-auto">
+        <div className="min-w-[400px]">
+          <div className="grid grid-cols-7 gap-1 text-xs text-center text-gray-400 mb-1">
+            {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => <div key={d}>{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {blanks.map((_, i) => <div key={`b${i}`} />)}
+            {days.map(day => {
+              const ds = dateStr(day)
+              const workout = workouts.find(w => w.date === ds)
+              const event = events.find(e => e.date === ds)
+
+              if (event) {
+                return (
+                  <button
+                    key={day}
+                    onClick={() => workout && setSelectedWorkout(workout)}
+                    className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm border-2 ${EVENT_COLOURS[event.priority] ?? 'bg-amber-100 border-amber-400 text-amber-800'} ${workout ? 'cursor-pointer' : 'cursor-default'}`}
+                  >
+                    <span className="font-semibold">{day}</span>
+                    <span className="text-[10px]">🏁</span>
+                    <span title={event.name} className="text-[8px] font-semibold text-center leading-tight px-0.5 w-full truncate">
+                      {event.name}
+                    </span>
+                    {workout && (
+                      <span className={`text-[8px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
+                        {workout.type}
+                      </span>
+                    )}
+                  </button>
+                )
+              }
+
+              return (
+                <button
+                  key={day}
+                  onClick={() => workout && setSelectedWorkout(workout)}
+                  className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm
+                    ${workout ? 'bg-white border border-gray-200 hover:border-blue-400 cursor-pointer' : 'text-gray-300'}
+                  `}
+                >
+                  <span>{day}</span>
+                  {workout && (
+                    <>
+                      <span className={`text-[10px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
+                        {workout.type}
+                      </span>
+                      <span className="text-[10px] text-gray-400">{workout.duration_minutes} min</span>
+                    </>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       {selectedWorkout && (
