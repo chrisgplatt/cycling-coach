@@ -4,7 +4,13 @@ import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
 import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { ICUSyncData, Workout, ICUWellness } from '@/types'
+import type { ICUSyncData, Workout, ICUWellness, TrainingEvent } from '@/types'
+
+const EVENT_COLOURS: Record<string, string> = {
+  A: 'bg-red-100 border-red-400 text-red-800',
+  B: 'bg-amber-100 border-amber-400 text-amber-800',
+  C: 'bg-slate-100 border-slate-400 text-slate-600',
+}
 
 export default function DashboardPage() {
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
@@ -15,6 +21,7 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState(false)
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
+  const [events, setEvents] = useState<TrainingEvent[]>([])
 
   async function doSync() {
     setSyncing(true)
@@ -49,6 +56,7 @@ export default function DashboardPage() {
     fetch('/api/profile').then(r => r.json()).then(data => {
       const name: string = data?.full_name ?? ''
       if (name) setFirstName(name.split(' ')[0])
+      if (data?.events) setEvents(data.events)
     }).catch(() => {})
   }, [])
 
@@ -87,19 +95,32 @@ export default function DashboardPage() {
       <div className="space-y-2">
         {weekDates.map((date, i) => {
           const dayWorkout = workouts.find(w => w.date === date)
+          const dayEvent = events.find(e => e.date === date)
           return (
             <div key={date} className="flex gap-4 items-start">
               <div className="w-10 text-center pt-3.5">
                 <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{days[i]}</div>
                 <div className="text-sm font-bold text-slate-700 mt-0.5">{date.slice(8)}</div>
               </div>
-              <div className="flex-1">
-                {dayWorkout ? (
+              <div className="flex-1 space-y-2">
+                {dayWorkout && (
                   <WorkoutCard
                     workout={dayWorkout}
                     onClick={() => setSelectedWorkout(dayWorkout)}
                   />
-                ) : (
+                )}
+                {dayEvent && (
+                  <div className={`rounded-xl border-2 px-4 py-3 ${EVENT_COLOURS[dayEvent.priority] ?? 'bg-amber-100 border-amber-400 text-amber-800'}`}>
+                    <div className="flex items-center gap-2">
+                      <span>🏁</span>
+                      <div>
+                        <div className="font-semibold text-sm">{dayEvent.name}</div>
+                        <div className="text-xs capitalize opacity-75">{dayEvent.type} · {dayEvent.priority} priority</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {!dayWorkout && !dayEvent && (
                   <div className="text-sm text-slate-300 py-3.5 pl-1">Rest</div>
                 )}
               </div>
