@@ -24,12 +24,13 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { syncData, weeks = 6 } = await req.json()
+  const safeWeeks = Math.min(16, Math.max(2, Math.round(Number(weeks) || 6)))
   const { data: profileData } = await supabase.from('user_profile').select('*').maybeSingle()
   if (!profileData) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
   if (!profileData.events?.length) return NextResponse.json({ error: 'Add and save at least one event in Settings before generating a plan' }, { status: 400 })
 
   try {
-    const generatedPlan = await generatePlan(profileData, syncData ?? { activities: [], wellness: [], athlete_ftp: null, athlete_weight: null }, weeks)
+    const generatedPlan = await generatePlan(profileData, syncData ?? { activities: [], wellness: [], athlete_ftp: null, athlete_weight: null }, safeWeeks)
     return NextResponse.json(generatedPlan)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Plan generation failed'
