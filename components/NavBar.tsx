@@ -38,6 +38,7 @@ export default function NavBar() {
         <button
           onClick={() => setOpen(o => !o)}
           aria-label="Toggle navigation menu"
+          aria-expanded={open}
           className="md:hidden ml-auto text-slate-400 hover:text-white py-4 px-1"
         >
           {open ? (
@@ -65,7 +66,7 @@ export default function NavBar() {
               {l.label}
             </Link>
           ))}
-          <div className="px-6 py-4">
+          <div className="px-6 py-4" onClick={() => setOpen(false)}>
             <SignOutButton />
           </div>
         </div>
