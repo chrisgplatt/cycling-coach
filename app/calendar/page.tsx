@@ -144,6 +144,10 @@ export default function CalendarPage() {
             setSelectedWorkout(null)
             loadPlan()
           }}
+          onDelete={() => {
+            setSelectedWorkout(null)
+            loadPlan()
+          }}
         />
       )}
 

@@ -91,10 +91,11 @@ export default function DashboardPage() {
     if (!lastRide) return ''
     const rideDate = new Date(lastRide.start_date_local)
     const diffDays = Math.floor((Date.now() - rideDate.getTime()) / 864e5)
-    if (diffDays === 0) return 'today'
-    if (diffDays === 1) return 'yesterday'
-    if (diffDays < 7) return `${diffDays} days ago`
-    return rideDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    const timeStr = rideDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    const dateStr = rideDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    if (diffDays === 0) return `today at ${timeStr}`
+    if (diffDays === 1) return `yesterday at ${timeStr}`
+    return `${dateStr} at ${timeStr}`
   }
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -191,6 +192,10 @@ export default function DashboardPage() {
             setSelectedWorkout(null)
           }}
           onStatusChange={() => {
+            setSelectedWorkout(null)
+            loadPlan()
+          }}
+          onDelete={() => {
             setSelectedWorkout(null)
             loadPlan()
           }}

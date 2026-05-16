@@ -16,14 +16,37 @@ interface Props {
   onClose: () => void
   onFeedback?: () => void
   onStatusChange?: () => void
+  onDelete?: () => void
 }
 
 export default function WorkoutDetailModal({
-  workout, athleteId, activitiesOnDate, onClose, onFeedback, onStatusChange,
+  workout, athleteId, activitiesOnDate, onClose, onFeedback, onStatusChange, onDelete,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [showChange, setShowChange] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    setDeleting(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/workouts/${workout.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? 'Failed to delete')
+        setDeleteConfirm(false)
+        return
+      }
+      onDelete?.()
+    } catch {
+      setError('Network error')
+      setDeleteConfirm(false)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   function weekMonday(date: string): string {
     const d = new Date(date)
@@ -182,11 +205,37 @@ export default function WorkoutDetailModal({
         </div>
 
         <div className="p-4 border-t border-slate-100 flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-3">
             {(workout.status === 'completed' || workout.status === 'needs_review') && onFeedback && (
               <button onClick={onFeedback} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
                 Log feedback
               </button>
+            )}
+            {onDelete && !deleteConfirm && (
+              <button
+                onClick={() => setDeleteConfirm(true)}
+                className="text-sm font-medium text-red-500 hover:text-red-700 transition-colors"
+              >
+                Delete
+              </button>
+            )}
+            {deleteConfirm && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600">Delete this workout?</span>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors"
+                >
+                  {deleting ? 'Deleting…' : 'Yes, delete'}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(false)}
+                  className="text-sm text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             )}
           </div>
           <button onClick={onClose} className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
