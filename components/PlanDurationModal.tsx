@@ -7,7 +7,12 @@ interface Props {
 }
 
 export default function PlanDurationModal({ onStart, onCancel }: Props) {
-  const [weeks, setWeeks] = useState(6)
+  const [weeksStr, setWeeksStr] = useState('6')
+
+  function handleStart() {
+    const w = Math.min(16, Math.max(2, Math.round(Number(weeksStr) || 6)))
+    onStart(w)
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -22,8 +27,12 @@ export default function PlanDurationModal({ onStart, onCancel }: Props) {
             min={2}
             max={16}
             step={1}
-            value={weeks}
-            onChange={e => setWeeks(Math.min(16, Math.max(2, Number(e.target.value))))}
+            value={weeksStr}
+            onChange={e => setWeeksStr(e.target.value)}
+            onBlur={e => {
+              const clamped = Math.min(16, Math.max(2, Math.round(Number(e.target.value) || 6)))
+              setWeeksStr(String(clamped))
+            }}
             className="w-24 text-center text-xl font-bold border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <span className="text-slate-600 font-medium">weeks</span>
@@ -36,7 +45,7 @@ export default function PlanDurationModal({ onStart, onCancel }: Props) {
             Cancel
           </button>
           <button
-            onClick={() => onStart(weeks)}
+            onClick={handleStart}
             className="bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
           >
             Start

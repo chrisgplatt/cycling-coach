@@ -3,16 +3,12 @@ import { useEffect, useState } from 'react'
 import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { Workout, TrainingEvent } from '@/types'
+import { EVENT_COLOURS } from '@/lib/event-colours'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const TYPE_COLOUR: Record<string, string> = {
   endurance: 'text-blue-500', threshold: 'text-orange-500',
   intervals: 'text-red-500', recovery: 'text-green-500',
-}
-const EVENT_COLOURS: Record<string, string> = {
-  A: 'bg-red-100 border-red-400 text-red-800',
-  B: 'bg-amber-100 border-amber-400 text-amber-800',
-  C: 'bg-slate-100 border-slate-400 text-slate-600',
 }
 
 export default function CalendarPage() {
@@ -87,7 +83,7 @@ export default function CalendarPage() {
                   <button
                     key={day}
                     onClick={() => workout && setSelectedWorkout(workout)}
-                    className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm border-2 ${EVENT_COLOURS[event.priority] ?? 'bg-amber-100 border-amber-400 text-amber-800'} ${workout ? 'cursor-pointer' : 'cursor-default'}`}
+                    className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm border-2 ${EVENT_COLOURS[event.priority]} ${workout ? 'cursor-pointer' : 'cursor-default'}`}
                   >
                     <span className="font-semibold">{day}</span>
                     <span className="text-[10px]">🏁</span>

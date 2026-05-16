@@ -5,12 +5,7 @@ import WorkoutCard from '@/components/WorkoutCard'
 import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { ICUSyncData, Workout, ICUWellness, TrainingEvent } from '@/types'
-
-const EVENT_COLOURS: Record<string, string> = {
-  A: 'bg-red-100 border-red-400 text-red-800',
-  B: 'bg-amber-100 border-amber-400 text-amber-800',
-  C: 'bg-slate-100 border-slate-400 text-slate-600',
-}
+import { EVENT_COLOURS } from '@/lib/event-colours'
 
 export default function DashboardPage() {
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
@@ -110,7 +105,7 @@ export default function DashboardPage() {
                   />
                 )}
                 {dayEvent && (
-                  <div className={`rounded-xl border-2 px-4 py-3 ${EVENT_COLOURS[dayEvent.priority] ?? 'bg-amber-100 border-amber-400 text-amber-800'}`}>
+                  <div className={`rounded-xl border-2 px-4 py-3 ${EVENT_COLOURS[dayEvent.priority]}`}>
                     <div className="flex items-center gap-2">
                       <span>🏁</span>
                       <div>

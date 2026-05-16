@@ -72,7 +72,7 @@ export default function SettingsPage() {
       .catch(() => {})
   }, [])
 
-  async function saveProfile() {
+  async function saveProfile(): Promise<boolean> {
     setSaving(true)
     setSaveError(null)
     try {
@@ -90,12 +90,15 @@ export default function SettingsPage() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setSaveError(data.error ?? 'Save failed')
+        return false
       } else {
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
+        return true
       }
     } catch {
       setSaveError('Network error')
+      return false
     } finally {
       setSaving(false)
     }
@@ -106,7 +109,11 @@ export default function SettingsPage() {
     setGenerating(true)
     setSaveError(null)
     try {
-      await saveProfile()
+      const saved = await saveProfile()
+      if (!saved) {
+        setGenerating(false)
+        return
+      }
       const res = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
