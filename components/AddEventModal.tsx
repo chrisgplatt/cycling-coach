@@ -3,20 +3,22 @@ import { useState } from 'react'
 import type { TrainingEvent } from '@/types'
 
 interface Props {
+  initialEvent?: Omit<TrainingEvent, '_key'>
   onConfirm: (event: Omit<TrainingEvent, '_key'>) => Promise<void>
   onClose: () => void
 }
 
 const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 
-export default function AddEventModal({ onConfirm, onClose }: Props) {
-  const [name, setName] = useState('')
-  const [date, setDate] = useState('')
-  const [type, setType] = useState<TrainingEvent['type']>('sportive')
-  const [priority, setPriority] = useState<TrainingEvent['priority']>('B')
+export default function AddEventModal({ initialEvent, onConfirm, onClose }: Props) {
+  const [name, setName] = useState(initialEvent?.name ?? '')
+  const [date, setDate] = useState(initialEvent?.date ?? '')
+  const [type, setType] = useState<TrainingEvent['type']>(initialEvent?.type ?? 'sportive')
+  const [priority, setPriority] = useState<TrainingEvent['priority']>(initialEvent?.priority ?? 'B')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const isEditing = !!initialEvent
   const valid = name.trim() !== '' && date !== ''
 
   async function handleConfirm() {
@@ -36,7 +38,7 @@ export default function AddEventModal({ onConfirm, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-        <h2 className="text-lg font-bold text-slate-900">Add event</h2>
+        <h2 className="text-lg font-bold text-slate-900">{isEditing ? 'Edit event' : 'Add event'}</h2>
 
         <div className="space-y-3">
           <input
@@ -82,7 +84,7 @@ export default function AddEventModal({ onConfirm, onClose }: Props) {
             disabled={!valid || saving}
             className="bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
           >
-            {saving ? 'Saving…' : 'Add event'}
+            {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Add event'}
           </button>
         </div>
       </div>

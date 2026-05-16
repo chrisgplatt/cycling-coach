@@ -32,6 +32,7 @@ export default function SettingsPage() {
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null)
   const [confirmingEvent, setConfirmingEvent] = useState<string | null>(null)
   const [showAddEvent, setShowAddEvent] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
   const [schedule, setSchedule] = useState<Record<string, number>>(
     Object.fromEntries(DAYS.map(d => [d, 0]))
   )
@@ -212,6 +213,31 @@ export default function SettingsPage() {
     }
   }
 
+  async function updateEvent(original: TrainingEvent, updated: Omit<TrainingEvent, '_key'>) {
+    const res = await fetch('/api/events/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        original_name: original.name,
+        original_date: original.date,
+        ...updated,
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error ?? 'Failed to update event')
+    setProfile(p => ({
+      ...p,
+      events: p.events.map(e =>
+        e.name === original.name && e.date === original.date ? data.event : e
+      ),
+    }))
+    if (data.synced_to_icu) {
+      setSyncResult('Event updated and synced to intervals.icu')
+    } else if (profile.intervals_icu_athlete_id && data.icu_error) {
+      setSyncResult(`Event updated locally — intervals.icu sync failed: ${data.icu_error}`)
+    }
+  }
+
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
 
@@ -326,58 +352,57 @@ export default function SettingsPage() {
         {syncResult && (
           <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">{syncResult}</p>
         )}
-        {profile.events.map((event, i) => (
-          <div key={(event as { _key?: number })._key ?? i} className="grid grid-cols-2 gap-2 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
-            <input type="text" value={event.name} placeholder="Event name"
-              onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], name: e.target.value }; setProfile(p => ({ ...p, events: ev })) }}
-              className={inputClass} />
-            <input type="date" value={event.date}
-              onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], date: e.target.value }; setProfile(p => ({ ...p, events: ev })) }}
-              className={inputClass} />
-            <select value={event.type}
-              onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], type: e.target.value as TrainingEvent['type'] }; setProfile(p => ({ ...p, events: ev })) }}
-              className={inputClass}>
-              <option value="sportive">Sportive</option>
-              <option value="race">Race</option>
-              <option value="holiday">Holiday riding</option>
-              <option value="fitness">Fitness</option>
-            </select>
-            <select value={event.priority}
-              onChange={e => { const ev = [...profile.events]; ev[i] = { ...ev[i], priority: e.target.value as TrainingEvent['priority'] }; setProfile(p => ({ ...p, events: ev })) }}
-              className={inputClass}>
-              <option value="A">A — Peak for this</option>
-              <option value="B">B — Important</option>
-              <option value="C">C — Secondary</option>
-            </select>
-            <div className="col-span-2 flex justify-end items-center gap-3">
-              {confirmingEvent === `${event.name}|${event.date}` ? (
-                <>
-                  <span className="text-xs text-slate-600">Delete this event?</span>
-                  <button
-                    onClick={() => { setConfirmingEvent(null); deleteEvent(event.name, event.date) }}
-                    disabled={deletingEvent === `${event.name}|${event.date}`}
-                    className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors"
-                  >
-                    {deletingEvent === `${event.name}|${event.date}` ? 'Deleting…' : 'Yes, delete'}
-                  </button>
-                  <button
-                    onClick={() => setConfirmingEvent(null)}
-                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
+        {profile.events.length === 0 && (
+          <p className="text-sm text-slate-400">No events yet. Add one to start planning.</p>
+        )}
+        {profile.events.map((event, i) => {
+          const key = `${event.name}|${event.date}`
+          const typeLabel: Record<string, string> = { race: 'Race', sportive: 'Sportive', holiday: 'Holiday', fitness: 'Fitness' }
+          return (
+            <div key={key ?? i} className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{event.name}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {event.date} · {typeLabel[event.type] ?? event.type} · Priority {event.priority}
+                  {event.icu_event_id && <span className="ml-1.5 text-green-600">↑ synced</span>}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
                 <button
-                  onClick={() => setConfirmingEvent(`${event.name}|${event.date}`)}
-                  className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                  onClick={() => setEditingEvent(event)}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
                 >
-                  Delete event
+                  Edit
                 </button>
-              )}
+                {confirmingEvent === key ? (
+                  <>
+                    <span className="text-xs text-slate-600">Delete?</span>
+                    <button
+                      onClick={() => { setConfirmingEvent(null); deleteEvent(event.name, event.date) }}
+                      disabled={deletingEvent === key}
+                      className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors"
+                    >
+                      {deletingEvent === key ? 'Deleting…' : 'Yes'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmingEvent(null)}
+                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setConfirmingEvent(key)}
+                    className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </section>
 
       {saveError && (
@@ -404,6 +429,14 @@ export default function SettingsPage() {
         <AddEventModal
           onConfirm={addEvent}
           onClose={() => setShowAddEvent(false)}
+        />
+      )}
+
+      {editingEvent && (
+        <AddEventModal
+          initialEvent={editingEvent}
+          onConfirm={updated => updateEvent(editingEvent, updated)}
+          onClose={() => setEditingEvent(null)}
         />
       )}
 

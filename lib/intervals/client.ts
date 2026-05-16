@@ -224,6 +224,28 @@ export class IntervalsClient {
     })
   }
 
+  async updateTargetEvent(eventId: string, params: {
+    date: string
+    name: string
+    type: 'race' | 'sportive' | 'holiday' | 'fitness'
+    priority: 'A' | 'B' | 'C'
+  }): Promise<void> {
+    const raceCategory = { A: 'RACE_A', B: 'RACE_B', C: 'RACE_C' }[params.priority]
+    const category =
+      params.type === 'race' || params.type === 'sportive' ? raceCategory :
+      params.type === 'fitness' ? 'TARGET' :
+      params.type === 'holiday' ? 'HOLIDAY' :
+      'NOTE'
+    await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        category,
+        start_date_local: `${params.date}T00:00:00`,
+        name: params.name,
+      }),
+    })
+  }
+
   async deleteEvent(eventId: string): Promise<void> {
     await this.request(`/athlete/${this.athleteId}/events/${eventId}`, { method: 'DELETE' })
   }
