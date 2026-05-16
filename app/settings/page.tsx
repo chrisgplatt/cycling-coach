@@ -386,7 +386,9 @@ export default function SettingsPage() {
       </div>
 
       {clearResult && (
-        <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-4 py-2.5">{clearResult}</p>
+        <p className={`text-sm rounded-lg px-4 py-2.5 ${clearResult.startsWith('Error') ? 'text-red-700 bg-red-50 border border-red-100' : 'text-green-700 bg-green-50 border border-green-100'}`}>
+          {clearResult}
+        </p>
       )}
 
       {showDurationPrompt && (
