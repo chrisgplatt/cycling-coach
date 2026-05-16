@@ -83,6 +83,20 @@ export default function DashboardPage() {
 
   const latestWellness: ICUWellness | null = syncData?.wellness?.slice(-1)[0] ?? null
 
+  const lastRide = syncData?.activities
+    ?.slice()
+    .sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))[0] ?? null
+
+  function formatLastRide(): string {
+    if (!lastRide) return ''
+    const rideDate = new Date(lastRide.start_date_local)
+    const diffDays = Math.floor((Date.now() - rideDate.getTime()) / 864e5)
+    if (diffDays === 0) return 'today'
+    if (diffDays === 1) return 'yesterday'
+    if (diffDays < 7) return `${diffDays} days ago`
+    return rideDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  }
+
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const today = new Date()
   const weekDates = days.map((_, i) => {
@@ -114,9 +128,15 @@ export default function DashboardPage() {
       <MetricsBar wellness={latestWellness} />
 
       {latestWellness && (
-        <p className="text-sm text-slate-600 bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-3">
-          {getReadinessSummary(latestWellness)}
-        </p>
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-3 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Readiness</h2>
+            {lastRide && (
+              <span className="text-xs text-slate-400">Last ride: <span className="font-medium text-slate-600">{formatLastRide()}</span></span>
+            )}
+          </div>
+          <p className="text-sm text-slate-600">{getReadinessSummary(latestWellness)}</p>
+        </div>
       )}
 
       <div className="space-y-2">
