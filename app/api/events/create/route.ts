@@ -1,0 +1,55 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { IntervalsClient } from '@/lib/intervals/client'
+import type { TrainingEvent } from '@/types'
+
+export async function POST(req: NextRequest) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { name, date, type, priority } = await req.json() as TrainingEvent
+
+  if (!name?.trim() || !date) {
+    return NextResponse.json({ error: 'name and date are required' }, { status: 400 })
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('user_profile')
+    .select('id, intervals_icu_athlete_id, intervals_icu_api_key, events')
+    .maybeSingle()
+
+  if (profileError || !profile) {
+    return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+  }
+
+  let icu_event_id: string | undefined
+  if (profile.intervals_icu_athlete_id && profile.intervals_icu_api_key) {
+    try {
+      const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
+      icu_event_id = await client.createTargetEvent({ date, name: name.trim(), type, priority })
+    } catch {
+      // Non-fatal: save locally even if intervals.icu push fails
+    }
+  }
+
+  const newEvent: TrainingEvent = {
+    name: name.trim(),
+    date,
+    type,
+    priority,
+    ...(icu_event_id ? { icu_event_id } : {}),
+  }
+
+  const existing: TrainingEvent[] = profile.events ?? []
+  const { error: saveError } = await supabase
+    .from('user_profile')
+    .update({ events: [...existing, newEvent] })
+    .eq('id', profile.id)
+
+  if (saveError) {
+    return NextResponse.json({ error: 'Failed to save event' }, { status: 500 })
+  }
+
+  return NextResponse.json({ event: newEvent, synced_to_icu: !!icu_event_id })
+}

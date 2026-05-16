@@ -187,6 +187,31 @@ export class IntervalsClient {
     return data.id
   }
 
+  async createTargetEvent(params: {
+    date: string
+    name: string
+    type: 'race' | 'sportive' | 'holiday' | 'fitness'
+    priority: 'A' | 'B' | 'C'
+  }): Promise<string> {
+    const raceCategory = { A: 'RACE_A', B: 'RACE_B', C: 'RACE_C' }[params.priority]
+    const category =
+      params.type === 'race' || params.type === 'sportive' ? raceCategory :
+      params.type === 'fitness' ? 'TARGET' :
+      'NOTE'
+    const data = await this.request<{ id: string }>(
+      `/athlete/${this.athleteId}/events`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          category,
+          start_date_local: `${params.date}T00:00:00`,
+          name: params.name,
+        }),
+      }
+    )
+    return data.id
+  }
+
   async updateEvent(eventId: string, params: Partial<CreateEventParams>): Promise<void> {
     const body: Record<string, unknown> = {}
     if (params.name !== undefined) body.name = params.name

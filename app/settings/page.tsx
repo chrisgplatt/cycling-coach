@@ -197,21 +197,14 @@ export default function SettingsPage() {
   }
 
   async function addEvent(event: Omit<TrainingEvent, '_key'>) {
-    const updated = { ...profile, events: [...profile.events, event] }
-    setProfile(updated)
-    const weekly_availability = Object.entries(schedule)
-      .filter(([, mins]) => mins > 0)
-      .map(([day, duration_minutes]) => ({ day, duration_minutes }))
-    const body = profileId ? { id: profileId, ...updated, weekly_availability } : { ...updated, weekly_availability }
-    const res = await fetch('/api/profile', {
-      method: 'PATCH',
+    const res = await fetch('/api/events/create', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(event),
     })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      throw new Error(data.error ?? 'Save failed')
-    }
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error ?? 'Failed to save event')
+    setProfile(p => ({ ...p, events: [...p.events, data.event] }))
   }
 
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
