@@ -7,6 +7,32 @@ import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { ICUSyncData, Workout, ICUWellness, TrainingEvent } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 
+function getReadinessSummary(wellness: ICUWellness): string {
+  const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
+
+  let summary: string
+  if (form === null) {
+    summary = 'Not enough training load data to assess readiness yet.'
+  } else if (form > 10) {
+    summary = `With a form score of +${Math.round(form)}, you're well rested and carrying low fatigue — prime condition for a hard effort today.`
+  } else if (form > 5) {
+    summary = `Your form score of +${Math.round(form)} shows you're fresh and ready for quality training. A structured session today should feel good.`
+  } else if (form >= -5) {
+    summary = `Your form score of ${Math.round(form)} reflects a balanced training load. You're fit to train — moderate intensity suits the current state well.`
+  } else if (form >= -15) {
+    summary = `Your form score of ${Math.round(form)} indicates some accumulated fatigue from recent training. Keep today's effort controlled and focus on completion over intensity.`
+  } else {
+    summary = `Your form score of ${Math.round(form)} points to significant fatigue. Prioritise recovery — an easy spin or rest will serve you better than pushing hard right now.`
+  }
+
+  const notes: string[] = []
+  if (wellness.hrv !== null) notes.push(`HRV ${Math.round(wellness.hrv)} ms`)
+  if (wellness.resting_hr !== null) notes.push(`resting HR ${Math.round(wellness.resting_hr)} bpm`)
+  if (notes.length > 0) summary += ` (${notes.join(', ')})`
+
+  return summary
+}
+
 export default function DashboardPage() {
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [athleteId, setAthleteId] = useState('')
@@ -86,6 +112,12 @@ export default function DashboardPage() {
       </div>
 
       <MetricsBar wellness={latestWellness} />
+
+      {latestWellness && (
+        <p className="text-sm text-slate-600 bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-3">
+          {getReadinessSummary(latestWellness)}
+        </p>
+      )}
 
       <div className="space-y-2">
         {weekDates.map((date, i) => {
