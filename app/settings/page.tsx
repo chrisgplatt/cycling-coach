@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import PlanApprovalModal from '@/components/PlanApprovalModal'
+import PlanDurationModal from '@/components/PlanDurationModal'
 import type { UserProfile, TrainingEvent, GeneratedPlan, ICUSyncData } from '@/types'
 
 const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [showDurationPrompt, setShowDurationPrompt] = useState(false)
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [clearing, setClearing] = useState(false)
@@ -99,7 +101,8 @@ export default function SettingsPage() {
     }
   }
 
-  async function generatePlan() {
+  async function startPlanGeneration(weeks: number) {
+    setShowDurationPrompt(false)
     setGenerating(true)
     setSaveError(null)
     try {
@@ -107,7 +110,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncData }),
+        body: JSON.stringify({ syncData, weeks }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -349,7 +352,7 @@ export default function SettingsPage() {
           className="bg-slate-800 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors shadow-sm">
           {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Profile'}
         </button>
-        <button onClick={generatePlan} disabled={generating || !profile.events.length}
+        <button onClick={() => setShowDurationPrompt(true)} disabled={generating || !profile.events.length}
           title={!profile.events.length ? 'Add at least one event first' : undefined}
           className="bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm">
           {generating ? 'Generating plan…' : 'Build New Plan'}
@@ -362,6 +365,13 @@ export default function SettingsPage() {
 
       {clearResult && (
         <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-4 py-2.5">{clearResult}</p>
+      )}
+
+      {showDurationPrompt && (
+        <PlanDurationModal
+          onStart={startPlanGeneration}
+          onCancel={() => setShowDurationPrompt(false)}
+        />
       )}
 
       {(generating || generatedPlan) && (
