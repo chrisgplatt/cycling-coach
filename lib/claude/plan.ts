@@ -43,9 +43,9 @@ Always respond with ONLY valid JSON matching the exact schema requested. No mark
 export async function generatePlan(
   profile: UserProfile,
   syncData: ICUSyncData,
-  weeks: number = 6
+  weeks: number = 6,
+  startDate: string = new Date().toISOString().split('T')[0]
 ): Promise<GeneratedPlan> {
-  const today = new Date().toISOString().split('T')[0]
   const allEvents = [...profile.events].sort((a, b) => a.date.localeCompare(b.date))
   if (!allEvents.length) throw new Error('Cannot generate a plan: no events configured.')
   const targetEvent = allEvents.find(e => e.priority === 'A') ?? allEvents[0]
@@ -81,7 +81,7 @@ Periodization rules:
 - Priority C events: treat as a hard training day within the existing plan. No disruption to surrounding weeks.
 - If a B or C event falls within the A event taper window, honour the A event periodization.
 
-Plan from today (${today}) to ${targetEvent.date}.
+Plan from today (${startDate}) to ${targetEvent.date}.
 Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts. Prioritise the most important weeks first if the A event is further out.
 
 Each workout must include a "steps" array of structured intervals.

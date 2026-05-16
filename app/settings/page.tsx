@@ -104,7 +104,7 @@ export default function SettingsPage() {
     }
   }
 
-  async function startPlanGeneration(weeks: number) {
+  async function startPlanGeneration(weeks: number, startDate: string) {
     setShowDurationPrompt(false)
     setGenerating(true)
     setSaveError(null)
@@ -117,7 +117,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncData, weeks }),
+        body: JSON.stringify({ syncData, weeks, startDate }),
       })
       const data = await res.json()
       if (!res.ok) {
