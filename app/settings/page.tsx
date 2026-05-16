@@ -268,18 +268,23 @@ export default function SettingsPage() {
         </div>
         <div>
           <label className={labelClass}>Weekly Training Availability</label>
-          <p className="text-xs text-slate-400 mb-3">How many minutes you can train on each day in a typical week. Set 0 for rest days.</p>
+          <p className="text-xs text-slate-400 mb-3">How many minutes you can train on each day in a typical week. Leave blank for rest days.</p>
           <div className="space-y-2">
             {DAYS.map((day, i) => (
               <div key={day} className="flex items-center gap-3">
                 <span className="text-sm text-slate-600 w-8 shrink-0">{DAY_LABELS[i]}</span>
                 <input
-                  type="number"
-                  min={0}
-                  step={15}
-                  value={schedule[day] ?? 0}
-                  onChange={e => setSchedule(s => ({ ...s, [day]: Math.max(0, Number(e.target.value)) }))}
-                  className="w-24 text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="0"
+                  value={(schedule[day] ?? 0) === 0 ? '' : String(schedule[day])}
+                  onFocus={e => e.target.select()}
+                  onChange={e => {
+                    const val = parseInt(e.target.value.replace(/\D/g, ''), 10)
+                    setSchedule(s => ({ ...s, [day]: isNaN(val) ? 0 : Math.max(0, val) }))
+                  }}
+                  className="w-24 text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <span className="text-xs text-slate-400 w-6">
                   {(schedule[day] ?? 0) === 0 ? 'rest' : 'min'}
