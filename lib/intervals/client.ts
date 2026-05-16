@@ -180,11 +180,11 @@ export class IntervalsClient {
       type: 'Ride',
       moving_time: params.duration_minutes * 60,
     }
-    const data = await this.request<{ id: string }>(
-      `/athlete/${this.athleteId}/events`,
+    const data = await this.request<{ id: number }>(
+      `/athlete/${this.athleteId}/events?upsertOnUid=false`,
       { method: 'POST', body: JSON.stringify(body) }
     )
-    return data.id
+    return String(data.id)
   }
 
   async createTargetEvent(params: {
@@ -197,9 +197,10 @@ export class IntervalsClient {
     const category =
       params.type === 'race' || params.type === 'sportive' ? raceCategory :
       params.type === 'fitness' ? 'TARGET' :
+      params.type === 'holiday' ? 'HOLIDAY' :
       'NOTE'
-    const data = await this.request<{ id: string }>(
-      `/athlete/${this.athleteId}/events`,
+    const data = await this.request<{ id: number }>(
+      `/athlete/${this.athleteId}/events?upsertOnUid=false`,
       {
         method: 'POST',
         body: JSON.stringify({
@@ -209,7 +210,7 @@ export class IntervalsClient {
         }),
       }
     )
-    return data.id
+    return String(data.id)
   }
 
   async updateEvent(eventId: string, params: Partial<CreateEventParams>): Promise<void> {

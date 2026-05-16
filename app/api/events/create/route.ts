@@ -24,12 +24,14 @@ export async function POST(req: NextRequest) {
   }
 
   let icu_event_id: string | undefined
+  let icu_error: string | undefined
   if (profile.intervals_icu_athlete_id && profile.intervals_icu_api_key) {
     try {
       const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
       icu_event_id = await client.createTargetEvent({ date, name: name.trim(), type, priority })
-    } catch {
-      // Non-fatal: save locally even if intervals.icu push fails
+    } catch (err) {
+      icu_error = err instanceof Error ? err.message : String(err)
+      console.error('[events/create] intervals.icu push failed:', icu_error)
     }
   }
 
@@ -51,5 +53,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to save event' }, { status: 500 })
   }
 
-  return NextResponse.json({ event: newEvent, synced_to_icu: !!icu_event_id })
+  return NextResponse.json({
+    event: newEvent,
+    synced_to_icu: !!icu_event_id,
+    ...(icu_error ? { icu_error } : {}),
+  })
 }

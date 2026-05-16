@@ -205,6 +205,11 @@ export default function SettingsPage() {
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error ?? 'Failed to save event')
     setProfile(p => ({ ...p, events: [...p.events, data.event] }))
+    if (data.synced_to_icu) {
+      setSyncResult('Event saved and synced to intervals.icu')
+    } else if (profile.intervals_icu_athlete_id && data.icu_error) {
+      setSyncResult(`Event saved locally — intervals.icu sync failed: ${data.icu_error}`)
+    }
   }
 
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
