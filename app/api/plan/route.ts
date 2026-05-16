@@ -70,12 +70,17 @@ export async function PATCH(req: NextRequest) {
 
   const { data: profile } = await supabase
     .from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, events')
     .maybeSingle()
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
   }
+
+  // Remove any workout Claude placed on an event date (belt-and-braces)
+  const eventDates = new Set<string>((profile.events ?? []).map((e: { date: string }) => e.date))
+  const blockedDates = plan.workouts.filter(w => eventDates.has(w.date)).map(w => w.date)
+  plan = { ...plan, workouts: plan.workouts.filter(w => !eventDates.has(w.date)) }
 
   const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
 
@@ -165,5 +170,6 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({
     plan: savedPlan,
     ...(uploadErrors.length ? { upload_warnings: uploadErrors } : {}),
+    ...(blockedDates.length ? { blocked_dates: blockedDates } : {}),
   })
 }

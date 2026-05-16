@@ -75,34 +75,62 @@ ${formatZones(profile.current_ftp)}
 
 ${formatSchedule(profile.weekly_availability)}
 
-HARD SCHEDULING CONSTRAINTS — treat these as absolute rules, not suggestions:
+HARD SCHEDULING CONSTRAINTS — absolute rules, never break these:
 1. Only schedule workouts on days listed in the weekly schedule. Never place a workout on a rest day.
-2. Each workout's duration_minutes must equal exactly the available minutes for that day of the week. Do not round up, down, or substitute a different duration.
+2. Each workout's duration_minutes must equal exactly the available minutes for that day of the week.
 3. Steps within each workout must sum to exactly duration_minutes.
 4. All workout dates must fall on or after ${startDate}.
+5. NEVER place a workout on an event date. Every event date is a blocked day — the event itself is the athlete's activity that day. No exceptions.
 
-GOAL INTERPRETATION — before designing the plan, derive training emphases from the athlete's goals:
-- Completion / endurance event (e.g. "complete", "finish", sportive, century) → prioritise long Z2 volume; build toward back-to-back riding days in the peak week
-- Performance / speed (e.g. "improve FTP", "go faster", race) → include threshold (Z4) and VO2max (Z5) blocks; reduce pure endurance volume
-- Weight loss (e.g. "lose", "lighter") → maximise Z2 volume; avoid unnecessary rest days; keep intensity moderate
-- Climbing (e.g. "climb", "mountains", "cols") → include sustained Z3–Z4 efforts; simulate long climbs in session descriptions
-- Multiple goal types → blend emphases proportionally
+EVENTS (all priorities) — these dates are BLOCKED, no workout may be scheduled on them:
+${allEvents.map(e => `- ${e.date} BLOCKED: ${e.name} | ${e.type} | Priority ${e.priority}`).join('\n')}
+
+EVENT PREPARATION — apply these rules around every event:
+
+Race or sportive (type: race | sportive):
+  - Event date: BLOCKED (no workout)
+  - 1–2 days before: Short activation only — 40–60% of normal duration, 3–4 x 1min Z5 efforts to stay sharp, otherwise Z1–Z2
+  - 3–6 days before: Reduce volume 20–30% vs preceding week; one quality session maximum
+  - 2–3 days after: Easy recovery (Z1–Z2 only, 50% of normal duration), then resume normal progression
+
+Holiday riding (type: holiday):
+  - Event date: BLOCKED (athlete is self-directing their riding)
+  - 1–2 weeks before: Build aerobic volume; aim for positive or near-zero form going in
+  - After: Resume normal schedule
+
+Fitness checkpoint (type: fitness):
+  - Event date: BLOCKED (no workout)
+  - Treat like a B-priority race; apply race/sportive preparation rules
+
+Priority A event — full taper:
+  - Begin reducing volume 10 days out: start at 70% of peak week load, drop to 50% by day 3
+  - Keep 2–3 short sharp sessions in the taper window to preserve neuromuscular readiness
+  - Final 2 days: Z1–Z2 only or complete rest
+  - Event date: BLOCKED
+
+Priority B event — tune-up race:
+  - Apply race/sportive preparation rules above
+  - Resume build immediately after recovery days
+
+Priority C event — training stimulus:
+  - Event date: BLOCKED (even C events are not regular workout days)
+  - No significant disruption to surrounding training; treat adjacent days normally
+
+If a B or C event falls within the A event taper window, honour the A event periodization.
+If ${weeks} weeks is not enough for a complete arc, compress the base phase but always preserve the taper.
+
+GOAL INTERPRETATION — derive training emphases from the athlete's goals:
+- Completion / endurance event → prioritise long Z2 volume; build toward back-to-back riding days in peak week
+- Performance / speed → include threshold (Z4) and VO2max (Z5) blocks; reduce pure endurance volume
+- Weight loss → maximise Z2 volume; avoid unnecessary rest days; keep intensity moderate
+- Climbing → include sustained Z3–Z4 efforts; simulate long climbs in session descriptions
+- Multiple goals → blend emphases proportionally
 
 CURRENT FITNESS:
 ${summariseWellness(syncData.wellness)}
 
 RECENT ACTIVITIES (last 10):
 ${summariseActivities(syncData.activities)}
-
-EVENTS (all priorities):
-${allEvents.map(e => `- ${e.name} | ${e.date} | ${e.type} | Priority ${e.priority}`).join('\n')}
-
-PERIODIZATION RULES:
-- Priority A event: primary target. Build a full periodization arc (base → build → peak → taper) toward this date. Taper: 7–10 days of reduced volume before the event.
-- Priority B events: tune-up races. In the 3–5 days before a B event, add sharpening sessions (short, punchy, race-intensity). In the 2–3 days after, schedule easy recovery before resuming the build.
-- Priority C events: treat as a hard training day within the existing plan. No disruption to surrounding weeks.
-- If a B or C event falls within the A event taper window, honour the A event periodization.
-- If ${weeks} weeks is not enough for a complete arc, compress the base phase but always preserve the taper.
 
 PLAN LENGTH: Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts, starting on ${startDate}.
 
