@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [generating, setGenerating] = useState(false)
   const [showDurationPrompt, setShowDurationPrompt] = useState(false)
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null)
+  const [planWeeks, setPlanWeeks] = useState(6)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [showClearModal, setShowClearModal] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -106,6 +107,7 @@ export default function SettingsPage() {
 
   async function startPlanGeneration(weeks: number, startDate: string) {
     setShowDurationPrompt(false)
+    setPlanWeeks(weeks)
     setGenerating(true)
     setSaveError(null)
     try {
@@ -381,6 +383,7 @@ export default function SettingsPage() {
         <PlanApprovalModal
           plan={generatedPlan}
           loading={generating}
+          weeks={planWeeks}
           onApprove={() => { setGeneratedPlan(null); window.location.href = '/dashboard' }}
           onReject={() => { setGeneratedPlan(null) }}
         />

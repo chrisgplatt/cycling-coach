@@ -81,8 +81,7 @@ Periodization rules:
 - Priority C events: treat as a hard training day within the existing plan. No disruption to surrounding weeks.
 - If a B or C event falls within the A event taper window, honour the A event periodization.
 
-Plan from today (${startDate}) to ${targetEvent.date}.
-Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts. Prioritise the most important weeks first if the A event is further out.
+Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts. The plan starts on ${startDate} — the first workout must be scheduled on ${startDate}. Prioritise the most important weeks first if the A event is further out.
 
 Each workout must include a "steps" array of structured intervals.
 Step rules:

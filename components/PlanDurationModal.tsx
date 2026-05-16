@@ -6,13 +6,20 @@ interface Props {
   onCancel: () => void
 }
 
+function timeEstimate(weeks: number): string {
+  if (weeks <= 4) return 'about 30 seconds'
+  if (weeks <= 8) return 'about 1 minute'
+  return 'up to 2 minutes'
+}
+
 export default function PlanDurationModal({ onStart, onCancel }: Props) {
   const [weeksStr, setWeeksStr] = useState('6')
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0])
 
+  const weeks = Math.min(13, Math.max(2, Math.round(Number(weeksStr) || 6)))
+
   function handleStart() {
-    const w = Math.min(16, Math.max(2, Math.round(Number(weeksStr) || 6)))
-    onStart(w, startDate)
+    onStart(weeks, startDate)
   }
 
   return (
@@ -37,18 +44,22 @@ export default function PlanDurationModal({ onStart, onCancel }: Props) {
             <input
               type="number"
               min={2}
-              max={16}
+              max={13}
               step={1}
               value={weeksStr}
               onChange={e => setWeeksStr(e.target.value)}
               onBlur={e => {
-                const clamped = Math.min(16, Math.max(2, Math.round(Number(e.target.value) || 6)))
+                const clamped = Math.min(13, Math.max(2, Math.round(Number(e.target.value) || 6)))
                 setWeeksStr(String(clamped))
               }}
               className="w-24 text-center text-xl font-bold border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            <span className="text-slate-600 font-medium">weeks</span>
+            <div>
+              <span className="text-slate-600 font-medium">weeks</span>
+              <p className="text-xs text-slate-400 mt-0.5">max 13 weeks (3 months)</p>
+            </div>
           </div>
+          <p className="text-xs text-slate-400 mt-2">Generation will take {timeEstimate(weeks)}.</p>
         </div>
         <div className="flex gap-3 justify-end">
           <button

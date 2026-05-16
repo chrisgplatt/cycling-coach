@@ -2,14 +2,21 @@
 import { useState } from 'react'
 import type { GeneratedPlan } from '@/types'
 
+function timeEstimate(weeks: number): string {
+  if (weeks <= 4) return 'about 30 seconds'
+  if (weeks <= 8) return 'about 1 minute'
+  return 'up to 2 minutes'
+}
+
 interface Props {
   plan: GeneratedPlan | null
   loading?: boolean
+  weeks?: number
   onApprove: () => void
   onReject: () => void
 }
 
-export default function PlanApprovalModal({ plan, loading = false, onApprove, onReject }: Props) {
+export default function PlanApprovalModal({ plan, loading = false, weeks = 6, onApprove, onReject }: Props) {
   const [name, setName] = useState('')
   const [approving, setApproving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -55,7 +62,7 @@ export default function PlanApprovalModal({ plan, loading = false, onApprove, on
           <div className="w-10 h-10 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" />
           <div className="text-center">
             <p className="text-base font-semibold text-slate-800">Building your training plan…</p>
-            <p className="text-sm text-slate-400 mt-1">Your coach is analysing your goals, fitness and schedule. This takes about 30 seconds.</p>
+            <p className="text-sm text-slate-400 mt-1">Your coach is analysing your goals, fitness and schedule. This takes {timeEstimate(weeks)}.</p>
           </div>
         </div>
       </div>
