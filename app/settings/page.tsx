@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [clearing, setClearing] = useState(false)
   const [clearResult, setClearResult] = useState<string | null>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null)
@@ -364,10 +365,24 @@ export default function SettingsPage() {
           className="bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm">
           {generating ? 'Generating plan…' : 'Build New Plan'}
         </button>
-        <button onClick={clearFutureWorkouts} disabled={clearing}
-          className="bg-red-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm">
-          {clearing ? 'Clearing…' : 'Clear Future Workouts'}
-        </button>
+        {confirmClear ? (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600">Delete all future workouts?</span>
+            <button onClick={() => { setConfirmClear(false); clearFutureWorkouts() }} disabled={clearing}
+              className="bg-red-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm">
+              Yes, delete
+            </button>
+            <button onClick={() => setConfirmClear(false)}
+              className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-100 transition-colors">
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => { setClearResult(null); setConfirmClear(true) }} disabled={clearing}
+            className="bg-red-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm">
+            Clear Future Workouts
+          </button>
+        )}
       </div>
 
       {clearResult && (
