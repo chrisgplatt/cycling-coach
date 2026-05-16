@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null)
+  const [confirmingEvent, setConfirmingEvent] = useState<string | null>(null)
   const [schedule, setSchedule] = useState<Record<string, number>>(
     Object.fromEntries(DAYS.map(d => [d, 0]))
   )
@@ -337,14 +338,32 @@ export default function SettingsPage() {
               <option value="B">B — Important</option>
               <option value="C">C — Secondary</option>
             </select>
-            <div className="col-span-2 flex justify-end">
-              <button
-                onClick={() => deleteEvent(event.name, event.date)}
-                disabled={deletingEvent === `${event.name}|${event.date}`}
-                className="text-xs font-medium text-red-500 hover:text-red-700 disabled:opacity-50 transition-colors"
-              >
-                {deletingEvent === `${event.name}|${event.date}` ? 'Deleting…' : 'Delete event'}
-              </button>
+            <div className="col-span-2 flex justify-end items-center gap-3">
+              {confirmingEvent === `${event.name}|${event.date}` ? (
+                <>
+                  <span className="text-xs text-slate-600">Delete this event?</span>
+                  <button
+                    onClick={() => { setConfirmingEvent(null); deleteEvent(event.name, event.date) }}
+                    disabled={deletingEvent === `${event.name}|${event.date}`}
+                    className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors"
+                  >
+                    {deletingEvent === `${event.name}|${event.date}` ? 'Deleting…' : 'Yes, delete'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmingEvent(null)}
+                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirmingEvent(`${event.name}|${event.date}`)}
+                  className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                >
+                  Delete event
+                </button>
+              )}
             </div>
           </div>
         ))}
