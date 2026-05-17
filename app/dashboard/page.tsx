@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [planName, setPlanName] = useState('')
   const [firstName, setFirstName] = useState('')
   const [syncing, setSyncing] = useState(false)
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
   const [events, setEvents] = useState<TrainingEvent[]>([])
@@ -51,6 +52,7 @@ export default function DashboardPage() {
       if (res.ok) {
         const data = await res.json()
         setSyncData(data)
+        setLastSyncedAt(new Date())
         if (data.athlete_id) setAthleteId(data.athlete_id)
       }
     } finally {
@@ -132,7 +134,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      <MetricsBar wellness={latestWellness} />
+      <MetricsBar wellness={latestWellness} syncedAt={lastSyncedAt} />
 
       {latestWellness && (
         <div className="bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-3 space-y-1.5">
