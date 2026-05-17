@@ -134,6 +134,12 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to save plan' }, { status: 500 })
   }
 
+  function estimateTss(steps: Array<{ duration_minutes: number; power_pct_ftp: number }>): number {
+    return Math.round(
+      steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0)
+    )
+  }
+
   const uploadErrors: string[] = []
   const workoutsToInsert = []
   for (const w of plan.workouts) {
@@ -159,6 +165,7 @@ export async function PATCH(req: NextRequest) {
       intervals_icu_event_id,
       status: 'planned',
       user_id: user.id,
+      tss: w.steps?.length ? estimateTss(w.steps) : null,
     })
   }
 

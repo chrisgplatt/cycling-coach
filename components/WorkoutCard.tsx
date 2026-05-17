@@ -1,5 +1,18 @@
 import type { Workout, WorkoutType } from '@/types'
 
+const IF_BY_TYPE: Record<WorkoutType, number> = {
+  recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90,
+}
+
+function getTss(workout: Workout): { value: number; estimated: boolean } | null {
+  if (workout.tss !== null) return { value: workout.tss, estimated: false }
+  if (workout.status === 'planned') {
+    const if_ = IF_BY_TYPE[workout.type] ?? 0.68
+    return { value: Math.round((workout.duration_minutes * 60 * if_ * if_) / 36), estimated: true }
+  }
+  return null
+}
+
 const TYPE_CHIPS: Record<WorkoutType, string> = {
   endurance: 'bg-blue-50 text-blue-700 border border-blue-200',
   threshold: 'bg-orange-50 text-orange-600 border border-orange-200',
@@ -40,9 +53,12 @@ export default function WorkoutCard({ workout, onClick }: Props) {
             {workout.type}
           </span>
           <span className="text-sm font-medium text-gray-500">{workout.duration_minutes} min</span>
-          {workout.tss !== null && (
-            <span className="text-xs text-gray-400">· TSS {workout.tss}</span>
-          )}
+          {(() => {
+            const t = getTss(workout)
+            return t ? (
+              <span className="text-xs text-gray-400">· {t.estimated ? '~' : ''}{t.value} TSS</span>
+            ) : null
+          })()}
         </div>
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_CHIPS[workout.status]}`}>
           {STATUS_LABELS[workout.status]}

@@ -10,6 +10,17 @@ const TYPE_COLOUR: Record<string, string> = {
   endurance: 'text-blue-500', threshold: 'text-orange-500',
   intervals: 'text-red-500', recovery: 'text-green-500',
 }
+const IF_BY_TYPE: Record<string, number> = {
+  recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90,
+}
+function tssLabel(workout: Workout): string | null {
+  if (workout.tss !== null) return `${workout.tss} TSS`
+  if (workout.status === 'planned') {
+    const if_ = IF_BY_TYPE[workout.type] ?? 0.68
+    return `~${Math.round((workout.duration_minutes * 60 * if_ * if_) / 36)} TSS`
+  }
+  return null
+}
 
 export default function CalendarPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
@@ -103,8 +114,8 @@ export default function CalendarPage() {
                         <span className={`text-[8px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
                           {workout.type}
                         </span>
-                        {workout.tss !== null && (
-                          <span className="text-[8px] text-gray-400">{workout.tss} TSS</span>
+                        {tssLabel(workout) && (
+                          <span className="text-[8px] text-gray-400">{tssLabel(workout)}</span>
                         )}
                       </>
                     )}
@@ -127,8 +138,8 @@ export default function CalendarPage() {
                         {workout.type}
                       </span>
                       <span className="text-[10px] text-gray-400">{workout.duration_minutes}m</span>
-                      {workout.tss !== null && (
-                        <span className="text-[9px] text-gray-400">{workout.tss} TSS</span>
+                      {tssLabel(workout) && (
+                        <span className="text-[9px] text-gray-400">{tssLabel(workout)}</span>
                       )}
                     </>
                   )}
