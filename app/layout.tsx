@@ -9,6 +9,16 @@ const figtree = Figtree({ subsets: ['latin'], weight: ['300', '400', '500', '600
 export const metadata: Metadata = {
   title: 'My Cycling Coach',
   description: 'Your personal AI road cycling coach',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'My Cycling Coach',
+  },
+  icons: {
+    icon: '/icon-192.png',
+    apple: '/apple-touch-icon.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

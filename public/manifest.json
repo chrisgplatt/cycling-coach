@@ -1,0 +1,23 @@
+{
+  "name": "My Cycling Coach",
+  "short_name": "Cycling Coach",
+  "description": "Your personal AI road cycling coach",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#2563EB",
+  "theme_color": "#2563EB",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
