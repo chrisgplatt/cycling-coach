@@ -39,7 +39,8 @@ export async function POST() {
       await Promise.all(
         pending
           .map(w => {
-            const acts = actsByDate.get(w.date) ?? []
+            const acts = (actsByDate.get(w.date) ?? [])
+              .filter(a => /ride/i.test(a.type))
             if (acts.length === 0) return null
             const best = acts.reduce((a, b) =>
               (b.training_load ?? 0) > (a.training_load ?? 0) ? b : a

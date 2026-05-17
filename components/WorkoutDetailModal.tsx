@@ -59,7 +59,7 @@ export default function WorkoutDetailModal({
     ? `https://intervals.icu/?w=${weekMonday(workout.date)}`
     : null
   const activityUrl = workout.icu_activity_id
-    ? `https://intervals.icu/athlete/${athleteId}/activities/${workout.icu_activity_id}`
+    ? `https://intervals.icu/activities/${workout.icu_activity_id}`
     : null
 
   const matchedActivity = activitiesOnDate?.find(a => a.id === workout.icu_activity_id)

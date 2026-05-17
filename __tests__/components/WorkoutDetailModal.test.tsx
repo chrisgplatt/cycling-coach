@@ -56,7 +56,7 @@ describe('WorkoutDetailModal', () => {
     render(<WorkoutDetailModal workout={matchedWorkout} athleteId="i12345" onClose={jest.fn()} />)
     expect(screen.getByText(/TSS:.*94/)).toBeInTheDocument()
     const link = screen.getByRole('link', { name: /view garmin activity/i })
-    expect(link).toHaveAttribute('href', 'https://intervals.icu/athlete/i12345/activities/act456')
+    expect(link).toHaveAttribute('href', 'https://intervals.icu/activities/act456')
   })
 
   it('shows needs_review banner with matched activity name', () => {
