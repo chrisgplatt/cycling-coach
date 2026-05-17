@@ -90,11 +90,17 @@ export default function DashboardPage() {
   function formatLastRide(): string {
     if (!lastRide) return ''
     const rideDate = new Date(lastRide.start_date_local)
-    const diffDays = Math.floor((Date.now() - rideDate.getTime()) / 864e5)
+    const rideDateStr = lastRide.start_date_local.split('T')[0]
     const timeStr = rideDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
     const dateStr = rideDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-    if (diffDays === 0) return `today at ${timeStr}`
-    if (diffDays === 1) return `yesterday at ${timeStr}`
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = `${yesterday.getFullYear()}-${pad(yesterday.getMonth() + 1)}-${pad(yesterday.getDate())}`
+    if (rideDateStr === todayStr) return `today at ${timeStr}`
+    if (rideDateStr === yesterdayStr) return `yesterday at ${timeStr}`
     return `${dateStr} at ${timeStr}`
   }
 
