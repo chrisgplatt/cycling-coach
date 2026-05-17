@@ -153,7 +153,23 @@ export default function DashboardPage() {
       )}
 
       <div>
-        <h2 className="text-lg font-bold tracking-tight text-gray-900 mb-0.5">This week</h2>
+        <div className="flex items-baseline justify-between mb-0.5">
+          <h2 className="text-lg font-bold tracking-tight text-gray-900">This week</h2>
+          {(() => {
+            const weekWorkouts = workouts.filter(w => weekDates.includes(w.date))
+            const totalTss = weekWorkouts.reduce((sum, w) => sum + (w.tss ?? 0), 0)
+            const totalMins = weekWorkouts.reduce((sum, w) => sum + w.duration_minutes, 0)
+            return totalTss > 0 ? (
+              <span className="text-sm text-gray-400">
+                <span className="font-semibold text-gray-600">{totalTss}</span> TSS · <span className="font-semibold text-gray-600">{Math.round(totalMins / 60 * 10) / 10}h</span>
+              </span>
+            ) : totalMins > 0 ? (
+              <span className="text-sm text-gray-400">
+                <span className="font-semibold text-gray-600">{Math.round(totalMins / 60 * 10) / 10}h</span>
+              </span>
+            ) : null
+          })()}
+        </div>
         <p className="text-sm text-gray-400 mb-4">
           {weekDates[0].slice(8)} – {weekDates[6].slice(8)} {new Date(weekDates[0]).toLocaleString('en-GB', { month: 'long' })}
         </p>

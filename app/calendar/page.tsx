@@ -99,9 +99,14 @@ export default function CalendarPage() {
                       {event.name}
                     </span>
                     {workout && (
-                      <span className={`text-[8px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
-                        {workout.type}
-                      </span>
+                      <>
+                        <span className={`text-[8px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
+                          {workout.type}
+                        </span>
+                        {workout.tss !== null && (
+                          <span className="text-[8px] text-gray-400">{workout.tss} TSS</span>
+                        )}
+                      </>
                     )}
                   </button>
                 )
@@ -121,7 +126,10 @@ export default function CalendarPage() {
                       <span className={`text-[10px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
                         {workout.type}
                       </span>
-                      <span className="text-[10px] text-gray-400">{workout.duration_minutes} min</span>
+                      <span className="text-[10px] text-gray-400">{workout.duration_minutes}m</span>
+                      {workout.tss !== null && (
+                        <span className="text-[9px] text-gray-400">{workout.tss} TSS</span>
+                      )}
                     </>
                   )}
                 </button>
