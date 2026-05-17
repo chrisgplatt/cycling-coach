@@ -16,17 +16,43 @@ export default function NavBar() {
   const pathname = usePathname()
 
   return (
-    <nav className="bg-slate-900 px-6 relative z-30">
-      <div className="flex items-center gap-1 text-sm font-medium">
-        <span className="text-white font-bold text-base tracking-tight py-4 mr-5">Cycling Coach</span>
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-30">
+      <div className="flex items-center h-14 px-6">
+        {/* Brand */}
+        <Link href="/dashboard" className="flex items-center gap-2.5 mr-8 shrink-0">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="28" height="28" rx="6" fill="#2563EB"/>
+            <circle cx="6.5" cy="20" r="5.5" stroke="white" strokeWidth="1.5" fill="none"/>
+            <circle cx="6.5" cy="20" r="1.1" fill="white"/>
+            <circle cx="22" cy="20" r="5.5" stroke="white" strokeWidth="1.5" fill="none"/>
+            <circle cx="22" cy="20" r="1.1" fill="white"/>
+            <line x1="6.5" y1="20" x2="14.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+            <line x1="14.5" y1="20" x2="12" y2="11.5" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+            <line x1="12" y1="11.5" x2="6.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+            <line x1="12" y1="11.5" x2="12" y2="10" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+            <line x1="10.5" y1="10" x2="13.5" y2="10" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="12" y1="11.5" x2="20.5" y2="13" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+            <line x1="20.5" y1="13" x2="21.5" y2="15.5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="21.5" y1="15.5" x2="14.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+            <line x1="21.5" y1="15.5" x2="22" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+            <line x1="20.5" y1="13" x2="21" y2="11" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+            <line x1="19" y1="11" x2="23" y2="11" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
+            <path d="M23 11 Q23.5 11.3 23.5 13" stroke="white" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+          </svg>
+          <span className="font-bold text-base tracking-tight text-gray-900">My Cycling Coach</span>
+        </Link>
 
-        {/* Desktop nav links */}
-        <div className="hidden md:flex items-center gap-1 flex-1">
+        {/* Desktop links */}
+        <div className="hidden md:flex items-center flex-1 h-14">
           {NAV_LINKS.map(l => (
             <Link
               key={l.href}
               href={l.href}
-              className={`px-3 py-4 transition-colors ${pathname === l.href ? 'text-white' : 'text-slate-400 hover:text-white'}`}
+              className={`flex items-center h-14 px-4 text-sm font-medium border-b-2 transition-colors ${
+                pathname === l.href
+                  ? 'text-gray-900 border-blue-600 font-semibold'
+                  : 'text-gray-500 border-transparent hover:text-gray-900'
+              }`}
             >
               {l.label}
             </Link>
@@ -39,7 +65,7 @@ export default function NavBar() {
           onClick={() => setOpen(o => !o)}
           aria-label="Toggle navigation menu"
           aria-expanded={open}
-          className="md:hidden ml-auto text-slate-400 hover:text-white py-4 px-1"
+          className="md:hidden ml-auto text-gray-400 hover:text-gray-700 p-1"
         >
           {open ? (
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
@@ -53,15 +79,17 @@ export default function NavBar() {
         </button>
       </div>
 
-      {/* Mobile dropdown menu */}
+      {/* Mobile dropdown */}
       {open && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-slate-900 border-t border-slate-700">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40">
           {NAV_LINKS.map(l => (
             <Link
               key={l.href}
               href={l.href}
               onClick={() => setOpen(false)}
-              className={`block px-6 py-4 text-sm font-medium border-b border-slate-800 transition-colors ${pathname === l.href ? 'text-white' : 'text-slate-400 hover:text-white'}`}
+              className={`block px-6 py-4 text-sm font-medium border-b border-gray-100 transition-colors ${
+                pathname === l.href ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-gray-900'
+              }`}
             >
               {l.label}
             </Link>

@@ -45,15 +45,15 @@ export default function FitnessPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">FTP &amp; Fitness</h1>
-          <p className="text-sm text-slate-500 mt-0.5">AI-powered FTP predictions from your ride data</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">FTP &amp; Fitness</h1>
+          <p className="text-sm text-gray-500 mt-1">AI-powered FTP predictions from your ride data</p>
         </div>
         <button
           onClick={predictFTP}
           disabled={predicting}
-          className="bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+          className="bg-blue-600 text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm shrink-0"
         >
           {predicting ? 'Analysing…' : 'Predict FTP'}
         </button>
@@ -64,25 +64,25 @@ export default function FitnessPage() {
       )}
 
       {predictions.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-10 text-center">
-          <p className="text-slate-400 text-sm">No predictions yet.</p>
-          <p className="text-slate-400 text-sm mt-1">Click <span className="font-medium text-slate-600">Predict FTP</span> to analyse your ride data.</p>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center">
+          <p className="text-gray-400 text-sm">No predictions yet.</p>
+          <p className="text-gray-400 text-sm mt-1">Click <span className="font-medium text-gray-600">Predict FTP</span> to analyse your ride data.</p>
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Prediction history</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Prediction history</p>
           {predictions.map(p => (
-            <div key={p.id} className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="bg-slate-50 border-b border-slate-100 px-5 py-3.5 flex items-center justify-between">
+            <div key={p.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex items-center justify-between">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-black text-slate-900 tracking-tight">{p.predicted_ftp}</span>
-                  <span className="text-base font-semibold text-slate-400">W</span>
+                  <span className="text-4xl font-black text-gray-900 tracking-tight">{p.predicted_ftp}</span>
+                  <span className="text-base font-semibold text-gray-400">W</span>
                   <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ml-1 ${confidenceBadge(p.confidence)}`}>
                     {p.confidence} confidence
                   </span>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-gray-500">
                     {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                   {p.confirmed && (
@@ -91,18 +91,18 @@ export default function FitnessPage() {
                 </div>
               </div>
               <div className="px-5 py-4">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Coach&apos;s Analysis</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Coach&apos;s Analysis</p>
                 {p.reasoning.includes('•') ? (
                   <ul className="space-y-2">
                     {p.reasoning.split('\n').filter(l => l.trim()).map((line, i) => (
-                      <li key={i} className="flex gap-2.5 text-sm text-slate-700 leading-snug">
+                      <li key={i} className="flex gap-2.5 text-sm text-gray-700 leading-snug">
                         <span className="text-blue-400 mt-0.5 shrink-0">•</span>
                         <span>{line.replace(/^•\s*/, '')}</span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-slate-700 leading-relaxed">{p.reasoning}</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{p.reasoning}</p>
                 )}
               </div>
             </div>

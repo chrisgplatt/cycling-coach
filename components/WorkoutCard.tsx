@@ -1,24 +1,24 @@
 import type { Workout, WorkoutType } from '@/types'
 
-const TYPE_COLOURS: Record<WorkoutType, string> = {
-  endurance: 'bg-blue-100 text-blue-700',
-  threshold: 'bg-orange-100 text-orange-700',
-  intervals: 'bg-red-100 text-red-700',
-  recovery: 'bg-emerald-100 text-emerald-700',
+const TYPE_CHIPS: Record<WorkoutType, string> = {
+  endurance: 'bg-blue-50 text-blue-700 border border-blue-200',
+  threshold: 'bg-orange-50 text-orange-600 border border-orange-200',
+  intervals: 'bg-red-50 text-red-600 border border-red-200',
+  recovery:  'bg-emerald-50 text-emerald-700 border border-emerald-200',
 }
 
-const STATUS_COLOURS = {
-  planned: 'bg-slate-100 text-slate-500',
-  completed: 'bg-emerald-100 text-emerald-700',
-  skipped: 'bg-red-100 text-red-600',
-  needs_review: 'bg-amber-100 text-amber-700',
+const STATUS_CHIPS = {
+  planned:      'bg-gray-100 text-gray-500 border border-gray-200',
+  completed:    'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  skipped:      'bg-red-50 text-red-600 border border-red-200',
+  needs_review: 'bg-amber-50 text-amber-700 border border-amber-200',
 }
 
 const STATUS_LABELS = {
-  planned: 'planned',
-  completed: 'completed',
-  skipped: 'skipped',
-  needs_review: 'needs review',
+  planned:      'Planned',
+  completed:    '✓ Completed',
+  skipped:      'Skipped',
+  needs_review: 'Needs review',
 }
 
 interface Props {
@@ -30,28 +30,28 @@ export default function WorkoutCard({ workout, onClick }: Props) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-xl border border-slate-100 shadow-sm p-4 space-y-2 transition-all ${
-        onClick ? 'cursor-pointer hover:shadow-md hover:border-blue-200' : ''
+      className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all ${
+        onClick ? 'cursor-pointer hover:shadow-md hover:border-gray-300' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${TYPE_COLOURS[workout.type]}`}>
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${TYPE_CHIPS[workout.type]}`}>
             {workout.type}
           </span>
-          <span className="text-xs text-slate-500 font-medium">{workout.duration_minutes} min</span>
+          <span className="text-sm font-medium text-gray-500">{workout.duration_minutes} min</span>
           {workout.tss !== null && (
-            <span className="text-xs text-slate-400 px-2 py-0.5 rounded-full bg-slate-50 border border-slate-100">
-              TSS {workout.tss}
-            </span>
+            <span className="text-xs text-gray-400">· TSS {workout.tss}</span>
           )}
         </div>
-        <span className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${STATUS_COLOURS[workout.status]}`}>
+        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_CHIPS[workout.status]}`}>
           {STATUS_LABELS[workout.status]}
         </span>
       </div>
-      <p className="text-sm text-slate-700 leading-snug">{workout.description}</p>
-      <p className="text-xs text-slate-400">{workout.target_zones}</p>
+      <div className="px-4 py-3">
+        <p className="text-sm text-gray-700 leading-snug mb-1">{workout.description}</p>
+        <p className="text-xs text-gray-400 font-medium">{workout.target_zones}</p>
+      </div>
     </div>
   )
 }

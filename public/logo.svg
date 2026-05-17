@@ -1,0 +1,33 @@
+<svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="28" height="28" rx="6" fill="#2563EB"/>
+  <!-- Rear wheel (larger, dominant) -->
+  <circle cx="6.5" cy="20" r="5.5" stroke="white" stroke-width="1.5" fill="none"/>
+  <circle cx="6.5" cy="20" r="1.1" fill="white"/>
+  <!-- Front wheel -->
+  <circle cx="22" cy="20" r="5.5" stroke="white" stroke-width="1.5" fill="none"/>
+  <circle cx="22" cy="20" r="1.1" fill="white"/>
+  <!-- Chain stay (short, horizontal) -->
+  <line x1="6.5" y1="20" x2="14.5" y2="20" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- Seat tube (very steep — race geometry) -->
+  <line x1="14.5" y1="20" x2="12" y2="11.5" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- Seat stays -->
+  <line x1="12" y1="11.5" x2="6.5" y2="20" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- Seat post -->
+  <line x1="12" y1="11.5" x2="12" y2="10" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- Saddle (narrow) -->
+  <line x1="10.5" y1="10" x2="13.5" y2="10" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Top tube (long, gently sloped — Emonda stretch) -->
+  <line x1="12" y1="11.5" x2="20.5" y2="13" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- Head tube (short — road race geometry) -->
+  <line x1="20.5" y1="13" x2="21.5" y2="15.5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <!-- Down tube (steep diagonal) -->
+  <line x1="21.5" y1="15.5" x2="14.5" y2="20" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- Fork (near vertical — road bike) -->
+  <line x1="21.5" y1="15.5" x2="22" y2="20" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- Stem -->
+  <line x1="20.5" y1="13" x2="21" y2="11" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- Drop bar — horizontal section -->
+  <line x1="19" y1="11" x2="23" y2="11" stroke="white" stroke-width="1.3" stroke-linecap="round"/>
+  <!-- Drop bar — right-side drop curve -->
+  <path d="M23 11 Q23.5 11.3 23.5 13" stroke="white" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+</svg>

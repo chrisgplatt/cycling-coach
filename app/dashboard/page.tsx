@@ -116,73 +116,84 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            {firstName ? `Hi, ${firstName}` : 'This Week'}
+          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
+            {firstName ? `Hi, ${firstName} 👋` : 'This Week'}
           </h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {firstName ? 'This week' : ''}{planName ? (firstName ? ` — ${planName}` : planName) : ''}
-          </p>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {planName && <span className="text-sm text-gray-500">{planName}</span>}
+            <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              Base phase
+            </span>
+          </div>
         </div>
         <button
           onClick={doSync}
           disabled={syncing}
-          className="text-sm font-medium text-slate-500 hover:text-slate-800 disabled:opacity-50 transition-colors"
+          className="text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-4 py-1.5 hover:bg-blue-100 disabled:opacity-50 transition-colors shrink-0"
         >
-          {syncing ? 'Syncing…' : 'Sync'}
+          {syncing ? 'Syncing…' : '↻ Sync'}
         </button>
       </div>
 
       <MetricsBar wellness={latestWellness} syncedAt={lastSyncedAt} />
 
       {latestWellness && (
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-3 space-y-1.5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Readiness</h2>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+            <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Readiness</h2>
             {lastRide && (
-              <span className="text-xs text-slate-400">Last ride: <span className="font-medium text-slate-600">{formatLastRide()}</span></span>
+              <span className="text-xs text-gray-400">Last ride: <span className="font-semibold text-gray-500">{formatLastRide()}</span></span>
             )}
           </div>
-          <p className="text-sm text-slate-600">{getReadinessSummary(latestWellness)}</p>
+          <p className="text-sm text-gray-600 leading-relaxed px-4 py-3">{getReadinessSummary(latestWellness)}</p>
         </div>
       )}
 
-      <div className="space-y-2">
-        {weekDates.map((date, i) => {
-          const dayWorkout = workouts.find(w => w.date === date)
-          const dayEvent = events.find(e => e.date === date)
-          return (
-            <div key={date} className="flex gap-4 items-start">
-              <div className="w-10 text-center pt-3.5">
-                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{days[i]}</div>
-                <div className="text-sm font-bold text-slate-700 mt-0.5">{date.slice(8)}</div>
-              </div>
-              <div className="flex-1 space-y-2">
-                {dayWorkout && (
-                  <WorkoutCard
-                    workout={dayWorkout}
-                    onClick={() => setSelectedWorkout(dayWorkout)}
-                  />
-                )}
-                {dayEvent && (
-                  <div className={`rounded-xl border-2 px-4 py-3 ${EVENT_COLOURS[dayEvent.priority]}`}>
-                    <div className="flex items-center gap-2">
-                      <span>🏁</span>
-                      <div>
-                        <div className="font-semibold text-sm">{dayEvent.name}</div>
-                        <div className="text-xs capitalize opacity-75">{dayEvent.type} · {dayEvent.priority} priority</div>
+      <div>
+        <h2 className="text-lg font-bold tracking-tight text-gray-900 mb-0.5">This week</h2>
+        <p className="text-sm text-gray-400 mb-4">
+          {weekDates[0].slice(8)} – {weekDates[6].slice(8)} {new Date(weekDates[0]).toLocaleString('en-GB', { month: 'long' })}
+        </p>
+        <div className="space-y-2">
+          {weekDates.map((date, i) => {
+            const dayWorkout = workouts.find(w => w.date === date)
+            const dayEvent = events.find(e => e.date === date)
+            const isToday = date === new Date().toISOString().split('T')[0]
+            return (
+              <div key={date} className="flex gap-4 items-start">
+                <div className="w-10 text-center pt-3">
+                  <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{days[i]}</div>
+                  <div className={`text-xl font-extrabold tracking-tight mt-0.5 ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>{date.slice(8)}</div>
+                </div>
+                <div className="flex-1 space-y-2">
+                  {dayWorkout && (
+                    <WorkoutCard
+                      workout={dayWorkout}
+                      onClick={() => setSelectedWorkout(dayWorkout)}
+                    />
+                  )}
+                  {dayEvent && (
+                    <div className={`rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-3 ${EVENT_COLOURS[dayEvent.priority]}`}>
+                      <div className="flex items-center gap-2">
+                        <span>🏁</span>
+                        <div>
+                          <div className="font-semibold text-sm">{dayEvent.name}</div>
+                          <div className="text-xs capitalize opacity-75">{dayEvent.type} · {dayEvent.priority} priority</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-                {!dayWorkout && !dayEvent && (
-                  <div className="text-sm text-slate-300 py-3.5 pl-1">Rest</div>
-                )}
+                  )}
+                  {!dayWorkout && !dayEvent && (
+                    <div className="text-sm text-gray-300 italic py-3.5 pl-1">Rest day</div>
+                  )}
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
       {selectedWorkout && (
