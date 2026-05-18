@@ -25,6 +25,8 @@ export default function SettingsPage() {
   const [showDurationPrompt, setShowDurationPrompt] = useState(false)
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null)
   const [planWeeks, setPlanWeeks] = useState(6)
+  const [workoutsFound, setWorkoutsFound] = useState(0)
+  const [estimatedWorkouts, setEstimatedWorkouts] = useState(0)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [showClearModal, setShowClearModal] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -113,6 +115,8 @@ export default function SettingsPage() {
     setShowDurationPrompt(false)
     setPlanWeeks(weeks)
     setGenerating(true)
+    setWorkoutsFound(0)
+    setEstimatedWorkouts(DAYS.filter(d => (schedule[d] ?? 0) > 0).length * weeks)
     setSaveError(null)
     try {
       const saved = await saveProfile()
@@ -125,12 +129,38 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ syncData, weeks, startDate }),
       })
-      const data = await res.json()
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
         setSaveError(data.error ?? 'Plan generation failed')
         return
       }
-      setGeneratedPlan(data)
+      if (!res.body) {
+        setSaveError('No response from server')
+        return
+      }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const event = JSON.parse(line)
+            if (event.type === 'progress') {
+              setWorkoutsFound(event.found)
+            } else if (event.type === 'done') {
+              setGeneratedPlan(event.plan)
+            } else if (event.type === 'error') {
+              setSaveError(event.message)
+            }
+          } catch { /* ignore malformed lines */ }
+        }
+      }
     } catch {
       setSaveError('Network error during plan generation')
     } finally {
@@ -459,6 +489,8 @@ export default function SettingsPage() {
           plan={generatedPlan}
           loading={generating}
           weeks={planWeeks}
+          workoutsFound={workoutsFound}
+          estimatedWorkouts={estimatedWorkouts}
           onApprove={() => { setGeneratedPlan(null); window.location.href = '/dashboard' }}
           onReject={() => { setGeneratedPlan(null) }}
         />

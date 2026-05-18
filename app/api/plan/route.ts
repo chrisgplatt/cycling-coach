@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
-import { generatePlan } from '@/lib/claude/plan'
+import { createPlanStream, parsePlanText } from '@/lib/claude/plan'
 import type { GeneratedPlan } from '@/types'
 
 export async function GET() {
@@ -32,13 +32,51 @@ export async function POST(req: NextRequest) {
   if (!profileData) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
   if (!profileData.events?.length) return NextResponse.json({ error: 'Add and save at least one event in Settings before generating a plan' }, { status: 400 })
 
+  let messageStream
   try {
-    const generatedPlan = await generatePlan(profileData, syncData ?? { activities: [], wellness: [], athlete_ftp: null, athlete_weight: null }, safeWeeks, safeStartDate)
-    return NextResponse.json(generatedPlan)
+    messageStream = createPlanStream(
+      profileData,
+      syncData ?? { activities: [], wellness: [], athlete_ftp: null, athlete_weight: null },
+      safeWeeks,
+      safeStartDate,
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Plan generation failed'
     return NextResponse.json({ error: message }, { status: 500 })
   }
+
+  const encoder = new TextEncoder()
+  const readable = new ReadableStream({
+    async start(controller) {
+      let accumulatedText = ''
+      let workoutsFound = 0
+
+      messageStream.on('text', (text: string) => {
+        accumulatedText += text
+        const newCount = (accumulatedText.match(/"date"\s*:/g) ?? []).length
+        if (newCount > workoutsFound) {
+          workoutsFound = newCount
+          controller.enqueue(encoder.encode(
+            JSON.stringify({ type: 'progress', found: workoutsFound }) + '\n'
+          ))
+        }
+      })
+
+      try {
+        await messageStream.finalMessage()
+        const plan = parsePlanText(accumulatedText)
+        controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', plan }) + '\n'))
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Plan generation failed'
+        controller.enqueue(encoder.encode(JSON.stringify({ type: 'error', message }) + '\n'))
+      }
+      controller.close()
+    },
+  })
+
+  return new Response(readable, {
+    headers: { 'Content-Type': 'application/x-ndjson' },
+  })
 }
 
 export async function PATCH(req: NextRequest) {

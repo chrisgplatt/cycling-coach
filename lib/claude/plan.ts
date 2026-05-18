@@ -52,19 +52,17 @@ function formatZones(ftp: number): string {
 const SYSTEM_PROMPT = `You are an expert road cycling coach. Generate periodized training plans based on athlete data.
 Always respond with ONLY valid JSON matching the exact schema requested. No markdown, no explanation outside the JSON.`
 
-export async function generatePlan(
+function buildPrompt(
   profile: UserProfile,
   syncData: ICUSyncData,
-  weeks: number = 6,
-  startDate: string = new Date().toISOString().split('T')[0]
-): Promise<GeneratedPlan> {
+  weeks: number,
+  startDate: string,
+): string {
   const allEvents = [...profile.events].sort((a, b) => a.date.localeCompare(b.date))
   if (!allEvents.length) throw new Error('Cannot generate a plan: no events configured.')
-  const targetEvent = allEvents.find(e => e.priority === 'A') ?? allEvents[0]
-
   const wPerKg = (profile.current_ftp / profile.weight_kg).toFixed(2)
 
-  const prompt = `Generate a training plan for this athlete.
+  return `Generate a training plan for this athlete.
 
 ATHLETE PROFILE:
 - Goals: ${profile.goals}
@@ -160,19 +158,40 @@ Return ONLY this JSON:
     }
   ]
 }`
+}
 
-  const response = await anthropic.messages.stream({
+export function parsePlanText(raw: string): GeneratedPlan {
+  const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+  return JSON.parse(text) as GeneratedPlan
+}
+
+export function createPlanStream(
+  profile: UserProfile,
+  syncData: ICUSyncData,
+  weeks: number,
+  startDate: string,
+) {
+  const prompt = buildPrompt(profile, syncData, weeks, startDate)
+  return anthropic.messages.stream({
     model: MODEL,
     max_tokens: 32000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
-  }).finalMessage()
+  })
+}
 
+export async function generatePlan(
+  profile: UserProfile,
+  syncData: ICUSyncData,
+  weeks: number = 6,
+  startDate: string = new Date().toISOString().split('T')[0]
+): Promise<GeneratedPlan> {
+  const stream = createPlanStream(profile, syncData, weeks, startDate)
+  const response = await stream.finalMessage()
   const raw = response.content[0].type === 'text' ? response.content[0].text : ''
-  const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
   try {
-    return JSON.parse(text) as GeneratedPlan
+    return parsePlanText(raw)
   } catch {
-    throw new Error(`Failed to parse plan from Claude response: ${text.slice(0, 200)}`)
+    throw new Error(`Failed to parse plan from Claude response: ${raw.slice(0, 200)}`)
   }
 }

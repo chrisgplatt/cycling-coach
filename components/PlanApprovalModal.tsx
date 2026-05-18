@@ -2,21 +2,17 @@
 import { useState } from 'react'
 import type { GeneratedPlan } from '@/types'
 
-function timeEstimate(weeks: number): string {
-  if (weeks <= 4) return 'about 30 seconds'
-  if (weeks <= 8) return 'about 1 minute'
-  return 'up to 2 minutes'
-}
-
 interface Props {
   plan: GeneratedPlan | null
   loading?: boolean
   weeks?: number
+  workoutsFound?: number
+  estimatedWorkouts?: number
   onApprove: () => void
   onReject: () => void
 }
 
-export default function PlanApprovalModal({ plan, loading = false, weeks = 6, onApprove, onReject }: Props) {
+export default function PlanApprovalModal({ plan, loading = false, weeks = 6, workoutsFound = 0, estimatedWorkouts = 0, onApprove, onReject }: Props) {
   const [name, setName] = useState('')
   const [approving, setApproving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,13 +52,29 @@ export default function PlanApprovalModal({ plan, loading = false, weeks = 6, on
   }
 
   if (loading || !plan) {
+    const pct = estimatedWorkouts > 0 ? Math.min(100, (workoutsFound / estimatedWorkouts) * 100) : 0
     return (
       <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-10 flex flex-col items-center gap-5">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-10 flex flex-col items-center gap-6">
           <div className="w-10 h-10 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" />
-          <div className="text-center">
+          <div className="text-center w-full space-y-3">
             <p className="text-base font-semibold text-slate-800">Building your training plan…</p>
-            <p className="text-sm text-slate-400 mt-1">Your coach is analysing your goals, fitness and schedule. This takes {timeEstimate(weeks)}.</p>
+            {workoutsFound > 0 ? (
+              <>
+                <p className="text-sm text-slate-500">
+                  {workoutsFound} workout{workoutsFound !== 1 ? 's' : ''} scheduled
+                  {estimatedWorkouts > 0 ? ` of ~${estimatedWorkouts}` : ''}
+                </p>
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-slate-400">Analysing your goals, fitness and schedule…</p>
+            )}
           </div>
         </div>
       </div>
