@@ -19,9 +19,11 @@ create table if not exists user_profile (
   weekly_availability jsonb not null default '[]'
 );
 
--- Migration for existing installations:
+-- Migration for existing installations (user_profile):
 -- alter table user_profile add column if not exists full_name text not null default '';
 -- alter table user_profile add column if not exists weekly_availability jsonb not null default '[]';
+
+-- Migration for existing installations (training_plans):
 -- alter table training_plans add column if not exists last_reviewed_week text;
 
 create table if not exists training_plans (
