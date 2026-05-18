@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Figtree } from 'next/font/google'
 import './globals.css'
-import ChatPanel from '@/components/ChatPanel'
+// import ChatPanel from '@/components/ChatPanel'
 import NavBar from '@/components/NavBar'
 
 const figtree = Figtree({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700', '800'] })
@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <NavBar />
             <main className="flex-1 p-4 md:p-6">{children}</main>
           </div>
-          <ChatPanel currentFTP={200} syncData={null} />
+          {/* <ChatPanel currentFTP={200} syncData={null} /> */}
         </div>
       </body>
     </html>
