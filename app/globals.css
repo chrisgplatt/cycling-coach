@@ -17,6 +17,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Prevent iOS Safari from zooming on input focus — requires font-size >= 16px */
+input, textarea, select {
+  font-size: max(16px, 1em);
+}
+
 main {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
