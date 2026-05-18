@@ -36,6 +36,7 @@ export interface TrainingPlan {
   target_event_date: string
   phase: PlanPhase
   rationale: string
+  last_reviewed_week: string | null
   created_at: string
   updated_at: string
 }

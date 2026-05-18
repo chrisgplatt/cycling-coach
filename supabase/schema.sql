@@ -22,6 +22,7 @@ create table if not exists user_profile (
 -- Migration for existing installations:
 -- alter table user_profile add column if not exists full_name text not null default '';
 -- alter table user_profile add column if not exists weekly_availability jsonb not null default '[]';
+-- alter table training_plans add column if not exists last_reviewed_week text;
 
 create table if not exists training_plans (
   id uuid primary key default gen_random_uuid(),
@@ -33,7 +34,8 @@ create table if not exists training_plans (
   phase text not null check (phase in ('base', 'build', 'peak', 'taper')),
   rationale text not null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  last_reviewed_week text
 );
 
 create table if not exists workouts (
