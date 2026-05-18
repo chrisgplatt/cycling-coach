@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type Tab = 'plan' | 'profile' | 'events'
 
@@ -23,6 +23,10 @@ export default function PlanPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  // Fix 1: timer ref to avoid unmount leak and double-save race
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     fetch('/api/profile')
@@ -38,8 +42,12 @@ export default function PlanPage() {
           DAYS.map(d => [d, avail.find(a => a.day === d)?.duration_minutes ?? 0])
         ))
       })
-      .catch(() => {})
+      // Fix 2: surface load errors instead of silently swallowing them
+      .catch(() => setLoadError('Failed to load profile'))
   }, [])
+
+  // Fix 1: cleanup effect for the saved timer
+  useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current) }, [])
 
   async function saveProfile(): Promise<boolean> {
     setSaving(true)
@@ -62,7 +70,9 @@ export default function PlanPage() {
         return false
       }
       setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      // Fix 1: clear any existing timer before setting a new one
+      if (savedTimer.current) clearTimeout(savedTimer.current)
+      savedTimer.current = setTimeout(() => setSaved(false), 2000)
       return true
     } catch {
       setSaveError('Network error')
@@ -103,9 +113,16 @@ export default function PlanPage() {
       {/* PROFILE & SCHEDULE TAB */}
       <div data-testid="tab-profile" style={{ display: tab === 'profile' ? 'block' : 'none' }}>
         <div className="space-y-4">
+          {/* Fix 2: show load error banner */}
+          {loadError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{loadError}</div>
+          )}
+
           <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
-            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Goals</h2>
+            {/* Fix 3: use <label htmlFor> instead of <h2> for the Goals textarea */}
+            <label htmlFor="goals" className="text-sm font-bold text-slate-700 uppercase tracking-wider">Goals</label>
             <textarea
+              id="goals"
               value={goals}
               onChange={e => setGoals(e.target.value)}
               placeholder="Your goals (e.g. Complete Dragon Ride, improve FTP, lose 5kg)"
@@ -119,24 +136,24 @@ export default function PlanPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="ftp" className={labelClass}>FTP (W)</label>
+                {/* Fix 5: remove redundant aria-label, htmlFor association is sufficient */}
                 <input
                   id="ftp"
                   type="number"
                   value={currentFtp}
                   onChange={e => setCurrentFtp(Number(e.target.value))}
-                  aria-label="FTP"
                   className={inputClass}
                 />
               </div>
               <div>
                 <label htmlFor="weight" className={labelClass}>Weight (kg)</label>
+                {/* Fix 5: remove redundant aria-label, htmlFor association is sufficient */}
                 <input
                   id="weight"
                   type="number"
                   step="0.5"
                   value={weightKg}
                   onChange={e => setWeightKg(Number(e.target.value))}
-                  aria-label="Weight"
                   className={inputClass}
                 />
               </div>
@@ -150,11 +167,13 @@ export default function PlanPage() {
               {DAYS.map((day, i) => (
                 <div key={day} className="flex items-center gap-3">
                   <span className="text-sm text-slate-600 w-8 shrink-0">{DAY_LABELS[i]}</span>
+                  {/* Fix 4: add aria-label so each schedule input is accessible */}
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     placeholder="0"
+                    aria-label={`${DAY_LABELS[i]} training minutes`}
                     value={(schedule[day] ?? 0) === 0 ? '' : String(schedule[day])}
                     onFocus={e => e.target.select()}
                     onChange={e => {
