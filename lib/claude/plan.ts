@@ -195,7 +195,7 @@ export function createPlanStream(
 ) {
   const prompt = buildPrompt(profile, syncData, weeks, startDate)
   return anthropic.messages.stream({
-    model: MODEL,
+    model: 'claude-opus-4-7',
     max_tokens: 32000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
