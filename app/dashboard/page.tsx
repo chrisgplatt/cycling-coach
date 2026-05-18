@@ -195,6 +195,8 @@ export default function DashboardPage() {
     loadPlan()
   }
 
+  useEffect(() => () => reviewAbortRef.current?.abort(), [])
+
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
     let needsSync = true
