@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { FTPPrediction, ICUSyncData } from '@/types'
+import type { FTPPrediction } from '@/types'
 
 const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000
 
@@ -15,8 +15,8 @@ export default function FitnessPage() {
 
   useEffect(() => {
     fetch('/api/ftp').then(r => r.json()).then(setPredictions).catch(() => {})
-    fetch('/api/sync', { method: 'POST' }).then(r => r.json()).then((data: ICUSyncData) => {
-      if (data?.athlete_ftp) setCurrentFTP(data.athlete_ftp)
+    fetch('/api/profile').then(r => r.json()).then((data) => {
+      if (data?.current_ftp) setCurrentFTP(data.current_ftp)
     }).catch(() => {})
   }, [])
 
