@@ -1,7 +1,10 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import AddEventModal from '@/components/AddEventModal'
-import type { TrainingEvent } from '@/types'
+import PlanDurationModal from '@/components/PlanDurationModal'
+import PlanApprovalModal from '@/components/PlanApprovalModal'
+import ClearWorkoutsModal from '@/components/ClearWorkoutsModal'
+import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData } from '@/types'
 
 type Tab = 'plan' | 'profile' | 'events'
 
@@ -35,6 +38,18 @@ export default function PlanPage() {
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null)
   const [confirmingEvent, setConfirmingEvent] = useState<string | null>(null)
 
+  const [planName, setPlanName] = useState<string | null>(null)
+  const [planWorkouts, setPlanWorkouts] = useState<Workout[]>([])
+  const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [showDurationPrompt, setShowDurationPrompt] = useState(false)
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false)
+  const [showClearModal, setShowClearModal] = useState(false)
+  const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null)
+  const [planWeeks, setPlanWeeks] = useState(6)
+  const [workoutsFound, setWorkoutsFound] = useState(0)
+  const [estimatedWorkouts, setEstimatedWorkouts] = useState(0)
+
   // Fix 1: timer ref to avoid unmount leak and double-save race
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -55,6 +70,19 @@ export default function PlanPage() {
       })
       // Fix 2: surface load errors instead of silently swallowing them
       .catch(() => setLoadError('Failed to load profile'))
+
+    fetch('/api/plan')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.name) setPlanName(data.name)
+        if (data?.workouts) setPlanWorkouts(data.workouts)
+      })
+      .catch(() => {})
+
+    fetch('/api/sync', { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setSyncData(data) })
+      .catch(() => {})
   }, [])
 
   // Fix 1: cleanup effect for the saved timer
@@ -144,6 +172,80 @@ export default function PlanPage() {
     setEvents(ev => ev.map(e => e.name === original.name && e.date === original.date ? data.event : e))
   }
 
+  function weekNumber(): { current: number; total: number } | null {
+    if (planWorkouts.length === 0) return null
+    const dates = planWorkouts.map(w => w.date).sort()
+    const start = new Date(dates[0])
+    const end = new Date(dates[dates.length - 1])
+    const total = Math.ceil((end.getTime() - start.getTime()) / (7 * 864e5)) + 1
+    const today = new Date()
+    const current = Math.max(1, Math.min(total, Math.ceil((today.getTime() - start.getTime()) / (7 * 864e5)) + 1))
+    return { current, total }
+  }
+
+  function daysToAEvent(): number | null {
+    const upcoming = events
+      .filter(e => e.priority === 'A')
+      .map(e => Math.ceil((new Date(e.date).getTime() - Date.now()) / 864e5))
+      .filter(d => d > 0)
+      .sort((a, b) => a - b)
+    return upcoming[0] ?? null
+  }
+
+  async function startPlanGeneration(weeks: number, startDate: string) {
+    setShowDurationPrompt(false)
+    setPlanWeeks(weeks)
+    setGenerating(true)
+    setWorkoutsFound(0)
+    setEstimatedWorkouts(0)
+    setSaveError(null)
+    try {
+      const profileSaved = await saveProfile()
+      if (!profileSaved) { setGenerating(false); return }
+      const res = await fetch('/api/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ syncData, weeks, startDate }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.error ?? 'Plan generation failed')
+        return
+      }
+      if (!res.body) { setSaveError('No response from server'); return }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const event = JSON.parse(line)
+            if (event.type === 'total') setEstimatedWorkouts(event.count)
+            else if (event.type === 'progress') setWorkoutsFound(event.found)
+            else if (event.type === 'done') setGeneratedPlan(event.plan)
+            else if (event.type === 'error') setSaveError(event.message)
+          } catch { /* ignore malformed lines */ }
+        }
+      }
+    } catch { setSaveError('Network error during plan generation') }
+    finally { setGenerating(false) }
+  }
+
+  async function clearFutureWorkouts(): Promise<string> {
+    try {
+      const res = await fetch('/api/workouts/clear-future', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) return `Error: ${data.error ?? 'Failed'}`
+      return `Deleted ${data.deleted} workout${data.deleted !== 1 ? 's' : ''}${data.failed ? ` (${data.failed} failed)` : ''}`
+    } catch { return 'Error: Network error' }
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -169,7 +271,118 @@ export default function PlanPage() {
 
       {/* MY PLAN TAB */}
       <div data-testid="tab-plan" style={{ display: tab === 'plan' ? 'block' : 'none' }}>
-        <p className="text-sm text-slate-400">Coming soon…</p>
+        {planName ? (() => {
+          const wk = weekNumber()
+          const days = daysToAEvent()
+          return (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl p-5 text-white shadow-md">
+                <p className="text-xs font-bold tracking-widest opacity-60 uppercase mb-2">Active Plan</p>
+                <p className="text-xl font-extrabold tracking-tight mb-3">{planName}</p>
+                <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                  {wk && <span>Week <strong>{wk.current}</strong> of <strong>{wk.total}</strong></span>}
+                  {days !== null && <span>🏁 A event in <strong>{days} days</strong></span>}
+                  <span>Phase: <strong>Base</strong></span>
+                </div>
+                {wk && (
+                  <div className="mt-4 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-white/80 rounded-full transition-all"
+                      style={{ width: `${(wk.current / wk.total) * 100}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Plan actions</h2>
+                </div>
+                <div className="p-5 space-y-3">
+                  <p className="text-sm text-slate-500">
+                    Building a new plan will archive the current one and replace all future planned workouts.
+                  </p>
+                  {saveError && (
+                    <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{saveError}</p>
+                  )}
+                  <div className="flex gap-3 flex-wrap">
+                    <button
+                      onClick={() => setShowReplaceConfirm(true)}
+                      disabled={generating || events.length === 0}
+                      title={events.length === 0 ? 'Add at least one event first' : undefined}
+                      className="bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {generating ? 'Generating plan…' : 'Build New Plan'}
+                    </button>
+                    <button
+                      onClick={() => setShowClearModal(true)}
+                      className="bg-red-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors shadow-sm"
+                    >
+                      Clear Future Workouts
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })() : (
+          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-10 text-center space-y-3">
+            <p className="text-slate-500 font-medium">No active plan</p>
+            <p className="text-sm text-slate-400">Add events on the Events tab, then build your first training plan.</p>
+            {saveError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{saveError}</p>
+            )}
+            <button
+              onClick={() => events.length > 0 ? setShowDurationPrompt(true) : setTab('events')}
+              disabled={generating}
+              className="bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm mt-2"
+            >
+              {events.length > 0 ? (generating ? 'Generating plan…' : 'Build New Plan') : 'Add an event first'}
+            </button>
+          </div>
+        )}
+
+        {showReplaceConfirm && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+              <h2 className="text-lg font-bold text-slate-900">Replace active plan?</h2>
+              <p className="text-sm text-slate-500">
+                You have an active plan: <span className="font-semibold text-slate-700">{planName}</span>.
+                Building a new plan will archive it and replace all future planned workouts.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowReplaceConfirm(false)}
+                  className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+                >Cancel</button>
+                <button
+                  onClick={() => { setShowReplaceConfirm(false); setShowDurationPrompt(true) }}
+                  className="bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                >Continue</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showDurationPrompt && (
+          <PlanDurationModal onStart={startPlanGeneration} onCancel={() => setShowDurationPrompt(false)} />
+        )}
+
+        {(generating || generatedPlan) && (
+          <PlanApprovalModal
+            plan={generatedPlan}
+            loading={generating}
+            weeks={planWeeks}
+            workoutsFound={workoutsFound}
+            estimatedWorkouts={estimatedWorkouts}
+            onApprove={() => { setGeneratedPlan(null); window.location.href = '/dashboard' }}
+            onReject={() => setGeneratedPlan(null)}
+          />
+        )}
+
+        {showClearModal && (
+          <ClearWorkoutsModal onConfirm={clearFutureWorkouts} onClose={() => setShowClearModal(false)} />
+        )}
       </div>
 
       {/* PROFILE & SCHEDULE TAB */}

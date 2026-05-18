@@ -109,3 +109,44 @@ describe('Events tab', () => {
     expect(await screen.findByRole('button', { name: /sync from intervals/i })).toBeInTheDocument()
   })
 })
+
+describe('My Plan tab', () => {
+  it('shows plan name in hero card when plan exists', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/api/plan') return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          name: 'Dragon Ride Build',
+          workouts: [
+            { id: 'w1', date: '2026-05-12', type: 'endurance', duration_minutes: 90, status: 'planned', tss: null, icu_activity_id: null, description: '', target_zones: '', intervals_icu_event_id: null, plan_id: 'p1', created_at: '' },
+            { id: 'w2', date: '2026-06-15', type: 'threshold', duration_minutes: 60, status: 'planned', tss: null, icu_activity_id: null, description: '', target_zones: '', intervals_icu_event_id: null, plan_id: 'p1', created_at: '' },
+          ],
+        }),
+      })
+      return Promise.resolve({ ok: true, json: async () => ({ id: 'p1', goals: '', current_ftp: 200, weight_kg: 70, weekly_availability: [], events: [] }) })
+    })
+    render(<PlanPage />)
+    expect(await screen.findByText('Dragon Ride Build')).toBeInTheDocument()
+  })
+
+  it('shows Build New Plan button when plan exists', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/api/plan') return Promise.resolve({
+        ok: true,
+        json: async () => ({ name: 'Dragon Ride Build', workouts: [] }),
+      })
+      return Promise.resolve({ ok: true, json: async () => ({ id: 'p1', goals: '', current_ftp: 200, weight_kg: 70, weekly_availability: [], events: [{ name: 'Dragon Ride', date: '2026-06-25', type: 'sportive', priority: 'A' }] }) })
+    })
+    render(<PlanPage />)
+    expect(await screen.findByRole('button', { name: /build new plan/i })).toBeInTheDocument()
+  })
+
+  it('shows empty state when no plan', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/api/plan') return Promise.resolve({ ok: true, json: async () => null })
+      return Promise.resolve({ ok: true, json: async () => ({ id: 'p1', goals: '', current_ftp: 200, weight_kg: 70, weekly_availability: [], events: [] }) })
+    })
+    render(<PlanPage />)
+    expect(await screen.findByText(/no active plan/i)).toBeInTheDocument()
+  })
+})
