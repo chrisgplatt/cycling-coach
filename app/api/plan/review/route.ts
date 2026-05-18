@@ -73,9 +73,11 @@ export async function POST(req: NextRequest) {
         const newCount = (accumulatedText.match(/"date"\s*:/g) ?? []).length
         if (newCount > workoutsFound) {
           workoutsFound = newCount
-          controller.enqueue(encoder.encode(
-            JSON.stringify({ type: 'progress', found: workoutsFound }) + '\n'
-          ))
+          try {
+            controller.enqueue(encoder.encode(
+              JSON.stringify({ type: 'progress', found: workoutsFound }) + '\n'
+            ))
+          } catch { /* stream already closed */ }
         }
       })
 
@@ -106,6 +108,8 @@ export async function PATCH(req: NextRequest) {
     .from('training_plans')
     .select('id, name')
     .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   if (!activePlan) return NextResponse.json({ error: 'No active plan' }, { status: 400 })
@@ -114,10 +118,11 @@ export async function PATCH(req: NextRequest) {
 
   // Dismiss path — update last_reviewed_week only
   if (body.dismiss) {
-    await supabase
+    const { error: dismissError } = await supabase
       .from('training_plans')
       .update({ last_reviewed_week: currentWeek })
       .eq('id', activePlan.id)
+    if (dismissError) return NextResponse.json({ error: 'Failed to update review week' }, { status: 500 })
     return NextResponse.json({ ok: true })
   }
 
@@ -142,6 +147,10 @@ export async function PATCH(req: NextRequest) {
   // Remove workouts that fall on event dates
   const eventDates = new Set<string>((profile.events ?? []).map((e: { date: string }) => e.date))
   plan = { ...plan, workouts: plan.workouts.filter(w => !eventDates.has(w.date)) }
+
+  if (!plan.workouts.length) {
+    return NextResponse.json({ error: 'All adapted workouts conflict with event dates' }, { status: 400 })
+  }
 
   const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
   const today = new Date().toISOString().split('T')[0]
@@ -215,10 +224,11 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to save workouts' }, { status: 500 })
   }
 
-  await supabase
+  const { error: updateError } = await supabase
     .from('training_plans')
     .update({ last_reviewed_week: currentWeek })
     .eq('id', activePlan.id)
+  if (updateError) return NextResponse.json({ error: 'Failed to update review week' }, { status: 500 })
 
   return NextResponse.json({
     ok: true,
