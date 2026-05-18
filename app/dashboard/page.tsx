@@ -33,6 +33,8 @@ function getReadinessSummary(wellness: ICUWellness): string {
   return summary
 }
 
+const SYNC_CACHE_KEY = 'cycling_coach_sync'
+
 export default function DashboardPage() {
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [athleteId, setAthleteId] = useState('')
@@ -45,15 +47,23 @@ export default function DashboardPage() {
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
   const [events, setEvents] = useState<TrainingEvent[]>([])
 
+  function applySyncData(data: ICUSyncData & { athlete_id?: string }, syncedAt: Date) {
+    setSyncData(data)
+    setLastSyncedAt(syncedAt)
+    if (data.athlete_id) setAthleteId(data.athlete_id)
+  }
+
   async function doSync() {
     setSyncing(true)
     try {
       const res = await fetch('/api/sync', { method: 'POST' })
       if (res.ok) {
         const data = await res.json()
-        setSyncData(data)
-        setLastSyncedAt(new Date())
-        if (data.athlete_id) setAthleteId(data.athlete_id)
+        const now = new Date()
+        applySyncData(data, now)
+        try {
+          localStorage.setItem(SYNC_CACHE_KEY, JSON.stringify({ syncedAt: now.toISOString(), data }))
+        } catch { /* ignore storage errors */ }
       }
     } finally {
       setSyncing(false)
@@ -74,7 +84,19 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    doSync()
+    const today = new Date().toISOString().split('T')[0]
+    let needsSync = true
+    try {
+      const raw = localStorage.getItem(SYNC_CACHE_KEY)
+      if (raw) {
+        const cached = JSON.parse(raw)
+        if (typeof cached.syncedAt === 'string' && cached.syncedAt.startsWith(today)) {
+          applySyncData(cached.data, new Date(cached.syncedAt))
+          needsSync = false
+        }
+      }
+    } catch { /* ignore cache errors */ }
+    if (needsSync) doSync()
     loadPlan()
     fetch('/api/profile').then(r => r.json()).then(data => {
       const name: string = data?.full_name ?? ''
