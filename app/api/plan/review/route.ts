@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { note = '' } = await req.json().catch(() => ({}))
+  const { note: rawNote = '' } = await req.json().catch(() => ({}))
+  const note = String(rawNote).slice(0, 1000)
 
   const { data: profile } = await supabase.from('user_profile').select('*').maybeSingle()
   if (!profile) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })

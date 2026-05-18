@@ -46,9 +46,6 @@ export default function PlanReviewModal({
         setError(data.error ?? 'Failed to apply adapted plan')
         return
       }
-      if (data.upload_warnings?.length) {
-        setError(`Plan adapted, but ${data.upload_warnings.length} workout(s) failed to upload to intervals.icu: ${data.upload_warnings[0]}`)
-      }
       onApprove()
     } catch {
       setError('Network error')
