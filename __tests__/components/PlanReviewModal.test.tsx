@@ -40,14 +40,14 @@ describe('PlanReviewModal', () => {
 
   it('calls PATCH /api/plan/review and then onApprove on success', async () => {
     const onApprove = jest.fn()
-    global.fetch = jest.fn().mockResolvedValue({
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({}),
-    })
+    } as unknown as Response)
     render(<PlanReviewModal plan={mockPlan} loading={false} onApprove={onApprove} onReject={jest.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /approve adapted plan/i }))
     await waitFor(() => expect(onApprove).toHaveBeenCalledTimes(1))
-    expect(global.fetch).toHaveBeenCalledWith('/api/plan/review', expect.objectContaining({
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/plan/review', expect.objectContaining({
       method: 'PATCH',
       body: expect.stringContaining('"plan"'),
     }))

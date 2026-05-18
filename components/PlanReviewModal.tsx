@@ -11,6 +11,16 @@ interface Props {
   onReject: () => void
 }
 
+const PHASE_LABELS: Record<string, string> = {
+  base: 'Base', build: 'Build', peak: 'Peak', taper: 'Taper',
+}
+const TYPE_COLOURS: Record<string, string> = {
+  endurance: 'bg-blue-100 text-blue-700',
+  threshold: 'bg-orange-100 text-orange-700',
+  intervals: 'bg-red-100 text-red-700',
+  recovery: 'bg-green-100 text-green-700',
+}
+
 export default function PlanReviewModal({
   plan,
   loading = false,
@@ -47,20 +57,10 @@ export default function PlanReviewModal({
     }
   }
 
-  const PHASE_LABELS: Record<string, string> = {
-    base: 'Base', build: 'Build', peak: 'Peak', taper: 'Taper',
-  }
-  const TYPE_COLOURS: Record<string, string> = {
-    endurance: 'bg-blue-100 text-blue-700',
-    threshold: 'bg-orange-100 text-orange-700',
-    intervals: 'bg-red-100 text-red-700',
-    recovery: 'bg-green-100 text-green-700',
-  }
-
   if (loading || !plan) {
     const pct = estimatedWorkouts > 0 ? Math.min(100, (workoutsFound / estimatedWorkouts) * 100) : 0
     return (
-      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-10 flex flex-col items-center gap-6">
           <div className="w-10 h-10 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" />
           <div className="text-center w-full space-y-3">
@@ -88,12 +88,12 @@ export default function PlanReviewModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="plan-review-modal-title" className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Adapted Training Plan</h2>
+              <h2 id="plan-review-modal-title" className="text-lg font-bold text-slate-900">Adapted Training Plan</h2>
               <p className="text-sm text-slate-500 mt-0.5">
                 {plan.target_event_name} &mdash; {plan.target_event_date}
               </p>
@@ -148,7 +148,8 @@ export default function PlanReviewModal({
         <div className="p-4 border-t border-slate-100 flex justify-end gap-3">
           <button
             onClick={onReject}
-            className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+            disabled={approving}
+            className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             Reject
           </button>

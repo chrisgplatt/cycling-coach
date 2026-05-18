@@ -13,3 +13,10 @@ Object.defineProperty(globalThis, 'crypto', {
   writable: true,
   configurable: true,
 })
+
+// Ensure fetch is available for spying in tests
+Object.defineProperty(globalThis, 'fetch', {
+  writable: true,
+  configurable: true,
+  value: jest.fn(),
+})
