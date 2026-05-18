@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
 import FeedbackModal from '@/components/FeedbackModal'
@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const [reviewWorkoutsFound, setReviewWorkoutsFound] = useState(0)
   const [reviewEstimatedWorkouts, setReviewEstimatedWorkouts] = useState(0)
   const [showReviewModal, setShowReviewModal] = useState(false)
+  const reviewAbortRef = useRef<AbortController | null>(null)
 
   function applySyncData(data: ICUSyncData & { athlete_id?: string }, syncedAt: Date) {
     setSyncData(data)
@@ -85,7 +86,10 @@ export default function DashboardPage() {
     const res = await fetch('/api/plan')
     if (!res.ok) return
     const plan = await res.json()
-    if (!plan) return
+    if (!plan) {
+      setShowReviewBanner(false)
+      return
+    }
 
     if (plan.workouts) {
       const today = new Date().toISOString().split('T')[0]
@@ -126,6 +130,10 @@ export default function DashboardPage() {
   }
 
   async function startReview(note: string) {
+    reviewAbortRef.current?.abort()
+    const controller = new AbortController()
+    reviewAbortRef.current = controller
+
     setReviewLoading(true)
     setReviewPlan(null)
     setReviewWorkoutsFound(0)
@@ -135,6 +143,7 @@ export default function DashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note }),
+        signal: controller.signal,
       })
       if (!res.ok || !res.body) { setReviewLoading(false); return }
       const reader = res.body.getReader()
@@ -142,7 +151,7 @@ export default function DashboardPage() {
       let buf = ''
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done || controller.signal.aborted) break
         buf += decoder.decode(value, { stream: true })
         const lines = buf.split('\n')
         buf = lines.pop() ?? ''
@@ -156,7 +165,16 @@ export default function DashboardPage() {
           } catch { /* ignore parse errors */ }
         }
       }
-    } catch {
+      // flush any remaining buffered data
+      if (buf.trim()) {
+        try {
+          const msg = JSON.parse(buf)
+          if (msg.type === 'done') { setReviewPlan(msg.plan); setReviewLoading(false) }
+          if (msg.type === 'error') setReviewLoading(false)
+        } catch { /* ignore */ }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
       setReviewLoading(false)
     }
   }
