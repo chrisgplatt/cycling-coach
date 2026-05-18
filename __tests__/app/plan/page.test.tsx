@@ -35,3 +35,41 @@ describe('PlanPage tabs', () => {
     expect(screen.getByTestId('tab-plan')).not.toBeVisible()
   })
 })
+
+describe('Profile & Schedule tab', () => {
+  beforeEach(() => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'p1',
+        current_ftp: 265,
+        weight_kg: 78.5,
+        goals: 'Complete Dragon Ride',
+        weekly_availability: [
+          { day: 'monday', duration_minutes: 90 },
+          { day: 'saturday', duration_minutes: 180 },
+        ],
+        events: [],
+      }),
+    })
+  })
+
+  it('shows goals field on Profile tab', async () => {
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }))
+    expect(await screen.findByPlaceholderText(/your goals/i)).toBeInTheDocument()
+  })
+
+  it('shows FTP and weight inputs on Profile tab', async () => {
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }))
+    expect(await screen.findByLabelText(/ftp/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/weight/i)).toBeInTheDocument()
+  })
+
+  it('shows Save Profile button on Profile tab', async () => {
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }))
+    expect(await screen.findByRole('button', { name: /save profile/i })).toBeInTheDocument()
+  })
+})
