@@ -10,6 +10,8 @@ export default function FitnessPage() {
   const [predicting, setPredicting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showRecencyWarning, setShowRecencyWarning] = useState(false)
+  const [pendingFTPUpdate, setPendingFTPUpdate] = useState<number | null>(null)
+  const [updatingFTP, setUpdatingFTP] = useState(false)
 
   useEffect(() => {
     fetch('/api/ftp').then(r => r.json()).then(setPredictions).catch(() => {})
@@ -39,6 +41,9 @@ export default function FitnessPage() {
       const json = await res.json()
       if (res.ok) {
         setPredictions(prev => [json, ...prev])
+        if (json.predicted_ftp !== currentFTP) {
+          setPendingFTPUpdate(json.predicted_ftp)
+        }
       } else {
         setError(json?.error ?? `Request failed (${res.status})`)
       }
@@ -46,6 +51,21 @@ export default function FitnessPage() {
       setError('Network error — could not reach server')
     } finally {
       setPredicting(false)
+    }
+  }
+
+  async function updateProfileFTP(newFTP: number) {
+    setUpdatingFTP(true)
+    try {
+      await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_ftp: newFTP }),
+      })
+      setCurrentFTP(newFTP)
+    } finally {
+      setUpdatingFTP(false)
+      setPendingFTPUpdate(null)
     }
   }
 
@@ -157,6 +177,46 @@ export default function FitnessPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {pendingFTPUpdate !== null && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Update profile FTP?</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                The prediction differs from your current profile FTP.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-6 py-2">
+              <div className="text-center">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Current</p>
+                <p className="text-3xl font-black text-gray-400">{currentFTP}<span className="text-base font-semibold ml-0.5">W</span></p>
+              </div>
+              <span className="text-2xl text-gray-300">→</span>
+              <div className="text-center">
+                <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-1">Predicted</p>
+                <p className="text-3xl font-black text-blue-600">{pendingFTPUpdate}<span className="text-base font-semibold ml-0.5">W</span></p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end pt-1">
+              <button
+                onClick={() => setPendingFTPUpdate(null)}
+                disabled={updatingFTP}
+                className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Keep current
+              </button>
+              <button
+                onClick={() => updateProfileFTP(pendingFTPUpdate)}
+                disabled={updatingFTP}
+                className="bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {updatingFTP ? 'Updating…' : `Update to ${pendingFTPUpdate}W`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
