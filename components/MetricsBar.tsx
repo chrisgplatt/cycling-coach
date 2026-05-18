@@ -19,13 +19,19 @@ function Metric({ label, value, valueClass = 'text-gray-900', unit }: MetricProp
   )
 }
 
-function formatWellnessDate(id: string, syncedAt: Date | null): string {
-  const [, month, day] = id.split('-').map(Number)
+function formatSyncTime(syncedAt: Date | null): string {
+  if (!syncedAt) return ''
+  const timeStr = syncedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]
+  const syncedStr = syncedAt.toISOString().split('T')[0]
+  if (syncedStr === todayStr) return `Synced today at ${timeStr}`
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (syncedStr === yesterday.toISOString().split('T')[0]) return `Synced yesterday at ${timeStr}`
+  const [, month, day] = syncedStr.split('-').map(Number)
   const monthName = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month - 1]
-  const timeStr = syncedAt
-    ? syncedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-    : null
-  return timeStr ? `Updated ${day} ${monthName} at ${timeStr}` : `Updated ${day} ${monthName}`
+  return `Synced ${day} ${monthName} at ${timeStr}`
 }
 
 export default function MetricsBar({ wellness, syncedAt = null }: { wellness: ICUWellness | null; syncedAt?: Date | null }) {
@@ -36,7 +42,7 @@ export default function MetricsBar({ wellness, syncedAt = null }: { wellness: IC
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
         <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Fitness Stats</h2>
-        <span className="text-xs text-gray-400">{formatWellnessDate(wellness.id, syncedAt)}</span>
+        <span className="text-xs text-gray-400">{formatSyncTime(syncedAt)}</span>
       </div>
       <div className="flex divide-x divide-gray-100">
         <Metric label="CTL" value={wellness.ctl} valueClass="text-blue-600" />
