@@ -6,6 +6,9 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState('')
   const [athleteId, setAthleteId] = useState('')
   const [apiKey, setApiKey] = useState('')
+  const [savedFullName, setSavedFullName] = useState('')
+  const [savedAthleteId, setSavedAthleteId] = useState('')
+  const [savedApiKey, setSavedApiKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -13,15 +16,20 @@ export default function SettingsPage() {
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
 
+  const isDirty = fullName !== savedFullName || athleteId !== savedAthleteId || apiKey !== savedApiKey
+
   useEffect(() => {
     fetch('/api/profile')
       .then(r => r.json())
       .then(data => {
         if (!data?.id) return
         setProfileId(data.id)
-        setFullName(data.full_name ?? '')
-        setAthleteId(data.intervals_icu_athlete_id ?? '')
-        setApiKey(data.intervals_icu_api_key ?? '')
+        const name = data.full_name ?? ''
+        const id = data.intervals_icu_athlete_id ?? ''
+        const key = data.intervals_icu_api_key ?? ''
+        setFullName(name); setSavedFullName(name)
+        setAthleteId(id); setSavedAthleteId(id)
+        setApiKey(key); setSavedApiKey(key)
       })
       .catch(() => {})
   }, [])
@@ -42,6 +50,9 @@ export default function SettingsPage() {
         const data = await res.json().catch(() => ({}))
         setSaveError(data.error ?? 'Save failed')
       } else {
+        setSavedFullName(fullName)
+        setSavedAthleteId(athleteId)
+        setSavedApiKey(apiKey)
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
       }
@@ -99,7 +110,7 @@ export default function SettingsPage() {
 
       <button
         onClick={save}
-        disabled={saving}
+        disabled={saving || !isDirty}
         className="bg-slate-800 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors shadow-sm"
       >
         {saving ? 'Saving…' : saved ? 'Saved!' : 'Save'}

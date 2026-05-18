@@ -25,10 +25,22 @@ export default function PlanPage() {
   const [schedule, setSchedule] = useState<Record<string, number>>(
     Object.fromEntries(DAYS.map(d => [d, 0]))
   )
+  const [savedGoals, setSavedGoals] = useState('')
+  const [savedFtp, setSavedFtp] = useState(200)
+  const [savedWeight, setSavedWeight] = useState(70)
+  const [savedSchedule, setSavedSchedule] = useState<Record<string, number>>(
+    Object.fromEntries(DAYS.map(d => [d, 0]))
+  )
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+
+  const isProfileDirty =
+    goals !== savedGoals ||
+    currentFtp !== savedFtp ||
+    weightKg !== savedWeight ||
+    DAYS.some(d => schedule[d] !== savedSchedule[d])
 
   const [events, setEvents] = useState<TrainingEvent[]>([])
   const [syncing, setSyncing] = useState(false)
@@ -59,14 +71,16 @@ export default function PlanPage() {
       .then(data => {
         if (!data?.id) return
         setProfileId(data.id)
-        setGoals(data.goals ?? '')
-        setCurrentFtp(data.current_ftp ?? 200)
-        setWeightKg(data.weight_kg ?? 70)
-        setEvents(data.events ?? [])
+        const g = data.goals ?? ''
+        const ftp = data.current_ftp ?? 200
+        const wt = data.weight_kg ?? 70
         const avail: Array<{ day: string; duration_minutes: number }> = data.weekly_availability ?? []
-        setSchedule(Object.fromEntries(
-          DAYS.map(d => [d, avail.find(a => a.day === d)?.duration_minutes ?? 0])
-        ))
+        const sched = Object.fromEntries(DAYS.map(d => [d, avail.find(a => a.day === d)?.duration_minutes ?? 0]))
+        setGoals(g); setSavedGoals(g)
+        setCurrentFtp(ftp); setSavedFtp(ftp)
+        setWeightKg(wt); setSavedWeight(wt)
+        setSchedule(sched); setSavedSchedule(sched)
+        setEvents(data.events ?? [])
       })
       // Fix 2: surface load errors instead of silently swallowing them
       .catch(() => setLoadError('Failed to load profile'))
@@ -108,6 +122,10 @@ export default function PlanPage() {
         setSaveError(data.error ?? 'Save failed')
         return false
       }
+      setSavedGoals(goals)
+      setSavedFtp(currentFtp)
+      setSavedWeight(weightKg)
+      setSavedSchedule({ ...schedule })
       setSaved(true)
       // Fix 1: clear any existing timer before setting a new one
       if (savedTimer.current) clearTimeout(savedTimer.current)
@@ -471,7 +489,7 @@ export default function PlanPage() {
 
           <button
             onClick={saveProfile}
-            disabled={saving}
+            disabled={saving || !isProfileDirty}
             className="bg-slate-800 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors shadow-sm w-full"
           >
             {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Profile'}
