@@ -6,6 +6,10 @@ import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { ICUSyncData, Workout, ICUWellness, TrainingEvent } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
+import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
+import PlanReviewModal from '@/components/PlanReviewModal'
+import { isoWeek } from '@/lib/iso-week'
+import type { GeneratedPlan } from '@/types'
 
 function getReadinessSummary(wellness: ICUWellness): string {
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -46,6 +50,13 @@ export default function DashboardPage() {
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
   const [events, setEvents] = useState<TrainingEvent[]>([])
+  const [showReviewBanner, setShowReviewBanner] = useState(false)
+  const [lastWeekStats, setLastWeekStats] = useState({ completed: 0, total: 0 })
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null)
+  const [reviewWorkoutsFound, setReviewWorkoutsFound] = useState(0)
+  const [reviewEstimatedWorkouts, setReviewEstimatedWorkouts] = useState(0)
+  const [showReviewModal, setShowReviewModal] = useState(false)
 
   function applySyncData(data: ICUSyncData & { athlete_id?: string }, syncedAt: Date) {
     setSyncData(data)
@@ -72,15 +83,98 @@ export default function DashboardPage() {
 
   async function loadPlan() {
     const res = await fetch('/api/plan')
-    if (res.ok) {
-      const plan = await res.json()
-      if (plan?.workouts) {
-        const today = new Date().toISOString().split('T')[0]
-        const sunday = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
-        setWorkouts(plan.workouts.filter((w: Workout) => w.date >= today && w.date <= sunday))
-      }
-      if (plan?.name) setPlanName(plan.name)
+    if (!res.ok) return
+    const plan = await res.json()
+    if (!plan) return
+
+    if (plan.workouts) {
+      const today = new Date().toISOString().split('T')[0]
+      const sunday = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
+      setWorkouts(plan.workouts.filter((w: Workout) => w.date >= today && w.date <= sunday))
+
+      // Compute last week date range for review banner
+      const d = new Date()
+      const dayOfWeek = (d.getDay() + 6) % 7  // 0=Mon
+      const thisMonStart = new Date(d)
+      thisMonStart.setDate(d.getDate() - dayOfWeek)
+      const lastMonStart = new Date(thisMonStart)
+      lastMonStart.setDate(thisMonStart.getDate() - 7)
+      const lastSunEnd = new Date(thisMonStart)
+      lastSunEnd.setDate(thisMonStart.getDate() - 1)
+      const lwStart = lastMonStart.toISOString().split('T')[0]
+      const lwEnd = lastSunEnd.toISOString().split('T')[0]
+
+      const lastWeek = plan.workouts.filter((w: Workout) => w.date >= lwStart && w.date <= lwEnd)
+      setLastWeekStats({
+        completed: lastWeek.filter((w: Workout) => w.status === 'completed').length,
+        total: lastWeek.length,
+      })
+      setReviewEstimatedWorkouts(
+        plan.workouts.filter((w: Workout) => w.date >= today && w.status === 'planned').length
+      )
     }
+
+    if (plan.name) setPlanName(plan.name)
+
+    // Show review banner if current ISO week exceeds last reviewed week
+    const week = isoWeek(new Date())
+    if (!plan.last_reviewed_week || plan.last_reviewed_week < week) {
+      setShowReviewBanner(true)
+    } else {
+      setShowReviewBanner(false)
+    }
+  }
+
+  async function startReview(note: string) {
+    setReviewLoading(true)
+    setReviewPlan(null)
+    setReviewWorkoutsFound(0)
+    setShowReviewModal(true)
+    try {
+      const res = await fetch('/api/plan/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note }),
+      })
+      if (!res.ok || !res.body) { setReviewLoading(false); return }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const msg = JSON.parse(line)
+            if (msg.type === 'progress') setReviewWorkoutsFound(msg.found)
+            if (msg.type === 'done') { setReviewPlan(msg.plan); setReviewLoading(false) }
+            if (msg.type === 'error') setReviewLoading(false)
+          } catch { /* ignore parse errors */ }
+        }
+      }
+    } catch {
+      setReviewLoading(false)
+    }
+  }
+
+  function handleDismiss() {
+    setShowReviewBanner(false)
+    fetch('/api/plan/review', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dismiss: true }),
+    }).catch(() => {})
+  }
+
+  function handleReviewApprove() {
+    setShowReviewModal(false)
+    setReviewPlan(null)
+    setShowReviewBanner(false)
+    loadPlan()
   }
 
   useEffect(() => {
@@ -139,6 +233,15 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {showReviewBanner && (
+        <WeeklyReviewBanner
+          lastWeekCompleted={lastWeekStats.completed}
+          lastWeekTotal={lastWeekStats.total}
+          onReview={startReview}
+          onDismiss={handleDismiss}
+        />
+      )}
+
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
@@ -264,6 +367,17 @@ export default function DashboardPage() {
         <FeedbackModal
           workout={feedbackWorkout}
           onClose={() => setFeedbackWorkout(null)}
+        />
+      )}
+
+      {showReviewModal && (
+        <PlanReviewModal
+          plan={reviewPlan}
+          loading={reviewLoading}
+          workoutsFound={reviewWorkoutsFound}
+          estimatedWorkouts={reviewEstimatedWorkouts}
+          onApprove={handleReviewApprove}
+          onReject={() => { setShowReviewModal(false); setReviewPlan(null) }}
         />
       )}
     </div>
