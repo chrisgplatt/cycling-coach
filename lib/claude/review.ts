@@ -39,9 +39,8 @@ export function buildReviewPrompt(
     a.date.localeCompare(b.date)
   )
   const today = new Date().toISOString().split('T')[0]
-  const lastDate = remainingWorkouts.length
-    ? remainingWorkouts[remainingWorkouts.length - 1].date
-    : today
+  const sortedRemaining = [...remainingWorkouts].sort((a, b) => a.date.localeCompare(b.date))
+  const lastDate = sortedRemaining.length ? sortedRemaining[sortedRemaining.length - 1].date : today
 
   return `You are adapting the remaining training plan based on last week's execution.
 
@@ -75,6 +74,11 @@ Apply the same constraints as initial plan generation: respect the weekly schedu
 If the athlete completed all workouts: maintain or slightly increase load.
 If the athlete missed sessions: reduce upcoming intensity or volume proportionally.
 If the athlete left a note: incorporate their feedback.
+
+STEP RULES:
+- power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
+- Sessions >45min must include a warm-up (10-15min at Z1-Z2) and cool-down (10min at Z1)
+- For interval sessions, list each rep and each recovery period as a separate step (do not group)
 
 Return ONLY this JSON:
 {
