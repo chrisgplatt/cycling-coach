@@ -7,9 +7,9 @@ interface Props {
 }
 
 function timeEstimate(weeks: number): string {
-  if (weeks <= 4) return 'about 30 seconds'
-  if (weeks <= 8) return 'about 1 minute'
-  return 'up to 2 minutes'
+  if (weeks <= 4) return '1–2 minutes'
+  if (weeks <= 8) return '2–3 minutes'
+  return '3–4 minutes'
 }
 
 export default function PlanDurationModal({ onStart, onCancel }: Props) {

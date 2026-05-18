@@ -27,6 +27,8 @@ export default function SettingsPage() {
   const [planWeeks, setPlanWeeks] = useState(6)
   const [workoutsFound, setWorkoutsFound] = useState(0)
   const [estimatedWorkouts, setEstimatedWorkouts] = useState(0)
+  const [activePlanName, setActivePlanName] = useState<string | null>(null)
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [showClearModal, setShowClearModal] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -67,6 +69,11 @@ export default function SettingsPage() {
         }
       })
       .catch(e => setSaveError(`Could not load profile: ${e.message}`))
+
+    fetch('/api/plan')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.name) setActivePlanName(data.name) })
+      .catch(() => {})
 
     fetch('/api/sync', { method: 'POST' })
       .then(r => r.ok ? r.json() : null)
@@ -446,7 +453,9 @@ export default function SettingsPage() {
           className="bg-slate-800 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors shadow-sm">
           {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Profile'}
         </button>
-        <button onClick={() => setShowDurationPrompt(true)} disabled={generating || !profile.events.length}
+        <button
+          onClick={() => activePlanName ? setShowReplaceConfirm(true) : setShowDurationPrompt(true)}
+          disabled={generating || !profile.events.length}
           title={!profile.events.length ? 'Add at least one event first' : undefined}
           className="bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm">
           {generating ? 'Generating plan…' : 'Build New Plan'}
@@ -477,6 +486,34 @@ export default function SettingsPage() {
           onConfirm={clearFutureWorkouts}
           onClose={() => setShowClearModal(false)}
         />
+      )}
+
+      {showReplaceConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Replace active plan?</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                You have an active plan: <span className="font-semibold text-slate-700">{activePlanName}</span>.
+                Building a new plan will archive it and replace all future planned workouts.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowReplaceConfirm(false)}
+                className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowReplaceConfirm(false); setShowDurationPrompt(true) }}
+                className="bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showDurationPrompt && (
