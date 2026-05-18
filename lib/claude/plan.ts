@@ -162,8 +162,8 @@ Return ONLY this JSON:
 }`
 
   const response = await anthropic.messages.stream({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 16000,
+    model: MODEL,
+    max_tokens: 32000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
   }).finalMessage()
