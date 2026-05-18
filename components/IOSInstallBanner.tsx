@@ -5,7 +5,7 @@ export default function IOSInstallBanner() {
   const [show, setShow] = useState(false)
 
   useEffect(() => {
-    const isIOS = /iphone|ipad/i.test(navigator.userAgent)
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
     const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone === true
     const isDismissed = localStorage.getItem('pwa-banner-dismissed') === '1'
     if (isIOS && !isStandalone && !isDismissed) {
@@ -22,8 +22,8 @@ export default function IOSInstallBanner() {
 
   return (
     <div
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      className="fixed bottom-0 left-0 right-0 z-50 bg-[#1e3a5f] flex items-center gap-3 px-4 pt-3 pb-3"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+      className="fixed bottom-0 left-0 right-0 z-50 bg-[#1e3a5f] flex items-center gap-3 px-4 pt-3"
     >
       <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
