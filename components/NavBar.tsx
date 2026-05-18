@@ -7,8 +7,9 @@ import SignOutButton from './SignOutButton'
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/calendar', label: 'Calendar' },
+  { href: '/plan', label: 'Plan' },
   { href: '/fitness', label: 'Fitness' },
-  { href: '/settings', label: 'Settings' },
+  { href: '/settings', label: 'Account' },
 ]
 
 export default function NavBar() {
