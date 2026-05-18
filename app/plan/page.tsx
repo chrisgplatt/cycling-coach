@@ -100,7 +100,7 @@ export default function PlanPage() {
       const res = await fetch('/api/events/sync', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) { setSyncResult(`Error: ${data.error ?? 'Sync failed'}`); return }
-      setEvents(data.events ?? events)
+      setEvents(prev => data.events ?? prev)
       setSyncResult(data.added > 0 ? `Added ${data.added} event(s) from intervals.icu` : 'No new events found')
     } catch { setSyncResult('Network error') }
     finally { setSyncing(false) }
@@ -297,7 +297,7 @@ export default function PlanPage() {
             {events.map((event, i) => {
               const key = `${event.name}|${event.date}`
               return (
-                <div key={key ?? i} className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
+                <div key={key} className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-800 truncate">{event.name}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
