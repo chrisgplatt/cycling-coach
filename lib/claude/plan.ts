@@ -160,6 +160,28 @@ Return ONLY this JSON:
 }`
 }
 
+export function countPlannedWorkouts(
+  profile: UserProfile,
+  weeks: number,
+  startDate: string,
+): number {
+  const trainingDays = new Set(
+    (profile.weekly_availability ?? [])
+      .filter(a => a.duration_minutes > 0)
+      .map(a => a.day)
+  )
+  const blockedDates = new Set((profile.events ?? []).map(e => e.date))
+  const jsDay = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
+  let count = 0
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = new Date(startDate)
+    d.setUTCDate(d.getUTCDate() + i)
+    const dateStr = d.toISOString().split('T')[0]
+    if (trainingDays.has(jsDay[d.getUTCDay()]) && !blockedDates.has(dateStr)) count++
+  }
+  return count
+}
+
 export function parsePlanText(raw: string): GeneratedPlan {
   const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
   return JSON.parse(text) as GeneratedPlan

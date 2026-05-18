@@ -116,7 +116,7 @@ export default function SettingsPage() {
     setPlanWeeks(weeks)
     setGenerating(true)
     setWorkoutsFound(0)
-    setEstimatedWorkouts(DAYS.filter(d => (schedule[d] ?? 0) > 0).length * weeks)
+    setEstimatedWorkouts(0)
     setSaveError(null)
     try {
       const saved = await saveProfile()
@@ -151,7 +151,9 @@ export default function SettingsPage() {
           if (!line.trim()) continue
           try {
             const event = JSON.parse(line)
-            if (event.type === 'progress') {
+            if (event.type === 'total') {
+              setEstimatedWorkouts(event.count)
+            } else if (event.type === 'progress') {
               setWorkoutsFound(event.found)
             } else if (event.type === 'done') {
               setGeneratedPlan(event.plan)

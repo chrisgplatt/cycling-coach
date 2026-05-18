@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
-import { createPlanStream, parsePlanText } from '@/lib/claude/plan'
+import { createPlanStream, parsePlanText, countPlannedWorkouts } from '@/lib/claude/plan'
 import type { GeneratedPlan } from '@/types'
 
 export async function GET() {
@@ -45,9 +45,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 
+  const totalWorkouts = countPlannedWorkouts(profileData, safeWeeks, safeStartDate)
   const encoder = new TextEncoder()
   const readable = new ReadableStream({
     async start(controller) {
+      controller.enqueue(encoder.encode(JSON.stringify({ type: 'total', count: totalWorkouts }) + '\n'))
       let accumulatedText = ''
       let workoutsFound = 0
 

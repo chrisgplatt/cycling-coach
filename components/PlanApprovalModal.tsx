@@ -63,7 +63,7 @@ export default function PlanApprovalModal({ plan, loading = false, weeks = 6, wo
               <>
                 <p className="text-sm text-slate-500">
                   {workoutsFound} workout{workoutsFound !== 1 ? 's' : ''} scheduled
-                  {estimatedWorkouts > 0 ? ` of ~${estimatedWorkouts}` : ''}
+                  {estimatedWorkouts > 0 ? ` of ${estimatedWorkouts}` : ''}
                 </p>
                 <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                   <div
