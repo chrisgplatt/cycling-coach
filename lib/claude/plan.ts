@@ -15,7 +15,7 @@ function summariseWellness(wellness: ICUWellness[]): string {
   return `CTL: ${latest.ctl ?? '?'}, ATL: ${latest.atl ?? '?'}, Form: ${latest.form ?? '?'}, HRV: ${latest.hrv ?? '?'}`
 }
 
-function formatSchedule(availability: Array<{ day: string; duration_minutes: number }> | undefined): string {
+export function formatSchedule(availability: Array<{ day: string; duration_minutes: number }> | undefined): string {
   if (!availability?.length) {
     return 'Weekly training schedule: Not specified — use coaching judgement for session distribution.'
   }
@@ -37,7 +37,7 @@ function formatSchedule(availability: Array<{ day: string; duration_minutes: num
   return `Weekly training schedule (HARD CONSTRAINTS):\n${lines.join('\n')}`
 }
 
-function formatZones(ftp: number): string {
+export function formatZones(ftp: number): string {
   const z = (lo: number, hi: number) => `${Math.round(ftp * lo)}–${Math.round(ftp * hi)}W`
   return [
     `  Recovery  (Z1): <${Math.round(ftp * 0.55)}W`,
