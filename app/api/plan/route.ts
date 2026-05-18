@@ -141,11 +141,10 @@ export async function PATCH(req: NextRequest) {
   }
 
   const uploadErrors: string[] = []
-  const workoutsToInsert = []
-  for (const w of plan.workouts) {
-    let intervals_icu_event_id: string | null = null
+
+  async function createEventSafe(w: typeof plan.workouts[number]): Promise<string | null> {
     try {
-      intervals_icu_event_id = await client.createEvent({
+      return await client.createEvent({
         date: w.date,
         name: `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`,
         description: `Plan: ${name}\n\n${w.description}\n\nTarget: ${w.target_zones}`,
@@ -154,20 +153,31 @@ export async function PATCH(req: NextRequest) {
       })
     } catch (err) {
       uploadErrors.push(`${w.date}: ${err instanceof Error ? err.message : String(err)}`)
+      return null
     }
-    workoutsToInsert.push({
-      plan_id: savedPlan.id,
-      date: w.date,
-      type: w.type,
-      duration_minutes: w.duration_minutes,
-      description: w.description,
-      target_zones: w.target_zones,
-      intervals_icu_event_id,
-      status: 'planned',
-      user_id: user.id,
-      tss: w.steps?.length ? estimateTss(w.steps) : null,
-    })
   }
+
+  // Upload in batches of 5 to avoid rate limits
+  const BATCH = 5
+  const eventIds: (string | null)[] = []
+  for (let i = 0; i < plan.workouts.length; i += BATCH) {
+    const batch = plan.workouts.slice(i, i + BATCH)
+    const ids = await Promise.all(batch.map(createEventSafe))
+    eventIds.push(...ids)
+  }
+
+  const workoutsToInsert = plan.workouts.map((w, idx) => ({
+    plan_id: savedPlan.id,
+    date: w.date,
+    type: w.type,
+    duration_minutes: w.duration_minutes,
+    description: w.description,
+    target_zones: w.target_zones,
+    intervals_icu_event_id: eventIds[idx],
+    status: 'planned',
+    user_id: user.id,
+    tss: w.steps?.length ? estimateTss(w.steps) : null,
+  }))
 
   const { error: workoutsError } = await supabase.from('workouts').insert(workoutsToInsert)
   if (workoutsError) {
