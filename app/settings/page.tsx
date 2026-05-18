@@ -334,7 +334,7 @@ export default function SettingsPage() {
       </section>
 
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Events</h2>
           <div className="flex items-center gap-3">
             <button

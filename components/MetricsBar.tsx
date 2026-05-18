@@ -9,8 +9,8 @@ interface MetricProps {
 
 function Metric({ label, value, valueClass = 'text-gray-900', unit }: MetricProps) {
   return (
-    <div className="flex-1 text-center px-3 py-4">
-      <div className={`text-3xl font-extrabold tracking-tight ${valueClass}`}>
+    <div className="flex-1 text-center px-2 py-3 sm:px-3 sm:py-4">
+      <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${valueClass}`}>
         {value !== null ? Math.round(value) : '—'}
         {unit && <span className="text-xs font-medium text-gray-400 ml-0.5">{unit}</span>}
       </div>

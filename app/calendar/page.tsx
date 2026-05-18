@@ -85,12 +85,12 @@ export default function CalendarPage() {
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="min-w-[400px]">
-          <div className="grid grid-cols-7 gap-1 text-xs text-center text-gray-400 mb-1">
-            {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => <div key={d}>{d}</div>)}
+      <div>
+        <div>
+          <div className="grid grid-cols-7 gap-0.5 text-xs text-center text-gray-400 mb-1">
+            {['M','T','W','T','F','S','S'].map((d, i) => <div key={i}>{d}</div>)}
           </div>
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-0.5">
             {blanks.map((_, i) => <div key={`b${i}`} />)}
             {days.map(day => {
               const ds = dateStr(day)
@@ -149,6 +149,7 @@ export default function CalendarPage() {
           </div>
         </div>
       </div>
+
 
       {selectedWorkout && (
         <WorkoutDetailModal

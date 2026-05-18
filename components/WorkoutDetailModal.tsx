@@ -220,7 +220,7 @@ export default function WorkoutDetailModal({
               </button>
             )}
             {deleteConfirm && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-slate-600">Delete this workout?</span>
                 <button
                   onClick={handleDelete}
