@@ -108,7 +108,8 @@ export default function DashboardPage() {
   const latestWellness: ICUWellness | null = syncData?.wellness?.slice(-1)[0] ?? null
 
   const lastRide = syncData?.activities
-    ?.slice()
+    ?.filter(a => /ride/i.test(a.type))
+    .slice()
     .sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))[0] ?? null
 
   function formatLastRide(): string {
