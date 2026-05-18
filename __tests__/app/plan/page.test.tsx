@@ -73,3 +73,39 @@ describe('Profile & Schedule tab', () => {
     expect(await screen.findByRole('button', { name: /save profile/i })).toBeInTheDocument()
   })
 })
+
+describe('Events tab', () => {
+  beforeEach(() => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'p1',
+        goals: '',
+        current_ftp: 200,
+        weight_kg: 70,
+        weekly_availability: [],
+        events: [
+          { name: 'Dragon Ride', date: '2026-06-25', type: 'sportive', priority: 'A', icu_event_id: 'evt1' },
+        ],
+      }),
+    })
+  })
+
+  it('lists events on Events tab', async () => {
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /events/i }))
+    expect(await screen.findByText('Dragon Ride')).toBeInTheDocument()
+  })
+
+  it('shows Add event button', async () => {
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /events/i }))
+    expect(await screen.findByRole('button', { name: /add event/i })).toBeInTheDocument()
+  })
+
+  it('shows Sync from intervals.icu button', async () => {
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /events/i }))
+    expect(await screen.findByRole('button', { name: /sync from intervals/i })).toBeInTheDocument()
+  })
+})

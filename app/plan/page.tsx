@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import AddEventModal from '@/components/AddEventModal'
+import type { TrainingEvent } from '@/types'
 
 type Tab = 'plan' | 'profile' | 'events'
 
@@ -25,6 +27,14 @@ export default function PlanPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  const [events, setEvents] = useState<TrainingEvent[]>([])
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
+  const [showAddEvent, setShowAddEvent] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
+  const [deletingEvent, setDeletingEvent] = useState<string | null>(null)
+  const [confirmingEvent, setConfirmingEvent] = useState<string | null>(null)
+
   // Fix 1: timer ref to avoid unmount leak and double-save race
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -37,6 +47,7 @@ export default function PlanPage() {
         setGoals(data.goals ?? '')
         setCurrentFtp(data.current_ftp ?? 200)
         setWeightKg(data.weight_kg ?? 70)
+        setEvents(data.events ?? [])
         const avail: Array<{ day: string; duration_minutes: number }> = data.weekly_availability ?? []
         setSchedule(Object.fromEntries(
           DAYS.map(d => [d, avail.find(a => a.day === d)?.duration_minutes ?? 0])
@@ -80,6 +91,57 @@ export default function PlanPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function syncEvents() {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch('/api/events/sync', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) { setSyncResult(`Error: ${data.error ?? 'Sync failed'}`); return }
+      setEvents(data.events ?? events)
+      setSyncResult(data.added > 0 ? `Added ${data.added} event(s) from intervals.icu` : 'No new events found')
+    } catch { setSyncResult('Network error') }
+    finally { setSyncing(false) }
+  }
+
+  async function deleteEvent(name: string, date: string) {
+    const key = `${name}|${date}`
+    setDeletingEvent(key)
+    try {
+      const res = await fetch('/api/events/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, date }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setSyncResult(`Error deleting event: ${data.error ?? 'Failed'}`); return }
+      setEvents(ev => ev.filter(e => !(e.name === name && e.date === date)))
+    } catch { setSyncResult('Network error') }
+    finally { setDeletingEvent(null); setConfirmingEvent(null) }
+  }
+
+  async function addEvent(event: Omit<TrainingEvent, '_key'>) {
+    const res = await fetch('/api/events/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(event),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error ?? 'Failed to save event')
+    setEvents(ev => [...ev, data.event])
+  }
+
+  async function updateEvent(original: TrainingEvent, updated: Omit<TrainingEvent, '_key'>) {
+    const res = await fetch('/api/events/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ original_name: original.name, original_date: original.date, ...updated }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error ?? 'Failed to update event')
+    setEvents(ev => ev.map(e => e.name === original.name && e.date === original.date ? data.event : e))
   }
 
   return (
@@ -206,7 +268,87 @@ export default function PlanPage() {
 
       {/* EVENTS TAB */}
       <div data-testid="tab-events" style={{ display: tab === 'events' ? 'block' : 'none' }}>
-        <p className="text-sm text-slate-400">Coming soon…</p>
+        <div className="space-y-4">
+          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Events</h2>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={syncEvents}
+                  disabled={syncing}
+                  className="text-sm text-slate-500 hover:text-slate-700 disabled:opacity-50 transition-colors"
+                >
+                  {syncing ? 'Syncing…' : 'Sync from intervals.icu'}
+                </button>
+                <button
+                  onClick={() => setShowAddEvent(true)}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  + Add event
+                </button>
+              </div>
+            </div>
+            {syncResult && (
+              <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">{syncResult}</p>
+            )}
+            {events.length === 0 && (
+              <p className="text-sm text-slate-400">No events yet. Add one to start planning.</p>
+            )}
+            {events.map((event, i) => {
+              const key = `${event.name}|${event.date}`
+              return (
+                <div key={key ?? i} className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{event.name}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {event.date} · {event.type} · Priority {event.priority}
+                      {event.icu_event_id && <span className="ml-1.5 text-green-600">↑ synced</span>}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => setEditingEvent(event)}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                    >Edit</button>
+                    {confirmingEvent === key ? (
+                      <>
+                        <span className="text-xs text-slate-600">Delete?</span>
+                        <button
+                          onClick={() => deleteEvent(event.name, event.date)}
+                          disabled={deletingEvent === key}
+                          className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors"
+                        >{deletingEvent === key ? 'Deleting…' : 'Yes'}</button>
+                        <button
+                          onClick={() => setConfirmingEvent(null)}
+                          className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                        >Cancel</button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmingEvent(key)}
+                        className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                      >Delete</button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </section>
+          <p className="text-xs text-slate-400 px-1">
+            A-priority events trigger a taper in your plan. B-priority events are treated as hard training days.
+          </p>
+        </div>
+
+        {showAddEvent && (
+          <AddEventModal onConfirm={addEvent} onClose={() => setShowAddEvent(false)} />
+        )}
+        {editingEvent && (
+          <AddEventModal
+            initialEvent={editingEvent}
+            onConfirm={updated => updateEvent(editingEvent, updated)}
+            onClose={() => setEditingEvent(null)}
+          />
+        )}
       </div>
     </div>
   )
