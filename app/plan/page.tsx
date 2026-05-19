@@ -399,7 +399,7 @@ export default function PlanPage() {
         )}
 
         {showClearModal && (
-          <ClearWorkoutsModal onConfirm={clearFutureWorkouts} onClose={() => setShowClearModal(false)} />
+          <ClearWorkoutsModal onConfirm={clearFutureWorkouts} onClose={() => { setShowClearModal(false); loadPlan() }} />
         )}
       </div>
 
