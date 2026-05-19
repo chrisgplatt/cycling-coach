@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { Workout, ICUActivity } from '@/types'
 
@@ -27,6 +27,8 @@ const activity: ICUActivity = {
 }
 
 describe('WorkoutDetailModal', () => {
+  afterEach(() => { jest.restoreAllMocks() })
+
   it('renders description and target zones', () => {
     render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
     expect(screen.getByText('2x20min at threshold')).toBeInTheDocument()
@@ -97,5 +99,61 @@ describe('WorkoutDetailModal', () => {
   it('does not show Log feedback button for a planned workout', () => {
     render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} onFeedback={jest.fn()} />)
     expect(screen.queryByRole('button', { name: /log feedback/i })).not.toBeInTheDocument()
+  })
+
+  it('renders date input for a planned workout with correct min and max', () => {
+    render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
+    // workout.date = '2026-05-15' (Fri) → Mon 2026-05-11, Sun 2026-05-17
+    const input = screen.getByDisplayValue('2026-05-15')
+    expect(input).toHaveAttribute('type', 'date')
+    expect(input).toHaveAttribute('min', '2026-05-11')
+    expect(input).toHaveAttribute('max', '2026-05-17')
+  })
+
+  it('does not render date input for a completed workout', () => {
+    render(<WorkoutDetailModal workout={matchedWorkout} athleteId="i12345" onClose={jest.fn()} />)
+    expect(screen.queryByDisplayValue('2026-05-15')).not.toBeInTheDocument()
+  })
+
+  it('shows inline confirmation when date is changed to a different day', () => {
+    render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
+    fireEvent.change(screen.getByDisplayValue('2026-05-15'), { target: { value: '2026-05-13' } })
+    expect(screen.getByText(/move to 2026-05-13/i)).toBeInTheDocument()
+  })
+
+  it('hides confirmation when inline Cancel is clicked', () => {
+    render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
+    fireEvent.change(screen.getByDisplayValue('2026-05-15'), { target: { value: '2026-05-13' } })
+    fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }))
+    expect(screen.queryByText(/move to/i)).not.toBeInTheDocument()
+  })
+
+  it('calls PATCH with new date and then onReschedule on confirm', async () => {
+    const onReschedule = jest.fn()
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true, json: async () => ({}),
+    } as unknown as Response)
+    render(
+      <WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} onReschedule={onReschedule} />
+    )
+    fireEvent.change(screen.getByDisplayValue('2026-05-15'), { target: { value: '2026-05-13' } })
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }))
+    await waitFor(() => expect(onReschedule).toHaveBeenCalledTimes(1))
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/workouts/w1', expect.objectContaining({
+      method: 'PATCH',
+      body: JSON.stringify({ date: '2026-05-13' }),
+    }))
+  })
+
+  it('shows inline error on failed reschedule PATCH', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false, json: async () => ({ error: 'Reschedule failed' }),
+    } as unknown as Response)
+    render(
+      <WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} onReschedule={jest.fn()} />
+    )
+    fireEvent.change(screen.getByDisplayValue('2026-05-15'), { target: { value: '2026-05-13' } })
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }))
+    await waitFor(() => expect(screen.getByText('Reschedule failed')).toBeInTheDocument())
   })
 })

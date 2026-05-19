@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import type { Workout, ICUActivity, WorkoutType } from '@/types'
+import { getWeekBounds } from '@/lib/week-bounds'
 
 const TYPE_COLOURS: Record<WorkoutType, string> = {
   endurance: 'bg-blue-100 text-blue-700',
@@ -17,16 +18,20 @@ interface Props {
   onFeedback?: () => void
   onStatusChange?: () => void
   onDelete?: () => void
+  onReschedule?: () => void
 }
 
 export default function WorkoutDetailModal({
-  workout, athleteId, activitiesOnDate, onClose, onFeedback, onStatusChange, onDelete,
+  workout, athleteId, activitiesOnDate, onClose, onFeedback, onStatusChange, onDelete, onReschedule,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [showChange, setShowChange] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [pendingDate, setPendingDate] = useState<string | null>(null)
+  const [rescheduling, setRescheduling] = useState(false)
+  const [rescheduleError, setRescheduleError] = useState<string | null>(null)
 
   async function handleDelete() {
     setDeleting(true)
@@ -108,6 +113,31 @@ export default function WorkoutDetailModal({
     }
   }
 
+  const { start: weekStart, end: weekEnd } = getWeekBounds(workout.date)
+
+  async function handleReschedule() {
+    if (!pendingDate) return
+    setRescheduling(true)
+    setRescheduleError(null)
+    try {
+      const res = await fetch(`/api/workouts/${workout.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: pendingDate }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setRescheduleError(data.error ?? 'Failed to reschedule')
+        return
+      }
+      onReschedule?.()
+    } catch {
+      setRescheduleError('Network error')
+    } finally {
+      setRescheduling(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col">
@@ -133,6 +163,52 @@ export default function WorkoutDetailModal({
             <p className="text-sm text-slate-700 leading-relaxed">{workout.description}</p>
             <p className="text-xs text-slate-400 mt-1.5">{workout.target_zones}</p>
           </div>
+
+          {workout.status === 'planned' && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">
+                  Reschedule
+                </label>
+                <input
+                  type="date"
+                  min={weekStart}
+                  max={weekEnd}
+                  value={pendingDate ?? workout.date}
+                  onChange={e => {
+                    const v = e.target.value
+                    setPendingDate(v !== workout.date ? v : null)
+                    setRescheduleError(null)
+                  }}
+                  className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              {pendingDate && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-slate-600">Move to {pendingDate}?</span>
+                  <button
+                    onClick={() => { setPendingDate(null); setRescheduleError(null) }}
+                    disabled={rescheduling}
+                    className="text-sm text-slate-500 hover:text-slate-700 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleReschedule}
+                    disabled={rescheduling}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  >
+                    {rescheduling ? 'Moving…' : 'Confirm'}
+                  </button>
+                </div>
+              )}
+              {rescheduleError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                  {rescheduleError}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-1.5">
             {eventUrl && (
