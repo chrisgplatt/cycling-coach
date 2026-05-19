@@ -279,7 +279,14 @@ export default function DashboardPage() {
     }).catch(() => {})
   }, [])
 
-  const latestWellness: ICUWellness | null = syncData?.wellness?.slice(-1)[0] ?? null
+  const wellnessArr = syncData?.wellness ?? []
+  const latestWellness: ICUWellness | null = wellnessArr.length > 0
+    ? {
+        ...wellnessArr[wellnessArr.length - 1],
+        hrv: [...wellnessArr].reverse().find(w => w.hrv !== null)?.hrv ?? null,
+        resting_hr: [...wellnessArr].reverse().find(w => w.resting_hr !== null)?.resting_hr ?? null,
+      }
+    : null
 
   const lastRide = syncData?.activities
     ?.filter(a => /ride/i.test(a.type))
