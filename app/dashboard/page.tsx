@@ -367,9 +367,14 @@ export default function DashboardPage() {
       {latestWellness && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-            <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Readiness</h2>
-            {lastSyncedAt && (
-              <span className="text-xs text-gray-400">as of <span className="font-semibold text-gray-500">{formatReadinessTime(lastSyncedAt)}</span></span>
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Readiness</h2>
+              {lastSyncedAt && (
+                <span className="text-[11px] text-gray-400">as of {formatReadinessTime(lastSyncedAt)}</span>
+              )}
+            </div>
+            {lastRide && (
+              <span className="text-xs text-gray-400">Last ride: <span className="font-semibold text-gray-500">{formatLastRide()}</span></span>
             )}
           </div>
           <p className="text-sm text-gray-600 leading-relaxed px-4 py-3">{getReadinessSummary(latestWellness)}</p>
