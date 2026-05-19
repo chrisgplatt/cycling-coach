@@ -21,6 +21,11 @@ const withPWA = withPWAInit({
   },
 })
 
-const nextConfig: NextConfig = {}
+const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version,
+    NEXT_PUBLIC_BUILD_DATE: new Date().toISOString(),
+  },
+}
 
 export default withPWA(nextConfig)
