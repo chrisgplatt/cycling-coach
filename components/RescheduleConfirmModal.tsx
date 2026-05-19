@@ -52,7 +52,7 @@ export default function RescheduleConfirmModal({ workout, toDate, onConfirm, onC
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
         <h2 id="reschedule-modal-title" className="text-base font-bold text-slate-900">
-          Move {workout.type} workout from {formatDate(workout.date)} to {formatDate(toDate)}?
+          Move {workout.type.charAt(0).toUpperCase() + workout.type.slice(1)} workout from {formatDate(workout.date)} to {formatDate(toDate)}?
         </h2>
         {error && (
           <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
