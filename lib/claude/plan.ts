@@ -57,6 +57,7 @@ function buildPrompt(
   syncData: ICUSyncData,
   weeks: number,
   startDate: string,
+  notes: string,
 ): string {
   const allEvents = [...profile.events].sort((a, b) => a.date.localeCompare(b.date))
   if (!allEvents.length) throw new Error('Cannot generate a plan: no events configured.')
@@ -131,7 +132,10 @@ RECENT ACTIVITIES (last 10):
 ${summariseActivities(syncData.activities)}
 
 PLAN LENGTH: Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts, starting on ${startDate}.
-
+${notes ? `
+ADDITIONAL COACHING NOTES (take these into account when designing the plan):
+${notes}
+` : ''}
 STEP RULES:
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
 - Sessions >45min must include a warm-up (10-15min at Z1-Z2) and cool-down (10min at Z1)
@@ -192,8 +196,9 @@ export function createPlanStream(
   syncData: ICUSyncData,
   weeks: number,
   startDate: string,
+  notes = '',
 ) {
-  const prompt = buildPrompt(profile, syncData, weeks, startDate)
+  const prompt = buildPrompt(profile, syncData, weeks, startDate, notes)
   return anthropic.messages.stream({
     model: 'claude-opus-4-7',
     max_tokens: 32000,

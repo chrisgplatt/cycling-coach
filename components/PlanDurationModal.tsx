@@ -2,7 +2,7 @@
 import { useState } from 'react'
 
 interface Props {
-  onStart: (weeks: number, startDate: string) => void
+  onStart: (weeks: number, startDate: string, notes: string) => void
   onCancel: () => void
 }
 
@@ -15,11 +15,12 @@ function timeEstimate(weeks: number): string {
 export default function PlanDurationModal({ onStart, onCancel }: Props) {
   const [weeksStr, setWeeksStr] = useState('6')
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [notes, setNotes] = useState('')
 
   const weeks = Math.min(13, Math.max(2, Math.round(Number(weeksStr) || 6)))
 
   function handleStart() {
-    onStart(weeks, startDate)
+    onStart(weeks, startDate, notes.trim())
   }
 
   return (
@@ -60,6 +61,16 @@ export default function PlanDurationModal({ onStart, onCancel }: Props) {
             </div>
           </div>
           <p className="text-xs text-slate-400 mt-2">Generation will take {timeEstimate(weeks)}.</p>
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Anything else to consider?</label>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="e.g. I have a niggling knee injury, prefer longer weekend rides, just returned from a week off…"
+            rows={3}
+            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          />
         </div>
         <div className="flex gap-3 justify-end">
           <button

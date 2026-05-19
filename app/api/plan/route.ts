@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { syncData, weeks = 6, startDate } = await req.json()
+  const { syncData, weeks = 6, startDate, notes = '' } = await req.json()
   const safeWeeks = Math.min(13, Math.max(2, Math.round(Number(weeks) || 6)))
   const safeStartDate = typeof startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(startDate)
     ? startDate
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
       syncData ?? { activities: [], wellness: [], athlete_ftp: null, athlete_weight: null },
       safeWeeks,
       safeStartDate,
+      typeof notes === 'string' ? notes.trim() : '',
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Plan generation failed'
