@@ -9,10 +9,12 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('user_profile')
     .select('intervals_icu_athlete_id, intervals_icu_api_key')
     .maybeSingle()
+
+  if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
@@ -46,6 +48,6 @@ export async function GET() {
     return NextResponse.json({ stats })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: 502 })
   }
 }
