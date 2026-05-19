@@ -27,9 +27,9 @@ describe('Account page', () => {
     expect(screen.queryByRole('button', { name: /build new plan/i })).not.toBeInTheDocument()
   })
 
-  it('does not render Clear Future Workouts button', () => {
+  it('does not render Delete Plan button', () => {
     render(<SettingsPage />)
-    expect(screen.queryByRole('button', { name: /clear future/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /delete plan/i })).not.toBeInTheDocument()
   })
 
   it('shows intervals.icu athlete ID input', () => {

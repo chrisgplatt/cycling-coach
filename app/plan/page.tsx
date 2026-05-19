@@ -336,7 +336,7 @@ export default function PlanPage() {
                       onClick={() => setShowClearModal(true)}
                       className="bg-red-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors shadow-sm"
                     >
-                      Clear Future Workouts
+                      Delete Plan
                     </button>
                   </div>
                 </div>
