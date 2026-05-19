@@ -9,6 +9,7 @@ import { EVENT_COLOURS } from '@/lib/event-colours'
 import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
 import { isoWeek } from '@/lib/iso-week'
+import { getWeekBounds } from '@/lib/week-bounds'
 import type { GeneratedPlan } from '@/types'
 import {
   DndContext,
@@ -152,8 +153,8 @@ export default function DashboardPage() {
 
     if (plan.workouts) {
       const today = new Date().toISOString().split('T')[0]
-      const sunday = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
-      setWorkouts(plan.workouts.filter((w: Workout) => w.date >= today && w.date <= sunday))
+      const { start: weekStart, end: weekEnd } = getWeekBounds(today)
+      setWorkouts(plan.workouts.filter((w: Workout) => w.date >= weekStart && w.date <= weekEnd))
 
       // Compute last week date range for review banner
       const d = new Date()
