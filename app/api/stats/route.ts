@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { findNearestPower, computeLeftRightBalance } from '@/lib/stats-helpers'
-import type { RidingStats } from '@/types'
+import type { ICUPowerCurvePoint, RidingStats } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +31,7 @@ export async function GET() {
   try {
     const [activities, powerCurve] = await Promise.all([
       client.getActivities(oldest, newest),
-      client.getPowerCurve(oldest, newest),
+      client.getPowerCurve(oldest, newest).catch((): ICUPowerCurvePoint[] => []),
     ])
 
     const rides = activities.filter(a => /ride/i.test(a.type))

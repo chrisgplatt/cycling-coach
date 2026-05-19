@@ -27,7 +27,7 @@ describe('IntervalsClient', () => {
       { id: 'act1', start_date_local: '2026-05-01T08:00:00', type: 'Ride',
         moving_time: 3600, name: 'Morning Ride', average_watts: 200,
         max_watts: 350, weighted_average_watts: 210, average_heartrate: 145,
-        training_load: 85 },
+        icu_training_load: 85 },
     ]
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockActivities })
 
@@ -111,7 +111,7 @@ describe('IntervalsClient', () => {
     expect(curve[0].secs).toBe(300)
     expect(curve[0].watts).toBe(380)
     const calledUrl = mockFetch.mock.calls[0][0] as string
-    expect(calledUrl).toContain('/athlete/i12345/power_curve?type=Ride&oldest=2026-02-15&newest=2026-05-15')
+    expect(calledUrl).toContain('/athlete/i12345/power_curves?type=Ride&oldest=2026-02-15&newest=2026-05-15')
   })
 
   it('updateEvent sets start_date_local when date is provided', async () => {

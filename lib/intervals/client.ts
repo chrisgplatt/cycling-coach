@@ -148,7 +148,7 @@ export class IntervalsClient {
 
   async getPowerCurve(oldest: string, newest: string): Promise<ICUPowerCurvePoint[]> {
     return this.request<ICUPowerCurvePoint[]>(
-      `/athlete/${this.athleteId}/power_curve?type=Ride&oldest=${oldest}&newest=${newest}`
+      `/athlete/${this.athleteId}/power_curves?type=Ride&oldest=${oldest}&newest=${newest}`
     )
   }
 
