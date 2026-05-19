@@ -168,6 +168,10 @@ export default function CalendarPage() {
             setSelectedWorkout(null)
             loadPlan()
           }}
+          onReschedule={() => {
+            setSelectedWorkout(null)
+            loadPlan()
+          }}
         />
       )}
 
