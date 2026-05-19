@@ -218,6 +218,7 @@ export class IntervalsClient {
     if (params.name !== undefined) body.name = params.name
     if (params.description !== undefined) body.description = params.description
     if (params.duration_minutes !== undefined) body.moving_time = params.duration_minutes * 60
+    if (params.date !== undefined) body.start_date_local = `${params.date}T08:00:00`
     await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
       method: 'PUT',
       body: JSON.stringify(body),

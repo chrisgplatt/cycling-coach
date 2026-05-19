@@ -113,4 +113,23 @@ describe('IntervalsClient', () => {
     const calledUrl = mockFetch.mock.calls[0][0] as string
     expect(calledUrl).toContain('/athlete/i12345/power_curve?type=Ride&oldest=2026-02-15&newest=2026-05-15')
   })
+
+  it('updateEvent sets start_date_local when date is provided', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+
+    await client.updateEvent('evt123', { date: '2026-05-22' })
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    expect(body.start_date_local).toBe('2026-05-22T08:00:00')
+  })
+
+  it('updateEvent omits start_date_local when date is not provided', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+
+    await client.updateEvent('evt123', { name: 'New Name' })
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    expect(body.start_date_local).toBeUndefined()
+    expect(body.name).toBe('New Name')
+  })
 })
