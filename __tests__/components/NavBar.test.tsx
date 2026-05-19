@@ -28,4 +28,9 @@ describe('NavBar', () => {
     render(<NavBar />)
     expect(screen.getByRole('link', { name: 'Plan' }).className).toMatch(/border-blue-600/)
   })
+
+  it('renders Stats link pointing to /stats', () => {
+    render(<NavBar />)
+    expect(screen.getByRole('link', { name: 'Stats' })).toHaveAttribute('href', '/stats')
+  })
 })
