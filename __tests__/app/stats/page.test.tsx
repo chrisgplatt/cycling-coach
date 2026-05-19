@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import StatsPage from '@/app/stats/page'
 import type { RidingStats } from '@/types'
 
@@ -12,6 +13,40 @@ const mockStats: RidingStats = {
   power_20min: 320,
   avg_left_right_balance: 52.3,
   balance_ride_count: 6,
+  recent_rides: [
+    {
+      id: 'a1',
+      name: 'Morning Ride',
+      start_date_local: '2026-05-19T07:30:00',
+      type: 'Ride',
+      moving_time: 3600,
+      average_watts: 210,
+      max_watts: 450,
+      weighted_average_watts: 225,
+      average_heartrate: 148,
+      training_load: 72,
+      rolling_ftp: null,
+      distance: 40000,
+      total_elevation_gain: 350,
+      left_right_balance: 52.0,
+    },
+    {
+      id: 'a2',
+      name: 'Evening Zone 2',
+      start_date_local: '2026-05-17T18:00:00',
+      type: 'Ride',
+      moving_time: 5400,
+      average_watts: 185,
+      max_watts: 390,
+      weighted_average_watts: 195,
+      average_heartrate: null,
+      training_load: 58,
+      rolling_ftp: null,
+      distance: 55000,
+      total_elevation_gain: 220,
+      left_right_balance: null,
+    },
+  ],
 }
 
 global.fetch = jest.fn()
@@ -74,5 +109,25 @@ describe('StatsPage', () => {
     })
     render(<StatsPage />)
     expect(await screen.findByText('intervals.icu not configured')).toBeInTheDocument()
+  })
+
+  it('renders ride tabs for recent rides', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => ({ stats: mockStats }) })
+    render(<StatsPage />)
+    expect(await screen.findByRole('button', { name: '28 Days' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tue 19 May' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sun 17 May' })).toBeInTheDocument()
+  })
+
+  it('shows per-ride stats when a ride tab is clicked', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => ({ stats: mockStats }) })
+    const user = userEvent.setup()
+    render(<StatsPage />)
+    await screen.findByRole('button', { name: 'Tue 19 May' })
+    await user.click(screen.getByRole('button', { name: 'Tue 19 May' }))
+    expect(await screen.findByText('210')).toBeInTheDocument()  // avg watts
+    expect(screen.getByText('225')).toBeInTheDocument()          // NP
+    expect(screen.getByText('72')).toBeInTheDocument()           // TSS
+    expect(screen.getByText('Morning Ride')).toBeInTheDocument()
   })
 })

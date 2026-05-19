@@ -36,6 +36,8 @@ export async function GET() {
 
     const rides = activities.filter(a => /ride/i.test(a.type))
 
+    const sortedRides = [...rides].sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))
+
     const stats: RidingStats = {
       ride_count: rides.length,
       total_distance_km: rides.reduce((sum, r) => sum + (r.distance ?? 0), 0) / 1000,
@@ -46,6 +48,7 @@ export async function GET() {
       power_20min: findNearestPower(powerCurve, 1200),
       avg_left_right_balance: computeLeftRightBalance(rides),
       balance_ride_count: rides.filter(r => r.left_right_balance !== null).length,
+      recent_rides: sortedRides.slice(0, 2),
     }
 
     return NextResponse.json({ stats })

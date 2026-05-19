@@ -152,6 +152,7 @@ export interface RidingStats {
   power_20min: number | null
   avg_left_right_balance: number | null  // left %, e.g. 52.3
   balance_ride_count: number
+  recent_rides: ICUActivity[]
 }
 
 export interface ICUPowerCurvePoint {
