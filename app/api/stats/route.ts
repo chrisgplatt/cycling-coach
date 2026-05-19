@@ -4,6 +4,8 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { findNearestPower, computeLeftRightBalance } from '@/lib/stats-helpers'
 import type { RidingStats } from '@/types'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -101,7 +101,7 @@ export default function StatsPage() {
 
       <SectionCard title="Totals">
         <div className="flex divide-x divide-gray-100">
-          <StatCell label="Distance" value={stats.total_distance_km.toFixed(1)} unit="km" />
+          <StatCell label="Distance" value={(Math.round(stats.total_distance_km * 10) / 10).toFixed(1)} unit="km" />
           <StatCell label="Elevation" value={String(Math.round(stats.total_elevation_m))} unit="m" />
           <StatCell label="Duration" value={formatDuration(stats.total_duration_secs)} />
         </div>
