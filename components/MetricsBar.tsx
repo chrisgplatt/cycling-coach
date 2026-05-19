@@ -10,15 +10,17 @@ interface MetricProps {
 
 function Metric({ label, value, valueClass = 'text-gray-900', unit, stale }: MetricProps) {
   return (
-    <div className="flex-1 text-center px-2 py-3 sm:px-3 sm:py-4" title={stale ? 'From a previous day' : undefined}>
-      <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${stale ? 'opacity-60' : ''} ${valueClass}`}>
+    <div className="flex-1 text-center px-2 py-3 sm:px-3 sm:py-4">
+      <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${valueClass}`}>
         {value !== null ? Math.round(value) : '—'}
         {unit && <span className="text-xs font-medium text-gray-400 ml-0.5">{unit}</span>}
       </div>
-      <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">
-        {label}
-        {stale && <span className="ml-0.5 text-amber-400">·</span>}
-      </div>
+      <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">{label}</div>
+      {stale && (
+        <span className="inline-block mt-0.5 text-[9px] font-bold uppercase tracking-wide bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full">
+          prev day
+        </span>
+      )}
     </div>
   )
 }
