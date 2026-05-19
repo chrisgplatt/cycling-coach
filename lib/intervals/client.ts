@@ -147,9 +147,15 @@ export class IntervalsClient {
   }
 
   async getPowerCurve(oldest: string, newest: string): Promise<ICUPowerCurvePoint[]> {
-    return this.request<ICUPowerCurvePoint[]>(
-      `/athlete/${this.athleteId}/power_curves?type=Ride&oldest=${oldest}&newest=${newest}`
-    )
+    const data = await this.request<{
+      secs: number[]
+      curves: Array<{ watts: number[] }>
+    }>(`/athlete/${this.athleteId}/activity-power-curves.json?type=Ride&oldest=${oldest}&newest=${newest}`)
+    if (!data.secs?.length || !data.curves?.length) return []
+    return data.secs.map((secs, i) => ({
+      secs,
+      watts: Math.max(...data.curves.map(c => c.watts[i] ?? 0)),
+    }))
   }
 
   async sync(weeksBack = 6): Promise<ICUSyncData> {

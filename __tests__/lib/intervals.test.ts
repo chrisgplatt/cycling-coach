@@ -98,20 +98,24 @@ describe('IntervalsClient', () => {
   })
 
   it('getPowerCurve returns power curve array and calls correct URL', async () => {
-    const mockCurve = [
-      { secs: 300, watts: 380 },
-      { secs: 1200, watts: 320 },
-      { secs: 3600, watts: 275 },
-    ]
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockCurve })
+    const mockResponse = {
+      after_kj: 0,
+      secs: [300, 600, 1200],
+      curves: [
+        { id: 'act1', watts: [380, 340, 310] },
+        { id: 'act2', watts: [360, 355, 320] },
+      ],
+    }
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockResponse })
 
     const curve = await client.getPowerCurve('2026-02-15', '2026-05-15')
 
     expect(curve).toHaveLength(3)
-    expect(curve[0].secs).toBe(300)
-    expect(curve[0].watts).toBe(380)
+    expect(curve[0]).toEqual({ secs: 300, watts: 380 })  // max(380, 360)
+    expect(curve[1]).toEqual({ secs: 600, watts: 355 })  // max(340, 355)
+    expect(curve[2]).toEqual({ secs: 1200, watts: 320 }) // max(310, 320)
     const calledUrl = mockFetch.mock.calls[0][0] as string
-    expect(calledUrl).toContain('/athlete/i12345/power_curves?type=Ride&oldest=2026-02-15&newest=2026-05-15')
+    expect(calledUrl).toContain('/athlete/i12345/activity-power-curves.json?type=Ride&oldest=2026-02-15&newest=2026-05-15')
   })
 
   it('updateEvent sets start_date_local when date is provided', async () => {
