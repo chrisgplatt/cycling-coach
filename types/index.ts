@@ -112,6 +112,9 @@ export interface ICUActivity {
   average_heartrate: number | null
   training_load: number | null   // TSS
   rolling_ftp: number | null     // intervals.icu rolling FTP estimate
+  distance: number | null              // metres
+  total_elevation_gain: number | null  // metres
+  left_right_balance: number | null    // left %, e.g. 52.3
 }
 
 export interface ICUWellness {
@@ -137,6 +140,17 @@ export interface ICUSyncData {
   athlete_ftp: number | null
   athlete_weight: number | null
   athlete_id?: string  // added by /api/sync route, not by IntervalsClient
+}
+
+export interface RidingStats {
+  ride_count: number
+  total_distance_km: number
+  total_elevation_m: number
+  total_duration_secs: number
+  power_5min: number | null
+  power_10min: number | null
+  power_20min: number | null
+  avg_left_right_balance: number | null  // left %, e.g. 52.3
 }
 
 export interface ICUPowerCurvePoint {
