@@ -111,6 +111,9 @@ export default function StatsPage() {
         <div className="text-center px-2 py-3 sm:px-3 sm:py-4">
           <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">{balance}</div>
           <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">Avg Left / Right</div>
+          {stats.avg_left_right_balance !== null && (
+            <div className="text-[11px] text-gray-400 mt-0.5">from {stats.balance_ride_count} ride{stats.balance_ride_count !== 1 ? 's' : ''}</div>
+          )}
         </div>
       </SectionCard>
     </main>

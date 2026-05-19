@@ -11,6 +11,7 @@ const mockStats: RidingStats = {
   power_10min: 355,
   power_20min: 320,
   avg_left_right_balance: 52.3,
+  balance_ride_count: 6,
 }
 
 global.fetch = jest.fn()

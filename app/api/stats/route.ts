@@ -45,6 +45,7 @@ export async function GET() {
       power_10min: findNearestPower(powerCurve, 600),
       power_20min: findNearestPower(powerCurve, 1200),
       avg_left_right_balance: computeLeftRightBalance(rides),
+      balance_ride_count: rides.filter(r => r.left_right_balance !== null).length,
     }
 
     return NextResponse.json({ stats })
