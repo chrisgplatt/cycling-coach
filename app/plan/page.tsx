@@ -65,6 +65,16 @@ export default function PlanPage() {
   // Fix 1: timer ref to avoid unmount leak and double-save race
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  function loadPlan() {
+    fetch('/api/plan')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        setPlanName(data?.name ?? null)
+        setPlanWorkouts(data?.workouts ?? [])
+      })
+      .catch(() => {})
+  }
+
   useEffect(() => {
     fetch('/api/profile')
       .then(r => r.json())
@@ -85,13 +95,7 @@ export default function PlanPage() {
       // Fix 2: surface load errors instead of silently swallowing them
       .catch(() => setLoadError('Failed to load profile'))
 
-    fetch('/api/plan')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.name) setPlanName(data.name)
-        if (data?.workouts) setPlanWorkouts(data.workouts)
-      })
-      .catch(() => {})
+    loadPlan()
 
     fetch('/api/sync', { method: 'POST' })
       .then(r => r.ok ? r.json() : null)
