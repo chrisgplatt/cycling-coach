@@ -24,6 +24,7 @@ const activity: ICUActivity = {
   type: 'Ride', moving_time: 3600, name: 'Morning Ride',
   average_watts: 220, max_watts: 350, weighted_average_watts: 225,
   average_heartrate: 155, training_load: 94, rolling_ftp: null,
+  distance: null, total_elevation_gain: null, left_right_balance: null,
 }
 
 describe('WorkoutDetailModal', () => {
