@@ -41,6 +41,7 @@ export default function StatsPage() {
       .then(r => r.json())
       .then(data => {
         if (data.error) throw new Error(data.error)
+        if (!data.stats) throw new Error('No stats returned')
         setStats(data.stats)
       })
       .catch((e: Error) => setError(e.message))
