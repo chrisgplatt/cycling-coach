@@ -44,5 +44,10 @@ export async function POST() {
     await supabase.from('workouts').delete().in('id', ids)
   }
 
+  await supabase
+    .from('training_plans')
+    .update({ status: 'archived' })
+    .eq('status', 'active')
+
   return NextResponse.json({ deleted, failed })
 }

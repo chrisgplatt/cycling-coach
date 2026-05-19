@@ -260,7 +260,7 @@ export default function PlanPage() {
       const res = await fetch('/api/workouts/clear-future', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) return `Error: ${data.error ?? 'Failed'}`
-      return `Deleted ${data.deleted} workout${data.deleted !== 1 ? 's' : ''}${data.failed ? ` (${data.failed} failed)` : ''}`
+      return `Plan archived and ${data.deleted} workout${data.deleted !== 1 ? 's' : ''} deleted${data.failed ? ` (${data.failed} failed to remove from intervals.icu)` : ''}`
     } catch { return 'Error: Network error' }
   }
 

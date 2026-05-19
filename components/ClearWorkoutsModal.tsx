@@ -26,7 +26,7 @@ export default function ClearWorkoutsModal({ onConfirm, onClose }: Props) {
             <div>
               <h2 className="text-lg font-bold text-slate-900">Delete plan?</h2>
               <p className="text-sm text-slate-500 mt-1">
-                This will permanently delete all planned workouts from today onwards, from both this app and intervals.icu.
+                This will delete all planned workouts from today onwards (from both this app and intervals.icu) and archive the current plan. Past completed workouts are not affected.
               </p>
             </div>
             <div className="flex gap-3 justify-end">
