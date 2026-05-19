@@ -173,8 +173,8 @@ export default function WorkoutDetailModal({
             )}
           </div>
           {pendingDate && (
-            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
-              <span className="text-sm text-slate-600 flex-1">Move to {pendingDate}?</span>
+            <div className="flex items-center gap-3 mt-3 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+              <span className="text-sm font-semibold text-orange-700 flex-1">Move to {pendingDate}?</span>
               <button
                 onClick={() => { setPendingDate(null); setRescheduleError(null) }}
                 disabled={rescheduling}
@@ -185,7 +185,7 @@ export default function WorkoutDetailModal({
               <button
                 onClick={handleReschedule}
                 disabled={rescheduling}
-                className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                className="text-sm font-semibold bg-orange-500 text-white px-3 py-1 rounded-md hover:bg-orange-600 disabled:opacity-50 transition-colors"
               >
                 {rescheduling ? 'Moving…' : 'Save'}
               </button>
