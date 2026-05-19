@@ -121,6 +121,8 @@ describe('IntervalsClient', () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body)
     expect(body.start_date_local).toBe('2026-05-22T08:00:00')
+    expect(mockFetch.mock.calls[0][0]).toContain('/athlete/i12345/events/evt123')
+    expect(mockFetch.mock.calls[0][1].method).toBe('PUT')
   })
 
   it('updateEvent omits start_date_local when date is not provided', async () => {
