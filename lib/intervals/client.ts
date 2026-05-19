@@ -121,7 +121,7 @@ export class IntervalsClient {
       rolling_ftp: (a.icu_rolling_ftp ?? null) as number | null,
       distance: (a.distance ?? null) as number | null,
       total_elevation_gain: (a.total_elevation_gain ?? null) as number | null,
-      left_right_balance: (a.left_right_balance ?? null) as number | null,
+      left_right_balance: ((a.icu_left_right_balance ?? a.left_right_balance) ?? null) as number | null,
     }))
   }
 
