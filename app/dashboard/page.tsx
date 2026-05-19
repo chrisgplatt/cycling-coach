@@ -10,6 +10,19 @@ import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
 import { isoWeek } from '@/lib/iso-week'
 import type { GeneratedPlan } from '@/types'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import type { ReactNode } from 'react'
+import RescheduleConfirmModal from '@/components/RescheduleConfirmModal'
 
 function getReadinessSummary(wellness: ICUWellness): string {
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -39,6 +52,30 @@ function getReadinessSummary(wellness: ICUWellness): string {
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
 
+function DraggableWorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: workout.id })
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <WorkoutCard workout={workout} onClick={onClick} />
+    </div>
+  )
+}
+
+function DroppableDay({ date, children }: { date: string; children: ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: date })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-1 space-y-2 rounded-xl transition-colors ${isOver ? 'ring-2 ring-blue-300 bg-blue-50/40' : ''}`}
+    >
+      {children}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [athleteId, setAthleteId] = useState('')
@@ -58,6 +95,28 @@ export default function DashboardPage() {
   const [reviewEstimatedWorkouts, setReviewEstimatedWorkouts] = useState(0)
   const [showReviewModal, setShowReviewModal] = useState(false)
   const reviewAbortRef = useRef<AbortController | null>(null)
+
+  const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null)
+  const [pendingReschedule, setPendingReschedule] = useState<{ workout: Workout; toDate: string } | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveWorkout(workouts.find(w => w.id === String(event.active.id)) ?? null)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveWorkout(null)
+    const { active, over } = event
+    if (!over) return
+    const workout = workouts.find(w => w.id === String(active.id))
+    if (!workout) return
+    const toDate = String(over.id)
+    if (toDate === workout.date) return
+    setPendingReschedule({ workout, toDate })
+  }
 
   function applySyncData(data: ICUSyncData & { athlete_id?: string }, syncedAt: Date) {
     setSyncData(data)
@@ -319,43 +378,47 @@ export default function DashboardPage() {
         <p className="text-sm text-gray-400 mb-4">
           {weekDates[0].slice(8)} – {weekDates[6].slice(8)} {new Date(weekDates[0]).toLocaleString('en-GB', { month: 'long' })}
         </p>
-        <div className="space-y-2">
-          {weekDates.map((date, i) => {
-            const dayWorkout = workouts.find(w => w.date === date)
-            const dayEvent = events.find(e => e.date === date)
-            const isToday = date === new Date().toISOString().split('T')[0]
-            return (
-              <div key={date} className="flex gap-4 items-start">
-                <div className="w-10 text-center pt-3">
-                  <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{days[i]}</div>
-                  <div className={`text-xl font-extrabold tracking-tight mt-0.5 ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>{date.slice(8)}</div>
-                </div>
-                <div className="flex-1 space-y-2">
-                  {dayWorkout && (
-                    <WorkoutCard
-                      workout={dayWorkout}
-                      onClick={() => setSelectedWorkout(dayWorkout)}
-                    />
-                  )}
-                  {dayEvent && (
-                    <div className={`rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-3 ${EVENT_COLOURS[dayEvent.priority]}`}>
-                      <div className="flex items-center gap-2">
-                        <span>🏁</span>
-                        <div>
-                          <div className="font-semibold text-sm">{dayEvent.name}</div>
-                          <div className="text-xs capitalize opacity-75">{dayEvent.type} · {dayEvent.priority} priority</div>
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="space-y-2">
+            {weekDates.map((date, i) => {
+              const dayWorkout = workouts.find(w => w.date === date)
+              const dayEvent = events.find(e => e.date === date)
+              const isToday = date === new Date().toISOString().split('T')[0]
+              return (
+                <div key={date} className="flex gap-4 items-start">
+                  <div className="w-10 text-center pt-3">
+                    <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{days[i]}</div>
+                    <div className={`text-xl font-extrabold tracking-tight mt-0.5 ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>{date.slice(8)}</div>
+                  </div>
+                  <DroppableDay date={date}>
+                    {dayWorkout && dayWorkout.status === 'planned' ? (
+                      <DraggableWorkoutCard workout={dayWorkout} onClick={() => setSelectedWorkout(dayWorkout)} />
+                    ) : dayWorkout ? (
+                      <WorkoutCard workout={dayWorkout} onClick={() => setSelectedWorkout(dayWorkout)} />
+                    ) : null}
+                    {dayEvent && (
+                      <div className={`rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-3 ${EVENT_COLOURS[dayEvent.priority]}`}>
+                        <div className="flex items-center gap-2">
+                          <span>🏁</span>
+                          <div>
+                            <div className="font-semibold text-sm">{dayEvent.name}</div>
+                            <div className="text-xs capitalize opacity-75">{dayEvent.type} · {dayEvent.priority} priority</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {!dayWorkout && !dayEvent && (
-                    <div className="text-sm text-gray-300 italic py-3.5 pl-1">Rest day</div>
-                  )}
+                    )}
+                    {!dayWorkout && !dayEvent && (
+                      <div className="text-sm text-gray-300 italic py-3.5 pl-1">Rest day</div>
+                    )}
+                  </DroppableDay>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+          <DragOverlay>
+            {activeWorkout ? <WorkoutCard workout={activeWorkout} /> : null}
+          </DragOverlay>
+        </DndContext>
       </div>
 
       {selectedWorkout && (
@@ -380,6 +443,10 @@ export default function DashboardPage() {
             setSelectedWorkout(null)
             loadPlan()
           }}
+          onReschedule={() => {
+            setSelectedWorkout(null)
+            loadPlan()
+          }}
         />
       )}
 
@@ -387,6 +454,15 @@ export default function DashboardPage() {
         <FeedbackModal
           workout={feedbackWorkout}
           onClose={() => setFeedbackWorkout(null)}
+        />
+      )}
+
+      {pendingReschedule && (
+        <RescheduleConfirmModal
+          workout={pendingReschedule.workout}
+          toDate={pendingReschedule.toDate}
+          onConfirm={() => { setPendingReschedule(null); loadPlan() }}
+          onCancel={() => setPendingReschedule(null)}
         />
       )}
 
