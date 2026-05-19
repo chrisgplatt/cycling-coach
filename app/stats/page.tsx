@@ -2,10 +2,14 @@
 import { useEffect, useState } from 'react'
 import type { RidingStats } from '@/types'
 
-function StatCell({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function StatCell({
+  label, value, unit, valueClass = 'text-gray-900',
+}: {
+  label: string; value: string; unit?: string; valueClass?: string
+}) {
   return (
     <div className="flex-1 text-center px-2 py-3 sm:px-3 sm:py-4">
-      <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">
+      <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${valueClass}`}>
         {value}
         {unit && <span className="text-xs font-medium text-gray-400 ml-0.5">{unit}</span>}
       </div>
@@ -14,10 +18,11 @@ function StatCell({ label, value, unit }: { label: string; value: string; unit?:
   )
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionCard({ title, children, accent }: { title: string; children: React.ReactNode; accent?: string }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+      <div className={`px-4 py-2.5 border-b border-gray-200 flex items-center gap-2 ${accent ? 'bg-white' : 'bg-gray-50'}`}>
+        {accent && <span className={`w-2 h-2 rounded-full ${accent}`} />}
         <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">{title}</h2>
       </div>
       {children}
@@ -66,8 +71,9 @@ export default function StatsPage() {
 
   if (!stats) return null
 
-  const balance = stats.avg_left_right_balance !== null
-    ? `${stats.avg_left_right_balance.toFixed(1)}% L / ${(100 - stats.avg_left_right_balance).toFixed(1)}% R`
+  const leftPct = stats.avg_left_right_balance
+  const balance = leftPct !== null
+    ? `${leftPct.toFixed(1)}% L / ${(100 - leftPct).toFixed(1)}% R`
     : '—'
 
   return (
@@ -79,39 +85,56 @@ export default function StatsPage() {
         </p>
       </div>
 
-      <SectionCard title="Best Power">
+      <SectionCard title="Best Power" accent="bg-orange-400">
         <div className="flex divide-x divide-gray-100">
           <StatCell
             label="5 min"
             value={stats.power_5min !== null ? String(Math.round(stats.power_5min)) : '—'}
             unit={stats.power_5min !== null ? 'w' : undefined}
+            valueClass="text-orange-500"
           />
           <StatCell
             label="10 min"
             value={stats.power_10min !== null ? String(Math.round(stats.power_10min)) : '—'}
             unit={stats.power_10min !== null ? 'w' : undefined}
+            valueClass="text-orange-500"
           />
           <StatCell
             label="20 min"
             value={stats.power_20min !== null ? String(Math.round(stats.power_20min)) : '—'}
             unit={stats.power_20min !== null ? 'w' : undefined}
+            valueClass="text-orange-500"
           />
         </div>
       </SectionCard>
 
-      <SectionCard title="Totals">
+      <SectionCard title="Totals" accent="bg-blue-500">
         <div className="flex divide-x divide-gray-100">
-          <StatCell label="Distance" value={(Math.round(stats.total_distance_km * 10) / 10).toFixed(1)} unit="km" />
-          <StatCell label="Elevation" value={String(Math.round(stats.total_elevation_m))} unit="m" />
-          <StatCell label="Duration" value={formatDuration(stats.total_duration_secs)} />
+          <StatCell
+            label="Distance"
+            value={(Math.round(stats.total_distance_km * 10) / 10).toFixed(1)}
+            unit="km"
+            valueClass="text-blue-600"
+          />
+          <StatCell
+            label="Elevation"
+            value={String(Math.round(stats.total_elevation_m))}
+            unit="m"
+            valueClass="text-emerald-600"
+          />
+          <StatCell
+            label="Duration"
+            value={formatDuration(stats.total_duration_secs)}
+            valueClass="text-violet-600"
+          />
         </div>
       </SectionCard>
 
-      <SectionCard title="L/R Balance">
+      <SectionCard title="L/R Balance" accent="bg-rose-400">
         <div className="text-center px-2 py-3 sm:px-3 sm:py-4">
-          <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">{balance}</div>
+          <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-rose-500">{balance}</div>
           <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">Avg Left / Right</div>
-          {stats.avg_left_right_balance !== null && (
+          {leftPct !== null && (
             <div className="text-[11px] text-gray-400 mt-0.5">from {stats.balance_ride_count} ride{stats.balance_ride_count !== 1 ? 's' : ''}</div>
           )}
         </div>
