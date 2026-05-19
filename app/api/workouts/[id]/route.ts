@@ -51,6 +51,9 @@ export async function PATCH(
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.date))) {
       return NextResponse.json({ error: 'Invalid date format' }, { status: 400 })
     }
+    if (isNaN(new Date(body.date as string).getTime())) {
+      return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
+    }
     update.date = body.date
   }
 
@@ -73,10 +76,13 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   if (eventId) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileErr } = await supabase
       .from('user_profile')
       .select('intervals_icu_athlete_id, intervals_icu_api_key')
       .maybeSingle()
+    if (profileErr) {
+      return NextResponse.json({ ok: true, icu_warning: profileErr.message })
+    }
     if (profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
       const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
       try {
