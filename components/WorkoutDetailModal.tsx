@@ -172,17 +172,9 @@ export default function WorkoutDetailModal({
               <span className="text-xs font-medium text-slate-400 shrink-0">{workout.date}</span>
             )}
           </div>
-        </div>
-
-        <div className="p-5 space-y-4 flex-1 overflow-y-auto">
-          <div>
-            <p className="text-sm text-slate-700 leading-relaxed">{workout.description}</p>
-            <p className="text-xs text-slate-400 mt-1.5">{workout.target_zones}</p>
-          </div>
-
           {pendingDate && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-slate-600">Move to {pendingDate}?</span>
+            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+              <span className="text-sm text-slate-600 flex-1">Move to {pendingDate}?</span>
               <button
                 onClick={() => { setPendingDate(null); setRescheduleError(null) }}
                 disabled={rescheduling}
@@ -195,15 +187,20 @@ export default function WorkoutDetailModal({
                 disabled={rescheduling}
                 className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
               >
-                {rescheduling ? 'Moving…' : 'Confirm'}
+                {rescheduling ? 'Moving…' : 'Save'}
               </button>
             </div>
           )}
           {rescheduleError && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-              {rescheduleError}
-            </p>
+            <p className="text-sm text-red-600 mt-2">{rescheduleError}</p>
           )}
+        </div>
+
+        <div className="p-5 space-y-4 flex-1 overflow-y-auto">
+          <div>
+            <p className="text-sm text-slate-700 leading-relaxed">{workout.description}</p>
+            <p className="text-xs text-slate-400 mt-1.5">{workout.target_zones}</p>
+          </div>
 
           <div className="space-y-1.5">
             {eventUrl && (

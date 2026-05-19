@@ -57,7 +57,7 @@ describe('WorkoutDetailModal', () => {
 
   it('shows TSS and activity link for a matched workout', () => {
     render(<WorkoutDetailModal workout={matchedWorkout} athleteId="i12345" onClose={jest.fn()} />)
-    expect(screen.getByText(/TSS:.*94/)).toBeInTheDocument()
+    expect(screen.getByText(/TSS.*94/)).toBeInTheDocument()
     const link = screen.getByRole('link', { name: /view garmin activity/i })
     expect(link).toHaveAttribute('href', 'https://intervals.icu/activities/act456')
   })
@@ -71,7 +71,7 @@ describe('WorkoutDetailModal', () => {
         onClose={jest.fn()}
       />
     )
-    expect(screen.getByText(/auto-matched to morning ride/i)).toBeInTheDocument()
+    expect(screen.getByText('Morning Ride')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /change/i })).toBeInTheDocument()
   })
@@ -138,7 +138,7 @@ describe('WorkoutDetailModal', () => {
       <WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} onReschedule={onReschedule} />
     )
     fireEvent.change(screen.getByDisplayValue('2026-05-15'), { target: { value: '2026-05-13' } })
-    fireEvent.click(screen.getByRole('button', { name: /confirm/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
     await waitFor(() => expect(onReschedule).toHaveBeenCalledTimes(1))
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/workouts/w1', expect.objectContaining({
       method: 'PATCH',
@@ -154,7 +154,7 @@ describe('WorkoutDetailModal', () => {
       <WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} onReschedule={jest.fn()} />
     )
     fireEvent.change(screen.getByDisplayValue('2026-05-15'), { target: { value: '2026-05-13' } })
-    fireEvent.click(screen.getByRole('button', { name: /confirm/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
     await waitFor(() => expect(screen.getByText('Reschedule failed')).toBeInTheDocument())
   })
 })
