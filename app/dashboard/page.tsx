@@ -297,6 +297,13 @@ export default function DashboardPage() {
     .slice()
     .sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))[0] ?? null
 
+  function formatReadinessTime(date: Date): string {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} at ${time}`
+  }
+
   function formatLastRide(): string {
     if (!lastRide) return ''
     const rideDate = new Date(lastRide.start_date_local)
@@ -361,8 +368,8 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
             <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Readiness</h2>
-            {lastRide && (
-              <span className="text-xs text-gray-400">Last ride: <span className="font-semibold text-gray-500">{formatLastRide()}</span></span>
+            {lastSyncedAt && (
+              <span className="text-xs text-gray-400">as of <span className="font-semibold text-gray-500">{formatReadinessTime(lastSyncedAt)}</span></span>
             )}
           </div>
           <p className="text-sm text-gray-600 leading-relaxed px-4 py-3">{getReadinessSummary(latestWellness)}</p>
