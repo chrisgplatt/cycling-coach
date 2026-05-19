@@ -130,6 +130,7 @@ export default function WorkoutDetailModal({
         setRescheduleError(data.error ?? 'Failed to reschedule')
         return
       }
+      setPendingDate(null)
       onReschedule?.()
     } catch {
       setRescheduleError('Network error')
@@ -167,10 +168,11 @@ export default function WorkoutDetailModal({
           {workout.status === 'planned' && (
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">
+                <label htmlFor="reschedule-date" className="text-xs font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">
                   Reschedule
                 </label>
                 <input
+                  id="reschedule-date"
                   type="date"
                   min={weekStart}
                   max={weekEnd}
