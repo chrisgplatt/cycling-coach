@@ -155,7 +155,22 @@ export default function WorkoutDetailModal({
                 </span>
               )}
             </div>
-            <span className="text-xs font-medium text-slate-400 shrink-0">{workout.date}</span>
+            {workout.status === 'planned' ? (
+              <input
+                type="date"
+                min={weekStart}
+                max={weekEnd}
+                value={pendingDate ?? workout.date}
+                onChange={e => {
+                  const v = e.target.value
+                  setPendingDate(v !== workout.date ? v : null)
+                  setRescheduleError(null)
+                }}
+                className="text-xs font-medium text-slate-400 shrink-0 bg-transparent border-0 cursor-pointer hover:text-blue-500 focus:outline-none focus:text-blue-500 p-0"
+              />
+            ) : (
+              <span className="text-xs font-medium text-slate-400 shrink-0">{workout.date}</span>
+            )}
           </div>
         </div>
 
@@ -165,51 +180,29 @@ export default function WorkoutDetailModal({
             <p className="text-xs text-slate-400 mt-1.5">{workout.target_zones}</p>
           </div>
 
-          {workout.status === 'planned' && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <label htmlFor="reschedule-date" className="text-xs font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">
-                  Reschedule
-                </label>
-                <input
-                  id="reschedule-date"
-                  type="date"
-                  min={weekStart}
-                  max={weekEnd}
-                  value={pendingDate ?? workout.date}
-                  onChange={e => {
-                    const v = e.target.value
-                    setPendingDate(v !== workout.date ? v : null)
-                    setRescheduleError(null)
-                  }}
-                  className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              {pendingDate && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-slate-600">Move to {pendingDate}?</span>
-                  <button
-                    onClick={() => { setPendingDate(null); setRescheduleError(null) }}
-                    disabled={rescheduling}
-                    className="text-sm text-slate-500 hover:text-slate-700 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleReschedule}
-                    disabled={rescheduling}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                  >
-                    {rescheduling ? 'Moving…' : 'Confirm'}
-                  </button>
-                </div>
-              )}
-              {rescheduleError && (
-                <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                  {rescheduleError}
-                </p>
-              )}
+          {pendingDate && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-slate-600">Move to {pendingDate}?</span>
+              <button
+                onClick={() => { setPendingDate(null); setRescheduleError(null) }}
+                disabled={rescheduling}
+                className="text-sm text-slate-500 hover:text-slate-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReschedule}
+                disabled={rescheduling}
+                className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+              >
+                {rescheduling ? 'Moving…' : 'Confirm'}
+              </button>
             </div>
+          )}
+          {rescheduleError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              {rescheduleError}
+            </p>
           )}
 
           <div className="space-y-1.5">
