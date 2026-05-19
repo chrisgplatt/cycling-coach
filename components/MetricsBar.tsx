@@ -5,16 +5,20 @@ interface MetricProps {
   value: number | null
   valueClass?: string
   unit?: string
+  stale?: boolean
 }
 
-function Metric({ label, value, valueClass = 'text-gray-900', unit }: MetricProps) {
+function Metric({ label, value, valueClass = 'text-gray-900', unit, stale }: MetricProps) {
   return (
-    <div className="flex-1 text-center px-2 py-3 sm:px-3 sm:py-4">
-      <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${valueClass}`}>
+    <div className="flex-1 text-center px-2 py-3 sm:px-3 sm:py-4" title={stale ? 'From a previous day' : undefined}>
+      <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${stale ? 'opacity-60' : ''} ${valueClass}`}>
         {value !== null ? Math.round(value) : '—'}
         {unit && <span className="text-xs font-medium text-gray-400 ml-0.5">{unit}</span>}
       </div>
-      <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">{label}</div>
+      <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">
+        {label}
+        {stale && <span className="ml-0.5 text-amber-400">·</span>}
+      </div>
     </div>
   )
 }
@@ -34,7 +38,15 @@ function formatSyncTime(syncedAt: Date | null): string {
   return `Synced ${day} ${monthName} at ${timeStr}`
 }
 
-export default function MetricsBar({ wellness, syncedAt = null }: { wellness: ICUWellness | null; syncedAt?: Date | null }) {
+export default function MetricsBar({
+  wellness,
+  syncedAt = null,
+  stale = {},
+}: {
+  wellness: ICUWellness | null
+  syncedAt?: Date | null
+  stale?: { hrv?: boolean; restingHr?: boolean }
+}) {
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
   const formPositive = form !== null && form >= 0
@@ -53,10 +65,10 @@ export default function MetricsBar({ wellness, syncedAt = null }: { wellness: IC
           valueClass={form === null ? 'text-gray-900' : formPositive ? 'text-emerald-600' : 'text-red-500'}
         />
         {wellness.hrv !== null && (
-          <Metric label="HRV" value={wellness.hrv} valueClass="text-violet-600" />
+          <Metric label="HRV" value={wellness.hrv} valueClass="text-violet-600" stale={stale.hrv} />
         )}
         {wellness.resting_hr !== null && (
-          <Metric label="Resting HR" value={wellness.resting_hr} valueClass="text-rose-500" unit="bpm" />
+          <Metric label="Resting HR" value={wellness.resting_hr} valueClass="text-rose-500" unit="bpm" stale={stale.restingHr} />
         )}
       </div>
     </div>

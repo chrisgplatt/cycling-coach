@@ -280,13 +280,17 @@ export default function DashboardPage() {
   }, [])
 
   const wellnessArr = syncData?.wellness ?? []
-  const latestWellness: ICUWellness | null = wellnessArr.length > 0
-    ? {
-        ...wellnessArr[wellnessArr.length - 1],
-        hrv: [...wellnessArr].reverse().find(w => w.hrv !== null)?.hrv ?? null,
-        resting_hr: [...wellnessArr].reverse().find(w => w.resting_hr !== null)?.resting_hr ?? null,
-      }
+  const latestEntry = wellnessArr.length > 0 ? wellnessArr[wellnessArr.length - 1] : null
+  const reversed = [...wellnessArr].reverse()
+  const hrvEntry = reversed.find(w => w.hrv !== null) ?? null
+  const restingHrEntry = reversed.find(w => w.resting_hr !== null) ?? null
+  const latestWellness: ICUWellness | null = latestEntry
+    ? { ...latestEntry, hrv: hrvEntry?.hrv ?? null, resting_hr: restingHrEntry?.resting_hr ?? null }
     : null
+  const wellnessStale = {
+    hrv: !!(hrvEntry && latestEntry && hrvEntry.id !== latestEntry.id),
+    restingHr: !!(restingHrEntry && latestEntry && restingHrEntry.id !== latestEntry.id),
+  }
 
   const lastRide = syncData?.activities
     ?.filter(a => /ride/i.test(a.type))
@@ -351,7 +355,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      <MetricsBar wellness={latestWellness} syncedAt={lastSyncedAt} />
+      <MetricsBar wellness={latestWellness} syncedAt={lastSyncedAt} stale={wellnessStale} />
 
       {latestWellness && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
