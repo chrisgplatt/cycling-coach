@@ -16,6 +16,8 @@ const mockStats: RidingStats = {
 global.fetch = jest.fn()
 
 describe('StatsPage', () => {
+  afterEach(() => jest.clearAllMocks())
+
   it('shows loading spinner initially', () => {
     ;(global.fetch as jest.Mock).mockReturnValue(new Promise(() => {}))
     render(<StatsPage />)
