@@ -119,11 +119,11 @@ function WeeklyTssChart({ weeklyTss }: { weeklyTss: WeeklyTss[] }) {
 
   const todayWeekStart = isoWeekStart(new Date().toISOString().split('T')[0])
 
-  const monthLabels: { x: number; label: string }[] = []
+  const monthMarkers: { x: number; label: string }[] = []
   let lastMonth = -1
   weeklyTss.forEach((w, i) => {
     const m = new Date(w.weekStart).getUTCMonth()
-    if (m !== lastMonth) { monthLabels.push({ x: xOf(i) + barW / 2, label: MONTHS[m] }); lastMonth = m }
+    if (m !== lastMonth) { monthMarkers.push({ x: xOf(i), label: MONTHS[m] }); lastMonth = m }
   })
 
   const ticks = [maxTss, Math.round(maxTss / 2), 0]
@@ -131,7 +131,7 @@ function WeeklyTssChart({ weeklyTss }: { weeklyTss: WeeklyTss[] }) {
 
   return (
     <div>
-      <svg viewBox={`0 0 ${svgRight + 10} 115`} className="w-full">
+      <svg viewBox={`0 0 ${svgRight + 10} 130`} className="w-full">
         {tickYs.map((y, i) => (
           <g key={ticks[i]}>
             <line x1={svgLeft} y1={y} x2={svgRight} y2={y} stroke="#f3f4f6" strokeWidth="1"/>
@@ -139,20 +139,23 @@ function WeeklyTssChart({ weeklyTss }: { weeklyTss: WeeklyTss[] }) {
           </g>
         ))}
         <line x1={svgLeft} y1={avgY} x2={svgRight} y2={avgY} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3,3"/>
+        {monthMarkers.slice(1).map(mm => (
+          <line key={mm.label + mm.x} x1={mm.x} y1={svgTop} x2={mm.x} y2={svgBottom} stroke="#e5e7eb" strokeWidth="1"/>
+        ))}
         {weeklyTss.map((w, i) => {
           const x = xOf(i)
           const y = yOf(w.tss)
+          const day = new Date(w.weekStart).getUTCDate()
           return (
-            <rect
-              key={w.weekStart}
-              x={x} y={y} width={barW} height={Math.max(2, svgBottom - y)}
-              rx="2"
-              fill={w.weekStart === todayWeekStart ? '#c4b5fd' : '#8b5cf6'}
-            />
+            <g key={w.weekStart}>
+              <rect x={x} y={y} width={barW} height={Math.max(2, svgBottom - y)} rx="2"
+                fill={w.weekStart === todayWeekStart ? '#c4b5fd' : '#8b5cf6'}/>
+              <text x={x + barW / 2} y={svgBottom + 12} fontSize="8" fill="#d1d5db" textAnchor="middle">{day}</text>
+            </g>
           )
         })}
-        {monthLabels.map((ml, i) => (
-          <text key={ml.label + ml.x} x={ml.x} y={svgBottom + 15} fontSize="8" fill="#d1d5db" textAnchor="middle">{ml.label}</text>
+        {monthMarkers.map(mm => (
+          <text key={mm.label + mm.x} x={mm.x + barW / 2} y={svgBottom + 24} fontSize="8" fill="#9ca3af" textAnchor="middle" fontWeight="600">{mm.label}</text>
         ))}
       </svg>
       <p className="text-[11px] text-gray-400 px-3 pb-3">Avg {avgTss} TSS/week</p>
@@ -171,7 +174,7 @@ export default function FitnessPage() {
   const [charts, setCharts] = useState<ChartsData | null>(null)
   const [chartsLoading, setChartsLoading] = useState(true)
   const [chartsError, setChartsError] = useState<string | null>(null)
-  const [showHistory, setShowHistory] = useState(false)
+  const [activePrediction, setActivePrediction] = useState(0)
 
   useEffect(() => {
     fetch('/api/ftp').then(r => r.json()).then(setPredictions).catch(() => {})
@@ -306,10 +309,26 @@ export default function FitnessPage() {
           <p className="text-gray-400 text-sm mt-1">Click <span className="font-medium text-gray-600">Predict FTP</span> to analyse your ride data.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Latest Prediction</p>
-          {[predictions[0]].map(p => (
-            <div key={p.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          {predictions.length > 1 && (
+            <div className="flex overflow-x-auto border-b border-gray-200 bg-gray-50">
+              {predictions.map((p, i) => (
+                <button
+                  key={p.id}
+                  onClick={() => setActivePrediction(i)}
+                  className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap shrink-0 border-b-2 transition-colors ${
+                    i === activePrediction
+                      ? 'border-blue-500 text-blue-600 bg-white'
+                      : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {i === 0 ? 'Latest' : new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                </button>
+              ))}
+            </div>
+          )}
+          {[predictions[activePrediction]].map(p => (
+            <div key={p.id}>
               <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex items-center justify-between">
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-black text-gray-900 tracking-tight">{p.predicted_ftp}</span>
@@ -342,38 +361,6 @@ export default function FitnessPage() {
               </div>
             </div>
           ))}
-          {predictions.length > 1 && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <button
-                onClick={() => setShowHistory(s => !s)}
-                className="w-full flex items-center justify-between px-4 py-3 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
-              >
-                <span className="uppercase tracking-widest">History · {predictions.length - 1} previous</span>
-                <span className="text-gray-400 text-[10px]">{showHistory ? '▲' : '▼'}</span>
-              </button>
-              {showHistory && (
-                <div className="divide-y divide-gray-100 border-t border-gray-100">
-                  {predictions.slice(1).map(p => (
-                    <div key={p.id} className="px-5 py-3 flex items-center justify-between">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-xl font-bold text-gray-700">{p.predicted_ftp}</span>
-                        <span className="text-sm text-gray-400">W</span>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${confidenceBadge(p.confidence)}`}>
-                          {p.confidence}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500">
-                          {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
-                        {p.confirmed && <p className="text-xs text-emerald-600 font-medium">&#10003; confirmed</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
