@@ -25,11 +25,12 @@ function PMCChart({ wellness }: { wellness: ICUWellness[] }) {
   const svgLeft = 30, svgRight = 420, svgTop = 15, svgBottom = 115
   const chartW = svgRight - svgLeft
 
-  const allVals = data.flatMap(w =>
-    [w.ctl, w.atl, w.form].filter((v): v is number => v !== null)
+  // Scale y-axis on CTL + Form only — ATL spikes would otherwise compress the useful range
+  const scaleVals = data.flatMap(w =>
+    [w.ctl, w.form].filter((v): v is number => v !== null)
   )
-  const dataMin = Math.floor(Math.min(...allVals) / 10) * 10 - 5
-  const dataMax = Math.ceil(Math.max(...allVals) / 10) * 10 + 5
+  const dataMin = scaleVals.length ? Math.floor(Math.min(...scaleVals) / 10) * 10 - 5 : 0
+  const dataMax = scaleVals.length ? Math.ceil(Math.max(...scaleVals) / 10) * 10 + 5 : 100
 
   const xOf = (i: number) => svgLeft + (i / Math.max(data.length - 1, 1)) * chartW
   const yOf = (v: number) => normalizeY(v, dataMin, dataMax, svgTop, svgBottom)
@@ -41,7 +42,7 @@ function PMCChart({ wellness }: { wellness: ICUWellness[] }) {
       .join(' ')
 
   const zeroY = yOf(0)
-  const today = data[data.length - 1]
+  const today = [...data].reverse().find(w => w.ctl !== null) ?? data[data.length - 1]
   const formColour = (today.form ?? 0) < 0 ? '#f59e0b' : '#10b981'
   const range = dataMax - dataMin
   const ticks = [dataMax, dataMin + range / 2, dataMin].map(v => Math.round(v))
@@ -83,7 +84,7 @@ function PMCChart({ wellness }: { wellness: ICUWellness[] }) {
           <line x1={svgLeft} y1={zeroY} x2={svgRight} y2={zeroY} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3,3"/>
         )}
         <polyline points={polyline('ctl')} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinejoin="round"/>
-        <polyline points={polyline('atl')} fill="none" stroke="#ef4444" strokeWidth="2" strokeLinejoin="round" strokeDasharray="5,2"/>
+        <polyline points={polyline('atl')} fill="none" stroke="#fca5a5" strokeWidth="1.5" strokeLinejoin="round" strokeDasharray="5,2"/>
         <polyline points={polyline('form')} fill="none" stroke={formColour} strokeWidth="2" strokeLinejoin="round"/>
         <line x1={svgRight} y1={svgTop} x2={svgRight} y2={svgBottom + 5} stroke="#9ca3af" strokeWidth="1" strokeDasharray="2,2"/>
         <text x={svgRight} y={svgBottom + 15} fontSize="8" fill="#9ca3af" textAnchor="middle">Today</text>
@@ -93,7 +94,7 @@ function PMCChart({ wellness }: { wellness: ICUWellness[] }) {
       </svg>
       <div className="flex gap-3 px-3 pb-3 text-[11px] text-gray-500">
         <span className="flex items-center gap-1.5"><span className="w-3 h-[2.5px] bg-blue-500 rounded inline-block"/>CTL</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] bg-red-500 rounded inline-block"/>ATL</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block" style={{ background: '#fca5a5' }}/>ATL</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block" style={{ background: formColour }}/>Form</span>
       </div>
     </div>
@@ -170,6 +171,7 @@ export default function FitnessPage() {
   const [charts, setCharts] = useState<ChartsData | null>(null)
   const [chartsLoading, setChartsLoading] = useState(true)
   const [chartsError, setChartsError] = useState<string | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
     fetch('/api/ftp').then(r => r.json()).then(setPredictions).catch(() => {})
@@ -305,8 +307,8 @@ export default function FitnessPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Prediction history</p>
-          {predictions.map(p => (
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Latest Prediction</p>
+          {[predictions[0]].map(p => (
             <div key={p.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex items-center justify-between">
                 <div className="flex items-baseline gap-2">
@@ -340,6 +342,38 @@ export default function FitnessPage() {
               </div>
             </div>
           ))}
+          {predictions.length > 1 && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <button
+                onClick={() => setShowHistory(s => !s)}
+                className="w-full flex items-center justify-between px-4 py-3 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <span className="uppercase tracking-widest">History · {predictions.length - 1} previous</span>
+                <span className="text-gray-400 text-[10px]">{showHistory ? '▲' : '▼'}</span>
+              </button>
+              {showHistory && (
+                <div className="divide-y divide-gray-100 border-t border-gray-100">
+                  {predictions.slice(1).map(p => (
+                    <div key={p.id} className="px-5 py-3 flex items-center justify-between">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-bold text-gray-700">{p.predicted_ftp}</span>
+                        <span className="text-sm text-gray-400">W</span>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${confidenceBadge(p.confidence)}`}>
+                          {p.confidence}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">
+                          {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                        {p.confirmed && <p className="text-xs text-emerald-600 font-medium">&#10003; confirmed</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
