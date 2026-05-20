@@ -7,7 +7,12 @@ export { parsePlanText } from './plan'
 function formatLastWeekWorkouts(workouts: Workout[]): string {
   if (!workouts.length) return 'No workouts were scheduled last week.'
   return workouts
-    .map(w => `- ${w.date} | ${w.type} | ${w.duration_minutes}min | status: ${w.status}`)
+    .map(w => {
+      const statusStr = w.status === 'skipped' && w.missed_reason
+        ? `skipped (${w.missed_reason})`
+        : w.status
+      return `- ${w.date} | ${w.type} | ${w.duration_minutes}min | status: ${statusStr}`
+    })
     .join('\n')
 }
 
