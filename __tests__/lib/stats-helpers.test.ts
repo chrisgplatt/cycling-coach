@@ -1,5 +1,5 @@
-import { findNearestPower, computeLeftRightBalance } from '@/lib/stats-helpers'
-import type { ICUPowerCurvePoint } from '@/types'
+import { findNearestPower, computeLeftRightBalance, groupCrossTraining } from '@/lib/stats-helpers'
+import type { ICUActivity, ICUPowerCurvePoint } from '@/types'
 
 describe('findNearestPower', () => {
   it('returns null for empty curve', () => {
@@ -52,5 +52,77 @@ describe('computeLeftRightBalance', () => {
 
   it('returns the single non-null value unchanged', () => {
     expect(computeLeftRightBalance([{ left_right_balance: 48.5 }])).toBe(48.5)
+  })
+})
+
+// Helper — builds a minimal ICUActivity with sensible defaults
+function makeActivity(overrides: Partial<ICUActivity>): ICUActivity {
+  return {
+    id: '1', name: 'Test', start_date_local: '2026-05-01T10:00:00',
+    type: 'Walk', moving_time: 3600, average_watts: null, max_watts: null,
+    weighted_average_watts: null, average_heartrate: null,
+    training_load: 30, rolling_ftp: null, distance: null,
+    total_elevation_gain: null, left_right_balance: null,
+    ...overrides,
+  }
+}
+
+describe('groupCrossTraining', () => {
+  it('returns empty array for empty input', () => {
+    expect(groupCrossTraining([])).toEqual([])
+  })
+
+  it('returns empty array when all activities are rides', () => {
+    const acts = [
+      makeActivity({ type: 'Ride' }),
+      makeActivity({ type: 'VirtualRide' }),
+      makeActivity({ type: 'EBikeRide' }),
+    ]
+    expect(groupCrossTraining(acts)).toEqual([])
+  })
+
+  it('filters out Ride activities, keeps non-rides', () => {
+    const acts = [makeActivity({ type: 'Ride' }), makeActivity({ type: 'Walk' })]
+    const result = groupCrossTraining(acts)
+    expect(result).toHaveLength(1)
+    expect(result[0].type).toBe('Walk')
+  })
+
+  it('filters out VirtualRide activities', () => {
+    const acts = [makeActivity({ type: 'VirtualRide' }), makeActivity({ type: 'Run' })]
+    const result = groupCrossTraining(acts)
+    expect(result).toHaveLength(1)
+    expect(result[0].type).toBe('Run')
+  })
+
+  it('groups multiple activities of the same type', () => {
+    const acts = [
+      makeActivity({ type: 'Walk', moving_time: 3600, training_load: 20 }),
+      makeActivity({ type: 'Walk', moving_time: 1800, training_load: 10 }),
+    ]
+    const result = groupCrossTraining(acts)
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      type: 'Walk',
+      count: 2,
+      total_duration_secs: 5400,
+      total_tss: 30,
+    })
+  })
+
+  it('treats null training_load as 0', () => {
+    const acts = [makeActivity({ type: 'Yoga', training_load: null })]
+    const result = groupCrossTraining(acts)
+    expect(result[0].total_tss).toBe(0)
+  })
+
+  it('sorts groups by total_tss descending', () => {
+    const acts = [
+      makeActivity({ type: 'Walk', moving_time: 3600, training_load: 20 }),
+      makeActivity({ type: 'Run', moving_time: 3600, training_load: 60 }),
+    ]
+    const result = groupCrossTraining(acts)
+    expect(result[0].type).toBe('Run')
+    expect(result[1].type).toBe('Walk')
   })
 })
