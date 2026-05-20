@@ -385,18 +385,33 @@ export default function DashboardPage() {
         <div className="flex items-baseline justify-between mb-0.5">
           <h2 className="text-lg font-bold tracking-tight text-gray-900">This week</h2>
           {(() => {
+            const IF_VALS: Record<string, number> = { recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90 }
             const weekWorkouts = workouts.filter(w => weekDates.includes(w.date))
-            const totalTss = weekWorkouts.reduce((sum, w) => sum + (w.tss ?? 0), 0)
-            const totalMins = weekWorkouts.reduce((sum, w) => sum + w.duration_minutes, 0)
-            return totalTss > 0 ? (
+            if (!weekWorkouts.length) return null
+            const plannedTss = weekWorkouts.reduce((sum, w) => {
+              const if_ = IF_VALS[w.type] ?? 0.68
+              return sum + Math.round((w.duration_minutes * 60 * if_ * if_) / 36)
+            }, 0)
+            const actualTss = weekWorkouts
+              .filter(w => w.status === 'completed' && w.tss !== null)
+              .reduce((sum, w) => sum + (w.tss ?? 0), 0)
+            const plannedMins = weekWorkouts.reduce((sum, w) => sum + w.duration_minutes, 0)
+            const completedMins = weekWorkouts
+              .filter(w => w.status === 'completed')
+              .reduce((sum, w) => sum + w.duration_minutes, 0)
+            const hasCompleted = weekWorkouts.some(w => w.status === 'completed')
+            const fmt = (m: number) => `${Math.round(m / 60 * 10) / 10}h`
+            return hasCompleted ? (
               <span className="text-sm text-gray-400">
-                <span className="font-semibold text-gray-600">{totalTss}</span> TSS · <span className="font-semibold text-gray-600">{Math.round(totalMins / 60 * 10) / 10}h</span>
+                <span className="font-semibold text-gray-600">~{plannedTss} → {actualTss}</span>{' TSS · '}
+                <span className="font-semibold text-gray-600">{fmt(completedMins)}/{fmt(plannedMins)}</span>
               </span>
-            ) : totalMins > 0 ? (
+            ) : (
               <span className="text-sm text-gray-400">
-                <span className="font-semibold text-gray-600">{Math.round(totalMins / 60 * 10) / 10}h</span>
+                <span className="font-semibold text-gray-600">~{plannedTss}</span>{' TSS · '}
+                <span className="font-semibold text-gray-600">{fmt(plannedMins)}</span>
               </span>
-            ) : null
+            )
           })()}
         </div>
         <p className="text-sm text-gray-400 mb-4">
