@@ -10,6 +10,22 @@ const TYPE_COLOURS: Record<WorkoutType, string> = {
   recovery: 'bg-emerald-100 text-emerald-700',
 }
 
+const IF_BY_TYPE: Record<WorkoutType, number> = {
+  recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90,
+}
+
+const STATUS_CHIP: Partial<Record<string, string>> = {
+  completed:    'bg-emerald-100 text-emerald-700',
+  skipped:      'bg-red-100 text-red-600',
+  needs_review: 'bg-amber-100 text-amber-700',
+}
+
+const STATUS_LABEL: Partial<Record<string, string>> = {
+  completed:    '✓ Completed',
+  skipped:      'Missed',
+  needs_review: 'Needs review',
+}
+
 const MISSED_REASONS = ['Too tired', 'No time', 'Illness', 'Weather', 'Other']
 
 interface Props {
@@ -177,12 +193,21 @@ export default function WorkoutDetailModal({
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${TYPE_COLOURS[workout.type]}`}>
                 {workout.type}
               </span>
+              {STATUS_CHIP[workout.status] && (
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_CHIP[workout.status]}`}>
+                  {STATUS_LABEL[workout.status]}
+                </span>
+              )}
               <span className="text-sm font-medium text-slate-500">{workout.duration_minutes} min</span>
-              {workout.tss !== null && (
+              {workout.status === 'completed' && workout.tss !== null ? (
+                <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+                  ~{Math.round((workout.duration_minutes * 60 * (IF_BY_TYPE[workout.type] ?? 0.68) ** 2) / 36)} → {workout.tss} TSS
+                </span>
+              ) : workout.tss !== null ? (
                 <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
                   TSS {workout.tss}
                 </span>
-              )}
+              ) : null}
             </div>
             {workout.status === 'planned' ? (
               <input

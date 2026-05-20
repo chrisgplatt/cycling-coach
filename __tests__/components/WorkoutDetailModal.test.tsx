@@ -55,9 +55,11 @@ describe('WorkoutDetailModal', () => {
     expect(screen.queryByRole('link', { name: /view planned workout/i })).not.toBeInTheDocument()
   })
 
-  it('shows TSS and activity link for a matched workout', () => {
+  it('shows completed badge, planned → actual TSS, and activity link for a matched workout', () => {
     render(<WorkoutDetailModal workout={matchedWorkout} athleteId="i12345" onClose={jest.fn()} />)
-    expect(screen.getByText(/TSS.*94/)).toBeInTheDocument()
+    expect(screen.getByText('✓ Completed')).toBeInTheDocument()
+    // threshold 60min: IF=0.85, planned = round(60*60*0.85*0.85/36) = 72
+    expect(screen.getByText(/~72 → 94 TSS/)).toBeInTheDocument()
     const link = screen.getByRole('link', { name: /view garmin activity/i })
     expect(link).toHaveAttribute('href', 'https://intervals.icu/activities/act456')
   })

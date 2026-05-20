@@ -54,6 +54,11 @@ export default function WorkoutCard({ workout, onClick }: Props) {
           </span>
           <span className="text-sm font-medium text-gray-500">{workout.duration_minutes} min</span>
           {(() => {
+            if (workout.status === 'completed' && workout.tss !== null) {
+              const if_ = IF_BY_TYPE[workout.type] ?? 0.68
+              const planned = Math.round((workout.duration_minutes * 60 * if_ * if_) / 36)
+              return <span className="text-xs text-gray-400">· ~{planned} → {workout.tss} TSS</span>
+            }
             const t = getTss(workout)
             return t ? (
               <span className="text-xs text-gray-400">· {t.estimated ? '~' : ''}{t.value} TSS</span>
