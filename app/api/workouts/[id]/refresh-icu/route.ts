@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
-import type { WorkoutStep } from '@/types'
+import { generateWorkoutSteps } from '@/lib/claude/steps'
+import type { Workout, WorkoutStep } from '@/types'
 
 export async function POST(
   _req: NextRequest,
@@ -41,7 +42,18 @@ export async function POST(
 
   const name = `${workout.type.charAt(0).toUpperCase() + workout.type.slice(1)} — ${workout.duration_minutes}min`
   const description = `${workout.description}\n\nTarget: ${workout.target_zones}`
-  const steps = (workout.steps as WorkoutStep[] | null) ?? []
+
+  let steps = (workout.steps as WorkoutStep[] | null) ?? []
+
+  // Generate steps via Claude if none stored, then persist them
+  if (!steps.length) {
+    try {
+      steps = await generateWorkoutSteps(workout as Workout)
+      await supabase.from('workouts').update({ steps }).eq('id', id)
+    } catch {
+      steps = []
+    }
+  }
 
   let newEventId: string
   try {
