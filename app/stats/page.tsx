@@ -203,6 +203,7 @@ function CrossTrainingSummary({ groups }: { groups: CrossTrainingGroup[] }) {
 
   const totalCount = groups.reduce((s, g) => s + g.count, 0)
   const totalSecs = groups.reduce((s, g) => s + g.total_duration_secs, 0)
+  const totalDistKm = groups.reduce((s, g) => s + g.total_distance_m, 0) / 1000
   const totalTss = Math.round(groups.reduce((s, g) => s + g.total_tss, 0))
 
   return (
@@ -223,13 +224,18 @@ function CrossTrainingSummary({ groups }: { groups: CrossTrainingGroup[] }) {
               <div className="text-sm font-bold text-emerald-600">
                 {formatDuration(g.total_duration_secs)}
               </div>
-              <div className="text-[11px] text-gray-400">{Math.round(g.total_tss)} TSS</div>
+              <div className="text-[11px] text-gray-400">
+                {g.total_distance_m > 0 && `${(g.total_distance_m / 1000).toFixed(1)} km · `}
+                {Math.round(g.total_tss)} TSS
+              </div>
             </div>
           </div>
         ))}
       </div>
       <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-400">
-        {totalCount} activities · {formatDuration(totalSecs)} total · {totalTss} TSS contributed
+        {totalCount} activities · {formatDuration(totalSecs)} total
+        {totalDistKm > 0 && ` · ${totalDistKm.toFixed(1)} km`}
+        {` · ${totalTss} TSS contributed`}
       </div>
     </SectionCard>
   )

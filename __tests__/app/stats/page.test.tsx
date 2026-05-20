@@ -145,8 +145,8 @@ describe('StatsPage', () => {
     const stats = {
       ...mockStats,
       cross_training: [
-        { type: 'Run', count: 2, total_duration_secs: 4800, total_tss: 80 },
-        { type: 'Walk', count: 3, total_duration_secs: 9900, total_tss: 45 },
+        { type: 'Run', count: 2, total_duration_secs: 4800, total_distance_m: 16000, total_tss: 80 },
+        { type: 'Walk', count: 3, total_duration_secs: 9900, total_distance_m: 12000, total_tss: 45 },
       ],
     }
     ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => ({ stats }) })
@@ -157,27 +157,28 @@ describe('StatsPage', () => {
     expect(screen.getByText('3 sessions')).toBeInTheDocument()
   })
 
-  it('shows correct TSS per group', async () => {
+  it('shows correct TSS and distance per group', async () => {
     const stats = {
       ...mockStats,
       cross_training: [
-        { type: 'Run', count: 2, total_duration_secs: 4800, total_tss: 80 },
-        { type: 'Walk', count: 3, total_duration_secs: 9900, total_tss: 45 },
+        { type: 'Run', count: 2, total_duration_secs: 4800, total_distance_m: 16000, total_tss: 80 },
+        { type: 'Walk', count: 3, total_duration_secs: 9900, total_distance_m: 0, total_tss: 45 },
       ],
     }
     ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => ({ stats }) })
     render(<StatsPage />)
     await screen.findByText('Run')
-    expect(screen.getByText('80 TSS')).toBeInTheDocument()
-    expect(screen.getByText('45 TSS')).toBeInTheDocument()
+    expect(screen.getAllByText(/16\.0 km/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/80 TSS/)).toBeInTheDocument()
+    expect(screen.getByText(/45 TSS/)).toBeInTheDocument()
   })
 
   it('shows footer totals across all cross-training groups', async () => {
     const stats = {
       ...mockStats,
       cross_training: [
-        { type: 'Run', count: 2, total_duration_secs: 4800, total_tss: 80 },
-        { type: 'Walk', count: 3, total_duration_secs: 9900, total_tss: 45 },
+        { type: 'Run', count: 2, total_duration_secs: 4800, total_distance_m: 16000, total_tss: 80 },
+        { type: 'Walk', count: 3, total_duration_secs: 9900, total_distance_m: 12000, total_tss: 45 },
       ],
     }
     ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => ({ stats }) })

@@ -26,12 +26,14 @@ export function groupCrossTraining(activities: ICUActivity[]): CrossTrainingGrou
     if (existing) {
       existing.count++
       existing.total_duration_secs += a.moving_time
+      existing.total_distance_m += a.distance ?? 0
       existing.total_tss += a.training_load ?? 0
     } else {
       map.set(a.type, {
         type: a.type,
         count: 1,
         total_duration_secs: a.moving_time,
+        total_distance_m: a.distance ?? 0,
         total_tss: a.training_load ?? 0,
       })
     }

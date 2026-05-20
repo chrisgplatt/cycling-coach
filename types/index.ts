@@ -146,6 +146,7 @@ export interface CrossTrainingGroup {
   type: string               // e.g. "Walk", "Run", "WeightTraining"
   count: number
   total_duration_secs: number
+  total_distance_m: number   // sum of distance in metres; 0 if all null
   total_tss: number          // sum of training_load; 0 if all null
 }
 

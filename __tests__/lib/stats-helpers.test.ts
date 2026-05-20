@@ -97,8 +97,8 @@ describe('groupCrossTraining', () => {
 
   it('groups multiple activities of the same type', () => {
     const acts = [
-      makeActivity({ type: 'Walk', moving_time: 3600, training_load: 20 }),
-      makeActivity({ type: 'Walk', moving_time: 1800, training_load: 10 }),
+      makeActivity({ type: 'Walk', moving_time: 3600, training_load: 20, distance: 4000 }),
+      makeActivity({ type: 'Walk', moving_time: 1800, training_load: 10, distance: 2000 }),
     ]
     const result = groupCrossTraining(acts)
     expect(result).toHaveLength(1)
@@ -106,8 +106,15 @@ describe('groupCrossTraining', () => {
       type: 'Walk',
       count: 2,
       total_duration_secs: 5400,
+      total_distance_m: 6000,
       total_tss: 30,
     })
+  })
+
+  it('treats null distance as 0', () => {
+    const acts = [makeActivity({ type: 'Yoga', distance: null })]
+    const result = groupCrossTraining(acts)
+    expect(result[0].total_distance_m).toBe(0)
   })
 
   it('treats null training_load as 0', () => {
