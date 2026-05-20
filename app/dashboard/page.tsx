@@ -113,7 +113,7 @@ export default function DashboardPage() {
     const { active, over } = event
     if (!over) return
     const workout = workouts.find(w => w.id === String(active.id))
-    if (!workout) return
+    if (!workout || workout.status !== 'planned') return
     const toDate = String(over.id)
     if (toDate === workout.date) return
     setPendingReschedule({ workout, toDate })

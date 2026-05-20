@@ -9,7 +9,6 @@ interface Props {
 
 export default function FeedbackModal({ workout, onClose }: Props) {
   const [feedbackText, setFeedbackText] = useState('')
-  const [activityId, setActivityId] = useState('')
   const [loading, setLoading] = useState(false)
   const [proposed, setProposed] = useState<{ feedbackId: string; adjustment: ProposedAdjustment } | null>(null)
   const [done, setDone] = useState(false)
@@ -22,7 +21,7 @@ export default function FeedbackModal({ workout, onClose }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         workoutId: workout.id,
-        activityId: activityId || 'manual',
+        activityId: workout.icu_activity_id ?? 'manual',
         feedbackText,
       }),
     })
@@ -56,13 +55,6 @@ export default function FeedbackModal({ workout, onClose }: Props) {
 
         {!proposed && !done && (
           <>
-            <input
-              type="text"
-              value={activityId}
-              onChange={e => setActivityId(e.target.value)}
-              placeholder="intervals.icu activity ID (optional)"
-              className="w-full text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
             <textarea
               value={feedbackText}
               onChange={e => setFeedbackText(e.target.value)}

@@ -63,14 +63,17 @@ export async function PATCH(
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
   }
 
-  // Fetch existing event id before update so we can move it in intervals.icu after
+  // Fetch existing workout before update — needed for event id (date moves) and status guard
   let eventId: string | null = null
   if (body.date !== undefined) {
     const { data: existing } = await supabase
       .from('workouts')
-      .select('intervals_icu_event_id')
+      .select('intervals_icu_event_id, status')
       .eq('id', id)
       .maybeSingle()
+    if (existing?.status !== 'planned') {
+      return NextResponse.json({ error: 'Only planned workouts can be rescheduled' }, { status: 400 })
+    }
     eventId = existing?.intervals_icu_event_id ?? null
   }
 
