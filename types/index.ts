@@ -155,6 +155,16 @@ export interface RidingStats {
   recent_rides: ICUActivity[]
 }
 
+export interface WeeklyTss {
+  weekStart: string  // YYYY-MM-DD (Monday of that ISO week)
+  tss: number
+}
+
+export interface ChartsData {
+  wellness: ICUWellness[]
+  weeklyTss: WeeklyTss[]
+}
+
 export interface ICUPowerCurvePoint {
   secs: number
   watts: number
