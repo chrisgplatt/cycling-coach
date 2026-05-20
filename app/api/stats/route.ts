@@ -42,7 +42,8 @@ export async function GET() {
     const recentTwo = sortedRides.slice(0, 2)
     await Promise.all(recentTwo.map(async ride => {
       try {
-        const curve = await client.getActivityPowerCurve(ride.id)
+        const rideDate = ride.start_date_local.split('T')[0]
+        const curve = await client.getPowerCurve(rideDate, rideDate)
         ride.power_5min = findNearestPower(curve, 300)
         ride.power_10min = findNearestPower(curve, 600)
         ride.power_20min = findNearestPower(curve, 1200)
