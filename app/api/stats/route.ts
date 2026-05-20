@@ -38,6 +38,21 @@ export async function GET() {
 
     const sortedRides = [...rides].sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))
 
+    // Enrich the 2 most recent rides with per-ride best power
+    const recentTwo = sortedRides.slice(0, 2)
+    await Promise.all(recentTwo.map(async ride => {
+      try {
+        const curve = await client.getActivityPowerCurve(ride.id)
+        ride.power_5min = findNearestPower(curve, 300)
+        ride.power_10min = findNearestPower(curve, 600)
+        ride.power_20min = findNearestPower(curve, 1200)
+      } catch {
+        ride.power_5min = null
+        ride.power_10min = null
+        ride.power_20min = null
+      }
+    }))
+
     const stats: RidingStats = {
       ride_count: rides.length,
       total_distance_km: rides.reduce((sum, r) => sum + (r.distance ?? 0), 0) / 1000,
