@@ -131,4 +131,59 @@ describe('StatsPage', () => {
     expect(screen.getByText('72')).toBeInTheDocument()           // TSS
     expect(screen.getByText('Morning Ride')).toBeInTheDocument()
   })
+
+  it('hides cross-training section when cross_training is empty', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValue({
+      json: async () => ({ stats: { ...mockStats, cross_training: [] } }),
+    })
+    render(<StatsPage />)
+    await screen.findByText('342.5')
+    expect(screen.queryByText(/Other Activity/)).not.toBeInTheDocument()
+  })
+
+  it('renders cross-training groups when present', async () => {
+    const stats = {
+      ...mockStats,
+      cross_training: [
+        { type: 'Run', count: 2, total_duration_secs: 4800, total_tss: 80 },
+        { type: 'Walk', count: 3, total_duration_secs: 9900, total_tss: 45 },
+      ],
+    }
+    ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => ({ stats }) })
+    render(<StatsPage />)
+    await screen.findByText('Run')
+    expect(screen.getByText('Walk')).toBeInTheDocument()
+    expect(screen.getByText('2 sessions')).toBeInTheDocument()
+    expect(screen.getByText('3 sessions')).toBeInTheDocument()
+  })
+
+  it('shows correct TSS per group', async () => {
+    const stats = {
+      ...mockStats,
+      cross_training: [
+        { type: 'Run', count: 2, total_duration_secs: 4800, total_tss: 80 },
+        { type: 'Walk', count: 3, total_duration_secs: 9900, total_tss: 45 },
+      ],
+    }
+    ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => ({ stats }) })
+    render(<StatsPage />)
+    await screen.findByText('Run')
+    expect(screen.getByText('80 TSS')).toBeInTheDocument()
+    expect(screen.getByText('45 TSS')).toBeInTheDocument()
+  })
+
+  it('shows footer totals across all cross-training groups', async () => {
+    const stats = {
+      ...mockStats,
+      cross_training: [
+        { type: 'Run', count: 2, total_duration_secs: 4800, total_tss: 80 },
+        { type: 'Walk', count: 3, total_duration_secs: 9900, total_tss: 45 },
+      ],
+    }
+    ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => ({ stats }) })
+    render(<StatsPage />)
+    await screen.findByText('Run')
+    expect(screen.getByText(/5 activities/)).toBeInTheDocument()
+    expect(screen.getByText(/125 TSS contributed/)).toBeInTheDocument()
+  })
 })

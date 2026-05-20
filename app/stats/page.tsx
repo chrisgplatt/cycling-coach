@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { RidingStats, ICUActivity } from '@/types'
+import type { RidingStats, ICUActivity, CrossTrainingGroup } from '@/types'
 
 function StatCell({
   label, value, unit, valueClass = 'text-gray-900',
@@ -188,6 +188,53 @@ function AggregateView({ stats }: { stats: RidingStats }) {
   )
 }
 
+const ACTIVITY_EMOJI: Record<string, string> = {
+  Walk: '🚶', Hike: '🥾', Run: '🏃', VirtualRun: '🏃',
+  WeightTraining: '🏋️', Yoga: '🧘', Swim: '🏊',
+  Rowing: '🚣', Kayaking: '🛶',
+}
+
+function activityEmoji(type: string): string {
+  return ACTIVITY_EMOJI[type] ?? '⚡'
+}
+
+function CrossTrainingSummary({ groups }: { groups: CrossTrainingGroup[] }) {
+  if (!groups.length) return null
+
+  const totalCount = groups.reduce((s, g) => s + g.count, 0)
+  const totalSecs = groups.reduce((s, g) => s + g.total_duration_secs, 0)
+  const totalTss = Math.round(groups.reduce((s, g) => s + g.total_tss, 0))
+
+  return (
+    <SectionCard title="Other Activity · 28 Days" accent="bg-emerald-500">
+      <div className="divide-y divide-gray-100">
+        {groups.map(g => (
+          <div key={g.type} className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-base">{activityEmoji(g.type)}</span>
+              <div>
+                <div className="text-sm font-semibold text-gray-800">{g.type}</div>
+                <div className="text-[11px] text-gray-400">
+                  {g.count} session{g.count !== 1 ? 's' : ''}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-bold text-emerald-600">
+                {formatDuration(g.total_duration_secs)}
+              </div>
+              <div className="text-[11px] text-gray-400">{Math.round(g.total_tss)} TSS</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-400">
+        {totalCount} activities · {formatDuration(totalSecs)} total · {totalTss} TSS contributed
+      </div>
+    </SectionCard>
+  )
+}
+
 export default function StatsPage() {
   const [stats, setStats] = useState<RidingStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -259,10 +306,14 @@ export default function StatsPage() {
         </div>
       )}
 
-      {activeTab === 0
-        ? <AggregateView stats={stats} />
-        : <RideView ride={rides[activeTab - 1]} />
-      }
+      {activeTab === 0 ? (
+        <>
+          <AggregateView stats={stats} />
+          <CrossTrainingSummary groups={stats.cross_training} />
+        </>
+      ) : (
+        <RideView ride={rides[activeTab - 1]} />
+      )}
     </main>
   )
 }
