@@ -52,6 +52,7 @@ create table if not exists workouts (
   intervals_icu_event_id text,
   icu_activity_id text,
   tss numeric,
+  missed_reason text,
   status text not null default 'planned' check (status in ('planned', 'completed', 'skipped', 'needs_review')),
   created_at timestamptz not null default now()
 );

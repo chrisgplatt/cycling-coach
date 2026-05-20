@@ -7,7 +7,7 @@ const workout: Workout = {
   type: 'threshold', duration_minutes: 60,
   description: '2x20min at threshold', target_zones: 'Zone 4 (91-105% FTP)',
   intervals_icu_event_id: 'evt123', status: 'planned',
-  icu_activity_id: null, tss: null,
+  icu_activity_id: null, tss: null, missed_reason: null,
   created_at: '',
 }
 

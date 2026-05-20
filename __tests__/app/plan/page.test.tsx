@@ -118,8 +118,8 @@ describe('My Plan tab', () => {
         json: async () => ({
           name: 'Dragon Ride Build',
           workouts: [
-            { id: 'w1', date: '2026-05-12', type: 'endurance', duration_minutes: 90, status: 'planned', tss: null, icu_activity_id: null, description: '', target_zones: '', intervals_icu_event_id: null, plan_id: 'p1', created_at: '' },
-            { id: 'w2', date: '2026-06-15', type: 'threshold', duration_minutes: 60, status: 'planned', tss: null, icu_activity_id: null, description: '', target_zones: '', intervals_icu_event_id: null, plan_id: 'p1', created_at: '' },
+            { id: 'w1', date: '2026-05-12', type: 'endurance', duration_minutes: 90, status: 'planned', tss: null, icu_activity_id: null, missed_reason: null, description: '', target_zones: '', intervals_icu_event_id: null, plan_id: 'p1', created_at: '' },
+            { id: 'w2', date: '2026-06-15', type: 'threshold', duration_minutes: 60, status: 'planned', tss: null, icu_activity_id: null, missed_reason: null, description: '', target_zones: '', intervals_icu_event_id: null, plan_id: 'p1', created_at: '' },
           ],
         }),
       })

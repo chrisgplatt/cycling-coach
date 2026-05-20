@@ -53,6 +53,7 @@ export interface Workout {
   status: WorkoutStatus
   icu_activity_id: string | null
   tss: number | null
+  missed_reason: string | null
   created_at: string
 }
 
