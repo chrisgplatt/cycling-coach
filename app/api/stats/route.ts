@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
-import { findNearestPower, computeLeftRightBalance } from '@/lib/stats-helpers'
+import { findNearestPower, computeLeftRightBalance, groupCrossTraining } from '@/lib/stats-helpers'
 import type { ICUPowerCurvePoint, RidingStats } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -49,7 +49,7 @@ export async function GET() {
       avg_left_right_balance: computeLeftRightBalance(rides),
       balance_ride_count: rides.filter(r => r.left_right_balance !== null).length,
       recent_rides: sortedRides.slice(0, 2),
-      cross_training: [],
+      cross_training: groupCrossTraining(activities),
     }
 
     return NextResponse.json({ stats })
