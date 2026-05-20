@@ -47,6 +47,7 @@ const mockStats: RidingStats = {
       left_right_balance: null,
     },
   ],
+  cross_training: [],
 }
 
 global.fetch = jest.fn()

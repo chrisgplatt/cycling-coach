@@ -142,6 +142,13 @@ export interface ICUSyncData {
   athlete_id?: string  // added by /api/sync route, not by IntervalsClient
 }
 
+export interface CrossTrainingGroup {
+  type: string               // e.g. "Walk", "Run", "WeightTraining"
+  count: number
+  total_duration_secs: number
+  total_tss: number          // sum of training_load; 0 if all null
+}
+
 export interface RidingStats {
   ride_count: number
   total_distance_km: number
@@ -153,6 +160,7 @@ export interface RidingStats {
   avg_left_right_balance: number | null  // left %, e.g. 52.3
   balance_ride_count: number
   recent_rides: ICUActivity[]
+  cross_training: CrossTrainingGroup[]
 }
 
 export interface WeeklyTss {
