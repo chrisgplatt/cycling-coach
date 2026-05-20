@@ -22,7 +22,7 @@ function makeWorkout(overrides: Partial<Workout>): Workout {
     type: 'endurance', duration_minutes: 90,
     description: 'Zone 2 ride', target_zones: 'Zone 2',
     intervals_icu_event_id: null, status: 'planned',
-    icu_activity_id: null, tss: null, missed_reason: null,
+    icu_activity_id: null, tss: null, missed_reason: null, steps: null,
     created_at: '',
     ...overrides,
   }

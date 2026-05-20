@@ -26,6 +26,10 @@ create table if not exists user_profile (
 -- Migration for existing installations (training_plans):
 -- alter table training_plans add column if not exists last_reviewed_week text;
 
+-- Migration for existing installations (workouts):
+-- alter table workouts add column if not exists steps jsonb;
+-- alter table workouts add column if not exists missed_reason text;
+
 create table if not exists training_plans (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -53,6 +57,7 @@ create table if not exists workouts (
   icu_activity_id text,
   tss numeric,
   missed_reason text,
+  steps jsonb,
   status text not null default 'planned' check (status in ('planned', 'completed', 'skipped', 'needs_review')),
   created_at timestamptz not null default now()
 );

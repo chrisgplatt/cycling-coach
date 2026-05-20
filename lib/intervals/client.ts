@@ -256,6 +256,25 @@ export class IntervalsClient {
     })
   }
 
+  async updateEventFull(eventId: string, params: {
+    name: string
+    description: string
+    duration_minutes: number
+    steps: WorkoutStep[]
+  }): Promise<void> {
+    const fullDescription = params.steps.length
+      ? `${params.description}\n\n---\n\n${buildWorkoutNotation(params.steps)}`
+      : params.description
+    await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: params.name,
+        description: fullDescription,
+        moving_time: params.duration_minutes * 60,
+      }),
+    })
+  }
+
   async deleteEvent(eventId: string): Promise<void> {
     await this.request(`/athlete/${this.athleteId}/events/${eventId}`, { method: 'DELETE' })
   }

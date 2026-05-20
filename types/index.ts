@@ -54,6 +54,7 @@ export interface Workout {
   icu_activity_id: string | null
   tss: number | null
   missed_reason: string | null
+  steps: WorkoutStep[] | null
   created_at: string
 }
 
@@ -68,6 +69,7 @@ export interface WorkoutChange {
 export interface ProposedAdjustment {
   summary: string
   changes: WorkoutChange[]
+  workout_steps?: Array<{ workout_id: string; steps: WorkoutStep[] }>
 }
 
 export interface SessionFeedback {

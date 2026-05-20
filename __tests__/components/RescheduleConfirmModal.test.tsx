@@ -7,7 +7,7 @@ const workout: Workout = {
   type: 'threshold', duration_minutes: 60,
   description: '2x20 at FTP', target_zones: 'Zone 4',
   intervals_icu_event_id: 'evt1', status: 'planned',
-  icu_activity_id: null, tss: null, missed_reason: null, created_at: '',
+  icu_activity_id: null, tss: null, missed_reason: null, steps: null, created_at: '',
 }
 
 describe('RescheduleConfirmModal', () => {

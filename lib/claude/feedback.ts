@@ -27,7 +27,14 @@ Athlete feedback: "${feedbackText}"
 Upcoming workouts (next 7 days):
 ${upcoming || 'None'}
 
-Propose adjustments to upcoming workouts if needed. Return ONLY:
+Propose adjustments to upcoming workouts if needed.
+
+For EVERY workout you propose a change to, you MUST also generate new workout steps in "workout_steps".
+Steps must: always start with a warm-up and end with a cool-down, sum to the final duration_minutes,
+match the workout type intensity zones, and be practical for a Garmin/Wahoo device.
+power_pct_ftp: recovery=50-55%, endurance=60-75%, threshold=88-95%, intervals=105-120%.
+
+Return ONLY valid JSON:
 {
   "summary": "brief explanation",
   "changes": [
@@ -38,9 +45,19 @@ Propose adjustments to upcoming workouts if needed. Return ONLY:
       "new_value": "proposed value",
       "reason": "why"
     }
+  ],
+  "workout_steps": [
+    {
+      "workout_id": "uuid (must match a changed workout)",
+      "steps": [
+        { "label": "Warm Up", "duration_minutes": 10, "power_pct_ftp": 60 },
+        { "label": "Main Set", "duration_minutes": 30, "power_pct_ftp": 68 },
+        { "label": "Cool Down", "duration_minutes": 10, "power_pct_ftp": 55 }
+      ]
+    }
   ]
 }
-If no changes needed: {"summary": "No adjustments needed", "changes": []}`
+If no changes needed: {"summary": "No adjustments needed", "changes": [], "workout_steps": []}`
 
   const response = await anthropic.messages.stream({
     model: MODEL,

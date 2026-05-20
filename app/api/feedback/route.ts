@@ -84,28 +84,51 @@ export async function PATCH(req: NextRequest) {
     ? new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
     : null
 
+  // Apply field changes grouped by workout_id
+  const changedWorkoutIds = new Set(adjustment.changes.map(c => c.workout_id))
   for (const change of adjustment.changes) {
     await supabase
       .from('workouts')
       .update({ [change.field]: change.new_value })
       .eq('id', change.workout_id)
+  }
 
-    // Only update duration in intervals.icu — the structured workout notation
-    // (warmup/main set/cooldown steps) lives only in intervals.icu and must not
-    // be overwritten with the plain-text description stored in the DB.
-    if (client && change.field === 'duration_minutes') {
-      const { data: w } = await supabase
+  // Apply new steps and push fully structured event to intervals.icu
+  const stepsMap = new Map(
+    (adjustment.workout_steps ?? []).map(ws => [ws.workout_id, ws.steps])
+  )
+
+  for (const workoutId of changedWorkoutIds) {
+    const newSteps = stepsMap.get(workoutId)
+
+    // Persist steps to DB
+    if (newSteps?.length) {
+      await supabase
         .from('workouts')
-        .select('intervals_icu_event_id, duration_minutes')
-        .eq('id', change.workout_id)
-        .single()
-
-      if (w?.intervals_icu_event_id) {
-        await client.updateEvent(w.intervals_icu_event_id, {
-          duration_minutes: w.duration_minutes,
-        }).catch(() => {})
-      }
+        .update({ steps: newSteps })
+        .eq('id', workoutId)
     }
+
+    if (!client) continue
+
+    const { data: w } = await supabase
+      .from('workouts')
+      .select('intervals_icu_event_id, type, duration_minutes, description, target_zones, steps')
+      .eq('id', workoutId)
+      .single()
+
+    if (!w?.intervals_icu_event_id) continue
+
+    const steps = (w.steps as import('@/types').WorkoutStep[] | null) ?? []
+    const name = `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`
+    const description = `${w.description}\n\nTarget: ${w.target_zones}`
+
+    await client.updateEventFull(w.intervals_icu_event_id, {
+      name,
+      description,
+      duration_minutes: w.duration_minutes,
+      steps,
+    }).catch(() => {})
   }
 
   return NextResponse.json({ ok: true })
