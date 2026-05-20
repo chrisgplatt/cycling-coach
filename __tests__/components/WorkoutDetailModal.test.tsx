@@ -223,5 +223,15 @@ describe('WorkoutDetailModal', () => {
       expect(screen.queryByText(/why was it missed/i)).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: /mark as missed/i })).toBeInTheDocument()
     })
+
+    it('shows error when PATCH fails', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: false, json: async () => ({ error: 'Server error' }),
+      } as unknown as Response)
+      render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
+      fireEvent.click(screen.getByRole('button', { name: /mark as missed/i }))
+      fireEvent.click(screen.getByRole('button', { name: /confirm missed/i }))
+      await waitFor(() => expect(screen.getByText('Server error')).toBeInTheDocument())
+    })
   })
 })

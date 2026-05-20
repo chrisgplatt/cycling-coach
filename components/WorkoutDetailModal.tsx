@@ -10,6 +10,8 @@ const TYPE_COLOURS: Record<WorkoutType, string> = {
   recovery: 'bg-emerald-100 text-emerald-700',
 }
 
+const MISSED_REASONS = ['Too tired', 'No time', 'Illness', 'Weather', 'Other']
+
 interface Props {
   workout: Workout
   athleteId: string
@@ -35,8 +37,6 @@ export default function WorkoutDetailModal({
   const [markingMissed, setMarkingMissed] = useState(false)
   const [missedReason, setMissedReason] = useState<string | null>(null)
   const [savingMissed, setSavingMissed] = useState(false)
-
-  const MISSED_REASONS = ['Too tired', 'No time', 'Illness', 'Weather', 'Other']
 
   async function handleDelete() {
     setDeleting(true)
@@ -134,6 +134,8 @@ export default function WorkoutDetailModal({
         setError(data.error ?? 'Failed to update')
         return
       }
+      setMarkingMissed(false)
+      setMissedReason(null)
       onStatusChange?.()
     } catch {
       setError('Network error')
