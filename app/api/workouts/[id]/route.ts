@@ -47,6 +47,7 @@ export async function PATCH(
   if (body.status !== undefined) update.status = body.status
   if (body.icu_activity_id !== undefined) update.icu_activity_id = body.icu_activity_id
   if (body.tss !== undefined) update.tss = body.tss
+  if (body.missed_reason !== undefined) update.missed_reason = body.missed_reason ?? null
   if (body.date !== undefined) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.date))) {
       return NextResponse.json({ error: 'Invalid date format' }, { status: 400 })
