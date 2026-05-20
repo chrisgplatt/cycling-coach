@@ -53,6 +53,8 @@ export default function WorkoutDetailModal({
   const [markingMissed, setMarkingMissed] = useState(false)
   const [missedReason, setMissedReason] = useState<string | null>(null)
   const [savingMissed, setSavingMissed] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshMsg, setRefreshMsg] = useState<string | null>(null)
 
   async function handleDelete() {
     setDeleting(true)
@@ -181,6 +183,25 @@ export default function WorkoutDetailModal({
       setRescheduleError('Network error')
     } finally {
       setRescheduling(false)
+    }
+  }
+
+  async function handleRefreshIcu() {
+    setRefreshing(true)
+    setRefreshMsg(null)
+    try {
+      const res = await fetch(`/api/workouts/${workout.id}/refresh-icu`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setRefreshMsg(data.error ?? 'Refresh failed')
+      } else {
+        setRefreshMsg('Refreshed in intervals.icu')
+        setTimeout(() => setRefreshMsg(null), 3000)
+      }
+    } catch {
+      setRefreshMsg('Network error')
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -364,6 +385,11 @@ export default function WorkoutDetailModal({
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
           )}
+          {refreshMsg && (
+            <p className={`text-sm rounded-lg px-3 py-2 ${refreshMsg === 'Refreshed in intervals.icu' ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' : 'text-red-600 bg-red-50 border border-red-100'}`}>
+              {refreshMsg}
+            </p>
+          )}
         </div>
 
         <div className="p-4 border-t border-slate-100 flex items-center justify-between">
@@ -371,6 +397,15 @@ export default function WorkoutDetailModal({
             {(workout.status === 'completed' || workout.status === 'needs_review') && onFeedback && (
               <button onClick={onFeedback} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
                 Log feedback
+              </button>
+            )}
+            {workout.status === 'planned' && workout.intervals_icu_event_id && !markingMissed && (
+              <button
+                onClick={handleRefreshIcu}
+                disabled={refreshing}
+                className="text-sm font-medium text-violet-600 hover:text-violet-800 disabled:opacity-50 transition-colors"
+              >
+                {refreshing ? 'Refreshing…' : 'Refresh in ICU'}
               </button>
             )}
             {workout.status === 'planned' && !markingMissed && (
