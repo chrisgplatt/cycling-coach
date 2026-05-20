@@ -73,7 +73,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  const adjustment = feedback.proposed_adjustment as { changes: Array<{ workout_id: string; field: string; new_value: string | number }> }
+  const adjustment = feedback.proposed_adjustment as import('@/types').ProposedAdjustment
 
   const { data: profile } = await supabase
     .from('user_profile')
