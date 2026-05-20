@@ -13,11 +13,12 @@ export async function DELETE(
 
   const { data: workout } = await supabase
     .from('workouts')
-    .select('intervals_icu_event_id, plan_id')
+    .select('intervals_icu_event_id, plan_id, date, status')
     .eq('id', id)
     .maybeSingle()
 
-  if (workout?.intervals_icu_event_id) {
+  const today = new Date().toISOString().split('T')[0]
+  if (workout?.intervals_icu_event_id && workout.date >= today && workout.status === 'planned') {
     const { data: profile } = await supabase
       .from('user_profile')
       .select('intervals_icu_athlete_id, intervals_icu_api_key')
