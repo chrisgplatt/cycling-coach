@@ -50,7 +50,7 @@ function PMCChart({ wellness }: { wellness: ICUWellness[] }) {
   const monthLabels: { x: number; label: string }[] = []
   let lastMonth = -1
   data.forEach((w, i) => {
-    const m = new Date(w.id).getMonth()
+    const m = new Date(w.id).getUTCMonth()
     if (m !== lastMonth) { monthLabels.push({ x: xOf(i), label: MONTHS[m] }); lastMonth = m }
   })
 
@@ -121,7 +121,7 @@ function WeeklyTssChart({ weeklyTss }: { weeklyTss: WeeklyTss[] }) {
   const monthLabels: { x: number; label: string }[] = []
   let lastMonth = -1
   weeklyTss.forEach((w, i) => {
-    const m = new Date(w.weekStart).getMonth()
+    const m = new Date(w.weekStart).getUTCMonth()
     if (m !== lastMonth) { monthLabels.push({ x: xOf(i) + barW / 2, label: MONTHS[m] }); lastMonth = m }
   })
 
@@ -144,7 +144,7 @@ function WeeklyTssChart({ weeklyTss }: { weeklyTss: WeeklyTss[] }) {
           return (
             <rect
               key={w.weekStart}
-              x={x} y={y} width={barW} height={svgBottom - y}
+              x={x} y={y} width={barW} height={Math.max(2, svgBottom - y)}
               rx="2"
               fill={w.weekStart === todayWeekStart ? '#c4b5fd' : '#8b5cf6'}
             />
@@ -180,6 +180,7 @@ export default function FitnessPage() {
       .then(r => r.json())
       .then(data => {
         if (data.error) throw new Error(data.error)
+        if (!data.charts) throw new Error('Unexpected response from /api/charts')
         setCharts(data.charts)
       })
       .catch((e: Error) => setChartsError(e.message))
