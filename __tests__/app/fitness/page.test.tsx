@@ -35,9 +35,9 @@ describe('FitnessPage charts', () => {
     expect(await screen.findByText('54')).toBeInTheDocument()  // CTL
     expect(screen.getByText('61')).toBeInTheDocument()          // ATL
     expect(screen.getByText('-7')).toBeInTheDocument()          // Form
-    expect(screen.getByText('CTL')).toBeInTheDocument()
-    expect(screen.getByText('ATL')).toBeInTheDocument()
-    expect(screen.getByText('Form')).toBeInTheDocument()
+    expect(screen.getAllByText('CTL').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('ATL').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Form').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders weekly TSS bars (one rect per week)', async () => {
@@ -46,7 +46,7 @@ describe('FitnessPage charts', () => {
       return Promise.resolve({ json: async () => [] })
     })
     render(<FitnessPage />)
-    await screen.findByText('CTL')
+    await screen.findByText('54')  // Use a unique identifier instead
     // One SVG rect per week in the TSS chart
     const rects = document.querySelectorAll('svg rect')
     expect(rects.length).toBe(mockCharts.weeklyTss.length)

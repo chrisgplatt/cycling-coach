@@ -1,12 +1,12 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { normalizeY, isoWeekStart } from '@/lib/chart-helpers'
 import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss } from '@/types'
 
 const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-function SectionCard({ title, children, accent }: { title: string; children: React.ReactNode; accent?: string }) {
+function SectionCard({ title, children, accent }: { title: string; children: ReactNode; accent?: string }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="px-4 py-2.5 border-b border-gray-200 flex items-center gap-2 bg-white">
@@ -74,7 +74,7 @@ function PMCChart({ wellness }: { wellness: ICUWellness[] }) {
       </div>
       <svg viewBox={`0 0 ${svgRight + 10} 140`} className="w-full">
         {tickYs.map((y, i) => (
-          <g key={i}>
+          <g key={ticks[i]}>
             <line x1={svgLeft} y1={y} x2={svgRight} y2={y} stroke="#f3f4f6" strokeWidth="1"/>
             <text x={svgLeft - 4} y={y + 4} fontSize="9" fill="#d1d5db" textAnchor="end">{ticks[i]}</text>
           </g>
@@ -88,9 +88,14 @@ function PMCChart({ wellness }: { wellness: ICUWellness[] }) {
         <line x1={svgRight} y1={svgTop} x2={svgRight} y2={svgBottom + 5} stroke="#9ca3af" strokeWidth="1" strokeDasharray="2,2"/>
         <text x={svgRight} y={svgBottom + 15} fontSize="8" fill="#9ca3af" textAnchor="middle">Today</text>
         {monthLabels.map((ml, i) => (
-          <text key={i} x={ml.x} y={svgBottom + 25} fontSize="8" fill="#d1d5db" textAnchor="middle">{ml.label}</text>
+          <text key={ml.label + ml.x} x={ml.x} y={svgBottom + 25} fontSize="8" fill="#d1d5db" textAnchor="middle">{ml.label}</text>
         ))}
       </svg>
+      <div className="flex gap-3 px-3 pb-3 text-[11px] text-gray-500">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-[2.5px] bg-blue-500 rounded inline-block"/>CTL</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] bg-red-500 rounded inline-block"/>ATL</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block" style={{ background: formColour }}/>Form</span>
+      </div>
     </div>
   )
 }
@@ -127,7 +132,7 @@ function WeeklyTssChart({ weeklyTss }: { weeklyTss: WeeklyTss[] }) {
     <div>
       <svg viewBox={`0 0 ${svgRight + 10} 115`} className="w-full">
         {tickYs.map((y, i) => (
-          <g key={i}>
+          <g key={ticks[i]}>
             <line x1={svgLeft} y1={y} x2={svgRight} y2={y} stroke="#f3f4f6" strokeWidth="1"/>
             <text x={svgLeft - 4} y={y + 4} fontSize="9" fill="#d1d5db" textAnchor="end">{ticks[i]}</text>
           </g>
@@ -146,7 +151,7 @@ function WeeklyTssChart({ weeklyTss }: { weeklyTss: WeeklyTss[] }) {
           )
         })}
         {monthLabels.map((ml, i) => (
-          <text key={i} x={ml.x} y={svgBottom + 15} fontSize="8" fill="#d1d5db" textAnchor="middle">{ml.label}</text>
+          <text key={ml.label + ml.x} x={ml.x} y={svgBottom + 15} fontSize="8" fill="#d1d5db" textAnchor="middle">{ml.label}</text>
         ))}
       </svg>
       <p className="text-[11px] text-gray-400 px-3 pb-3">Avg {avgTss} TSS/week</p>
