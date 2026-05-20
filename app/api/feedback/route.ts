@@ -90,16 +90,18 @@ export async function PATCH(req: NextRequest) {
       .update({ [change.field]: change.new_value })
       .eq('id', change.workout_id)
 
-    if (client && (change.field === 'duration_minutes' || change.field === 'description')) {
+    // Only update duration in intervals.icu — the structured workout notation
+    // (warmup/main set/cooldown steps) lives only in intervals.icu and must not
+    // be overwritten with the plain-text description stored in the DB.
+    if (client && change.field === 'duration_minutes') {
       const { data: w } = await supabase
         .from('workouts')
-        .select('intervals_icu_event_id, description, duration_minutes')
+        .select('intervals_icu_event_id, duration_minutes')
         .eq('id', change.workout_id)
         .single()
 
       if (w?.intervals_icu_event_id) {
         await client.updateEvent(w.intervals_icu_event_id, {
-          description: w.description,
           duration_minutes: w.duration_minutes,
         }).catch(() => {})
       }
