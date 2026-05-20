@@ -157,4 +157,71 @@ describe('WorkoutDetailModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
     await waitFor(() => expect(screen.getByText('Reschedule failed')).toBeInTheDocument())
   })
+
+  describe('Mark as missed', () => {
+    it('shows "Mark as missed" button for a planned workout', () => {
+      render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
+      expect(screen.getByRole('button', { name: /mark as missed/i })).toBeInTheDocument()
+    })
+
+    it('does not show "Mark as missed" button for a completed workout', () => {
+      render(<WorkoutDetailModal workout={matchedWorkout} athleteId="i12345" onClose={jest.fn()} />)
+      expect(screen.queryByRole('button', { name: /mark as missed/i })).not.toBeInTheDocument()
+    })
+
+    it('does not show "Mark as missed" button for a skipped workout', () => {
+      const skipped = { ...workout, status: 'skipped' as const }
+      render(<WorkoutDetailModal workout={skipped} athleteId="i12345" onClose={jest.fn()} />)
+      expect(screen.queryByRole('button', { name: /mark as missed/i })).not.toBeInTheDocument()
+    })
+
+    it('reveals reason picker when "Mark as missed" is clicked', () => {
+      render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
+      fireEvent.click(screen.getByRole('button', { name: /mark as missed/i }))
+      expect(screen.getByText(/why was it missed/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /too tired/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /illness/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /confirm missed/i })).toBeInTheDocument()
+    })
+
+    it('selecting a reason chip and confirming calls PATCH with that reason', async () => {
+      const onStatusChange = jest.fn()
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true, json: async () => ({}),
+      } as unknown as Response)
+      render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} onStatusChange={onStatusChange} />)
+      fireEvent.click(screen.getByRole('button', { name: /mark as missed/i }))
+      fireEvent.click(screen.getByRole('button', { name: /illness/i }))
+      fireEvent.click(screen.getByRole('button', { name: /confirm missed/i }))
+      await waitFor(() => expect(onStatusChange).toHaveBeenCalledTimes(1))
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/workouts/w1', expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'skipped', missed_reason: 'Illness' }),
+      }))
+    })
+
+    it('confirming without a reason calls PATCH with missed_reason: null', async () => {
+      const onStatusChange = jest.fn()
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true, json: async () => ({}),
+      } as unknown as Response)
+      render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} onStatusChange={onStatusChange} />)
+      fireEvent.click(screen.getByRole('button', { name: /mark as missed/i }))
+      fireEvent.click(screen.getByRole('button', { name: /confirm missed/i }))
+      await waitFor(() => expect(onStatusChange).toHaveBeenCalledTimes(1))
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/workouts/w1', expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'skipped', missed_reason: null }),
+      }))
+    })
+
+    it('Cancel hides the reason picker', () => {
+      render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
+      fireEvent.click(screen.getByRole('button', { name: /mark as missed/i }))
+      expect(screen.getByText(/why was it missed/i)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }))
+      expect(screen.queryByText(/why was it missed/i)).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /mark as missed/i })).toBeInTheDocument()
+    })
+  })
 })

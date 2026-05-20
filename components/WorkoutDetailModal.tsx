@@ -32,6 +32,11 @@ export default function WorkoutDetailModal({
   const [pendingDate, setPendingDate] = useState<string | null>(null)
   const [rescheduling, setRescheduling] = useState(false)
   const [rescheduleError, setRescheduleError] = useState<string | null>(null)
+  const [markingMissed, setMarkingMissed] = useState(false)
+  const [missedReason, setMissedReason] = useState<string | null>(null)
+  const [savingMissed, setSavingMissed] = useState(false)
+
+  const MISSED_REASONS = ['Too tired', 'No time', 'Illness', 'Weather', 'Other']
 
   async function handleDelete() {
     setDeleting(true)
@@ -114,6 +119,28 @@ export default function WorkoutDetailModal({
   }
 
   const { start: weekStart, end: weekEnd } = getWeekBounds(workout.date)
+
+  async function handleMarkMissed() {
+    setSavingMissed(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/workouts/${workout.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'skipped', missed_reason: missedReason }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? 'Failed to update')
+        return
+      }
+      onStatusChange?.()
+    } catch {
+      setError('Network error')
+    } finally {
+      setSavingMissed(false)
+    }
+  }
 
   async function handleReschedule() {
     if (!pendingDate) return
@@ -267,6 +294,46 @@ export default function WorkoutDetailModal({
             </div>
           )}
 
+          {workout.status === 'planned' && markingMissed && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+              <p className="text-sm font-medium text-orange-800">
+                Why was it missed?{' '}
+                <span className="font-normal text-orange-600">(optional)</span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {MISSED_REASONS.map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setMissedReason(prev => prev === r ? null : r)}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+                      missedReason === r
+                        ? 'bg-orange-500 text-white border-orange-500'
+                        : 'bg-white text-orange-600 border-orange-300 hover:border-orange-500'
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleMarkMissed}
+                  disabled={savingMissed}
+                  className="text-sm font-semibold bg-orange-500 text-white px-4 py-1.5 rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                >
+                  {savingMissed ? 'Saving…' : 'Confirm missed'}
+                </button>
+                <button
+                  onClick={() => { setMarkingMissed(false); setMissedReason(null) }}
+                  disabled={savingMissed}
+                  className="text-sm text-slate-500 hover:text-slate-700 disabled:opacity-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
           )}
@@ -277,6 +344,14 @@ export default function WorkoutDetailModal({
             {(workout.status === 'completed' || workout.status === 'needs_review') && onFeedback && (
               <button onClick={onFeedback} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
                 Log feedback
+              </button>
+            )}
+            {workout.status === 'planned' && !markingMissed && (
+              <button
+                onClick={() => setMarkingMissed(true)}
+                className="text-sm font-medium text-orange-500 hover:text-orange-700 transition-colors"
+              >
+                Mark as missed
               </button>
             )}
             {onDelete && !deleteConfirm && (
