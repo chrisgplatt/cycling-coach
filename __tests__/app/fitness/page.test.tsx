@@ -1,0 +1,73 @@
+import { render, screen } from '@testing-library/react'
+import FitnessPage from '@/app/fitness/page'
+import type { ChartsData } from '@/types'
+
+const mockCharts: ChartsData = {
+  wellness: [
+    { id: '2026-02-01', ctl: 40, atl: 45, form: -5, hrv: null, resting_hr: null, sleep_secs: null },
+    { id: '2026-03-01', ctl: 48, atl: 52, form: -4, hrv: null, resting_hr: null, sleep_secs: null },
+    { id: '2026-05-20', ctl: 54, atl: 61, form: -7, hrv: null, resting_hr: null, sleep_secs: null },
+  ],
+  weeklyTss: [
+    { weekStart: '2026-02-02', tss: 280 },
+    { weekStart: '2026-02-09', tss: 320 },
+    { weekStart: '2026-05-18', tss: 180 },
+  ],
+}
+
+global.fetch = jest.fn()
+
+describe('FitnessPage charts', () => {
+  afterEach(() => jest.clearAllMocks())
+
+  it('shows spinner while charts are loading', () => {
+    ;(global.fetch as jest.Mock).mockReturnValue(new Promise(() => {}))
+    render(<FitnessPage />)
+    expect(document.querySelector('.animate-spin')).toBeInTheDocument()
+  })
+
+  it('renders PMC stat pills after load', async () => {
+    ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/api/charts') return Promise.resolve({ json: async () => ({ charts: mockCharts }) })
+      return Promise.resolve({ json: async () => [] })
+    })
+    render(<FitnessPage />)
+    expect(await screen.findByText('54')).toBeInTheDocument()  // CTL
+    expect(screen.getByText('61')).toBeInTheDocument()          // ATL
+    expect(screen.getByText('-7')).toBeInTheDocument()          // Form
+    expect(screen.getByText('CTL')).toBeInTheDocument()
+    expect(screen.getByText('ATL')).toBeInTheDocument()
+    expect(screen.getByText('Form')).toBeInTheDocument()
+  })
+
+  it('renders weekly TSS bars (one rect per week)', async () => {
+    ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/api/charts') return Promise.resolve({ json: async () => ({ charts: mockCharts }) })
+      return Promise.resolve({ json: async () => [] })
+    })
+    render(<FitnessPage />)
+    await screen.findByText('CTL')
+    // One SVG rect per week in the TSS chart
+    const rects = document.querySelectorAll('svg rect')
+    expect(rects.length).toBe(mockCharts.weeklyTss.length)
+  })
+
+  it('shows charts error message on fetch failure', async () => {
+    ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/api/charts') return Promise.resolve({ json: async () => ({ error: 'intervals.icu not configured' }) })
+      return Promise.resolve({ json: async () => [] })
+    })
+    render(<FitnessPage />)
+    expect(await screen.findByText('intervals.icu not configured')).toBeInTheDocument()
+  })
+
+  it('shows placeholder when wellness is empty', async () => {
+    ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/api/charts') return Promise.resolve({ json: async () => ({ charts: { wellness: [], weeklyTss: [] } }) })
+      return Promise.resolve({ json: async () => [] })
+    })
+    render(<FitnessPage />)
+    expect(await screen.findByText('No fitness data yet.')).toBeInTheDocument()
+    expect(screen.getByText('No training load data yet.')).toBeInTheDocument()
+  })
+})
