@@ -49,6 +49,7 @@ export async function GET() {
       avg_left_right_balance: computeLeftRightBalance(rides),
       balance_ride_count: rides.filter(r => r.left_right_balance !== null).length,
       recent_rides: sortedRides.slice(0, 2),
+      cross_training: [],
     }
 
     return NextResponse.json({ stats })
