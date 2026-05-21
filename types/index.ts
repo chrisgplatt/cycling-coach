@@ -26,6 +26,9 @@ export interface UserProfile {
   intervals_icu_athlete_id: string
   intervals_icu_api_key: string
   updated_at?: string
+  notifications_enabled?: boolean
+  notification_time?: string       // HH:MM 24h, e.g. "07:00"
+  timezone?: string                // IANA tz, e.g. "Europe/London"
 }
 
 export interface TrainingPlan {
@@ -206,4 +209,39 @@ export interface GeneratedPlan {
     target_zones: string
     steps: WorkoutStep[]
   }>
+}
+
+// Daily briefing
+export interface BriefingContext {
+  todayWorkout: Workout | null
+  ctl: number | null
+  atl: number | null
+  tsb: number | null
+  readinessLabel: 'Ready' | 'Moderate' | 'Fatigued' | 'Unknown'
+  hrv: number | null
+  recentWorkouts: Array<{
+    date: string
+    type: string
+    avg_power: number | null
+    tss: number | null
+  }>
+  upcomingEvents: TrainingEvent[]
+}
+
+export interface DailyBriefing {
+  id: string
+  user_id: string
+  date: string
+  coach_note: string
+  notification_sent_at: string | null
+  generated_at: string
+}
+
+export interface PushSubscriptionRecord {
+  id: string
+  user_id: string
+  endpoint: string
+  p256dh: string
+  auth: string
+  created_at: string
 }
