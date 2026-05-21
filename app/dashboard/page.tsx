@@ -348,18 +348,6 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* Daily briefing */}
-      <div className="space-y-3 mb-6">
-        {!notificationsEnabled && (
-          <NotificationBanner onEnabled={() => setNotificationsEnabled(true)} />
-        )}
-        <TodayCard
-          workout={todayWorkout}
-          wellness={latestWellness}
-          onWorkoutClick={w => setSelectedWorkout(w)}
-        />
-      </div>
-
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
@@ -380,6 +368,18 @@ export default function DashboardPage() {
         >
           {syncing ? 'Syncing…' : '↻ Sync'}
         </button>
+      </div>
+
+      {/* Daily briefing */}
+      <div className="space-y-3">
+        {!notificationsEnabled && (
+          <NotificationBanner onEnabled={() => setNotificationsEnabled(true)} />
+        )}
+        <TodayCard
+          workout={todayWorkout}
+          wellness={latestWellness}
+          onWorkoutClick={w => setSelectedWorkout(w)}
+        />
       </div>
 
       <MetricsBar wellness={latestWellness} syncedAt={lastSyncedAt} stale={wellnessStale} />
