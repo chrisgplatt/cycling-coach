@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { Workout, TrainingEvent } from '@/types'
+import type { Workout, TrainingEvent, SessionFeedback } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -28,6 +28,7 @@ export default function CalendarPage() {
   const [athleteId, setAthleteId] = useState('')
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
+  const [initialFeedback, setInitialFeedback] = useState<SessionFeedback | null>(null)
   const [events, setEvents] = useState<TrainingEvent[]>([])
   const [month, setMonth] = useState(() => new Date().getMonth())
   const [year, setYear] = useState(() => new Date().getFullYear())
@@ -156,7 +157,8 @@ export default function CalendarPage() {
           workout={selectedWorkout}
           athleteId={athleteId}
           onClose={() => setSelectedWorkout(null)}
-          onFeedback={() => {
+          onFeedback={(existingFeedback) => {
+            setInitialFeedback(existingFeedback ?? null)
             setFeedbackWorkout(selectedWorkout)
             setSelectedWorkout(null)
           }}
@@ -178,7 +180,11 @@ export default function CalendarPage() {
       {feedbackWorkout && (
         <FeedbackModal
           workout={feedbackWorkout}
-          onClose={() => setFeedbackWorkout(null)}
+          initialFeedback={initialFeedback ?? undefined}
+          onClose={() => {
+            setFeedbackWorkout(null)
+            setInitialFeedback(null)
+          }}
         />
       )}
     </div>

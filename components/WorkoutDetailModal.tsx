@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import type { Workout, ICUActivity, WorkoutType } from '@/types'
+import { useEffect, useState } from 'react'
+import type { Workout, ICUActivity, WorkoutType, SessionFeedback } from '@/types'
 import { getWeekBounds } from '@/lib/week-bounds'
 
 const TYPE_COLOURS: Record<WorkoutType, string> = {
@@ -33,7 +33,7 @@ interface Props {
   athleteId: string
   activitiesOnDate?: ICUActivity[]
   onClose: () => void
-  onFeedback?: () => void
+  onFeedback?: (existingFeedback?: SessionFeedback) => void
   onStatusChange?: () => void
   onDelete?: () => void
   onReschedule?: () => void
@@ -55,6 +55,18 @@ export default function WorkoutDetailModal({
   const [savingMissed, setSavingMissed] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState<string | null>(null)
+  const [existingFeedback, setExistingFeedback] = useState<SessionFeedback | null | 'loading'>('loading')
+
+  useEffect(() => {
+    if (workout.status !== 'completed' && workout.status !== 'needs_review') {
+      setExistingFeedback(null)
+      return
+    }
+    fetch(`/api/feedback?workoutId=${workout.id}`)
+      .then(r => r.json())
+      .then(d => setExistingFeedback(d.feedback ?? null))
+      .catch(() => setExistingFeedback(null))
+  }, [workout.id, workout.status])
 
   async function handleDelete() {
     setDeleting(true)
@@ -295,10 +307,46 @@ export default function WorkoutDetailModal({
                 rel="noopener noreferrer"
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium block transition-colors"
               >
-                View Garmin activity →
+                View completed activity in intervals.icu →
               </a>
             )}
           </div>
+
+          {(workout.status === 'completed' || workout.status === 'needs_review') && (
+            <div className="border border-slate-200 rounded-xl p-4 space-y-2 bg-slate-50">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Session feedback</p>
+              {existingFeedback === 'loading' && (
+                <p className="text-sm text-slate-400">Loading…</p>
+              )}
+              {existingFeedback === null && (
+                <p className="text-sm text-slate-400 italic">No feedback logged yet.</p>
+              )}
+              {existingFeedback && existingFeedback !== 'loading' && (
+                <>
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                    {existingFeedback.feedback_text}
+                  </p>
+                  {existingFeedback.proposed_adjustment && existingFeedback.approved === true && (
+                    <p className="text-xs text-emerald-600 font-medium">Adaptations applied</p>
+                  )}
+                  {existingFeedback.proposed_adjustment && existingFeedback.approved === false && (
+                    <p className="text-xs text-slate-400">Adaptations suggested but not applied</p>
+                  )}
+                  {!existingFeedback.proposed_adjustment && (
+                    <p className="text-xs text-slate-400">Logged without adaptation analysis</p>
+                  )}
+                  {onFeedback && (
+                    <button
+                      onClick={() => onFeedback(existingFeedback)}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                      Edit feedback
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {workout.status === 'needs_review' && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
@@ -394,8 +442,8 @@ export default function WorkoutDetailModal({
 
         <div className="p-4 border-t border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {(workout.status === 'completed' || workout.status === 'needs_review') && onFeedback && (
-              <button onClick={onFeedback} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
+            {(workout.status === 'completed' || workout.status === 'needs_review') && onFeedback && existingFeedback !== 'loading' && !existingFeedback && (
+              <button onClick={() => onFeedback()} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
                 Log feedback
               </button>
             )}

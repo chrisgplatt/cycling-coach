@@ -1,17 +1,31 @@
 'use client'
 import { useState } from 'react'
-import type { Workout, ProposedAdjustment } from '@/types'
+import type { Workout, ProposedAdjustment, SessionFeedback } from '@/types'
+
+type Phase = 'input' | 'proposed' | 'saved'
 
 interface Props {
   workout: Workout
   onClose: () => void
+  initialFeedback?: SessionFeedback
 }
 
-export default function FeedbackModal({ workout, onClose }: Props) {
-  const [feedbackText, setFeedbackText] = useState('')
+export default function FeedbackModal({ workout, onClose, initialFeedback }: Props) {
+  const [phase, setPhase] = useState<Phase>(() => {
+    if (!initialFeedback) return 'input'
+    if (initialFeedback.proposed_adjustment && initialFeedback.approved === null) return 'proposed'
+    return 'saved'
+  })
+  const [feedbackText, setFeedbackText] = useState(initialFeedback?.feedback_text ?? '')
+  const [proposed, setProposed] = useState<{ feedbackId: string; adjustment: ProposedAdjustment } | null>(
+    initialFeedback?.proposed_adjustment && initialFeedback.approved === null
+      ? { feedbackId: initialFeedback.id, adjustment: initialFeedback.proposed_adjustment }
+      : null
+  )
+  const [adapt, setAdapt] = useState(
+    initialFeedback ? initialFeedback.proposed_adjustment !== null : true
+  )
   const [loading, setLoading] = useState(false)
-  const [proposed, setProposed] = useState<{ feedbackId: string; adjustment: ProposedAdjustment } | null>(null)
-  const [done, setDone] = useState(false)
 
   async function submitFeedback() {
     if (!feedbackText.trim()) return
@@ -23,11 +37,17 @@ export default function FeedbackModal({ workout, onClose }: Props) {
         workoutId: workout.id,
         activityId: workout.icu_activity_id ?? 'manual',
         feedbackText,
+        adapt,
       }),
     })
     if (res.ok) {
       const data = await res.json()
-      setProposed({ feedbackId: data.feedback.id, adjustment: data.proposed })
+      if (adapt && data.proposed) {
+        setProposed({ feedbackId: data.feedback.id, adjustment: data.proposed })
+        setPhase('proposed')
+      } else {
+        setPhase('saved')
+      }
     }
     setLoading(false)
   }
@@ -40,10 +60,22 @@ export default function FeedbackModal({ workout, onClose }: Props) {
       body: JSON.stringify({ feedbackId: proposed.feedbackId, approved: approve }),
     })
     if (res.ok) {
-      setDone(true)
-      setTimeout(onClose, 1000)
+      setProposed(null)
+      setPhase('saved')
     }
   }
+
+  const adaptToggle = (
+    <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={adapt}
+        onChange={e => setAdapt(e.target.checked)}
+        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+      />
+      Suggest adaptations for upcoming workouts
+    </label>
+  )
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
@@ -53,7 +85,7 @@ export default function FeedbackModal({ workout, onClose }: Props) {
           {workout.date} — {workout.type} {workout.duration_minutes}min
         </p>
 
-        {!proposed && !done && (
+        {phase === 'input' && (
           <>
             <textarea
               value={feedbackText}
@@ -62,6 +94,7 @@ export default function FeedbackModal({ workout, onClose }: Props) {
               rows={4}
               className="w-full text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {adaptToggle}
             <div className="flex justify-end gap-2">
               <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">
                 Cancel
@@ -77,7 +110,7 @@ export default function FeedbackModal({ workout, onClose }: Props) {
           </>
         )}
 
-        {proposed && !done && (
+        {phase === 'proposed' && proposed && (
           <>
             <div className="text-sm text-gray-700 bg-yellow-50 border border-yellow-200 rounded p-3">
               <p className="font-medium mb-2">Proposed adjustments:</p>
@@ -105,8 +138,25 @@ export default function FeedbackModal({ workout, onClose }: Props) {
           </>
         )}
 
-        {done && (
-          <p className="text-sm text-green-600 font-medium">Changes applied!</p>
+        {phase === 'saved' && (
+          <>
+            <div className="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+              {feedbackText}
+            </div>
+            <p className="text-xs text-green-600 font-medium">Feedback saved.</p>
+            {adaptToggle}
+            <div className="flex justify-end gap-2">
+              <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">
+                Close
+              </button>
+              <button
+                onClick={() => setPhase('input')}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                Edit &amp; re-submit
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -2,13 +2,35 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { analyseFeedback } from '@/lib/claude/feedback'
-import type { Workout } from '@/types'
+import type { Workout, ProposedAdjustment } from '@/types'
+
+export async function GET(req: NextRequest) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const workoutId = searchParams.get('workoutId')
+  if (!workoutId) return NextResponse.json({ error: 'workoutId required' }, { status: 400 })
+
+  const { data: feedback } = await supabase
+    .from('session_feedback')
+    .select('*')
+    .eq('workout_id', workoutId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return NextResponse.json({ feedback: feedback ?? null })
+}
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { workoutId, activityId, feedbackText, activityTSS, activityAvgPower, activityAvgHR } = await req.json()
+  const { workoutId, activityId, feedbackText, activityTSS, activityAvgPower, activityAvgHR, adapt } = await req.json()
+
+  const shouldAdapt = adapt !== false
 
   const { data: workout } = await supabase
     .from('workouts')
@@ -18,24 +40,27 @@ export async function POST(req: NextRequest) {
 
   if (!workout) return NextResponse.json({ error: 'Workout not found' }, { status: 404 })
 
-  const today = new Date().toISOString().split('T')[0]
-  const next7 = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
-  const { data: upcomingWorkouts } = await supabase
-    .from('workouts')
-    .select('*')
-    .eq('status', 'planned')
-    .gte('date', today)
-    .lte('date', next7)
-    .order('date')
+  let proposed: ProposedAdjustment | null = null
+  if (shouldAdapt) {
+    const today = new Date().toISOString().split('T')[0]
+    const next7 = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
+    const { data: upcomingWorkouts } = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('status', 'planned')
+      .gte('date', today)
+      .lte('date', next7)
+      .order('date')
 
-  const proposed = await analyseFeedback(
-    workout as Workout,
-    feedbackText,
-    activityTSS ?? null,
-    activityAvgPower ?? null,
-    activityAvgHR ?? null,
-    (upcomingWorkouts ?? []) as Workout[]
-  )
+    proposed = await analyseFeedback(
+      workout as Workout,
+      feedbackText,
+      activityTSS ?? null,
+      activityAvgPower ?? null,
+      activityAvgHR ?? null,
+      (upcomingWorkouts ?? []) as Workout[]
+    )
+  }
 
   const { data: feedback } = await supabase
     .from('session_feedback')
