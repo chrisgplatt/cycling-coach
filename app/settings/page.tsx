@@ -9,6 +9,10 @@ export default function SettingsPage() {
   const [savedFullName, setSavedFullName] = useState('')
   const [savedAthleteId, setSavedAthleteId] = useState('')
   const [savedApiKey, setSavedApiKey] = useState('')
+  const [notifTime, setNotifTime] = useState('07:00')
+  const [timezone, setTimezone] = useState('Europe/London')
+  const [savedNotifTime, setSavedNotifTime] = useState('07:00')
+  const [savedTimezone, setSavedTimezone] = useState('Europe/London')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -16,7 +20,7 @@ export default function SettingsPage() {
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
 
-  const isDirty = fullName !== savedFullName || athleteId !== savedAthleteId || apiKey !== savedApiKey
+  const isDirty = fullName !== savedFullName || athleteId !== savedAthleteId || apiKey !== savedApiKey || notifTime !== savedNotifTime || timezone !== savedTimezone
 
   useEffect(() => {
     fetch('/api/profile')
@@ -30,6 +34,10 @@ export default function SettingsPage() {
         setFullName(name); setSavedFullName(name)
         setAthleteId(id); setSavedAthleteId(id)
         setApiKey(key); setSavedApiKey(key)
+        const time = data.notification_time ?? '07:00'
+        const tz = data.timezone ?? 'Europe/London'
+        setNotifTime(time); setSavedNotifTime(time)
+        setTimezone(tz); setSavedTimezone(tz)
       })
       .catch(() => {})
   }, [])
@@ -39,8 +47,8 @@ export default function SettingsPage() {
     setSaveError(null)
     try {
       const body = profileId
-        ? { id: profileId, full_name: fullName, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey }
-        : { full_name: fullName, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey }
+        ? { id: profileId, full_name: fullName, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone }
+        : { full_name: fullName, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone }
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -53,6 +61,8 @@ export default function SettingsPage() {
         setSavedFullName(fullName)
         setSavedAthleteId(athleteId)
         setSavedApiKey(apiKey)
+        setSavedNotifTime(notifTime)
+        setSavedTimezone(timezone)
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
       }
@@ -102,6 +112,40 @@ export default function SettingsPage() {
             className={inputClass}
           />
         </div>
+      </section>
+
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Daily Briefing</h2>
+        <div className="space-y-3">
+          <div>
+            <label className={labelClass}>Notification time</label>
+            <input
+              type="time"
+              value={notifTime}
+              onChange={e => setNotifTime(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Timezone</label>
+            <select
+              value={timezone}
+              onChange={e => setTimezone(e.target.value)}
+              className={inputClass}
+            >
+              <option value="Europe/London">London (GMT/BST)</option>
+              <option value="Europe/Paris">Paris / Amsterdam (CET)</option>
+              <option value="Europe/Madrid">Madrid / Rome (CET)</option>
+              <option value="Europe/Berlin">Berlin / Zurich (CET)</option>
+              <option value="America/New_York">New York (ET)</option>
+              <option value="America/Chicago">Chicago (CT)</option>
+              <option value="America/Denver">Denver (MT)</option>
+              <option value="America/Los_Angeles">Los Angeles (PT)</option>
+              <option value="Australia/Sydney">Sydney (AEST)</option>
+            </select>
+          </div>
+        </div>
+        <p className="text-xs text-slate-400">Enable notifications on the dashboard to receive your daily briefing at this time.</p>
       </section>
 
       {saveError && (
