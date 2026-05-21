@@ -14,22 +14,6 @@ function readinessLabel(tsb: number | null): BriefingContext['readinessLabel'] {
   return 'Fatigued'
 }
 
-function isDue(notificationTime: string, timezone: string): boolean {
-  const now = new Date()
-  const formatter = new Intl.DateTimeFormat('en-GB', {
-    timeZone: timezone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
-  const parts = formatter.formatToParts(now)
-  const h = Number(parts.find(p => p.type === 'hour')?.value ?? '0')
-  const m = Number(parts.find(p => p.type === 'minute')?.value ?? '0')
-  const [nh, nm] = notificationTime.split(':').map(Number)
-  const userMinutes = h * 60 + m
-  const notifMinutes = nh * 60 + nm
-  return userMinutes >= notifMinutes && userMinutes < notifMinutes + 15
-}
 
 export async function POST(req: NextRequest) {
   if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -47,14 +31,13 @@ export async function POST(req: NextRequest) {
 
   const { data: profiles } = await supabase
     .from('user_profile')
-    .select('user_id, intervals_icu_athlete_id, intervals_icu_api_key, events, notification_time, timezone')
+    .select('user_id, intervals_icu_athlete_id, intervals_icu_api_key, events')
     .eq('notifications_enabled', true)
 
   let sent = 0
 
   for (const profile of profiles ?? []) {
-    if (!profile.notification_time || !profile.user_id) continue
-    if (!isDue(profile.notification_time, profile.timezone ?? 'Europe/London')) continue
+    if (!profile.user_id) continue
 
     // Skip if already notified today
     const { data: existing } = await supabase
