@@ -24,6 +24,8 @@ import {
 } from '@dnd-kit/core'
 import type { ReactNode } from 'react'
 import RescheduleConfirmModal from '@/components/RescheduleConfirmModal'
+import TodayCard from '@/components/TodayCard'
+import NotificationBanner from '@/components/NotificationBanner'
 
 function getReadinessSummary(wellness: ICUWellness): string {
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -100,6 +102,7 @@ export default function DashboardPage() {
 
   const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null)
   const [pendingReschedule, setPendingReschedule] = useState<{ workout: Workout; toDate: string } | null>(null)
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -277,6 +280,7 @@ export default function DashboardPage() {
       const name: string = data?.full_name ?? ''
       if (name) setFirstName(name.split(' ')[0])
       if (data?.events) setEvents(data.events)
+      setNotificationsEnabled(data?.notifications_enabled ?? false)
     }).catch(() => {})
   }, [])
 
@@ -322,6 +326,9 @@ export default function DashboardPage() {
     return `${dateStr} at ${timeStr}`
   }
 
+  const todayStr = new Date().toISOString().split('T')[0]
+  const todayWorkout = workouts.find(w => w.date === todayStr && w.status === 'planned') ?? null
+
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const today = new Date()
   const weekDates = days.map((_, i) => {
@@ -340,6 +347,18 @@ export default function DashboardPage() {
           onDismiss={handleDismiss}
         />
       )}
+
+      {/* Daily briefing */}
+      <div className="space-y-3 mb-6">
+        {!notificationsEnabled && (
+          <NotificationBanner onEnabled={() => setNotificationsEnabled(true)} />
+        )}
+        <TodayCard
+          workout={todayWorkout}
+          wellness={latestWellness}
+          onWorkoutClick={w => setSelectedWorkout(w)}
+        />
+      </div>
 
       <div className="flex items-start justify-between">
         <div>
