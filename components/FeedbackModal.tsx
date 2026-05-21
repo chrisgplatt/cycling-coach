@@ -14,7 +14,7 @@ export default function FeedbackModal({ workout, onClose, initialFeedback }: Pro
   const [phase, setPhase] = useState<Phase>(() => {
     if (!initialFeedback) return 'input'
     if (initialFeedback.proposed_adjustment && initialFeedback.approved === null) return 'proposed'
-    return 'saved'
+    return 'input'  // edit mode: open straight to editable textarea
   })
   const [feedbackText, setFeedbackText] = useState(initialFeedback?.feedback_text ?? '')
   const [proposed, setProposed] = useState<{ feedbackId: string; adjustment: ProposedAdjustment } | null>(
