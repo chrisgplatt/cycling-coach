@@ -43,7 +43,8 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
   }
 
   function handleRegenerate() {
-    onRegenerate!(`Just added "${name.trim()}" on ${date} — please revise the plan to account for this event.`)
+    const verb = isEditing ? 'updated' : 'added'
+    onRegenerate!(`Just ${verb} "${name.trim()}" on ${date} — please revise the plan to account for this event.`)
     onClose()
   }
 
