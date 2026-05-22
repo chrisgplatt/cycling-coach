@@ -39,7 +39,7 @@ export default function NotificationBanner({ onEnabled }: Props) {
       })
 
       const json = subscription.toJSON()
-      await fetch('/api/notifications/subscribe', {
+      const res = await fetch('/api/notifications/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -48,6 +48,7 @@ export default function NotificationBanner({ onEnabled }: Props) {
           auth: json.keys?.auth,
         }),
       })
+      if (!res.ok) throw new Error('Subscribe API failed')
       setState('done')
       onEnabled()
     } catch {

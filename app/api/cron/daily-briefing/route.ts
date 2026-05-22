@@ -15,7 +15,7 @@ function readinessLabel(tsb: number | null): BriefingContext['readinessLabel'] {
 }
 
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
