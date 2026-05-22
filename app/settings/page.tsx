@@ -1,6 +1,15 @@
 'use client'
 import { useEffect, useState } from 'react'
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  const output = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) output[i] = rawData.charCodeAt(i)
+  return output
+}
+
 export default function SettingsPage() {
   const [profileId, setProfileId] = useState<string | null>(null)
   const [fullName, setFullName] = useState('')
@@ -16,6 +25,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean | null>(null)
+  const [notifWorking, setNotifWorking] = useState(false)
+  const [notifError, setNotifError] = useState<string | null>(null)
 
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
@@ -38,6 +50,7 @@ export default function SettingsPage() {
         const tz = data.timezone ?? 'Europe/London'
         setNotifTime(time); setSavedNotifTime(time)
         setTimezone(tz); setSavedTimezone(tz)
+        setNotificationsEnabled(data.notifications_enabled ?? false)
       })
       .catch(() => {})
   }, [])
@@ -70,6 +83,60 @@ export default function SettingsPage() {
       setSaveError('Network error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function toggleNotifications() {
+    setNotifWorking(true)
+    setNotifError(null)
+    try {
+      if (notificationsEnabled) {
+        // Disable: unsubscribe from push manager and delete from DB
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.ready
+          const sub = await registration.pushManager.getSubscription()
+          if (sub) {
+            const endpoint = sub.endpoint
+            await sub.unsubscribe()
+            await fetch('/api/notifications/subscribe', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ endpoint }),
+            })
+          }
+        }
+        setNotificationsEnabled(false)
+      } else {
+        // Enable: request permission, subscribe, POST to DB
+        if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+          setNotifError('Push notifications are not supported in this browser.')
+          return
+        }
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          setNotifError('Notifications were blocked. Enable them in your browser settings, then try again.')
+          return
+        }
+        const registration = await navigator.serviceWorker.ready
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        if (!vapidKey) throw new Error('VAPID key not configured')
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
+        })
+        const json = subscription.toJSON()
+        const res = await fetch('/api/notifications/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: json.endpoint, p256dh: json.keys?.p256dh, auth: json.keys?.auth }),
+        })
+        if (!res.ok) throw new Error('Subscribe failed')
+        setNotificationsEnabled(true)
+      }
+    } catch (err) {
+      setNotifError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setNotifWorking(false)
     }
   }
 
@@ -145,7 +212,34 @@ export default function SettingsPage() {
             </select>
           </div>
         </div>
-        <p className="text-xs text-slate-400">Enable notifications on the dashboard to receive your daily briefing at this time.</p>
+        <div className="flex items-center justify-between pt-1">
+          <div>
+            <p className="text-sm font-medium text-slate-700">Push notifications</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {notificationsEnabled === null
+                ? 'Loading…'
+                : notificationsEnabled
+                  ? 'On — daily briefing will arrive at the time above'
+                  : 'Off — enable to receive your daily briefing'}
+            </p>
+          </div>
+          <button
+            onClick={toggleNotifications}
+            disabled={notifWorking || notificationsEnabled === null}
+            aria-checked={notificationsEnabled ?? false}
+            role="switch"
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
+              notificationsEnabled ? 'bg-blue-600' : 'bg-slate-200'
+            }`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+              notificationsEnabled ? 'translate-x-6' : 'translate-x-1'
+            }`} />
+          </button>
+        </div>
+        {notifError && (
+          <p className="text-xs text-amber-600">{notifError}</p>
+        )}
       </section>
 
       {saveError && (
