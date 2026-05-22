@@ -57,6 +57,7 @@ export default function PlanPage() {
   const [showDurationPrompt, setShowDurationPrompt] = useState(false)
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false)
   const [showClearModal, setShowClearModal] = useState(false)
+  const [planGenNote, setPlanGenNote] = useState('')
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null)
   const [planWeeks, setPlanWeeks] = useState(6)
   const [workoutsFound, setWorkoutsFound] = useState(0)
@@ -216,6 +217,7 @@ export default function PlanPage() {
 
   async function startPlanGeneration(weeks: number, startDate: string, notes: string) {
     setShowDurationPrompt(false)
+    setPlanGenNote('')
     setPlanWeeks(weeks)
     setGenerating(true)
     setWorkoutsFound(0)
@@ -387,7 +389,14 @@ export default function PlanPage() {
         )}
 
         {showDurationPrompt && (
-          <PlanDurationModal onStart={startPlanGeneration} onCancel={() => setShowDurationPrompt(false)} />
+          <PlanDurationModal
+            onStart={startPlanGeneration}
+            onCancel={() => {
+              setShowDurationPrompt(false)
+              setPlanGenNote('')
+            }}
+            initialNotes={planGenNote}
+          />
         )}
 
         {(generating || generatedPlan) && (
@@ -575,13 +584,26 @@ export default function PlanPage() {
         </div>
 
         {showAddEvent && (
-          <AddEventModal onConfirm={addEvent} onClose={() => setShowAddEvent(false)} />
+          <AddEventModal
+            onConfirm={addEvent}
+            onClose={() => setShowAddEvent(false)}
+            hasPlan={planName !== null}
+            onRegenerate={(note) => {
+              setPlanGenNote(note)
+              setShowDurationPrompt(true)
+            }}
+          />
         )}
         {editingEvent && (
           <AddEventModal
             initialEvent={editingEvent}
             onConfirm={updated => updateEvent(editingEvent, updated)}
             onClose={() => setEditingEvent(null)}
+            hasPlan={planName !== null}
+            onRegenerate={(note) => {
+              setPlanGenNote(note)
+              setShowDurationPrompt(true)
+            }}
           />
         )}
       </div>
