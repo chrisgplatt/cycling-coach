@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
+function serviceClient() {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+}
+
 export async function POST(req: NextRequest) {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const authClient = await createSupabaseServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { endpoint, p256dh, auth } = await req.json()
@@ -11,36 +16,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing subscription fields' }, { status: 400 })
   }
 
-  const { error } = await supabase
+  const db = serviceClient()
+
+  const { error } = await db
     .from('push_subscriptions')
     .upsert({ user_id: user.id, endpoint, p256dh, auth }, { onConflict: 'endpoint' })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Mark notifications as enabled in profile
-  const { data: row } = await supabase.from('user_profile').select('id').maybeSingle()
-  if (row) await supabase.from('user_profile').update({ notifications_enabled: true }).eq('id', row.id)
+  await db
+    .from('user_profile')
+    .update({ notifications_enabled: true })
+    .eq('user_id', user.id)
 
   return NextResponse.json({ ok: true })
 }
 
 export async function DELETE(req: NextRequest) {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const authClient = await createSupabaseServerClient()
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { endpoint } = await req.json()
+  const db = serviceClient()
+
   if (endpoint) {
-    await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint).eq('user_id', user.id)
+    await db.from('push_subscriptions').delete().eq('endpoint', endpoint).eq('user_id', user.id)
   }
 
-  // Disable if no subscriptions remain
-  const { count } = await supabase
+  const { count } = await db
     .from('push_subscriptions')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
+
   if (count === 0) {
-    const { data: row } = await supabase.from('user_profile').select('id').maybeSingle()
-    if (row) await supabase.from('user_profile').update({ notifications_enabled: false }).eq('id', row.id)
+    await db.from('user_profile').update({ notifications_enabled: false }).eq('user_id', user.id)
   }
 
   return NextResponse.json({ ok: true })
