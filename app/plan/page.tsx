@@ -200,9 +200,9 @@ export default function PlanPage() {
     const dates = planWorkouts.map(w => w.date).sort()
     const start = new Date(dates[0])
     const end = new Date(dates[dates.length - 1])
-    const total = Math.ceil((end.getTime() - start.getTime()) / (7 * 864e5)) + 1
+    const total = Math.floor((end.getTime() - start.getTime()) / (7 * 864e5)) + 1
     const today = new Date()
-    const current = Math.max(1, Math.min(total, Math.ceil((today.getTime() - start.getTime()) / (7 * 864e5)) + 1))
+    const current = Math.max(1, Math.min(total, Math.floor((today.getTime() - start.getTime()) / (7 * 864e5)) + 1))
     return { current, total }
   }
 
