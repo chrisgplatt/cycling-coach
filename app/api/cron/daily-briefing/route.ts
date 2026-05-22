@@ -14,6 +14,23 @@ function readinessLabel(tsb: number | null): BriefingContext['readinessLabel'] {
   return 'Fatigued'
 }
 
+function isNotificationTime(notifTime: string, timezone: string): boolean {
+  try {
+    const now = new Date()
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(now)
+    const h = parts.find(p => p.type === 'hour')?.value.padStart(2, '0') ?? '00'
+    const m = parts.find(p => p.type === 'minute')?.value.padStart(2, '0') ?? '00'
+    return `${h}:${m}` === notifTime.slice(0, 5)
+  } catch {
+    return false
+  }
+}
+
 
 export async function GET(req: NextRequest) {
   if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -31,13 +48,18 @@ export async function GET(req: NextRequest) {
 
   const { data: profiles } = await supabase
     .from('user_profile')
-    .select('user_id, intervals_icu_athlete_id, intervals_icu_api_key, events')
+    .select('user_id, intervals_icu_athlete_id, intervals_icu_api_key, events, notification_time, timezone')
     .eq('notifications_enabled', true)
 
   let sent = 0
 
   for (const profile of profiles ?? []) {
     if (!profile.user_id) continue
+
+    // Skip if it's not this user's notification time in their timezone
+    const notifTime = (profile.notification_time as string | null) ?? '07:00:00'
+    const tz = (profile.timezone as string | null) ?? 'Europe/London'
+    if (!isNotificationTime(notifTime, tz)) continue
 
     // Skip if already notified today
     const { data: existing } = await supabase

@@ -16,7 +16,10 @@ create table if not exists user_profile (
   intervals_icu_athlete_id text not null default '',
   intervals_icu_api_key text not null default '',
   updated_at timestamptz not null default now(),
-  weekly_availability jsonb not null default '[]'
+  weekly_availability jsonb not null default '[]',
+  notifications_enabled boolean not null default false,
+  notification_time time not null default '07:00',
+  timezone text not null default 'Europe/London'
 );
 
 -- Migration for existing installations (user_profile):
