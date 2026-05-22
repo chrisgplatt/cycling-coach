@@ -4,6 +4,7 @@ import { useState } from 'react'
 interface Props {
   onStart: (weeks: number, startDate: string, notes: string) => void
   onCancel: () => void
+  initialNotes?: string
 }
 
 function timeEstimate(weeks: number): string {
@@ -12,10 +13,10 @@ function timeEstimate(weeks: number): string {
   return '3–4 minutes'
 }
 
-export default function PlanDurationModal({ onStart, onCancel }: Props) {
+export default function PlanDurationModal({ onStart, onCancel, initialNotes }: Props) {
   const [weeksStr, setWeeksStr] = useState('6')
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [notes, setNotes] = useState('')
+  const [notes, setNotes] = useState(initialNotes ?? '')
 
   const weeks = Math.min(13, Math.max(2, Math.round(Number(weeksStr) || 6)))
 
