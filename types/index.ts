@@ -216,6 +216,14 @@ export interface GeneratedPlan {
 // Daily briefing
 export interface BriefingContext {
   todayWorkout: Workout | null
+  workoutCompleted: boolean
+  completedRide: {
+    name: string
+    avg_power: number | null
+    weighted_avg_power: number | null
+    tss: number | null
+    moving_time: number
+  } | null
   ctl: number | null
   atl: number | null
   tsb: number | null

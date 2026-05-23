@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     supabase.from('workouts')
       .select('*')
       .eq('date', today)
-      .eq('status', 'planned')
+      .in('status', ['planned', 'completed', 'needs_review'])
       .order('created_at')
       .limit(1),
   ])
@@ -83,8 +83,30 @@ export async function GET(req: NextRequest) {
     } catch { /* ICU unavailable — briefing proceeds without metrics */ }
   }
 
+  const workoutCompleted = todayWorkout?.status === 'completed'
+
+  let completedRide: BriefingContext['completedRide'] = null
+  if (workoutCompleted && profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
+    const client2 = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
+    try {
+      const todayActivities = await client2.getActivities(today, today)
+      const ride = todayActivities.find((a: ICUActivity) => /ride/i.test(a.type))
+      if (ride) {
+        completedRide = {
+          name: ride.name,
+          avg_power: ride.average_watts,
+          weighted_avg_power: ride.weighted_average_watts,
+          tss: ride.training_load,
+          moving_time: ride.moving_time,
+        }
+      }
+    } catch { /* if ICU unavailable, proceed without ride data */ }
+  }
+
   const ctx: BriefingContext = {
     todayWorkout,
+    workoutCompleted: workoutCompleted ?? false,
+    completedRide,
     ctl,
     atl,
     tsb,

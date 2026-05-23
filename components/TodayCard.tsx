@@ -118,7 +118,7 @@ export default function TodayCard({ workout, wellness, onWorkoutClick }: Props) 
             disabled={refreshing}
             className="text-xs text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
           >
-            {refreshing ? 'Refreshing…' : 'Refresh note'}
+            {refreshing ? 'Getting note…' : workout?.status === 'completed' ? 'Get post-ride note' : 'Refresh note'}
           </button>
         )}
       </div>
