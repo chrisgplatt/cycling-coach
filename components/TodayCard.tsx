@@ -23,18 +23,39 @@ function tsbColour(tsb: number | null): string {
   return 'text-red-500'
 }
 
+const BRIEFING_CACHE_KEY = 'cycling_coach_briefing'
+
 export default function TodayCard({ workout, wellness, onWorkoutClick }: Props) {
   const [coachNote, setCoachNote] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   async function fetchNote(refresh = false) {
+    const today = new Date().toISOString().split('T')[0]
+
+    if (!refresh) {
+      try {
+        const raw = localStorage.getItem(BRIEFING_CACHE_KEY)
+        if (raw) {
+          const cached = JSON.parse(raw)
+          if (cached.date === today && cached.coach_note) {
+            setCoachNote(cached.coach_note)
+            setLoading(false)
+            return
+          }
+        }
+      } catch { /* ignore cache errors */ }
+    }
+
     try {
       const url = refresh ? '/api/briefing/today?refresh=true' : '/api/briefing/today'
       const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
         setCoachNote(data.coach_note)
+        try {
+          localStorage.setItem(BRIEFING_CACHE_KEY, JSON.stringify({ date: today, coach_note: data.coach_note }))
+        } catch { /* ignore storage errors */ }
       }
     } catch { /* silent */ } finally {
       setLoading(false)
