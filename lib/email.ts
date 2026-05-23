@@ -1,8 +1,6 @@
 import { Resend } from 'resend'
 import type { Workout } from '@/types'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 const FROM = process.env.RESEND_FROM ?? 'My Cycling Coach <onboarding@resend.dev>'
 
 export async function sendBriefingEmail(
@@ -46,6 +44,7 @@ export async function sendBriefingEmail(
     coachNote,
   ].filter(l => l !== undefined).join('\n')
 
+  const resend = new Resend(process.env.RESEND_API_KEY)
   await resend.emails.send({
     from: FROM,
     to,
