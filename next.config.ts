@@ -4,18 +4,22 @@ import withPWAInit from '@ducanh2912/next-pwa'
 const withPWA = withPWAInit({
   dest: 'public',
   customWorkerSrc: 'worker',
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
   disable: process.env.NODE_ENV === 'development',
   fallbacks: {
-    document: '/dashboard',
+    document: '/offline.html',
   },
   workboxOptions: {
     disableDevLogs: true,
     runtimeCaching: [
+      // API calls always go to the network — no caching, no auth issues
       {
         urlPattern: /^\/api\//,
+        handler: 'NetworkOnly',
+      },
+      // Page navigation always goes to the network so proxy.ts can refresh the session
+      {
+        urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
         handler: 'NetworkOnly',
       },
     ],
