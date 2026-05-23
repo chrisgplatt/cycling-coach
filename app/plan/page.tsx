@@ -468,7 +468,7 @@ export default function PlanPage() {
 
           <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Weekly Training Availability</h2>
-            <p className="text-xs text-slate-400">Drag to set how long you can train each day. Slide to zero for a rest day.</p>
+            <p className="text-xs text-slate-400">Set the maximum time available each day. Sessions will be as long as the training needs — up to this limit.</p>
             <div className="space-y-3">
               {DAYS.map((day, i) => {
                 const mins = schedule[day] ?? 0

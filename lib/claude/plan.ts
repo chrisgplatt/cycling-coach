@@ -29,12 +29,12 @@ export function formatSchedule(availability: Array<{ day: string; duration_minut
     const h = Math.floor(a.duration_minutes / 60)
     const m = a.duration_minutes % 60
     const dur = h > 0 && m > 0 ? `${h}h ${m}min` : h > 0 ? `${h}h` : `${m}min`
-    return `  ${a.day.charAt(0).toUpperCase() + a.day.slice(1)}: ${dur} (${a.duration_minutes} min — duration_minutes must equal this exactly)`
+    return `  ${a.day.charAt(0).toUpperCase() + a.day.slice(1)}: up to ${dur} available (max ${a.duration_minutes} min — must not exceed this)`
   })
   if (restDays.length) {
     lines.push(`  ${restDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}: REST — do not schedule any workout on these days`)
   }
-  return `Weekly training schedule (HARD CONSTRAINTS):\n${lines.join('\n')}`
+  return `Weekly training schedule:\n${lines.join('\n')}`
 }
 
 export function formatZones(ftp: number): string {
@@ -76,7 +76,7 @@ ${formatSchedule(profile.weekly_availability)}
 
 HARD SCHEDULING CONSTRAINTS — absolute rules, never break these:
 1. Only schedule workouts on days listed in the weekly schedule. Never place a workout on a rest day.
-2. Each workout's duration_minutes must equal exactly the available minutes for that day of the week.
+2. Each workout's duration_minutes must not exceed the maximum available minutes for that day. Choose the duration that best suits the session type and training phase — do not pad sessions just to fill available time.
 3. Steps within each workout must sum to exactly duration_minutes.
 4. All workout dates must fall on or after ${startDate}.
 5. NEVER place a workout on an event date. Every event date is a blocked day — the event itself is the athlete's activity that day. No exceptions.
