@@ -36,21 +36,11 @@ export async function DELETE(req: NextRequest) {
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { endpoint } = await req.json()
   const db = serviceClient()
 
-  if (endpoint) {
-    await db.from('push_subscriptions').delete().eq('endpoint', endpoint).eq('user_id', user.id)
-  }
-
-  const { count } = await db
-    .from('push_subscriptions')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-
-  if (count === 0) {
-    await db.from('user_profile').update({ notifications_enabled: false }).eq('user_id', user.id)
-  }
+  // Delete all subscriptions for this user — clears stale entries from other browsers/devices too
+  await db.from('push_subscriptions').delete().eq('user_id', user.id)
+  await db.from('user_profile').update({ notifications_enabled: false }).eq('user_id', user.id)
 
   return NextResponse.json({ ok: true })
 }
