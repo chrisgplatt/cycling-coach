@@ -327,7 +327,7 @@ export default function DashboardPage() {
   }
 
   const todayStr = new Date().toISOString().split('T')[0]
-  const todayWorkout = workouts.find(w => w.date === todayStr && w.status === 'planned') ?? null
+  const todayWorkout = workouts.find(w => w.date === todayStr) ?? null
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const today = new Date()
