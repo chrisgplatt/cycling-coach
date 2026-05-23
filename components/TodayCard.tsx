@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import WorkoutCard from '@/components/WorkoutCard'
 import type { Workout, ICUWellness } from '@/types'
 
@@ -29,9 +29,14 @@ export default function TodayCard({ workout, wellness, onWorkoutClick }: Props) 
   const [coachNote, setCoachNote] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  // workoutCompleted state recorded when the cached note was last generated
+  const [cacheWorkoutCompleted, setCacheWorkoutCompleted] = useState<boolean | null>(null)
+  // prevent the auto-refresh from firing more than once per session
+  const hasAutoRefreshed = useRef(false)
 
   async function fetchNote(refresh = false) {
     const today = new Date().toISOString().split('T')[0]
+    const isCompleted = workout?.status === 'completed'
 
     if (!refresh) {
       try {
@@ -40,6 +45,7 @@ export default function TodayCard({ workout, wellness, onWorkoutClick }: Props) 
           const cached = JSON.parse(raw)
           if (cached.date === today && cached.coach_note) {
             setCoachNote(cached.coach_note)
+            setCacheWorkoutCompleted(cached.workoutCompleted ?? false)
             setLoading(false)
             return
           }
@@ -53,8 +59,13 @@ export default function TodayCard({ workout, wellness, onWorkoutClick }: Props) 
       if (res.ok) {
         const data = await res.json()
         setCoachNote(data.coach_note)
+        setCacheWorkoutCompleted(isCompleted)
         try {
-          localStorage.setItem(BRIEFING_CACHE_KEY, JSON.stringify({ date: today, coach_note: data.coach_note }))
+          localStorage.setItem(BRIEFING_CACHE_KEY, JSON.stringify({
+            date: today,
+            coach_note: data.coach_note,
+            workoutCompleted: isCompleted,
+          }))
         } catch { /* ignore storage errors */ }
       }
     } catch { /* silent */ } finally {
@@ -63,7 +74,20 @@ export default function TodayCard({ workout, wellness, onWorkoutClick }: Props) 
     }
   }
 
+  // Initial load — reads from localStorage cache if available, otherwise fetches
   useEffect(() => { fetchNote() }, [])
+
+  // Auto-refresh when the ride is completed but the cached note is still a morning briefing.
+  // Only triggers once per session (hasAutoRefreshed ref) and only in the planned→completed direction.
+  useEffect(() => {
+    if (cacheWorkoutCompleted !== false) return   // cache already reflects completed, or not yet loaded
+    if (hasAutoRefreshed.current) return
+    if (workout?.status === 'completed') {
+      hasAutoRefreshed.current = true
+      setRefreshing(true)
+      fetchNote(true)
+    }
+  }, [workout, cacheWorkoutCompleted])
 
   async function handleRefresh() {
     setRefreshing(true)
