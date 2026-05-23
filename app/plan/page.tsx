@@ -468,31 +468,36 @@ export default function PlanPage() {
 
           <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Weekly Training Availability</h2>
-            <p className="text-xs text-slate-400">How many minutes you can train each day. Leave blank for rest days.</p>
-            <div className="space-y-2">
-              {DAYS.map((day, i) => (
-                <div key={day} className="flex items-center gap-3">
-                  <span className="text-sm text-slate-600 w-8 shrink-0">{DAY_LABELS[i]}</span>
-                  {/* Fix 4: add aria-label so each schedule input is accessible */}
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    placeholder="0"
-                    aria-label={`${DAY_LABELS[i]} training minutes`}
-                    value={(schedule[day] ?? 0) === 0 ? '' : String(schedule[day])}
-                    onFocus={e => e.target.select()}
-                    onChange={e => {
-                      const val = parseInt(e.target.value.replace(/\D/g, ''), 10)
-                      setSchedule(s => ({ ...s, [day]: isNaN(val) ? 0 : Math.max(0, val) }))
-                    }}
-                    className="w-24 text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <span className="text-xs text-slate-400 w-6">
-                    {(schedule[day] ?? 0) === 0 ? 'rest' : 'min'}
-                  </span>
-                </div>
-              ))}
+            <p className="text-xs text-slate-400">Drag to set how long you can train each day. Slide to zero for a rest day.</p>
+            <div className="space-y-3">
+              {DAYS.map((day, i) => {
+                const mins = schedule[day] ?? 0
+                const label = mins === 0
+                  ? 'Rest'
+                  : mins < 60
+                    ? `${mins}min`
+                    : mins % 60 === 0
+                      ? `${mins / 60}h`
+                      : `${Math.floor(mins / 60)}h ${mins % 60}min`
+                return (
+                  <div key={day} className="flex items-center gap-3">
+                    <span className="text-sm text-slate-600 w-8 shrink-0">{DAY_LABELS[i]}</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={360}
+                      step={15}
+                      aria-label={`${DAY_LABELS[i]} training minutes`}
+                      value={mins}
+                      onChange={e => setSchedule(s => ({ ...s, [day]: Number(e.target.value) }))}
+                      className="flex-1 accent-blue-600"
+                    />
+                    <span className={`text-xs w-14 text-right font-medium ${mins === 0 ? 'text-slate-300' : 'text-slate-600'}`}>
+                      {label}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           </section>
 

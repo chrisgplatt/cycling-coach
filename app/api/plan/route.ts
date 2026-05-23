@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { syncData, weeks = 6, startDate, notes = '' } = await req.json()
-  const safeWeeks = Math.min(13, Math.max(2, Math.round(Number(weeks) || 6)))
+  const safeWeeks = Math.min(13, Math.max(1, Math.round(Number(weeks) || 6)))
   const safeStartDate = typeof startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(startDate)
     ? startDate
     : new Date().toISOString().split('T')[0]

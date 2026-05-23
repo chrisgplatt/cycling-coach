@@ -13,12 +13,12 @@ function timeEstimate(weeks: number): string {
   return '3–4 minutes'
 }
 
+const WEEK_OPTIONS = Array.from({ length: 13 }, (_, i) => i + 1)
+
 export default function PlanDurationModal({ onStart, onCancel, initialNotes }: Props) {
-  const [weeksStr, setWeeksStr] = useState('6')
+  const [weeks, setWeeks] = useState(6)
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0])
   const [notes, setNotes] = useState(initialNotes ?? '')
-
-  const weeks = Math.min(13, Math.max(2, Math.round(Number(weeksStr) || 6)))
 
   function handleStart() {
     onStart(weeks, startDate, notes.trim())
@@ -42,25 +42,15 @@ export default function PlanDurationModal({ onStart, onCancel, initialNotes }: P
         </div>
         <div>
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Duration</label>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min={2}
-              max={13}
-              step={1}
-              value={weeksStr}
-              onChange={e => setWeeksStr(e.target.value)}
-              onBlur={e => {
-                const clamped = Math.min(13, Math.max(2, Math.round(Number(e.target.value) || 6)))
-                setWeeksStr(String(clamped))
-              }}
-              className="w-24 text-center text-xl font-bold border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <div>
-              <span className="text-slate-600 font-medium">weeks</span>
-              <p className="text-xs text-slate-400 mt-0.5">max 13 weeks (3 months)</p>
-            </div>
-          </div>
+          <select
+            value={weeks}
+            onChange={e => setWeeks(Number(e.target.value))}
+            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {WEEK_OPTIONS.map(n => (
+              <option key={n} value={n}>{n} {n === 1 ? 'week' : 'weeks'}</option>
+            ))}
+          </select>
           <p className="text-xs text-slate-400 mt-2">Generation will take {timeEstimate(weeks)}.</p>
         </div>
         <div>
