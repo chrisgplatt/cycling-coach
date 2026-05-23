@@ -44,6 +44,7 @@ export async function GET() {
       try {
         const rideDate = ride.start_date_local.split('T')[0]
         const curve = await client.getPowerCurve(rideDate, rideDate)
+        ride.power_1min = findNearestPower(curve, 60)
         ride.power_5min = findNearestPower(curve, 300)
         ride.power_10min = findNearestPower(curve, 600)
         ride.power_20min = findNearestPower(curve, 1200)
@@ -59,6 +60,7 @@ export async function GET() {
       total_distance_km: rides.reduce((sum, r) => sum + (r.distance ?? 0), 0) / 1000,
       total_elevation_m: rides.reduce((sum, r) => sum + (r.total_elevation_gain ?? 0), 0),
       total_duration_secs: rides.reduce((sum, r) => sum + r.moving_time, 0),
+      power_1min: findNearestPower(powerCurve, 60),
       power_5min: findNearestPower(powerCurve, 300),
       power_10min: findNearestPower(powerCurve, 600),
       power_20min: findNearestPower(powerCurve, 1200),

@@ -75,9 +75,15 @@ function RideView({ ride }: { ride: ICUActivity }) {
         </div>
       </SectionCard>
 
-      {(ride.power_5min != null || ride.power_10min != null || ride.power_20min != null) && (
+      {(ride.power_1min != null || ride.power_5min != null || ride.power_10min != null || ride.power_20min != null) && (
         <SectionCard title="Best Power" accent="bg-orange-400">
           <div className="flex divide-x divide-gray-100">
+            <StatCell
+              label="1 min"
+              value={ride.power_1min != null ? String(Math.round(ride.power_1min)) : '—'}
+              unit={ride.power_1min != null ? 'w' : undefined}
+              valueClass="text-orange-500"
+            />
             <StatCell
               label="5 min"
               value={ride.power_5min != null ? String(Math.round(ride.power_5min)) : '—'}
@@ -157,6 +163,12 @@ function AggregateView({ stats }: { stats: RidingStats }) {
     <div className="space-y-4">
       <SectionCard title="Best Power" accent="bg-orange-400">
         <div className="flex divide-x divide-gray-100">
+          <StatCell
+            label="1 min"
+            value={stats.power_1min !== null ? String(Math.round(stats.power_1min)) : '—'}
+            unit={stats.power_1min !== null ? 'w' : undefined}
+            valueClass="text-orange-500"
+          />
           <StatCell
             label="5 min"
             value={stats.power_5min !== null ? String(Math.round(stats.power_5min)) : '—'}

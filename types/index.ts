@@ -121,6 +121,7 @@ export interface ICUActivity {
   distance: number | null              // metres
   total_elevation_gain: number | null  // metres
   left_right_balance: number | null    // left %, e.g. 52.3
+  power_1min?: number | null
   power_5min?: number | null
   power_10min?: number | null
   power_20min?: number | null
@@ -164,6 +165,7 @@ export interface RidingStats {
   total_distance_km: number
   total_elevation_m: number
   total_duration_secs: number
+  power_1min: number | null
   power_5min: number | null
   power_10min: number | null
   power_20min: number | null
