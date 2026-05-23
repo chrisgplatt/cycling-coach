@@ -32,11 +32,12 @@ export async function POST() {
       sent++
     } catch (err: unknown) {
       const statusCode = (err as { statusCode?: number }).statusCode
-      if (statusCode === 410) {
+      if (statusCode === 410 || statusCode === 404) {
         await db.from('push_subscriptions').delete().eq('id', sub.id)
-        errors.push('One subscription was expired and has been removed.')
+        errors.push(`Subscription expired (${statusCode}) and removed — toggle notifications off then on to re-subscribe.`)
       } else {
-        errors.push(`Push failed: ${err instanceof Error ? err.message : String(err)}`)
+        const msg = err instanceof Error ? err.message : String(err)
+        errors.push(`Push failed (status ${statusCode ?? 'unknown'}): ${msg}`)
       }
     }
   }
