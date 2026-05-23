@@ -28,6 +28,8 @@ export default function SettingsPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean | null>(null)
   const [notifWorking, setNotifWorking] = useState(false)
   const [notifError, setNotifError] = useState<string | null>(null)
+  const [testSending, setTestSending] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
@@ -140,6 +142,24 @@ export default function SettingsPage() {
     }
   }
 
+  async function sendTestNotification() {
+    setTestSending(true)
+    setTestResult(null)
+    try {
+      const res = await fetch('/api/notifications/test', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setTestResult({ ok: true, message: 'Test notification sent — check your device.' })
+      } else {
+        setTestResult({ ok: false, message: data.error ?? 'Send failed.' })
+      }
+    } catch {
+      setTestResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setTestSending(false)
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -239,6 +259,22 @@ export default function SettingsPage() {
         </div>
         {notifError && (
           <p className="text-xs text-amber-600">{notifError}</p>
+        )}
+        {notificationsEnabled && (
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={sendTestNotification}
+              disabled={testSending}
+              className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+            >
+              {testSending ? 'Sending…' : 'Send test notification'}
+            </button>
+            {testResult && (
+              <p className={`text-xs ${testResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                {testResult.message}
+              </p>
+            )}
+          </div>
         )}
       </section>
 
