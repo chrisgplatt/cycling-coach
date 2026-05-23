@@ -18,7 +18,7 @@ function LoginForm() {
   return (
     <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-sm space-y-5 border border-slate-100">
       <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Cycling Coach</h1>
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Cycling Coach</h1>
         <p className="text-sm text-slate-500 mt-1">Your personal AI road cycling coach</p>
       </div>
       {error === 'not_invited' && (
