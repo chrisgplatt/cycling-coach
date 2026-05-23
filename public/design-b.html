@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design Option B — Nordic Editorial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream:    #f7f4ef;
+      --white:    #fdfcfa;
+      --border:   #e6e0d6;
+      --border2:  #d4cec4;
+      --text:     #1c1916;
+      --text2:    #4a4540;
+      --muted:    #8c857c;
+      --faint:    #c4beb8;
+      --green:    #2a6b4a;
+      --green-bg: #eef5f1;
+      --green-mid:#3d8b62;
+      --blue:     #2563a8;
+      --orange:   #c4591a;
+      --red:      #b83232;
+      --violet:   #6b5acd;
+      --rose:     #b83265;
+      --amber:    #b87820;
+      --amber-bg: #fdf6e8;
+    }
+
+    html, body {
+      background: var(--cream);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .nav-brand {
+      font-family: 'DM Serif Display', serif;
+      font-size: 18px;
+      color: var(--text);
+      text-decoration: none;
+      margin-right: 40px;
+      letter-spacing: -0.01em;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex: 1;
+    }
+    .nav-link {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 0 16px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+      letter-spacing: 0.01em;
+    }
+    .nav-link:hover { color: var(--text); }
+    .nav-link.active {
+      color: var(--green);
+      border-bottom-color: var(--green);
+      font-weight: 500;
+    }
+    .nav-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .sync-btn {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .sync-btn:hover { color: var(--text); border-color: var(--border2); }
+
+    /* ── LAYOUT ── */
+    .shell {
+      display: flex;
+      min-height: calc(100vh - 56px);
+    }
+    .main {
+      flex: 1;
+      padding: 40px 48px;
+      max-width: 860px;
+    }
+    .chat-rail {
+      width: 300px;
+      background: var(--white);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 20px 20px;
+    }
+    .chat-rail-header {
+      font-family: 'DM Serif Display', serif;
+      font-size: 16px;
+      color: var(--text);
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .chat-messages {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .chat-bubble {
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text2);
+    }
+    .chat-bubble.user {
+      background: var(--green-bg);
+      border-color: #c0d8c8;
+      color: #1a3d2a;
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .chat-input {
+      flex: 1;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 13px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      outline: none;
+    }
+    .chat-input:focus { border-color: var(--green); }
+    .chat-input::placeholder { color: var(--faint); }
+    .chat-send {
+      background: var(--green);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      margin-bottom: 36px;
+    }
+    .page-greeting {
+      font-family: 'DM Serif Display', serif;
+      font-style: italic;
+      font-size: 40px;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .page-meta {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .meta-sep { color: var(--faint); }
+    .phase-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--green-bg);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 10px;
+      border-radius: 100px;
+      border: 1px solid #c0d8c8;
+    }
+    .phase-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    /* ── METRICS ── */
+    .metrics-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .metrics-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .metrics-header-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .metrics-header-updated {
+      font-size: 12px;
+      color: var(--faint);
+    }
+    .metrics-grid {
+      display: flex;
+    }
+    .metric {
+      flex: 1;
+      text-align: center;
+      padding: 20px 12px 16px;
+      border-right: 1px solid var(--border);
+    }
+    .metric:last-child { border-right: none; }
+    .metric-value {
+      font-family: 'DM Serif Display', serif;
+      font-size: 36px;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+    .metric-unit {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--muted);
+      margin-left: 1px;
+    }
+    .metric-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .ctl    { color: var(--blue); }
+    .atl    { color: var(--orange); }
+    .form-p { color: var(--green-mid); }
+    .form-n { color: var(--red); }
+    .hrv    { color: var(--violet); }
+    .rhr    { color: var(--rose); }
+
+    /* ── READINESS ── */
+    .readiness-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 36px;
+    }
+    .readiness-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .last-ride { font-size: 12px; color: var(--faint); }
+    .last-ride strong { color: var(--muted); font-weight: 500; }
+    .readiness-text {
+      font-size: 14px;
+      color: var(--text2);
+      line-height: 1.65;
+      font-weight: 300;
+    }
+
+    /* ── WEEK ── */
+    .week-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .week-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 20px;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .week-range {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+      margin-top: 2px;
+    }
+
+    .day-row {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .day-row:last-child { border-bottom: none; }
+
+    .day-label {
+      width: 52px;
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+    .day-name {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--faint);
+      line-height: 1;
+    }
+    .day-date {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+      color: var(--text2);
+      line-height: 1.1;
+      margin-top: 2px;
+    }
+    .day-date.today { color: var(--green); }
+    .day-content { flex: 1; }
+
+    /* ── WORKOUT CARD ── */
+    .workout-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .workout-card:hover {
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      border-color: var(--border2);
+    }
+    .workout-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .workout-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .type-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-endurance { background: var(--blue); }
+    .dot-threshold { background: var(--orange); }
+    .dot-intervals { background: var(--red); }
+    .dot-recovery  { background: var(--green-mid); }
+
+    .workout-type {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      text-transform: capitalize;
+    }
+    .workout-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .meta-item {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta-sep-dot {
+      width: 3px; height: 3px;
+      border-radius: 50%;
+      background: var(--faint);
+    }
+    .status-badge {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 9px;
+      border-radius: 100px;
+    }
+    .status-planned   { background: var(--cream); color: var(--muted); border: 1px solid var(--border); }
+    .status-completed { background: var(--green-bg); color: var(--green); border: 1px solid #c0d8c8; }
+    .status-skipped   { background: #fef0f0; color: var(--red); border: 1px solid #f0c8c8; }
+
+    .workout-desc {
+      font-size: 13.5px;
+      color: var(--text2);
+      line-height: 1.55;
+      font-weight: 300;
+    }
+    .workout-zones {
+      font-size: 12px;
+      color: var(--faint);
+    }
+
+    /* ── REST ── */
+    .rest-row {
+      font-size: 13px;
+      color: var(--faint);
+      padding: 3px 0;
+      font-style: italic;
+      font-family: 'DM Serif Display', serif;
+    }
+
+    /* ── EVENT ── */
+    .event-card {
+      background: var(--amber-bg);
+      border: 1px solid #e8d4a0;
+      border-left: 3px solid var(--amber);
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .event-name {
+      font-weight: 500;
+      font-size: 14px;
+      color: #7a5010;
+    }
+    .event-meta {
+      font-size: 12px;
+      color: #b8940a;
+      margin-top: 2px;
+    }
+
+    /* ── DIVIDER ── */
+    .section-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 32px 0;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="#">Cycling Coach</a>
+  <div class="nav-links">
+    <a class="nav-link active" href="#">Dashboard</a>
+    <a class="nav-link" href="#">Calendar</a>
+    <a class="nav-link" href="#">Fitness</a>
+    <a class="nav-link" href="#">Settings</a>
+  </div>
+  <div class="nav-right">
+    <button class="sync-btn">Sync</button>
+  </div>
+</nav>
+
+<div class="shell">
+  <main class="main">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div class="page-greeting">Good morning, Chris.</div>
+      <div class="page-meta">
+        <span>17 May 2026</span>
+        <span class="meta-sep">·</span>
+        <span>Gran Fondo Training Plan</span>
+        <span class="meta-sep">·</span>
+        <span class="phase-pill">
+          <span class="phase-dot"></span>
+          Base phase
+        </span>
+      </div>
+    </div>
+
+    <!-- Fitness stats -->
+    <div class="metrics-card">
+      <div class="metrics-header">
+        <span class="metrics-header-label">Fitness Stats</span>
+        <span class="metrics-header-updated">Updated 17 May at 09:42</span>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-value ctl">82</div>
+          <div class="metric-label">CTL</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value atl">71</div>
+          <div class="metric-label">ATL</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value form-p">+11</div>
+          <div class="metric-label">Form</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value hrv">58<span class="metric-unit">ms</span></div>
+          <div class="metric-label">HRV</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value rhr">48<span class="metric-unit">bpm</span></div>
+          <div class="metric-label">Resting HR</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Readiness -->
+    <div class="readiness-card">
+      <div class="readiness-header">
+        <span class="section-label">Readiness</span>
+        <span class="last-ride">Last ride: <strong>yesterday at 14:13</strong></span>
+      </div>
+      <p class="readiness-text">
+        With a form score of +11, you're well rested and carrying low fatigue — prime condition for a hard effort today. (HRV 58 ms, resting HR 48 bpm)
+      </p>
+    </div>
+
+    <!-- Week -->
+    <div class="week-header">
+      <div class="week-title">This week</div>
+    </div>
+    <div class="week-range">12 – 18 May</div>
+
+    <div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Mon</div>
+          <div class="day-date">12</div>
+        </div>
+        <div class="day-content">
+          <div class="workout-card">
+            <div class="workout-top">
+              <div class="workout-left">
+                <span class="type-dot dot-endurance"></span>
+                <span class="workout-type">Endurance</span>
+                <div class="workout-meta">
+                  <span class="meta-item">90 min</span>
+                  <span class="meta-sep-dot"></span>
+                  <span class="meta-item">TSS 68</span>
+                </div>
+              </div>
+              <span class="status-badge status-completed">Completed</span>
+            </div>
+            <p class="workout-desc">Long zone 2 ride building aerobic base. Keep power steady throughout with minimal coasting.</p>
+            <p class="workout-zones">Zone 2 · 56–75% FTP · 85–95 rpm</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Tue</div>
+          <div class="day-date">13</div>
+        </div>
+        <div class="day-content">
+          <div class="workout-card">
+            <div class="workout-top">
+              <div class="workout-left">
+                <span class="type-dot dot-threshold"></span>
+                <span class="workout-type">Threshold</span>
+                <div class="workout-meta">
+                  <span class="meta-item">60 min</span>
+                  <span class="meta-sep-dot"></span>
+                  <span class="meta-item">TSS 74</span>
+                </div>
+              </div>
+              <span class="status-badge status-completed">Completed</span>
+            </div>
+            <p class="workout-desc">2×20 min at threshold with 5 min recovery between. Push to upper end of zone 4.</p>
+            <p class="workout-zones">Zone 4 · 91–105% FTP · 80–90 rpm</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Wed</div>
+          <div class="day-date">14</div>
+        </div>
+        <div class="day-content">
+          <div class="rest-row">Rest</div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Thu</div>
+          <div class="day-date">15</div>
+        </div>
+        <div class="day-content">
+          <div class="workout-card">
+            <div class="workout-top">
+              <div class="workout-left">
+                <span class="type-dot dot-intervals"></span>
+                <span class="workout-type">Intervals</span>
+                <div class="workout-meta">
+                  <span class="meta-item">75 min</span>
+                  <span class="meta-sep-dot"></span>
+                  <span class="meta-item">TSS 88</span>
+                </div>
+              </div>
+              <span class="status-badge status-planned">Planned</span>
+            </div>
+            <p class="workout-desc">5×5 min VO2max efforts with equal recovery. Aim for 110–120% FTP on each rep.</p>
+            <p class="workout-zones">Zone 5 · 106–120% FTP · 90–100 rpm</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Fri</div>
+          <div class="day-date">16</div>
+        </div>
+        <div class="day-content">
+          <div class="workout-card">
+            <div class="workout-top">
+              <div class="workout-left">
+                <span class="type-dot dot-recovery"></span>
+                <span class="workout-type">Recovery</span>
+                <div class="workout-meta">
+                  <span class="meta-item">45 min</span>
+                </div>
+              </div>
+              <span class="status-badge status-planned">Planned</span>
+            </div>
+            <p class="workout-desc">Easy recovery spin. Keep it light — this is active recovery, not fitness work.</p>
+            <p class="workout-zones">Zone 1 · &lt;56% FTP · 90+ rpm</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Sat</div>
+          <div class="day-date today">17</div>
+        </div>
+        <div class="day-content">
+          <div class="event-card">
+            <span style="font-size:15px">🏁</span>
+            <div>
+              <div class="event-name">Chiltern 100 Sportive</div>
+              <div class="event-meta">Race · A priority</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Sun</div>
+          <div class="day-date">18</div>
+        </div>
+        <div class="day-content">
+          <div class="rest-row">Rest</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Chat panel -->
+  <aside class="chat-rail">
+    <div class="chat-rail-header">Coach</div>
+    <div class="chat-messages">
+      <div class="chat-bubble">Your Thursday intervals look good on paper — how are your legs feeling after Tuesday's threshold session?</div>
+      <div class="chat-bubble user">Actually pretty good, slight DOMS but nothing bad</div>
+      <div class="chat-bubble">Good sign. Go ahead with Thursday as planned. If power drops more than 5% on rep 4 or 5, cut it short rather than grinding through.</div>
+    </div>
+    <div class="chat-input-row">
+      <input class="chat-input" type="text" placeholder="Ask your coach…" />
+      <button class="chat-send">↵</button>
+    </div>
+  </aside>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design Option C — Strava-inspired</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #f0f0f0;
+      --surface:     #ffffff;
+      --surface2:    #f7f7f7;
+      --border:      #e5e5e5;
+      --border2:     #d0d0d0;
+      --text:        #1c1c1e;
+      --text2:       #3c3c3e;
+      --muted:       #8e8e93;
+      --faint:       #c4c4c8;
+
+      --orange:      #fc4c02;   /* Strava orange */
+      --orange-bg:   #fff2ee;
+      --orange-dim:  #fcd8cc;
+
+      --blue:        #1a6fc4;
+      --blue-bg:     #eef4fc;
+      --blue-dim:    #bbd4f0;
+
+      --green:       #1a9e5c;
+      --green-bg:    #edf8f2;
+      --green-dim:   #b0dfc8;
+
+      --red:         #d93025;
+      --red-bg:      #fdecea;
+
+      --violet:      #6b5ce7;
+      --violet-bg:   #f0effe;
+
+      --rose:        #e8365d;
+      --rose-bg:     #fdeef2;
+
+      --amber:       #d97706;
+      --amber-bg:    #fffbeb;
+      --amber-dim:   #fcd34d;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Figtree', sans-serif;
+      font-size: 15px;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      height: 54px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+      margin-right: 32px;
+    }
+    .nav-logo {
+      width: 30px;
+      height: 30px;
+      background: var(--orange);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .nav-logo svg {
+      width: 16px;
+      height: 16px;
+      fill: white;
+    }
+    .nav-brand-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+    .nav-link {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 0 14px;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.12s, border-color 0.12s;
+    }
+    .nav-link:hover { color: var(--text); }
+    .nav-link.active {
+      color: var(--text);
+      border-bottom-color: var(--orange);
+      font-weight: 600;
+    }
+    .nav-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sync-btn {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--orange);
+      background: var(--orange-bg);
+      border: 1px solid var(--orange-dim);
+      border-radius: 20px;
+      padding: 6px 16px;
+      cursor: pointer;
+      font-family: 'Figtree', sans-serif;
+      transition: background 0.12s;
+    }
+    .sync-btn:hover { background: #ffe8e0; }
+
+    /* ── LAYOUT ── */
+    .shell {
+      display: flex;
+      min-height: calc(100vh - 54px);
+    }
+    .main {
+      flex: 1;
+      padding: 28px 32px;
+      max-width: 860px;
+    }
+    .chat-rail {
+      width: 296px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 20px 16px 16px;
+    }
+    .chat-rail-header {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      letter-spacing: -0.01em;
+    }
+    .chat-messages {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .chat-bubble {
+      background: var(--surface2);
+      border-radius: 12px 12px 12px 4px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text2);
+    }
+    .chat-bubble.user {
+      background: var(--orange);
+      color: white;
+      border-radius: 12px 12px 4px 12px;
+      align-self: flex-end;
+      max-width: 85%;
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .chat-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 9px 14px;
+      font-size: 13px;
+      color: var(--text);
+      font-family: 'Figtree', sans-serif;
+      outline: none;
+    }
+    .chat-input:focus { border-color: var(--orange); }
+    .chat-input::placeholder { color: var(--faint); }
+    .chat-send {
+      width: 34px;
+      height: 34px;
+      background: var(--orange);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      margin-bottom: 24px;
+    }
+    .page-greeting {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+    .page-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .meta-dot { color: var(--faint); }
+    .phase-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--orange-bg);
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 100px;
+      border: 1px solid var(--orange-dim);
+    }
+
+    /* ── METRICS CARD ── */
+    .metrics-card {
+      background: var(--surface);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .card-header-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .card-header-sub {
+      font-size: 12px;
+      color: var(--faint);
+    }
+    .metrics-grid {
+      display: flex;
+    }
+    .metric {
+      flex: 1;
+      text-align: center;
+      padding: 18px 10px 14px;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .metric:last-child { border-right: none; }
+    .metric-value {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .metric-unit {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-left: 1px;
+    }
+    .metric-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .c-ctl    { color: var(--blue); }
+    .c-atl    { color: var(--orange); }
+    .c-form-p { color: var(--green); }
+    .c-form-n { color: var(--red); }
+    .c-hrv    { color: var(--violet); }
+    .c-rhr    { color: var(--rose); }
+
+    /* ── READINESS ── */
+    .readiness-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .readiness-body {
+      padding: 14px 16px;
+    }
+    .readiness-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .last-ride { font-size: 12px; color: var(--faint); }
+    .last-ride strong { color: var(--muted); font-weight: 600; }
+    .readiness-text {
+      font-size: 14px;
+      color: var(--text2);
+      line-height: 1.6;
+      font-weight: 400;
+    }
+
+    /* ── WEEK SECTION ── */
+    .section-heading {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      margin-bottom: 2px;
+    }
+    .section-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .week-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ── DAY ROW ── */
+    .day-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .day-label {
+      width: 44px;
+      flex-shrink: 0;
+      padding-top: 12px;
+      text-align: center;
+    }
+    .day-name {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--faint);
+      line-height: 1;
+    }
+    .day-date {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text2);
+      line-height: 1.1;
+      margin-top: 1px;
+      letter-spacing: -0.02em;
+    }
+    .day-date.today { color: var(--orange); }
+    .day-content { flex: 1; }
+
+    /* ── WORKOUT CARD ── */
+    .workout-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow 0.12s, border-color 0.12s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .workout-card:hover {
+      box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+      border-color: var(--border2);
+    }
+    .workout-card-top {
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .workout-type-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .type-chip {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 100px;
+      text-transform: capitalize;
+      letter-spacing: 0.01em;
+    }
+    .chip-endurance { background: var(--blue-bg);   color: var(--blue);   border: 1px solid var(--blue-dim); }
+    .chip-threshold { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-dim); }
+    .chip-intervals { background: var(--red-bg);    color: var(--red);    border: 1px solid #f5c6c3; }
+    .chip-recovery  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-dim); }
+
+    .workout-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .meta-text {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .meta-divider { color: var(--faint); }
+
+    .status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 100px;
+      letter-spacing: 0.02em;
+    }
+    .status-planned   { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .status-completed { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
+    .status-skipped   { background: var(--red-bg);   color: var(--red);   border: 1px solid #f5c6c3; }
+
+    .workout-card-body {
+      padding: 10px 14px 12px;
+    }
+    .workout-desc {
+      font-size: 13.5px;
+      color: var(--text2);
+      line-height: 1.55;
+      margin-bottom: 5px;
+    }
+    .workout-zones {
+      font-size: 12px;
+      color: var(--faint);
+      font-weight: 500;
+    }
+
+    /* ── REST ── */
+    .rest-row {
+      font-size: 13px;
+      color: var(--faint);
+      padding: 13px 0 5px;
+      font-style: italic;
+    }
+
+    /* ── EVENT ── */
+    .event-card {
+      background: var(--amber-bg);
+      border: 1px solid var(--amber-dim);
+      border-left: 3px solid var(--amber);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .event-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .event-meta {
+      font-size: 12px;
+      color: var(--amber);
+      font-weight: 500;
+      margin-top: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <a class="nav-brand" href="#">
+    <div class="nav-logo">
+      <svg viewBox="0 0 24 24"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+    </div>
+    <span class="nav-brand-name">Cycling Coach</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link active" href="#">Dashboard</a>
+    <a class="nav-link" href="#">Calendar</a>
+    <a class="nav-link" href="#">Fitness</a>
+    <a class="nav-link" href="#">Settings</a>
+  </div>
+  <div class="nav-right">
+    <button class="sync-btn">↻ Sync</button>
+  </div>
+</nav>
+
+<div class="shell">
+  <main class="main">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div class="page-greeting">Hi, Chris 👋</div>
+      <div class="page-meta">
+        <span>17 May 2026</span>
+        <span class="meta-dot">·</span>
+        <span>Gran Fondo Training Plan</span>
+        <span class="meta-dot">·</span>
+        <span class="phase-pill">Base phase</span>
+      </div>
+    </div>
+
+    <!-- Fitness Stats -->
+    <div class="metrics-card">
+      <div class="card-header">
+        <span class="card-header-label">Fitness Stats</span>
+        <span class="card-header-sub">Updated 17 May at 09:42</span>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-value c-ctl">82</div>
+          <div class="metric-label">CTL</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value c-atl">71</div>
+          <div class="metric-label">ATL</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value c-form-p">+11</div>
+          <div class="metric-label">Form</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value c-hrv">58<span class="metric-unit">ms</span></div>
+          <div class="metric-label">HRV</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value c-rhr">48<span class="metric-unit">bpm</span></div>
+          <div class="metric-label">Resting HR</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Readiness -->
+    <div class="readiness-card">
+      <div class="card-header">
+        <span class="card-header-label">Readiness</span>
+        <span class="last-ride">Last ride: <strong>yesterday at 14:13</strong></span>
+      </div>
+      <div class="readiness-body">
+        <p class="readiness-text">With a form score of +11, you're well rested and carrying low fatigue — prime condition for a hard effort today. (HRV 58 ms, resting HR 48 bpm)</p>
+      </div>
+    </div>
+
+    <!-- This week -->
+    <div class="section-heading">This week</div>
+    <div class="section-sub">12 – 18 May</div>
+
+    <div class="week-rows">
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Mon</div>
+          <div class="day-date">12</div>
+        </div>
+        <div class="day-content">
+          <div class="workout-card">
+            <div class="workout-card-top">
+              <div class="workout-type-row">
+                <span class="type-chip chip-endurance">Endurance</span>
+                <div class="workout-meta">
+                  <span class="meta-text">90 min</span>
+                  <span class="meta-divider">·</span>
+                  <span class="meta-text">TSS 68</span>
+                </div>
+              </div>
+              <span class="status-badge status-completed">✓ Completed</span>
+            </div>
+            <div class="workout-card-body">
+              <p class="workout-desc">Long zone 2 ride building aerobic base. Keep power steady throughout with minimal coasting.</p>
+              <p class="workout-zones">Zone 2 · 56–75% FTP · 85–95 rpm</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Tue</div>
+          <div class="day-date">13</div>
+        </div>
+        <div class="day-content">
+          <div class="workout-card">
+            <div class="workout-card-top">
+              <div class="workout-type-row">
+                <span class="type-chip chip-threshold">Threshold</span>
+                <div class="workout-meta">
+                  <span class="meta-text">60 min</span>
+                  <span class="meta-divider">·</span>
+                  <span class="meta-text">TSS 74</span>
+                </div>
+              </div>
+              <span class="status-badge status-completed">✓ Completed</span>
+            </div>
+            <div class="workout-card-body">
+              <p class="workout-desc">2×20 min at threshold with 5 min recovery between. Push to upper end of zone 4.</p>
+              <p class="workout-zones">Zone 4 · 91–105% FTP · 80–90 rpm</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Wed</div>
+          <div class="day-date">14</div>
+        </div>
+        <div class="day-content">
+          <div class="rest-row">Rest day</div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Thu</div>
+          <div class="day-date">15</div>
+        </div>
+        <div class="day-content">
+          <div class="workout-card">
+            <div class="workout-card-top">
+              <div class="workout-type-row">
+                <span class="type-chip chip-intervals">Intervals</span>
+                <div class="workout-meta">
+                  <span class="meta-text">75 min</span>
+                  <span class="meta-divider">·</span>
+                  <span class="meta-text">TSS 88</span>
+                </div>
+              </div>
+              <span class="status-badge status-planned">Planned</span>
+            </div>
+            <div class="workout-card-body">
+              <p class="workout-desc">5×5 min VO2max efforts with equal recovery. Aim for 110–120% FTP on each rep.</p>
+              <p class="workout-zones">Zone 5 · 106–120% FTP · 90–100 rpm</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Fri</div>
+          <div class="day-date">16</div>
+        </div>
+        <div class="day-content">
+          <div class="workout-card">
+            <div class="workout-card-top">
+              <div class="workout-type-row">
+                <span class="type-chip chip-recovery">Recovery</span>
+                <div class="workout-meta">
+                  <span class="meta-text">45 min</span>
+                </div>
+              </div>
+              <span class="status-badge status-planned">Planned</span>
+            </div>
+            <div class="workout-card-body">
+              <p class="workout-desc">Easy recovery spin. Keep it light — this is active recovery, not fitness work.</p>
+              <p class="workout-zones">Zone 1 · &lt;56% FTP · 90+ rpm</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Sat</div>
+          <div class="day-date today">17</div>
+        </div>
+        <div class="day-content">
+          <div class="event-card">
+            <span style="font-size:18px">🏁</span>
+            <div>
+              <div class="event-name">Chiltern 100 Sportive</div>
+              <div class="event-meta">Race · A priority</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-row">
+        <div class="day-label">
+          <div class="day-name">Sun</div>
+          <div class="day-date">18</div>
+        </div>
+        <div class="day-content">
+          <div class="rest-row">Rest day</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Chat panel -->
+  <aside class="chat-rail">
+    <div class="chat-rail-header">Coach Chat</div>
+    <div class="chat-messages">
+      <div class="chat-bubble">Your Thursday intervals look good on paper — how are your legs feeling after Tuesday's threshold session?</div>
+      <div class="chat-bubble user">Actually pretty good, slight DOMS but nothing bad</div>
+      <div class="chat-bubble">Good sign. Go ahead with Thursday as planned. If power drops more than 5% on rep 4 or 5, cut it short rather than grinding through.</div>
+    </div>
+    <div class="chat-input-row">
+      <input class="chat-input" type="text" placeholder="Ask your coach…" />
+      <button class="chat-send">↑</button>
+    </div>
+  </aside>
+</div>
+
+</body>
+</html>

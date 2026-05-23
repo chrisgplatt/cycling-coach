@@ -54,3 +54,5 @@ next-env.d.ts
 
 # Superpowers brainstorm sessions
 .superpowers/
+
+.vercel
