@@ -20,6 +20,24 @@ export default function NavBar() {
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-30">
       <div className="flex items-center h-14 px-6">
+        {/* Mobile hamburger — left of brand */}
+        <button
+          onClick={() => setOpen(o => !o)}
+          aria-label="Toggle navigation menu"
+          aria-expanded={open}
+          className="md:hidden mr-3 text-gray-400 hover:text-gray-700 p-1"
+        >
+          {open ? (
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+            </svg>
+          )}
+        </button>
+
         {/* Brand */}
         <Link href="/dashboard" className="flex items-center gap-2.5 mr-8 shrink-0">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -61,24 +79,6 @@ export default function NavBar() {
           ))}
           <div className="ml-auto"><SignOutButton /></div>
         </div>
-
-        {/* Mobile hamburger */}
-        <button
-          onClick={() => setOpen(o => !o)}
-          aria-label="Toggle navigation menu"
-          aria-expanded={open}
-          className="md:hidden ml-auto text-gray-400 hover:text-gray-700 p-1"
-        >
-          {open ? (
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-            </svg>
-          )}
-        </button>
       </div>
 
       {/* Mobile dropdown */}
