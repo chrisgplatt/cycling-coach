@@ -25,12 +25,16 @@ export default function PlanPage() {
   const [schedule, setSchedule] = useState<Record<string, number>>(
     Object.fromEntries(DAYS.map(d => [d, 0]))
   )
+  const [minSessions, setMinSessions] = useState(3)
+  const [maxSessions, setMaxSessions] = useState(5)
   const [savedGoals, setSavedGoals] = useState('')
   const [savedFtp, setSavedFtp] = useState(200)
   const [savedWeight, setSavedWeight] = useState(70)
   const [savedSchedule, setSavedSchedule] = useState<Record<string, number>>(
     Object.fromEntries(DAYS.map(d => [d, 0]))
   )
+  const [savedMinSessions, setSavedMinSessions] = useState(3)
+  const [savedMaxSessions, setSavedMaxSessions] = useState(5)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -40,7 +44,9 @@ export default function PlanPage() {
     goals !== savedGoals ||
     currentFtp !== savedFtp ||
     weightKg !== savedWeight ||
-    DAYS.some(d => schedule[d] !== savedSchedule[d])
+    DAYS.some(d => schedule[d] !== savedSchedule[d]) ||
+    minSessions !== savedMinSessions ||
+    maxSessions !== savedMaxSessions
 
   const [events, setEvents] = useState<TrainingEvent[]>([])
   const [syncing, setSyncing] = useState(false)
@@ -87,10 +93,14 @@ export default function PlanPage() {
         const wt = data.weight_kg ?? 70
         const avail: Array<{ day: string; duration_minutes: number }> = data.weekly_availability ?? []
         const sched = Object.fromEntries(DAYS.map(d => [d, avail.find(a => a.day === d)?.duration_minutes ?? 0]))
+        const minSess = data.min_sessions_per_week ?? 3
+        const maxSess = data.max_sessions_per_week ?? 5
         setGoals(g); setSavedGoals(g)
         setCurrentFtp(ftp); setSavedFtp(ftp)
         setWeightKg(wt); setSavedWeight(wt)
         setSchedule(sched); setSavedSchedule(sched)
+        setMinSessions(minSess); setSavedMinSessions(minSess)
+        setMaxSessions(maxSess); setSavedMaxSessions(maxSess)
         setEvents(data.events ?? [])
       })
       // Fix 2: surface load errors instead of silently swallowing them
@@ -115,8 +125,8 @@ export default function PlanPage() {
         .filter(d => (schedule[d] ?? 0) > 0)
         .map(d => ({ day: d, duration_minutes: schedule[d] }))
       const body = profileId
-        ? { id: profileId, goals, current_ftp: currentFtp, weight_kg: weightKg, weekly_availability }
-        : { goals, current_ftp: currentFtp, weight_kg: weightKg, weekly_availability }
+        ? { id: profileId, goals, current_ftp: currentFtp, weight_kg: weightKg, weekly_availability, min_sessions_per_week: minSessions, max_sessions_per_week: maxSessions }
+        : { goals, current_ftp: currentFtp, weight_kg: weightKg, weekly_availability, min_sessions_per_week: minSessions, max_sessions_per_week: maxSessions }
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -131,6 +141,8 @@ export default function PlanPage() {
       setSavedFtp(currentFtp)
       setSavedWeight(weightKg)
       setSavedSchedule({ ...schedule })
+      setSavedMinSessions(minSessions)
+      setSavedMaxSessions(maxSessions)
       setSaved(true)
       // Fix 1: clear any existing timer before setting a new one
       if (savedTimer.current) clearTimeout(savedTimer.current)
@@ -498,6 +510,41 @@ export default function PlanPage() {
                   </div>
                 )
               })}
+            </div>
+          </section>
+
+          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Session frequency</h2>
+            <p className="text-xs text-slate-400">How many sessions per week to aim for. Claude will target this range, prioritising quality over hitting a number.</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Minimum sessions</label>
+                <select
+                  value={minSessions}
+                  onChange={e => {
+                    const v = Number(e.target.value)
+                    setMinSessions(v)
+                    if (v > maxSessions) setMaxSessions(v)
+                  }}
+                  className={inputClass}
+                >
+                  {[1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Maximum sessions</label>
+                <select
+                  value={maxSessions}
+                  onChange={e => {
+                    const v = Number(e.target.value)
+                    setMaxSessions(v)
+                    if (v < minSessions) setMinSessions(v)
+                  }}
+                  className={inputClass}
+                >
+                  {[1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
             </div>
           </section>
 

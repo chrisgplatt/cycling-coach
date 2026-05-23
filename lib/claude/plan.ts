@@ -73,6 +73,9 @@ TRAINING ZONES (use these exact watt ranges in descriptions and target_zones):
 ${formatZones(profile.current_ftp)}
 
 ${formatSchedule(profile.weekly_availability)}
+${profile.min_sessions_per_week != null && profile.max_sessions_per_week != null
+  ? `SESSION FREQUENCY TARGET: Aim for ${profile.min_sessions_per_week}–${profile.max_sessions_per_week} sessions per week. This is a target, not a hard rule — prioritise quality and recovery over hitting a specific number.`
+  : ''}
 
 HARD SCHEDULING CONSTRAINTS — absolute rules, never break these:
 1. Only schedule workouts on days listed in the weekly schedule. Never place a workout on a rest day.

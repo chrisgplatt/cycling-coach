@@ -21,6 +21,8 @@ export interface UserProfile {
   weekly_hours?: number       // optional — superseded by weekly_availability
   rest_days?: string[]        // optional — superseded by weekly_availability
   weekly_availability?: Array<{ day: string; duration_minutes: number }>
+  min_sessions_per_week?: number
+  max_sessions_per_week?: number
   current_ftp: number
   weight_kg: number
   intervals_icu_athlete_id: string
