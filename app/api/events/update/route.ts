@@ -38,6 +38,16 @@ export async function PUT(req: NextRequest) {
 
   if (profile.intervals_icu_athlete_id && profile.intervals_icu_api_key) {
     const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
+    if (!icu_event_id) {
+      // No stored ICU id — search ICU for an event matching the original name/date
+      // before creating a new one (avoids duplicates for events created before sync was working)
+      try {
+        const icuEvents = await client.getEvents(original_date, original_date)
+        const match = icuEvents.find(e => e.name.trim().toLowerCase() === original_name.trim().toLowerCase())
+        if (match) icu_event_id = match.id
+      } catch { /* ignore — will fall through to create */ }
+    }
+
     if (icu_event_id) {
       try {
         await client.updateTargetEvent(icu_event_id, {
@@ -49,7 +59,7 @@ export async function PUT(req: NextRequest) {
         console.error('[events/update] intervals.icu update failed:', icu_error)
       }
     } else {
-      // Event wasn't previously synced — create it now
+      // Nothing in ICU yet — create it now
       try {
         icu_event_id = await client.createTargetEvent({
           date, name: name.trim(), type, priority,

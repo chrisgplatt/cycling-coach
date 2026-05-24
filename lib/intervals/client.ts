@@ -221,17 +221,15 @@ export class IntervalsClient {
       params.type === 'holiday' ? 'HOLIDAY' :
       'NOTE'
     const startTime = params.start_time ? `${params.start_time}:00` : '00:00:00'
-    const descParts: string[] = []
-    if (params.rpe) descParts.push(`Expected effort: ${params.rpe.replace('_', ' ')}`)
-    if (params.duration_minutes) descParts.push(`Duration: ~${params.duration_minutes} min`)
-    if (params.distance_km) descParts.push(`Distance: ~${params.distance_km} km`)
     const body: Record<string, unknown> = {
       category,
       start_date_local: `${params.date}T${startTime}`,
       name: params.name,
-      type: params.type === 'holiday' ? 'Ride' : 'Ride',
+      type: 'Ride',
     }
-    if (descParts.length) body.description = descParts.join('\n')
+    if (params.duration_minutes) body.moving_time = params.duration_minutes * 60
+    if (params.distance_km) body.distance = params.distance_km * 1000
+    if (params.rpe) body.description = `Expected effort: ${params.rpe.replace('_', ' ')}`
     const data = await this.request<{ id: number }>(
       `/athlete/${this.athleteId}/events`,
       { method: 'POST', body: JSON.stringify(body) }
@@ -268,17 +266,15 @@ export class IntervalsClient {
       params.type === 'holiday' ? 'HOLIDAY' :
       'NOTE'
     const startTime = params.start_time ? `${params.start_time}:00` : '00:00:00'
-    const descParts: string[] = []
-    if (params.rpe) descParts.push(`Expected effort: ${params.rpe.replace('_', ' ')}`)
-    if (params.duration_minutes) descParts.push(`Duration: ~${params.duration_minutes} min`)
-    if (params.distance_km) descParts.push(`Distance: ~${params.distance_km} km`)
     const body: Record<string, unknown> = {
       category,
       start_date_local: `${params.date}T${startTime}`,
       name: params.name,
       type: 'Ride',
     }
-    if (descParts.length) body.description = descParts.join('\n')
+    if (params.duration_minutes) body.moving_time = params.duration_minutes * 60
+    if (params.distance_km) body.distance = params.distance_km * 1000
+    if (params.rpe) body.description = `Expected effort: ${params.rpe.replace('_', ' ')}`
     await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
       method: 'PUT',
       body: JSON.stringify(body),
