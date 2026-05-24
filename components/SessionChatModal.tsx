@@ -62,6 +62,7 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
     })
 
     if (!res.body) { setLoading(false); return }
+    if (!res.ok) { setLoading(false); return }
 
     setMessages(prev => [...prev, { role: 'assistant', content: '' }])
     const reader = res.body.getReader()
@@ -104,21 +105,26 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
   async function handleApprove() {
     if (!proposal || applying) return
     setApplying(true)
-    const res = await fetch(`/api/workouts/${workout.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(proposal.today_update),
-    })
-    if (res.ok) {
-      onWorkoutUpdated({ ...workout, ...proposal.today_update })
-      const followUp = proposal.week_follow_up
-      setProposal(null)
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Done — session updated.' }])
-      if (followUp) {
-        setTimeout(() => setMessages(prev => [...prev, { role: 'assistant', content: followUp }]), 400)
+    try {
+      const res = await fetch(`/api/workouts/${workout.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(proposal.today_update),
+      })
+      if (res.ok) {
+        onWorkoutUpdated({ ...workout, ...proposal.today_update })
+        const followUp = proposal.week_follow_up
+        setProposal(null)
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Done — session updated.' }])
+        if (followUp) {
+          setTimeout(() => setMessages(prev => [...prev, { role: 'assistant', content: followUp }]), 400)
+        }
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: "Something went wrong — the session could not be updated. Try again." }])
       }
+    } finally {
+      setApplying(false)
     }
-    setApplying(false)
   }
 
   function handleReject() {
@@ -129,18 +135,26 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
   async function handleWeekApprove() {
     if (!weekProposal || applying) return
     setApplying(true)
-    await Promise.all(
-      weekProposal.changes.map(c =>
-        fetch(`/api/workouts/${c.workout_id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ [c.field]: c.new_value }),
-        })
+    try {
+      const results = await Promise.all(
+        weekProposal.changes.map(c =>
+          fetch(`/api/workouts/${c.workout_id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [c.field]: c.new_value }),
+          })
+        )
       )
-    )
-    setWeekProposal(null)
-    setMessages(prev => [...prev, { role: 'assistant', content: "Week adjusted. You're all set." }])
-    setApplying(false)
+      const failed = results.filter(r => !r.ok)
+      setWeekProposal(null)
+      if (failed.length > 0) {
+        setMessages(prev => [...prev, { role: 'assistant', content: `${results.length - failed.length} of ${results.length} changes applied. Some updates failed — try again.` }])
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: "Week adjusted. You're all set." }])
+      }
+    } finally {
+      setApplying(false)
+    }
   }
 
   function handleWeekReject() {
@@ -231,7 +245,7 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
               {weekProposal.changes.map((c, i) => (
                 <div key={i} className="space-y-0.5">
                   <p className="text-sm">
-                    <span className="font-medium capitalize">{String(c.field).replace('_', ' ')}: </span>
+                    <span className="font-medium capitalize">{String(c.field).replaceAll('_', ' ')}: </span>
                     <span className="text-slate-500">{String(c.old_value)} → {String(c.new_value)}</span>
                   </p>
                   <p className="text-xs text-slate-500">{c.reason}</p>
