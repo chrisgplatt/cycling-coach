@@ -62,8 +62,8 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm max-h-[92vh] overflow-y-auto p-5 space-y-4">
         {phase === 'saved' ? (
           <>
             <div className="space-y-1">
@@ -118,7 +118,7 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
 
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wide pt-1">Optional details</p>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-3">
                 <div>
                   <label className="text-xs text-slate-500 mb-1 block">Start time</label>
                   <input
@@ -127,16 +127,6 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
                     onChange={e => setStartTime(e.target.value)}
                     className={inputClass}
                   />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Expected effort</label>
-                  <select value={rpe} onChange={e => setRpe(e.target.value as EventRPE | '')} className={inputClass}>
-                    <option value="">— not set —</option>
-                    <option value="race_pace">Race pace</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                  </select>
                 </div>
                 <div>
                   <label className="text-xs text-slate-500 mb-1 block">Duration (min)</label>
@@ -160,6 +150,16 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
                     placeholder="e.g. 80"
                     className={inputClass}
                   />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Expected effort</label>
+                  <select value={rpe} onChange={e => setRpe(e.target.value as EventRPE | '')} className={inputClass}>
+                    <option value="">Not set</option>
+                    <option value="race_pace">Race pace</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
                 </div>
               </div>
             </div>
