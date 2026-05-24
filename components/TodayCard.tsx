@@ -172,7 +172,12 @@ export default function TodayCard({ workout, wellness, onWorkoutClick, onChatWit
             onClick={onChatWithCoach}
             className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors py-2 block"
           >
-            Chat with coach →
+            <span className="flex items-center gap-1.5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+              </svg>
+              Chat with coach →
+            </span>
           </button>
         )}
       </div>

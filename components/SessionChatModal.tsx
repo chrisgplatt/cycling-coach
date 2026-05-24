@@ -169,12 +169,12 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      {/* Sheet */}
-      <div className="relative bg-white rounded-t-2xl flex flex-col max-h-[85vh] sm:max-w-lg sm:mx-auto sm:w-full sm:rounded-2xl sm:mb-8">
+      {/* Modal */}
+      <div className="relative bg-white rounded-2xl flex flex-col w-full max-w-lg max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
           <div>
