@@ -178,7 +178,12 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Coach Chat</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-blue-600" aria-hidden="true">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+              </svg>
+              Coach Chat
+            </p>
             <p className="text-sm font-semibold text-slate-800 capitalize">
               {workout.duration_minutes}min {workout.type}
             </p>
