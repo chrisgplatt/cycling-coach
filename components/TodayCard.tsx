@@ -170,7 +170,7 @@ export default function TodayCard({ workout, wellness, onWorkoutClick, onChatWit
         {!loading && onChatWithCoach && workout && (
           <button
             onClick={onChatWithCoach}
-            className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+            className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors py-2 block"
           >
             Chat with coach →
           </button>

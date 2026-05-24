@@ -62,7 +62,11 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
     })
 
     if (!res.body) { setLoading(false); return }
-    if (!res.ok) { setLoading(false); return }
+    if (!res.ok) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Something went wrong — try again.' }])
+      setLoading(false)
+      return
+    }
 
     setMessages(prev => [...prev, { role: 'assistant', content: '' }])
     const reader = res.body.getReader()
@@ -136,8 +140,10 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
     if (!weekProposal || applying) return
     setApplying(true)
     try {
+      const allowedFields = new Set(['duration_minutes', 'description', 'type', 'target_zones'])
+      const safeChanges = weekProposal.changes.filter(c => allowedFields.has(c.field))
       const results = await Promise.all(
-        weekProposal.changes.map(c =>
+        safeChanges.map(c =>
           fetch(`/api/workouts/${c.workout_id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
