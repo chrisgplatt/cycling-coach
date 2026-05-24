@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { generateWorkoutSteps } from '@/lib/claude/steps'
+import type { Workout, WorkoutStep } from '@/types'
 
 export async function DELETE(
   _req: NextRequest,
@@ -83,6 +85,43 @@ export async function PATCH(
 
   const { error } = await supabase.from('workouts').update(update).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Sync content changes to intervals.icu with a full rewrite
+  const contentFieldsChanged = ['type', 'duration_minutes', 'description', 'target_zones'].some(f => body[f] !== undefined)
+  if (contentFieldsChanged) {
+    const { data: updated } = await supabase.from('workouts').select('*').eq('id', id).maybeSingle()
+    if (updated?.intervals_icu_event_id && updated.status === 'planned') {
+      const { data: profile } = await supabase
+        .from('user_profile')
+        .select('intervals_icu_athlete_id, intervals_icu_api_key')
+        .maybeSingle()
+      if (profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
+        const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
+        let steps = (updated.steps as WorkoutStep[] | null) ?? []
+        if (body.duration_minutes !== undefined) {
+          try {
+            steps = await generateWorkoutSteps(updated as Workout)
+            await supabase.from('workouts').update({ steps }).eq('id', id)
+          } catch {
+            steps = []
+          }
+        }
+        const name = `${updated.type.charAt(0).toUpperCase() + updated.type.slice(1)} — ${updated.duration_minutes}min`
+        const description = `${updated.description}\n\nTarget: ${updated.target_zones}`
+        try {
+          await client.updateEventFull(updated.intervals_icu_event_id, {
+            name,
+            description,
+            duration_minutes: updated.duration_minutes,
+            steps,
+          })
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          return NextResponse.json({ ok: true, icu_warning: msg })
+        }
+      }
+    }
+  }
 
   if (eventId) {
     const { data: profile, error: profileErr } = await supabase
