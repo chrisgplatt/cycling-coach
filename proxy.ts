@@ -16,7 +16,13 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            // Force 7-day persistent cookies so PWA sessions survive being
+            // closed for longer than the JWT expiry (default 1h). The refresh
+            // token stored inside the cookie lasts 7 days by default in Supabase.
+            supabaseResponse.cookies.set(name, value, {
+              ...options,
+              maxAge: 60 * 60 * 24 * 7,
+            })
           )
         },
       },
