@@ -593,7 +593,7 @@ export default function PlanPage() {
             {events.length === 0 && (
               <p className="text-sm text-slate-400">No events yet. Add one to start planning.</p>
             )}
-            {events.map((event, i) => {
+            {[...events].sort((a, b) => a.date.localeCompare(b.date)).map((event, i) => {
               const key = `${event.name}|${event.date}`
               return (
                 <div key={key} className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
