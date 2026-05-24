@@ -19,7 +19,14 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const refresh = new URL(req.url).searchParams.get('refresh') === 'true'
-  const today = new Date().toISOString().split('T')[0]
+
+  // Fetch profile first so we can compute the user's local date from their stored timezone
+  const { data: profile } = await supabase.from('user_profile')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, events, timezone')
+    .maybeSingle()
+
+  const tz = (profile as { timezone?: string } | null)?.timezone ?? 'Europe/London'
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date())
 
   // Return cached note unless refresh is requested
   if (!refresh) {
@@ -32,17 +39,12 @@ export async function GET(req: NextRequest) {
     if (cached) return NextResponse.json({ coach_note: cached.coach_note, cached: true })
   }
 
-  const [{ data: profile }, { data: workouts }] = await Promise.all([
-    supabase.from('user_profile')
-      .select('intervals_icu_athlete_id, intervals_icu_api_key, events')
-      .maybeSingle(),
-    supabase.from('workouts')
-      .select('*')
-      .eq('date', today)
-      .in('status', ['planned', 'completed', 'needs_review'])
-      .order('created_at')
-      .limit(1),
-  ])
+  const { data: workouts } = await supabase.from('workouts')
+    .select('*')
+    .eq('date', today)
+    .in('status', ['planned', 'completed', 'needs_review'])
+    .order('created_at')
+    .limit(1)
 
   const todayWorkout = (workouts?.[0] as Workout | undefined) ?? null
 

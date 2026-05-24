@@ -10,6 +10,7 @@ import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
 import { isoWeek } from '@/lib/iso-week'
 import { getWeekBounds } from '@/lib/week-bounds'
+import { localDateStr } from '@/lib/local-date'
 import type { GeneratedPlan } from '@/types'
 import {
   DndContext,
@@ -156,7 +157,7 @@ export default function DashboardPage() {
     }
 
     if (plan.workouts) {
-      const today = new Date().toISOString().split('T')[0]
+      const today = localDateStr(new Date())
       const { start: weekStart, end: weekEnd } = getWeekBounds(today)
       setWorkouts(plan.workouts.filter((w: Workout) => w.date >= weekStart && w.date <= weekEnd))
 
@@ -262,7 +263,7 @@ export default function DashboardPage() {
   useEffect(() => () => reviewAbortRef.current?.abort(), [])
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = localDateStr(new Date())
     let needsSync = true
     try {
       const raw = localStorage.getItem(SYNC_CACHE_KEY)
@@ -326,15 +327,16 @@ export default function DashboardPage() {
     return `${dateStr} at ${timeStr}`
   }
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = localDateStr(new Date())
   const todayWorkout = workouts.find(w => w.date === todayStr) ?? null
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const today = new Date()
+  const dayOfWeek = (today.getDay() + 6) % 7  // 0=Mon … 6=Sun (Sunday was 0, causing off-by-one)
   const weekDates = days.map((_, i) => {
     const d = new Date(today)
-    d.setDate(d.getDate() - d.getDay() + 1 + i)
-    return d.toISOString().split('T')[0]
+    d.setDate(d.getDate() - dayOfWeek + i)
+    return localDateStr(d)
   })
 
   return (
@@ -442,7 +444,7 @@ export default function DashboardPage() {
             {weekDates.map((date, i) => {
               const dayWorkout = workouts.find(w => w.date === date)
               const dayEvent = events.find(e => e.date === date)
-              const isToday = date === new Date().toISOString().split('T')[0]
+              const isToday = date === localDateStr(new Date())
               return (
                 <div key={date} className="flex gap-4 items-start">
                   <div className="w-10 text-center pt-3">
