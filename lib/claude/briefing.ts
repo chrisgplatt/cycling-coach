@@ -15,9 +15,29 @@ function buildLoadString(ctx: BriefingContext): string {
   ].filter(Boolean).join(', ')
 }
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function daysUntil(todayStr: string, eventDateStr: string): number {
+  // Parse as UTC to avoid DST shifts when computing day difference
+  const t = Date.UTC(...(todayStr.split('-').map(Number) as [number, number, number]).map((v, i) => i === 1 ? v - 1 : v) as [number, number, number])
+  const e = Date.UTC(...(eventDateStr.split('-').map(Number) as [number, number, number]).map((v, i) => i === 1 ? v - 1 : v) as [number, number, number])
+  return Math.round((e - t) / 86400000)
+}
+
+function eventDayLabel(todayStr: string, eventDateStr: string): string {
+  const days = daysUntil(todayStr, eventDateStr)
+  const [y, m, d] = eventDateStr.split('-').map(Number)
+  const dayName = DAY_NAMES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+  if (days === 0) return 'today'
+  if (days === 1) return 'tomorrow'
+  return `${dayName} (in ${days} days)`
+}
+
 function buildEventsString(ctx: BriefingContext): string {
   return ctx.upcomingEvents.length
-    ? ctx.upcomingEvents.map(e => `${e.name} on ${e.date} (${e.type}, priority ${e.priority})`).join('; ')
+    ? ctx.upcomingEvents.map(e =>
+        `${e.name} — ${eventDayLabel(ctx.today, e.date)} [${e.date}] (${e.type}, priority ${e.priority})`
+      ).join('; ')
     : 'none in next 4 weeks'
 }
 
