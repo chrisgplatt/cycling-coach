@@ -82,6 +82,24 @@ export interface ProposedAdjustment {
   workout_steps?: Array<{ workout_id: string; steps: WorkoutStep[] }>
 }
 
+export interface SessionWorkoutUpdate {
+  type?: WorkoutType
+  duration_minutes?: number
+  description?: string
+  target_zones?: string
+}
+
+export interface SessionProposal {
+  today_update: SessionWorkoutUpdate
+  rationale: string
+  week_follow_up?: string
+}
+
+export interface SessionWeekProposal {
+  changes: WorkoutChange[]
+  rationale: string
+}
+
 export interface SessionFeedback {
   id: string
   workout_id: string | null
