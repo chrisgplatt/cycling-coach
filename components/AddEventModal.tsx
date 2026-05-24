@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import type { TrainingEvent } from '@/types'
+import type { TrainingEvent, EventRPE } from '@/types'
 
 interface Props {
   initialEvent?: Omit<TrainingEvent, '_key'>
@@ -17,6 +17,10 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
   const [date, setDate] = useState(initialEvent?.date ?? '')
   const [type, setType] = useState<TrainingEvent['type']>(initialEvent?.type ?? 'sportive')
   const [priority, setPriority] = useState<TrainingEvent['priority']>(initialEvent?.priority ?? 'B')
+  const [startTime, setStartTime] = useState(initialEvent?.start_time ?? '')
+  const [rpe, setRpe] = useState<EventRPE | ''>(initialEvent?.rpe ?? '')
+  const [duration, setDuration] = useState(initialEvent?.duration_minutes?.toString() ?? '')
+  const [distance, setDistance] = useState(initialEvent?.distance_km?.toString() ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [phase, setPhase] = useState<'form' | 'saved'>('form')
@@ -29,7 +33,16 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
     setSaving(true)
     setError(null)
     try {
-      await onConfirm({ name: name.trim(), date, type, priority })
+      await onConfirm({
+        name: name.trim(),
+        date,
+        type,
+        priority,
+        ...(startTime ? { start_time: startTime } : {}),
+        ...(rpe ? { rpe } : {}),
+        ...(duration ? { duration_minutes: Number(duration) } : {}),
+        ...(distance ? { distance_km: Number(distance) } : {}),
+      })
       if (hasPlan && onRegenerate) {
         setPhase('saved')
       } else {
@@ -102,6 +115,53 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
                 <option value="B">B — Important</option>
                 <option value="C">C — Secondary</option>
               </select>
+
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide pt-1">Optional details</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Start time</label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={e => setStartTime(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Expected effort</label>
+                  <select value={rpe} onChange={e => setRpe(e.target.value as EventRPE | '')} className={inputClass}>
+                    <option value="">— not set —</option>
+                    <option value="race_pace">Race pace</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Duration (min)</label>
+                  <input
+                    type="number"
+                    value={duration}
+                    onChange={e => setDuration(e.target.value)}
+                    min={1}
+                    placeholder="e.g. 120"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Distance (km)</label>
+                  <input
+                    type="number"
+                    value={distance}
+                    onChange={e => setDistance(e.target.value)}
+                    min={0.1}
+                    step={0.1}
+                    placeholder="e.g. 80"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
             </div>
 
             {error && (

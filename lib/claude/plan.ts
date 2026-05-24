@@ -85,7 +85,14 @@ HARD SCHEDULING CONSTRAINTS — absolute rules, never break these:
 5. NEVER place a workout on an event date. Every event date is a blocked day — the event itself is the athlete's activity that day. No exceptions.
 
 EVENTS (all priorities) — these dates are BLOCKED, no workout may be scheduled on them:
-${allEvents.map(e => `- ${e.date} BLOCKED: ${e.name} | ${e.type} | Priority ${e.priority}`).join('\n')}
+${allEvents.map(e => {
+  const extras: string[] = []
+  if (e.start_time) extras.push(`starts ${e.start_time}`)
+  if (e.rpe) extras.push(`effort: ${e.rpe.replace('_', ' ')}`)
+  if (e.duration_minutes) extras.push(`~${e.duration_minutes}min`)
+  if (e.distance_km) extras.push(`~${e.distance_km}km`)
+  return `- ${e.date} BLOCKED: ${e.name} | ${e.type} | Priority ${e.priority}${extras.length ? ` | ${extras.join(', ')}` : ''}`
+}).join('\n')}
 
 EVENT PREPARATION — apply these rules around every event:
 

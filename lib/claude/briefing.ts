@@ -35,9 +35,15 @@ function eventDayLabel(todayStr: string, eventDateStr: string): string {
 
 function buildEventsString(ctx: BriefingContext): string {
   return ctx.upcomingEvents.length
-    ? ctx.upcomingEvents.map(e =>
-        `${e.name} — ${eventDayLabel(ctx.today, e.date)} [${e.date}] (${e.type}, priority ${e.priority})`
-      ).join('; ')
+    ? ctx.upcomingEvents.map(e => {
+        const extras: string[] = []
+        if (e.start_time) extras.push(`starts ${e.start_time}`)
+        if (e.rpe) extras.push(`effort: ${e.rpe.replace('_', ' ')}`)
+        if (e.duration_minutes) extras.push(`~${e.duration_minutes}min`)
+        if (e.distance_km) extras.push(`~${e.distance_km}km`)
+        const detail = extras.length ? `; ${extras.join(', ')}` : ''
+        return `${e.name} — ${eventDayLabel(ctx.today, e.date)} [${e.date}] (${e.type}, priority ${e.priority}${detail})`
+      }).join('; ')
     : 'none in next 4 weeks'
 }
 

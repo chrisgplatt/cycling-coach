@@ -209,6 +209,10 @@ export class IntervalsClient {
     name: string
     type: 'race' | 'sportive' | 'holiday' | 'fitness'
     priority: 'A' | 'B' | 'C'
+    start_time?: string       // HH:MM
+    duration_minutes?: number
+    distance_km?: number
+    rpe?: string
   }): Promise<string> {
     const raceCategory = { A: 'RACE_A', B: 'RACE_B', C: 'RACE_C' }[params.priority]
     const category =
@@ -216,16 +220,18 @@ export class IntervalsClient {
       params.type === 'fitness' ? 'TARGET' :
       params.type === 'holiday' ? 'HOLIDAY' :
       'NOTE'
+    const startTime = params.start_time ? `${params.start_time}:00` : '00:00:00'
+    const body: Record<string, unknown> = {
+      category,
+      start_date_local: `${params.date}T${startTime}`,
+      name: params.name,
+    }
+    if (params.duration_minutes) body.moving_time = params.duration_minutes * 60
+    if (params.distance_km) body.distance = params.distance_km * 1000
+    if (params.rpe) body.description = `Expected effort: ${params.rpe.replace('_', ' ')}`
     const data = await this.request<{ id: number }>(
       `/athlete/${this.athleteId}/events?upsertOnUid=false`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          category,
-          start_date_local: `${params.date}T00:00:00`,
-          name: params.name,
-        }),
-      }
+      { method: 'POST', body: JSON.stringify(body) }
     )
     return String(data.id)
   }
@@ -247,6 +253,10 @@ export class IntervalsClient {
     name: string
     type: 'race' | 'sportive' | 'holiday' | 'fitness'
     priority: 'A' | 'B' | 'C'
+    start_time?: string
+    duration_minutes?: number
+    distance_km?: number
+    rpe?: string
   }): Promise<void> {
     const raceCategory = { A: 'RACE_A', B: 'RACE_B', C: 'RACE_C' }[params.priority]
     const category =
@@ -254,13 +264,18 @@ export class IntervalsClient {
       params.type === 'fitness' ? 'TARGET' :
       params.type === 'holiday' ? 'HOLIDAY' :
       'NOTE'
+    const startTime = params.start_time ? `${params.start_time}:00` : '00:00:00'
+    const body: Record<string, unknown> = {
+      category,
+      start_date_local: `${params.date}T${startTime}`,
+      name: params.name,
+    }
+    if (params.duration_minutes) body.moving_time = params.duration_minutes * 60
+    if (params.distance_km) body.distance = params.distance_km * 1000
+    if (params.rpe) body.description = `Expected effort: ${params.rpe.replace('_', ' ')}`
     await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
       method: 'PUT',
-      body: JSON.stringify({
-        category,
-        start_date_local: `${params.date}T00:00:00`,
-        name: params.name,
-      }),
+      body: JSON.stringify(body),
     })
   }
 
