@@ -11,6 +11,8 @@ interface Props {
 }
 
 const fieldClass = "w-full max-w-full min-w-0 block text-sm border border-slate-200 rounded-xl px-3 py-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+// date/time inputs on iOS ignore CSS width unless appearance-none is set
+const dateTimeClass = `${fieldClass} appearance-none`
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -107,7 +109,7 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
                     type="date"
                     value={date}
                     onChange={e => setDate(e.target.value)}
-                    className={fieldClass}
+                    className={dateTimeClass}
                   />
                 </Field>
 
@@ -138,7 +140,7 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
                     type="time"
                     value={startTime}
                     onChange={e => setStartTime(e.target.value)}
-                    className={fieldClass}
+                    className={dateTimeClass}
                   />
                 </Field>
 
