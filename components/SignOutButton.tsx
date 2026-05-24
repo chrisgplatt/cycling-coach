@@ -1,14 +1,10 @@
 'use client'
-import { useRouter } from 'next/navigation'
-import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 
 export default function SignOutButton() {
-  const router = useRouter()
-
   async function signOut() {
-    const supabase = createSupabaseBrowserClient()
-    await supabase.auth.signOut()
-    router.push('/login')
+    await fetch('/api/auth/signout', { method: 'POST' })
+    // Full page reload so the middleware re-runs and sees the cleared cookies.
+    window.location.href = '/login'
   }
 
   return (
