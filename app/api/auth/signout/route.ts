@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 
 export async function POST() {
   const supabase = await createSupabaseServerClient()
-  await supabase.auth.signOut()
+  await supabase.auth.signOut({ scope: 'global' })
 
   // Explicitly expire all Supabase auth cookies so the middleware
   // no longer sees a valid session after the next navigation.
