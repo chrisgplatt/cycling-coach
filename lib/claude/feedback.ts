@@ -1,5 +1,5 @@
 import { anthropic, MODEL } from './client'
-import type { Workout, ProposedAdjustment } from '@/types'
+import type { Workout, ProposedAdjustment, TrainingEvent } from '@/types'
 
 const SYSTEM_PROMPT = `You are an expert cycling coach analysing post-session feedback to adjust upcoming training.
 Always respond with ONLY valid JSON. No markdown, no text outside the JSON.`
@@ -10,11 +10,20 @@ export async function analyseFeedback(
   actualTSS: number | null,
   actualAvgPower: number | null,
   actualAvgHR: number | null,
-  upcomingWorkouts: Workout[]
+  upcomingWorkouts: Workout[],
+  events: TrainingEvent[] = [],
 ): Promise<ProposedAdjustment> {
   const upcoming = upcomingWorkouts
     .map(w => `- ID ${w.id}: ${w.date} ${w.type} ${w.duration_minutes}min — ${w.description}`)
     .join('\n')
+
+  const today = plannedWorkout.date
+  const upcomingEvents = events
+    .filter(e => e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+  const eventsSection = upcomingEvents.length
+    ? upcomingEvents.map(e => `- ${e.date}: ${e.name} (${e.type}, priority ${e.priority})`).join('\n')
+    : 'None'
 
   const prompt = `Planned workout: ${plannedWorkout.date} ${plannedWorkout.type} ${plannedWorkout.duration_minutes}min
 Description: ${plannedWorkout.description}
@@ -24,10 +33,13 @@ Actual: TSS ${actualTSS ?? 'unknown'}, Avg power ${actualAvgPower ?? 'unknown'}W
 
 Athlete feedback: "${feedbackText}"
 
+Upcoming events (races, sportives, holidays — never propose workouts on these dates):
+${eventsSection}
+
 Upcoming workouts (next 7 days):
 ${upcoming || 'None'}
 
-Propose adjustments to upcoming workouts if needed.
+Propose adjustments to upcoming workouts if needed. Take event dates and their preparation requirements into account when suggesting changes.
 
 For EVERY workout you propose a change to, you MUST also generate new workout steps in "workout_steps".
 Steps must: always start with a warm-up and end with a cool-down, sum to the final duration_minutes,

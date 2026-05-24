@@ -1,14 +1,17 @@
 import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
-import type { ChatMessage, TrainingPlan, Workout, ICUWellness, ICUSyncData } from '@/types'
+import type { ChatMessage, TrainingPlan, Workout, ICUWellness, ICUSyncData, TrainingEvent } from '@/types'
 
 function buildSystemPrompt(
   plan: TrainingPlan | null,
   upcomingWorkouts: Workout[],
   latestWellness: ICUWellness | null,
-  currentFTP: number
+  currentFTP: number,
+  events: TrainingEvent[],
 ): string {
+  const today = new Date().toISOString().split('T')[0]
+
   const planSection = plan
     ? `Active plan: ${plan.target_event_name} on ${plan.target_event_date} (${plan.phase} phase)\nRationale: ${plan.rationale}`
     : 'No active training plan.'
@@ -21,9 +24,24 @@ function buildSystemPrompt(
     ? `CTL: ${latestWellness.ctl ?? '?'}, ATL: ${latestWellness.atl ?? '?'}, Form: ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'}, Resting HR: ${latestWellness.resting_hr ?? '?'}`
     : 'No wellness data.'
 
+  const upcomingEvents = events.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date))
+  const eventsSection = upcomingEvents.length
+    ? upcomingEvents.map(e => {
+        const extras: string[] = []
+        if (e.start_time) extras.push(`starts ${e.start_time}`)
+        if (e.rpe) extras.push(`effort: ${e.rpe.replace('_', ' ')}`)
+        if (e.duration_minutes) extras.push(`~${e.duration_minutes}min`)
+        if (e.distance_km) extras.push(`~${e.distance_km}km`)
+        return `- ${e.date}: ${e.name} (${e.type}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''})`
+      }).join('\n')
+    : 'No upcoming events.'
+
   return `You are an expert road cycling coach for this athlete. Be direct, specific, and practical.
 
 ${planSection}
+
+Upcoming events (races, sportives, holidays):
+${eventsSection}
 
 Upcoming workouts (next 7 days):
 ${workoutSection}
@@ -33,7 +51,7 @@ ${fitnessSection}
 
 Athlete FTP: ${currentFTP}W
 
-Answer questions about training, recovery, pacing, nutrition, and race strategy. Reference specific workouts and power zones where relevant.`
+Answer questions about training, recovery, pacing, nutrition, and race strategy. Reference specific workouts, power zones, and upcoming events where relevant.`
 }
 
 export async function POST(req: NextRequest) {
@@ -58,13 +76,14 @@ export async function POST(req: NextRequest) {
     return new Response('Message is required', { status: 400 })
   }
 
-  const [{ data: plan }, { data: recentMessages }, { data: upcomingWorkouts }] = await Promise.all([
+  const [{ data: plan }, { data: recentMessages }, { data: upcomingWorkouts }, { data: profileData }] = await Promise.all([
     supabase.from('training_plans').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('chat_messages').select('*').order('created_at', { ascending: false }).limit(20),
     supabase.from('workouts').select('*').eq('status', 'planned')
       .gte('date', new Date().toISOString().split('T')[0])
       .lte('date', new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0])
       .order('date'),
+    supabase.from('user_profile').select('events').maybeSingle(),
   ])
 
   const messages = ((recentMessages ?? []) as ChatMessage[])
@@ -76,11 +95,14 @@ export async function POST(req: NextRequest) {
   await supabase.from('chat_messages').insert({ role: 'user', content: message, user_id: userId })
 
   const latestWellness = syncData?.wellness?.slice(-1)[0] ?? null
+  const events = ((profileData as { events?: TrainingEvent[] } | null)?.events ?? []) as TrainingEvent[]
+
   const systemPrompt = buildSystemPrompt(
     plan as TrainingPlan | null,
     (upcomingWorkouts ?? []) as Workout[],
     latestWellness,
-    currentFTP
+    currentFTP,
+    events,
   )
 
   const stream = await anthropic.messages.stream({

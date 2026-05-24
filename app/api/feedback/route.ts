@@ -44,13 +44,11 @@ export async function POST(req: NextRequest) {
   if (shouldAdapt) {
     const today = new Date().toISOString().split('T')[0]
     const next7 = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
-    const { data: upcomingWorkouts } = await supabase
-      .from('workouts')
-      .select('*')
-      .eq('status', 'planned')
-      .gte('date', today)
-      .lte('date', next7)
-      .order('date')
+    const [{ data: upcomingWorkouts }, { data: profileData }] = await Promise.all([
+      supabase.from('workouts').select('*').eq('status', 'planned').gte('date', today).lte('date', next7).order('date'),
+      supabase.from('user_profile').select('events').maybeSingle(),
+    ])
+    const events = ((profileData as { events?: import('@/types').TrainingEvent[] } | null)?.events ?? [])
 
     proposed = await analyseFeedback(
       workout as Workout,
@@ -58,7 +56,8 @@ export async function POST(req: NextRequest) {
       activityTSS ?? null,
       activityAvgPower ?? null,
       activityAvgHR ?? null,
-      (upcomingWorkouts ?? []) as Workout[]
+      (upcomingWorkouts ?? []) as Workout[],
+      events,
     )
   }
 

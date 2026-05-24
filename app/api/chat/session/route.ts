@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
 import { buildSessionSystemPrompt } from '@/lib/claude/session-chat'
-import type { Workout, TrainingPlan, ICUWellness } from '@/types'
+import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -40,12 +40,13 @@ export async function POST(req: NextRequest) {
       .gt('date', new Date().toISOString().split('T')[0])
       .lte('date', new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0])
       .order('date'),
-    supabase.from('user_profile').select('current_ftp').maybeSingle(),
+    supabase.from('user_profile').select('current_ftp, events').maybeSingle(),
   ])
 
   if (!workout) return new Response('Workout not found', { status: 404 })
 
   const currentFTP = (profile as { current_ftp?: number } | null)?.current_ftp ?? 200
+  const events = ((profile as { events?: TrainingEvent[] } | null)?.events ?? []) as TrainingEvent[]
 
   const systemPrompt = buildSessionSystemPrompt(
     workout as Workout,
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
     (upcomingWorkouts ?? []) as Workout[],
     wellness,
     currentFTP,
+    events,
   )
 
   const messages = [

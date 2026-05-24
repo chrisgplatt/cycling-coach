@@ -1,4 +1,4 @@
-import type { Workout, TrainingPlan, ICUWellness } from '@/types'
+import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
 
 export function buildSessionSystemPrompt(
   workout: Workout,
@@ -6,6 +6,7 @@ export function buildSessionSystemPrompt(
   upcomingWorkouts: Workout[],
   wellness: ICUWellness | null,
   currentFTP: number,
+  events: TrainingEvent[] = [],
 ): string {
   const tsb = wellness?.form ?? (
     wellness?.ctl != null && wellness?.atl != null ? wellness.ctl - wellness.atl : null
@@ -23,6 +24,21 @@ export function buildSessionSystemPrompt(
     ? upcomingWorkouts.map(w => `- ${w.id} | ${w.date}: ${w.type} ${w.duration_minutes}min — ${w.description}`).join('\n')
     : 'No other upcoming workouts this week.'
 
+  const today = workout.date
+  const upcomingEvents = events
+    .filter(e => e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+  const eventsSection = upcomingEvents.length
+    ? upcomingEvents.map(e => {
+        const extras: string[] = []
+        if (e.start_time) extras.push(`starts ${e.start_time}`)
+        if (e.rpe) extras.push(`effort: ${e.rpe.replace('_', ' ')}`)
+        if (e.duration_minutes) extras.push(`~${e.duration_minutes}min`)
+        if (e.distance_km) extras.push(`~${e.distance_km}km`)
+        return `- ${e.date}: ${e.name} (${e.type}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''})`
+      }).join('\n')
+    : 'None'
+
   return `You are an expert road cycling coach. Be direct and practical.
 
 TODAY'S SESSION:
@@ -36,6 +52,9 @@ ${fitnessSection}
 FTP: ${currentFTP}W
 
 ${planSection}
+
+UPCOMING EVENTS (races, sportives, holidays — do not propose workouts on these dates):
+${eventsSection}
 
 NEXT 7 DAYS (ID | date: type duration — description):
 ${weekSection}
@@ -52,5 +71,5 @@ If the athlete agrees to adjust the rest of the week, propose specific changes a
 __WEEK_PROPOSAL__
 {"changes": [{"workout_id": "<id from the list above>", "field": "duration_minutes|description|type", "old_value": <current value>, "new_value": <proposed value>, "reason": "<why>"}], "rationale": "<overall reason>"}
 
-Keep proposals minimal — only change what's necessary.`
+Keep proposals minimal — only change what's necessary. Never propose a workout on an event date.`
 }
