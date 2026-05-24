@@ -194,6 +194,8 @@ export default function PlanPage() {
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error ?? 'Failed to save event')
     setEvents(ev => [...ev, data.event])
+    if (data.icu_error) setSyncResult(`Event saved, but intervals.icu sync failed: ${data.icu_error}`)
+    else if (data.synced_to_icu) setSyncResult('Event saved and synced to intervals.icu')
   }
 
   async function updateEvent(original: TrainingEvent, updated: Omit<TrainingEvent, '_key'>) {
@@ -205,6 +207,7 @@ export default function PlanPage() {
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error ?? 'Failed to update event')
     setEvents(ev => ev.map(e => e.name === original.name && e.date === original.date ? data.event : e))
+    if (data.icu_error) setSyncResult(`Event updated, but intervals.icu sync failed: ${data.icu_error}`)
   }
 
   function weekNumber(): { current: number; total: number } | null {

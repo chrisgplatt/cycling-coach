@@ -229,10 +229,11 @@ export class IntervalsClient {
       category,
       start_date_local: `${params.date}T${startTime}`,
       name: params.name,
+      type: params.type === 'holiday' ? 'Ride' : 'Ride',
     }
     if (descParts.length) body.description = descParts.join('\n')
     const data = await this.request<{ id: number }>(
-      `/athlete/${this.athleteId}/events?upsertOnUid=false`,
+      `/athlete/${this.athleteId}/events`,
       { method: 'POST', body: JSON.stringify(body) }
     )
     return String(data.id)
@@ -275,6 +276,7 @@ export class IntervalsClient {
       category,
       start_date_local: `${params.date}T${startTime}`,
       name: params.name,
+      type: 'Ride',
     }
     if (descParts.length) body.description = descParts.join('\n')
     await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
