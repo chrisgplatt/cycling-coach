@@ -1,11 +1,37 @@
 'use client'
-import { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 
 function LoginForm() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
+  const next = searchParams.get('next') || '/dashboard'
+  const router = useRouter()
+  const [restoring, setRestoring] = useState(true)
+
+  useEffect(() => {
+    // Attempt silent session recovery from localStorage backup.
+    // iOS PWA clears HTTP cookies on app termination but preserves localStorage,
+    // so this lets the user stay logged in across app closes.
+    const stored = localStorage.getItem('supabase-session-backup')
+    if (!stored) { setRestoring(false); return }
+
+    let parsed: { access_token: string; refresh_token: string } | null = null
+    try { parsed = JSON.parse(stored) } catch { localStorage.removeItem('supabase-session-backup') }
+    if (!parsed?.refresh_token) { setRestoring(false); return }
+
+    const supabase = createSupabaseBrowserClient()
+    supabase.auth.setSession({ access_token: parsed.access_token, refresh_token: parsed.refresh_token })
+      .then(({ error: err }) => {
+        if (!err) {
+          router.replace(next)
+        } else {
+          localStorage.removeItem('supabase-session-backup')
+          setRestoring(false)
+        }
+      })
+  }, [next, router])
 
   async function signInWithGoogle() {
     const supabase = createSupabaseBrowserClient()
@@ -26,12 +52,16 @@ function LoginForm() {
           Your account hasn&apos;t been invited yet.
         </p>
       )}
-      <button
-        onClick={signInWithGoogle}
-        className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
-      >
-        Sign in with Google
-      </button>
+      {restoring ? (
+        <p className="text-center text-sm text-slate-400">Restoring session…</p>
+      ) : (
+        <button
+          onClick={signInWithGoogle}
+          className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+        >
+          Sign in with Google
+        </button>
+      )}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import './globals.css'
 // import ChatPanel from '@/components/ChatPanel'
 import NavBar from '@/components/NavBar'
 import IOSInstallBanner from '@/components/IOSInstallBanner'
+import SessionSync from '@/components/SessionSync'
 
 const figtree = Figtree({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700', '800'] })
 
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* <ChatPanel currentFTP={200} syncData={null} /> */}
         </div>
         <IOSInstallBanner />
+        <SessionSync />
       </body>
     </html>
   )
