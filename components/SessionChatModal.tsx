@@ -27,8 +27,8 @@ function buildOpeningMessage(workout: Workout, wellness: ICUWellness | null): st
   return `You've got a ${workout.duration_minutes}min ${workout.type} session today.${readiness} What's on your mind?`
 }
 
-const PROPOSAL_MARKER = '\n__PROPOSAL__\n'
-const WEEK_MARKER = '\n__WEEK_PROPOSAL__\n'
+const PROPOSAL_MARKER = '__PROPOSAL__'
+const WEEK_MARKER = '__WEEK_PROPOSAL__'
 
 export default function SessionChatModal({ workout, wellness, onClose, onWorkoutUpdated }: Props) {
   const [messages, setMessages] = useState<Message[]>([
