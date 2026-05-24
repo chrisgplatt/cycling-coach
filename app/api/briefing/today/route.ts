@@ -106,6 +106,7 @@ export async function GET(req: NextRequest) {
   }
 
   const ctx: BriefingContext = {
+    today,
     todayWorkout,
     workoutCompleted: workoutCompleted ?? false,
     completedRide,

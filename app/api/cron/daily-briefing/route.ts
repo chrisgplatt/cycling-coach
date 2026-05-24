@@ -49,7 +49,6 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const today = new Date().toISOString().split('T')[0]
   const nowISO = new Date().toISOString()
 
   const { data: profiles, error: profilesError } = await supabase
@@ -72,6 +71,7 @@ export async function GET(req: NextRequest) {
 
     const notifTime = (profile.notification_time as string | null) ?? '07:00:00'
     const tz = (profile.timezone as string | null) ?? 'Europe/London'
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date())
 
     if (!isNotificationTime(notifTime, tz)) {
       console.log(`[cron] user ${profile.user_id}: not their notification time, skipping`)
@@ -146,6 +146,7 @@ export async function GET(req: NextRequest) {
     }
 
     const ctx: BriefingContext = {
+      today,
       todayWorkout,
       workoutCompleted: false,
       completedRide: null,

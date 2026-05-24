@@ -50,7 +50,8 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<string> {
         .join('; ')
     : 'none'
 
-  const prompt = `Today's session: ${workout}
+  const prompt = `Today's date: ${ctx.today}
+Today's session: ${workout}
 Training load: ${buildLoadString(ctx)}
 Recent sessions: ${recent}
 Upcoming events: ${buildEventsString(ctx)}
@@ -74,7 +75,8 @@ async function generatePostRideNote(ctx: BriefingContext): Promise<string> {
       ].filter(Boolean).join(', ')
     : 'No power data synced yet'
 
-  const prompt = `Completed session: ${session}
+  const prompt = `Today's date: ${ctx.today}
+Completed session: ${session}
 Ride data: ${rideStats}
 Training load after ride: ${buildLoadString(ctx)}
 Upcoming events: ${buildEventsString(ctx)}

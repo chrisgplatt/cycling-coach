@@ -238,6 +238,7 @@ export interface BriefingContext {
     tss: number | null
   }>
   upcomingEvents: TrainingEvent[]
+  today: string  // YYYY-MM-DD in user's local timezone
 }
 
 export interface DailyBriefing {
