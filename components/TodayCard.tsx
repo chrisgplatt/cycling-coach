@@ -7,6 +7,7 @@ interface Props {
   workout: Workout | null
   wellness: ICUWellness | null
   onWorkoutClick?: (workout: Workout) => void
+  onChatWithCoach?: () => void
 }
 
 function readinessLabel(tsb: number | null): { label: string; colour: string } {
@@ -25,7 +26,7 @@ function tsbColour(tsb: number | null): string {
 
 const BRIEFING_CACHE_KEY = 'cycling_coach_briefing'
 
-export default function TodayCard({ workout, wellness, onWorkoutClick }: Props) {
+export default function TodayCard({ workout, wellness, onWorkoutClick, onChatWithCoach }: Props) {
   const [coachNote, setCoachNote] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -164,6 +165,14 @@ export default function TodayCard({ workout, wellness, onWorkoutClick }: Props) 
             className="text-xs text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
           >
             {refreshing ? 'Getting note…' : workout?.status === 'completed' ? 'Get post-ride note' : 'Refresh note'}
+          </button>
+        )}
+        {!loading && onChatWithCoach && workout && (
+          <button
+            onClick={onChatWithCoach}
+            className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+          >
+            Chat with coach →
           </button>
         )}
       </div>

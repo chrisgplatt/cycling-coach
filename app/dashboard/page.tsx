@@ -27,6 +27,7 @@ import type { ReactNode } from 'react'
 import RescheduleConfirmModal from '@/components/RescheduleConfirmModal'
 import TodayCard from '@/components/TodayCard'
 import NotificationBanner from '@/components/NotificationBanner'
+import SessionChatModal from '@/components/SessionChatModal'
 
 function getReadinessSummary(wellness: ICUWellness): string {
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -104,6 +105,7 @@ export default function DashboardPage() {
   const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null)
   const [pendingReschedule, setPendingReschedule] = useState<{ workout: Workout; toDate: string } | null>(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [sessionChatOpen, setSessionChatOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -260,6 +262,10 @@ export default function DashboardPage() {
     loadPlan()
   }
 
+  function handleWorkoutUpdated(updated: Workout) {
+    setWorkouts(prev => prev.map(w => w.id === updated.id ? updated : w))
+  }
+
   useEffect(() => () => reviewAbortRef.current?.abort(), [])
 
   useEffect(() => {
@@ -381,6 +387,7 @@ export default function DashboardPage() {
           workout={todayWorkout}
           wellness={latestWellness}
           onWorkoutClick={w => setSelectedWorkout(w)}
+          onChatWithCoach={todayWorkout ? () => setSessionChatOpen(true) : undefined}
         />
       </div>
 
@@ -520,6 +527,15 @@ export default function DashboardPage() {
             setFeedbackWorkout(null)
             setInitialFeedback(null)
           }}
+        />
+      )}
+
+      {sessionChatOpen && todayWorkout && (
+        <SessionChatModal
+          workout={todayWorkout}
+          wellness={latestWellness}
+          onClose={() => setSessionChatOpen(false)}
+          onWorkoutUpdated={handleWorkoutUpdated}
         />
       )}
 
