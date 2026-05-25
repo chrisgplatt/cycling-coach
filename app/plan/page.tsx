@@ -4,6 +4,7 @@ import AddEventModal from '@/components/AddEventModal'
 import PlanDurationModal from '@/components/PlanDurationModal'
 import PlanApprovalModal from '@/components/PlanApprovalModal'
 import ClearWorkoutsModal from '@/components/ClearWorkoutsModal'
+import PlanChatModal from '@/components/PlanChatModal'
 import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData } from '@/types'
 
 type Tab = 'plan' | 'profile' | 'events'
@@ -58,6 +59,10 @@ export default function PlanPage() {
 
   const [planName, setPlanName] = useState<string | null>(null)
   const [planWorkouts, setPlanWorkouts] = useState<Workout[]>([])
+  const [planTargetEvent, setPlanTargetEvent] = useState('')
+  const [planTargetDate, setPlanTargetDate] = useState('')
+  const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
+  const [planChatOpen, setPlanChatOpen] = useState(false)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [generating, setGenerating] = useState(false)
   const [showDurationPrompt, setShowDurationPrompt] = useState(false)
@@ -78,6 +83,10 @@ export default function PlanPage() {
       .then(data => {
         setPlanName(data?.name ?? null)
         setPlanWorkouts(data?.workouts ?? [])
+        if (data?.target_event_name) setPlanTargetEvent(data.target_event_name)
+        if (data?.target_event_date) setPlanTargetDate(data.target_event_date)
+        const today = new Date().toISOString().split('T')[0]
+        setFuturePlanWorkouts((data?.workouts ?? []).filter((w: Workout) => w.date >= today && w.status === 'planned'))
       })
       .catch(() => {})
   }
@@ -317,7 +326,18 @@ export default function PlanPage() {
             <div className="space-y-4">
               <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl p-5 text-white shadow-md">
                 <p className="text-xs font-bold tracking-widest opacity-60 uppercase mb-2">Active Plan</p>
-                <p className="text-xl font-extrabold tracking-tight mb-3">{planName}</p>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <p className="text-xl font-extrabold tracking-tight">{planName}</p>
+                  <button
+                    onClick={() => setPlanChatOpen(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white rounded-full px-3 py-1.5 transition-colors shrink-0"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                    </svg>
+                    Chat with coach
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
                   {wk && <span>Week <strong>{wk.current}</strong> of <strong>{wk.total}</strong></span>}
                   {days !== null && <span>🏁 A event in <strong>{days} days</strong></span>}
@@ -428,6 +448,19 @@ export default function PlanPage() {
 
         {showClearModal && (
           <ClearWorkoutsModal onConfirm={clearFutureWorkouts} onClose={() => { setShowClearModal(false); loadPlan() }} />
+        )}
+
+        {planChatOpen && planName && (
+          <PlanChatModal
+            planName={planName}
+            targetEvent={planTargetEvent}
+            targetDate={planTargetDate}
+            futureWorkouts={futurePlanWorkouts}
+            wellness={null}
+            currentFTP={currentFtp}
+            onClose={() => setPlanChatOpen(false)}
+            onWorkoutsUpdated={() => { setPlanChatOpen(false); loadPlan() }}
+          />
         )}
       </div>
 
