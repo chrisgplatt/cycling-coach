@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
+import SessionChatModal from '@/components/SessionChatModal'
 import type { Workout, TrainingEvent, SessionFeedback } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 
@@ -41,6 +42,7 @@ export default function CalendarPage() {
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
   const [initialFeedback, setInitialFeedback] = useState<SessionFeedback | null>(null)
+  const [chatWorkout, setChatWorkout] = useState<Workout | null>(null)
   const [events, setEvents] = useState<TrainingEvent[]>([])
   const [month, setMonth] = useState(() => new Date().getMonth())
   const [year, setYear] = useState(() => new Date().getFullYear())
@@ -180,6 +182,10 @@ export default function CalendarPage() {
             setFeedbackWorkout(selectedWorkout)
             setSelectedWorkout(null)
           }}
+          onChat={() => {
+            setChatWorkout(selectedWorkout)
+            setSelectedWorkout(null)
+          }}
           onStatusChange={() => {
             setSelectedWorkout(null)
             loadPlan()
@@ -202,6 +208,18 @@ export default function CalendarPage() {
           onClose={() => {
             setFeedbackWorkout(null)
             setInitialFeedback(null)
+          }}
+        />
+      )}
+
+      {chatWorkout && (
+        <SessionChatModal
+          workout={chatWorkout}
+          wellness={null}
+          onClose={() => setChatWorkout(null)}
+          onWorkoutUpdated={updated => {
+            setWorkouts(prev => prev.map(w => w.id === updated.id ? updated : w))
+            setChatWorkout(null)
           }}
         />
       )}

@@ -24,7 +24,9 @@ function buildOpeningMessage(workout: Workout, wellness: ICUWellness | null): st
     else if (tsb >= -30) readiness = ` Moderate fatigue (${Math.round(tsb)} TSB).`
     else readiness = ` Heavy legs (${Math.round(tsb)} TSB) — worth discussing.`
   }
-  return `You've got a ${workout.duration_minutes}min ${workout.type} session today.${readiness} What's on your mind?`
+  const today = new Date().toISOString().split('T')[0]
+  const whenStr = workout.date === today ? 'today' : `on ${workout.date}`
+  return `You've got a ${workout.duration_minutes}min ${workout.type} session ${whenStr}.${readiness} What's on your mind?`
 }
 
 const PROPOSAL_MARKER = '__PROPOSAL__'

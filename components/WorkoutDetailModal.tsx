@@ -37,10 +37,11 @@ interface Props {
   onStatusChange?: () => void
   onDelete?: () => void
   onReschedule?: () => void
+  onChat?: () => void
 }
 
 export default function WorkoutDetailModal({
-  workout, athleteId, activitiesOnDate, onClose, onFeedback, onStatusChange, onDelete, onReschedule,
+  workout, athleteId, activitiesOnDate, onClose, onFeedback, onStatusChange, onDelete, onReschedule, onChat,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [showChange, setShowChange] = useState(false)
@@ -442,6 +443,17 @@ export default function WorkoutDetailModal({
 
         <div className="p-4 border-t border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {onChat && (
+              <button
+                onClick={onChat}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                </svg>
+                Chat
+              </button>
+            )}
             {(workout.status === 'completed' || workout.status === 'needs_review') && onFeedback && existingFeedback !== 'loading' && !existingFeedback && (
               <button onClick={() => onFeedback()} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
                 Log feedback

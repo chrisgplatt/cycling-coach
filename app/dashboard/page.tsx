@@ -28,6 +28,7 @@ import RescheduleConfirmModal from '@/components/RescheduleConfirmModal'
 import TodayCard from '@/components/TodayCard'
 import NotificationBanner from '@/components/NotificationBanner'
 import SessionChatModal from '@/components/SessionChatModal'
+import PlanChatModal from '@/components/PlanChatModal'
 
 function getReadinessSummary(wellness: ICUWellness): string {
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -105,7 +106,12 @@ export default function DashboardPage() {
   const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null)
   const [pendingReschedule, setPendingReschedule] = useState<{ workout: Workout; toDate: string } | null>(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
-  const [sessionChatOpen, setSessionChatOpen] = useState(false)
+  const [chatWorkout, setChatWorkout] = useState<Workout | null>(null)
+  const [planChatOpen, setPlanChatOpen] = useState(false)
+  const [planTargetEvent, setPlanTargetEvent] = useState('')
+  const [planTargetDate, setPlanTargetDate] = useState('')
+  const [currentFTP, setCurrentFTP] = useState(200)
+  const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -162,6 +168,7 @@ export default function DashboardPage() {
       const today = localDateStr(new Date())
       const { start: weekStart, end: weekEnd } = getWeekBounds(today)
       setWorkouts(plan.workouts.filter((w: Workout) => w.date >= weekStart && w.date <= weekEnd))
+      setFuturePlanWorkouts(plan.workouts.filter((w: Workout) => w.date >= today && w.status === 'planned'))
 
       // Compute last week date range for review banner
       const d = new Date()
@@ -186,6 +193,8 @@ export default function DashboardPage() {
     }
 
     if (plan.name) setPlanName(plan.name)
+    if (plan.target_event_name) setPlanTargetEvent(plan.target_event_name)
+    if (plan.target_event_date) setPlanTargetDate(plan.target_event_date)
 
     // Show review banner if current ISO week exceeds last reviewed week
     const week = isoWeek(new Date())
@@ -288,6 +297,7 @@ export default function DashboardPage() {
       if (name) setFirstName(name.split(' ')[0])
       if (data?.events) setEvents(data.events)
       setNotificationsEnabled(data?.notifications_enabled ?? false)
+      if (data?.current_ftp) setCurrentFTP(data.current_ftp)
     }).catch(() => {})
   }, [])
 
@@ -363,6 +373,17 @@ export default function DashboardPage() {
           </h1>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             {planName && <span className="text-sm text-gray-500">{planName}</span>}
+            {planName && (
+              <button
+                onClick={() => setPlanChatOpen(true)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-400 rounded-full px-2.5 py-1 transition-colors"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                </svg>
+                Chat
+              </button>
+            )}
             <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
               Base phase
@@ -387,7 +408,7 @@ export default function DashboardPage() {
           workout={todayWorkout}
           wellness={latestWellness}
           onWorkoutClick={w => setSelectedWorkout(w)}
-          onChatWithCoach={todayWorkout ? () => setSessionChatOpen(true) : undefined}
+          onChatWithCoach={todayWorkout ? () => setChatWorkout(todayWorkout) : undefined}
         />
       </div>
 
@@ -504,6 +525,10 @@ export default function DashboardPage() {
             setFeedbackWorkout(selectedWorkout)
             setSelectedWorkout(null)
           }}
+          onChat={() => {
+            setChatWorkout(selectedWorkout)
+            setSelectedWorkout(null)
+          }}
           onStatusChange={() => {
             setSelectedWorkout(null)
             loadPlan()
@@ -530,12 +555,25 @@ export default function DashboardPage() {
         />
       )}
 
-      {sessionChatOpen && todayWorkout && (
+      {chatWorkout && (
         <SessionChatModal
-          workout={todayWorkout}
+          workout={chatWorkout}
           wellness={latestWellness}
-          onClose={() => setSessionChatOpen(false)}
+          onClose={() => setChatWorkout(null)}
           onWorkoutUpdated={handleWorkoutUpdated}
+        />
+      )}
+
+      {planChatOpen && planName && (
+        <PlanChatModal
+          planName={planName}
+          targetEvent={planTargetEvent}
+          targetDate={planTargetDate}
+          futureWorkouts={futurePlanWorkouts}
+          wellness={latestWellness}
+          currentFTP={currentFTP}
+          onClose={() => setPlanChatOpen(false)}
+          onWorkoutsUpdated={() => { setPlanChatOpen(false); loadPlan() }}
         />
       )}
 
