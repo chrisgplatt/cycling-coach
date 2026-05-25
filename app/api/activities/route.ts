@@ -16,10 +16,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'date or start+end required' }, { status: 400 })
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('user_profile')
     .select('intervals_icu_athlete_id, intervals_icu_api_key')
     .maybeSingle()
+
+  if (profileError) {
+    return NextResponse.json({ error: profileError.message }, { status: 500 })
+  }
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
     return NextResponse.json({ activities: [] })
@@ -33,7 +37,8 @@ export async function GET(req: NextRequest) {
     const all = await client.getActivities(start, end)
     const rides = all.filter(a => /ride/i.test(a.type))
     return NextResponse.json({ activities: rides })
-  } catch {
-    return NextResponse.json({ error: 'Failed to fetch activities' }, { status: 500 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch activities'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
