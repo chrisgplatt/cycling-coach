@@ -1,5 +1,16 @@
 import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
 
+function relativeDay(eventDate: string, today: string): string {
+  const diffDays = Math.round(
+    (new Date(eventDate).getTime() - new Date(today).getTime()) / 864e5
+  )
+  if (diffDays === 0) return 'TODAY'
+  if (diffDays === 1) return 'TOMORROW'
+  if (diffDays === 2) return 'in 2 days'
+  if (diffDays > 2) return `in ${diffDays} days`
+  return 'past'
+}
+
 export function buildSessionSystemPrompt(
   workout: Workout,
   plan: TrainingPlan | null,
@@ -25,21 +36,25 @@ export function buildSessionSystemPrompt(
     : 'No other upcoming workouts this week.'
 
   const today = workout.date
+  const weekday = new Date(today + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' })
   const upcomingEvents = events
     .filter(e => e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
   const eventsSection = upcomingEvents.length
     ? upcomingEvents.map(e => {
+        const rel = relativeDay(e.date, today)
         const extras: string[] = []
         if (e.start_time) extras.push(`starts ${e.start_time}`)
         if (e.rpe) extras.push(`effort: ${e.rpe.replace('_', ' ')}`)
         if (e.duration_minutes) extras.push(`~${e.duration_minutes}min`)
         if (e.distance_km) extras.push(`~${e.distance_km}km`)
-        return `- ${e.date}: ${e.name} (${e.type}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''})`
+        return `- ${e.date} (${rel}): ${e.name} (${e.type}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''})`
       }).join('\n')
     : 'None'
 
   return `You are an expert road cycling coach messaging your athlete directly. Be direct, brief, and conversational — like a coach texting between sessions. No markdown, no bullet points, no headers, no bold text. Plain prose only. 2–4 sentences per response unless the athlete asks for detail.
+
+TODAY: ${today} (${weekday})
 
 TODAY'S SESSION:
 ID: ${workout.id}
