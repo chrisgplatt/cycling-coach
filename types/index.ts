@@ -18,6 +18,12 @@ export interface TrainingEvent {
   rpe?: EventRPE
   duration_minutes?: number
   distance_km?: number
+  // Result assignment fields (all optional, written via PATCH /api/events/result)
+  icu_activity_id?: string          // linked intervals.icu activity ID
+  result_tss?: number               // TSS from the activity
+  result_duration_minutes?: number  // actual ride duration in minutes
+  result_avg_power?: number         // normalised power (weighted_average_watts)
+  result_note?: string              // athlete race reflection
 }
 
 export interface UserProfile {
