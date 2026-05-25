@@ -41,6 +41,7 @@ export async function importUnplannedRides(
 
   if (toInsert.length === 0) return 0
 
-  await supabase.from('workouts').insert(toInsert)
+  const { error } = await supabase.from('workouts').insert(toInsert)
+  if (error) throw new Error(`Failed to insert unplanned rides: ${error.message}`)
   return toInsert.length
 }
