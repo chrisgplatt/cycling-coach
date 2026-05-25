@@ -26,16 +26,31 @@ Use the most capable model for anything that designs or modifies workouts. Sonne
 ## Athlete State (always include)
 
 Fetch from intervals.icu via `ICUWellness` and `ICUSyncData`:
-- **CTL** — chronic training load (fitness base)
-- **ATL** — acute training load (current fatigue)
-- **Form (TSB)** — CTL minus ATL; positive = fresh, negative = fatigued
-- **HRV** — heart rate variability; low HRV signals accumulated stress
-- **Resting HR** — secondary recovery indicator
+- **CTL** — chronic training load in TSS/day; represents the aerobic fitness base and the athlete's average sustainable daily training stress
+- **ATL** — acute training load in TSS/day; represents recent fatigue over ~7 days
+- **Form (TSB)** — CTL minus ATL; positive = fresh, negative = fatigued. Below −15 signals meaningful accumulated fatigue
+- **HRV** — heart rate variability; low HRV signals accumulated stress or illness
+- **Resting HR** — secondary recovery indicator; elevated RHR reinforces HRV signal
 - **FTP** (watts) — from `user_profile.current_ftp`
 - **Weight** (kg) — from `user_profile.weight_kg`; derive power-to-weight = FTP / weight_kg
 - **Recent activity history** — last 10 sessions: date, type, duration, NP, TSS
 
 All of these must be in the system prompt for any task that proposes load or intensity changes.
+
+### Weekly TSS Baseline (plan generation and review)
+
+For plan generation and weekly review, compute a per-week TSS breakdown from recent activities and include the average. This gives Claude a concrete load baseline to work from rather than estimating from CTL alone.
+
+- **Starting load rule**: week 1 of a new plan should target approximately the athlete's recent average weekly TSS. Do not open a plan above this baseline.
+- **Fatigue adjustment**: if form (TSB) is below −15 at plan start, reduce week 1 by 10–20% to allow recovery before building.
+- **Review adjustment**: after a review, if the athlete's actual weekly TSS exceeded their planned load (e.g. due to unplanned rides), treat the excess as accumulated fatigue and reduce the following week's intensity accordingly.
+
+### Planned vs Actual (weekly review only)
+
+The review prompt must show both sides for each last-week session:
+- **Planned**: type, duration
+- **Actual**: ICU activity name, actual duration, normalised power, TSS achieved
+- **Unplanned rides**: any ICU rides done on days with no planned session must be shown separately — they add real fatigue that the plan did not account for
 
 ---
 
@@ -158,6 +173,17 @@ Applied in `lib/claude/steps.ts`, `lib/claude/plan.ts`, `lib/claude/review.ts`, 
 - If the plan length is insufficient for a complete arc, compress the base phase but always preserve the taper
 - Weekly load progression: increase no more than 10% TSS per week in build; de-load every 3–4 weeks
 - Back-to-back long rides appropriate in base and build for endurance/sportive goals; avoid in taper
+
+### Load calibration summary (quick reference)
+
+| Situation | Action |
+|-----------|--------|
+| New plan, normal form (TSB > −15) | Set week 1 ≈ recent average weekly TSS |
+| New plan, fatigued (TSB ≤ −15) | Reduce week 1 by 10–20% |
+| Review: athlete completed all sessions | Maintain or increase ≤ 10% |
+| Review: athlete missed sessions | Reduce intensity/volume proportionally |
+| Review: unplanned rides added TSS | Note extra fatigue; reduce planned intensity |
+| Review: good form, all done, positive feedback | Can increase load by up to 10% |
 
 ---
 
