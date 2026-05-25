@@ -32,6 +32,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
   }
 
+  if (remove && (icu_activity_id !== undefined || result_tss !== undefined || result_duration_minutes !== undefined || result_avg_power !== undefined || result_note !== undefined)) {
+    return NextResponse.json({ error: 'Cannot both remove and set result fields' }, { status: 400 })
+  }
+
   const old = existing[idx]
   let updated: TrainingEvent
 
@@ -60,7 +64,7 @@ export async function PATCH(req: NextRequest) {
     .eq('id', profile.id)
 
   if (saveError) {
-    return NextResponse.json({ error: 'Failed to save' }, { status: 500 })
+    return NextResponse.json({ error: saveError.message || 'Failed to save' }, { status: 500 })
   }
 
   return NextResponse.json({ event: updated })
