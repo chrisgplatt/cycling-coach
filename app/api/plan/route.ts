@@ -8,15 +8,35 @@ export async function GET() {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { data: plan } = await supabase
-    .from('training_plans')
-    .select('*, workouts(*)')
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
-  return NextResponse.json(plan ?? null)
+  const [{ data: plan }, { data: unplanned }] = await Promise.all([
+    supabase
+      .from('training_plans')
+      .select('*, workouts(*)')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('workouts')
+      .select('*')
+      .is('plan_id', null)
+      .eq('status', 'completed'),
+  ])
+
+  if (!plan) {
+    // No active plan — return a synthetic shell so the dashboard can still render rides
+    if (!unplanned?.length) return NextResponse.json(null)
+    return NextResponse.json({ workouts: unplanned })
+  }
+
+  // Merge unplanned rides onto the plan's workout list, avoiding duplicates by icu_activity_id
+  const planActivityIds = new Set(
+    (plan.workouts ?? []).map((w: { icu_activity_id: string | null }) => w.icu_activity_id).filter(Boolean)
+  )
+  const extra = (unplanned ?? []).filter(w => !planActivityIds.has(w.icu_activity_id))
+
+  return NextResponse.json({ ...plan, workouts: [...(plan.workouts ?? []), ...extra] })
 }
 
 export async function POST(req: NextRequest) {

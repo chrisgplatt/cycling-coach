@@ -30,6 +30,8 @@ export default function SettingsPage() {
   const [notifError, setNotifError] = useState<string | null>(null)
   const [testSending, setTestSending] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
@@ -289,6 +291,41 @@ export default function SettingsPage() {
       >
         {saving ? 'Saving…' : saved ? 'Saved!' : 'Save'}
       </button>
+
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-3">
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Ride history</h2>
+        <p className="text-sm text-slate-500">Import rides from the last 3 months to show on the dashboard and calendar even if they had no planned session.</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setImporting(true)
+              setImportResult(null)
+              try {
+                const res = await fetch('/api/workouts/import-rides', { method: 'POST' })
+                const data = await res.json()
+                if (res.ok) {
+                  setImportResult({ ok: true, message: data.imported === 0 ? 'All rides already imported.' : `Imported ${data.imported} ride${data.imported === 1 ? '' : 's'}.` })
+                } else {
+                  setImportResult({ ok: false, message: data.error ?? 'Import failed.' })
+                }
+              } catch {
+                setImportResult({ ok: false, message: 'Network error.' })
+              } finally {
+                setImporting(false)
+              }
+            }}
+            disabled={importing}
+            className="text-sm font-medium bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors"
+          >
+            {importing ? 'Importing…' : 'Import ride history'}
+          </button>
+          {importResult && (
+            <p className={`text-sm ${importResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+              {importResult.message}
+            </p>
+          )}
+        </div>
+      </section>
 
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
         <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3">About</h2>

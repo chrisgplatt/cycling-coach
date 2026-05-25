@@ -53,7 +53,7 @@ export interface TrainingPlan {
 
 export interface Workout {
   id: string
-  plan_id: string
+  plan_id: string | null  // null for unplanned rides imported from intervals.icu
   date: string
   type: WorkoutType
   duration_minutes: number

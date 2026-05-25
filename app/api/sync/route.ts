@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { importUnplannedRides } from '@/lib/intervals/import-rides'
 import type { ICUActivity } from '@/types'
 
 export async function POST() {
@@ -57,6 +58,9 @@ export async function POST() {
           .filter(Boolean)
       )
     }
+
+    // Create workout rows for unplanned rides not already in the DB
+    await importUnplannedRides(supabase, user.id, syncData.activities)
 
     return NextResponse.json({ ...syncData, athlete_id: profile.intervals_icu_athlete_id })
   } catch (err) {
