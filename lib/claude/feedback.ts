@@ -72,7 +72,7 @@ Return ONLY valid JSON:
 If no changes needed: {"summary": "No adjustments needed", "changes": [], "workout_steps": []}`
 
   const response = await anthropic.messages.stream({
-    model: MODEL,
+    model: 'claude-opus-4-7',
     max_tokens: 2048,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
