@@ -8,7 +8,7 @@ export async function PUT(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { original_name, original_date, name, date, type, priority, start_time, rpe, duration_minutes, distance_km } = await req.json()
+  const { original_name, original_date, name, date, type, priority, race_type, start_time, rpe, duration_minutes, distance_km } = await req.json()
 
   if (!original_name || !original_date) {
     return NextResponse.json({ error: 'original_name and original_date are required' }, { status: 400 })
@@ -52,7 +52,7 @@ export async function PUT(req: NextRequest) {
       try {
         await client.updateTargetEvent(icu_event_id, {
           date, name: name.trim(), type, priority,
-          start_time, rpe, duration_minutes, distance_km,
+          race_type, start_time, rpe, duration_minutes, distance_km,
         })
       } catch (err) {
         icu_error = err instanceof Error ? err.message : String(err)
@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest) {
       try {
         icu_event_id = await client.createTargetEvent({
           date, name: name.trim(), type, priority,
-          start_time, rpe, duration_minutes, distance_km,
+          race_type, start_time, rpe, duration_minutes, distance_km,
         })
       } catch (err) {
         icu_error = err instanceof Error ? err.message : String(err)
@@ -78,6 +78,7 @@ export async function PUT(req: NextRequest) {
     type,
     priority,
     ...(icu_event_id ? { icu_event_id } : {}),
+    ...(type === 'race' && race_type ? { race_type } : {}),
     ...(start_time ? { start_time } : {}),
     ...(rpe ? { rpe } : {}),
     ...(duration_minutes ? { duration_minutes } : {}),

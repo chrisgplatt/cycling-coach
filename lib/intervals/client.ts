@@ -209,6 +209,7 @@ export class IntervalsClient {
     name: string
     type: 'race' | 'sportive' | 'holiday' | 'fitness'
     priority: 'A' | 'B' | 'C'
+    race_type?: string
     start_time?: string       // HH:MM
     duration_minutes?: number
     distance_km?: number
@@ -229,7 +230,10 @@ export class IntervalsClient {
     }
     if (params.duration_minutes) body.moving_time = params.duration_minutes * 60
     if (params.distance_km) body.distance = params.distance_km * 1000
-    if (params.rpe) body.description = `Expected effort: ${params.rpe.replace('_', ' ')}`
+    const notes: string[] = []
+    if (params.race_type) notes.push(`Race type: ${params.race_type.replace(/_/g, ' ')}`)
+    if (params.rpe) notes.push(`Expected effort: ${params.rpe.replace('_', ' ')}`)
+    if (notes.length) body.description = notes.join('\n')
     const data = await this.request<{ id: number }>(
       `/athlete/${this.athleteId}/events`,
       { method: 'POST', body: JSON.stringify(body) }
@@ -254,6 +258,7 @@ export class IntervalsClient {
     name: string
     type: 'race' | 'sportive' | 'holiday' | 'fitness'
     priority: 'A' | 'B' | 'C'
+    race_type?: string
     start_time?: string
     duration_minutes?: number
     distance_km?: number
@@ -274,7 +279,10 @@ export class IntervalsClient {
     }
     if (params.duration_minutes) body.moving_time = params.duration_minutes * 60
     if (params.distance_km) body.distance = params.distance_km * 1000
-    if (params.rpe) body.description = `Expected effort: ${params.rpe.replace('_', ' ')}`
+    const notes: string[] = []
+    if (params.race_type) notes.push(`Race type: ${params.race_type.replace(/_/g, ' ')}`)
+    if (params.rpe) notes.push(`Expected effort: ${params.rpe.replace('_', ' ')}`)
+    if (notes.length) body.description = notes.join('\n')
     await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
       method: 'PUT',
       body: JSON.stringify(body),
