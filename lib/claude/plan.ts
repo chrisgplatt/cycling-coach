@@ -5,14 +5,32 @@ function summariseActivities(activities: ICUActivity[]): string {
   if (!activities.length) return 'No recent activities.'
   return activities
     .slice(-10)
-    .map(a => `- ${a.start_date_local.split('T')[0]}: ${a.name}, ${Math.round(a.moving_time / 60)}min, NP ${a.weighted_average_watts ?? '?'}W, TSS ${a.training_load ?? '?'}`)
+    .map(a => `- ${a.start_date_local.split('T')[0]}: ${a.name} [${a.type}], ${Math.round(a.moving_time / 60)}min, NP ${a.weighted_average_watts ?? '?'}W, TSS ${a.training_load ?? '?'}`)
     .join('\n')
 }
 
 function summariseWellness(wellness: ICUWellness[]): string {
   const latest = wellness[wellness.length - 1]
   if (!latest) return 'No wellness data.'
-  return `CTL: ${latest.ctl ?? '?'}, ATL: ${latest.atl ?? '?'}, Form: ${latest.form ?? '?'}, HRV: ${latest.hrv ?? '?'}`
+  return `CTL: ${latest.ctl ?? '?'} TSS/day (aerobic fitness base), ATL: ${latest.atl ?? '?'} TSS/day (recent fatigue), Form (TSB): ${latest.form ?? '?'} (positive = fresh, negative = fatigued), HRV: ${latest.hrv ?? '?'} ms, Resting HR: ${latest.resting_hr ?? '?'} bpm`
+}
+
+function weeklyTssSummary(activities: ICUActivity[]): string {
+  if (!activities.length) return 'No activity data to compute weekly load.'
+  // Group TSS by ISO week (Mon start)
+  const byWeek = new Map<string, number>()
+  for (const a of activities) {
+    const d = new Date(a.start_date_local)
+    const day = (d.getDay() + 6) % 7  // 0=Mon
+    const mon = new Date(d)
+    mon.setDate(d.getDate() - day)
+    const key = mon.toISOString().split('T')[0]
+    byWeek.set(key, (byWeek.get(key) ?? 0) + (a.training_load ?? 0))
+  }
+  const weeks = [...byWeek.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  const lines = weeks.map(([w, tss]) => `  w/c ${w}: ${Math.round(tss)} TSS`)
+  const avg = Math.round(weeks.reduce((s, [, t]) => s + t, 0) / weeks.length)
+  return `${lines.join('\n')}\n  → Average: ${avg} TSS/week`
 }
 
 export function formatSchedule(availability: Array<{ day: string; duration_minutes: number }> | undefined): string {
@@ -135,10 +153,15 @@ GOAL INTERPRETATION — derive training emphases from the athlete's goals:
 - Climbing → include sustained Z3–Z4 efforts; simulate long climbs in session descriptions
 - Multiple goals → blend emphases proportionally
 
-CURRENT FITNESS:
+CURRENT ATHLETE STATE:
 ${summariseWellness(syncData.wellness)}
 
-RECENT ACTIVITIES (last 10):
+RECENT WEEKLY TRAINING LOAD:
+${weeklyTssSummary(syncData.activities)}
+
+LOAD CALIBRATION — critical: set week 1 of the plan so its total TSS closely matches the athlete's recent average weekly TSS shown above. Build from that baseline; do not start above it. If form (TSB) is significantly negative (below -15), reduce week 1 by 10–20% to allow recovery before building.
+
+RECENT ACTIVITIES (last 10 — use these to understand training history, discipline mix, and current intensity):
 ${summariseActivities(syncData.activities)}
 
 PLAN LENGTH: Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts, starting on ${startDate}.

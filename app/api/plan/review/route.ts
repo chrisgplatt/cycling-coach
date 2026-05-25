@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { createReviewStream, parsePlanText } from '@/lib/claude/review'
 import { isoWeek } from '@/lib/iso-week'
-import type { GeneratedPlan, Workout } from '@/types'
+import type { GeneratedPlan, ICUActivity, Workout } from '@/types'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -50,13 +50,17 @@ export async function POST(req: NextRequest) {
 
   const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
   let wellness: Awaited<ReturnType<typeof client.getWellness>> = []
+  let recentActivities: ICUActivity[] = []
   try {
-    wellness = await client.getWellness(fourteenDaysAgo, today)
-  } catch { /* proceed without wellness data */ }
+    ;[wellness, recentActivities] = await Promise.all([
+      client.getWellness(fourteenDaysAgo, today),
+      client.getActivities(fourteenDaysAgo, today),
+    ])
+  } catch { /* proceed without live data */ }
 
   let messageStream
   try {
-    messageStream = createReviewStream(profile, lastWeekWorkouts, wellness, remainingWorkouts, note)
+    messageStream = createReviewStream(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Review generation failed'
     return NextResponse.json({ error: message }, { status: 500 })

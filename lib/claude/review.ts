@@ -1,19 +1,50 @@
 import { anthropic } from './client'
 import { formatZones, formatSchedule } from './plan'
-import type { UserProfile, ICUWellness, Workout, TrainingEvent } from '@/types'
+import type { UserProfile, ICUActivity, ICUWellness, Workout, TrainingEvent } from '@/types'
 
 export { parsePlanText } from './plan'
 
-function formatLastWeekWorkouts(workouts: Workout[]): string {
+function formatLastWeekWorkouts(workouts: Workout[], activities: ICUActivity[]): string {
   if (!workouts.length) return 'No workouts were scheduled last week.'
+
+  // Build a lookup: date → matching ICU activities (rides only)
+  const actsByDate = new Map<string, ICUActivity[]>()
+  for (const a of activities) {
+    const date = a.start_date_local.split('T')[0]
+    actsByDate.set(date, [...(actsByDate.get(date) ?? []), a])
+  }
+
   return workouts
     .map(w => {
       const statusStr = w.status === 'skipped' && w.missed_reason
         ? `skipped (${w.missed_reason})`
         : w.status
-      return `- ${w.date} | ${w.type} | ${w.duration_minutes}min | status: ${statusStr}`
+
+      // Find the best matching actual activity for this date
+      const acts = actsByDate.get(w.date) ?? []
+      const actual = acts.length
+        ? acts.reduce((best, a) => (a.training_load ?? 0) > (best.training_load ?? 0) ? a : best)
+        : null
+
+      const plannedStr = `planned: ${w.type} ${w.duration_minutes}min`
+      const actualStr = actual
+        ? `actual: "${actual.name}" ${Math.round(actual.moving_time / 60)}min, NP ${actual.weighted_average_watts ?? '?'}W, TSS ${actual.training_load ?? '?'}`
+        : w.status === 'completed' ? 'actual: completed (no activity data)' : 'actual: none'
+
+      return `- ${w.date} | ${plannedStr} | status: ${statusStr} | ${actualStr}`
     })
     .join('\n')
+}
+
+function formatUnplannedActivities(activities: ICUActivity[], plannedDates: Set<string>): string {
+  const unplanned = activities.filter(
+    a => /ride/i.test(a.type) && !plannedDates.has(a.start_date_local.split('T')[0])
+  )
+  if (!unplanned.length) return ''
+  return '\nUNPLANNED RIDES LAST WEEK (done outside the plan):\n' +
+    unplanned
+      .map(a => `- ${a.start_date_local.split('T')[0]}: "${a.name}" ${Math.round(a.moving_time / 60)}min, NP ${a.weighted_average_watts ?? '?'}W, TSS ${a.training_load ?? '?'}`)
+      .join('\n')
 }
 
 function formatWellness(wellness: ICUWellness[]): string {
@@ -38,6 +69,7 @@ export function buildReviewPrompt(
   wellness: ICUWellness[],
   remainingWorkouts: Workout[],
   note: string,
+  recentActivities: ICUActivity[] = [],
 ): string {
   const wPerKg = (profile.current_ftp / profile.weight_kg).toFixed(2)
   const allEvents = [...(profile.events ?? [])].sort((a: TrainingEvent, b: TrainingEvent) =>
@@ -46,6 +78,15 @@ export function buildReviewPrompt(
   const today = new Date().toISOString().split('T')[0]
   const sortedRemaining = [...remainingWorkouts].sort((a, b) => a.date.localeCompare(b.date))
   const lastDate = sortedRemaining.length ? sortedRemaining[sortedRemaining.length - 1].date : today
+  const plannedDates = new Set(lastWeekWorkouts.map(w => w.date))
+  const latestWellness = wellness[wellness.length - 1]
+
+  // Total actual TSS from last week's activities (planned + unplanned)
+  const lastWeekActivities = recentActivities.filter(a => {
+    const d = a.start_date_local.split('T')[0]
+    return d >= (lastWeekWorkouts[0]?.date ?? today) && d <= today
+  })
+  const actualWeeklyTSS = Math.round(lastWeekActivities.reduce((s, a) => s + (a.training_load ?? 0), 0))
 
   return `You are adapting the remaining training plan based on last week's execution.
 
@@ -63,11 +104,17 @@ ${allEvents.length
     ? allEvents.map((e: TrainingEvent) => `- ${e.date} BLOCKED: ${e.name} | ${e.type} | Priority ${e.priority}`).join('\n')
     : 'None'}
 
-LAST WEEK'S TRAINING:
-${formatLastWeekWorkouts(lastWeekWorkouts)}
+CURRENT ATHLETE STATE:
+${latestWellness
+  ? `CTL: ${latestWellness.ctl ?? '?'} TSS/day (fitness), ATL: ${latestWellness.atl ?? '?'} TSS/day (fatigue), Form (TSB): ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'} ms, Resting HR: ${latestWellness.resting_hr ?? '?'} bpm`
+  : 'No wellness data.'}
+Last week's actual total TSS (all rides): ${actualWeeklyTSS || 'unknown'}
 
-WELLNESS — LAST 14 DAYS:
+WELLNESS TREND — LAST 14 DAYS:
 ${formatWellness(wellness)}
+
+LAST WEEK'S TRAINING (planned vs actual):
+${formatLastWeekWorkouts(lastWeekWorkouts, recentActivities)}${formatUnplannedActivities(lastWeekActivities, plannedDates)}
 
 REMAINING PLANNED WORKOUTS (to be replaced):
 ${formatRemainingWorkouts(remainingWorkouts)}
@@ -76,9 +123,11 @@ Review last week's execution and adapt the remaining plan. Replace the remaining
 
 Apply the same constraints as initial plan generation: respect the weekly schedule, never schedule on rest days or event dates, use exact duration_minutes for each day of the week.
 
-If the athlete completed all workouts: maintain or slightly increase load.
-If the athlete missed sessions: reduce upcoming intensity or volume proportionally.
-If the athlete left a note: incorporate their feedback.
+Use the athlete's current CTL, ATL, form, and actual weekly TSS to calibrate the adapted load:
+- If form (TSB) is below -15 or the athlete missed multiple sessions: reduce next week's load 10–20%
+- If the athlete completed all sessions and form is positive: maintain or increase load by up to 10%
+- If the athlete completed more TSS than planned (e.g. via extra unplanned rides): note accumulated fatigue and reduce planned intensity accordingly
+If the athlete left a note: incorporate their feedback as a priority signal.
 
 STEP RULES:
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
@@ -114,8 +163,9 @@ export function createReviewStream(
   wellness: ICUWellness[],
   remainingWorkouts: Workout[],
   note: string,
+  recentActivities: ICUActivity[] = [],
 ) {
-  const prompt = buildReviewPrompt(profile, lastWeekWorkouts, wellness, remainingWorkouts, note)
+  const prompt = buildReviewPrompt(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities)
   return anthropic.messages.stream({
     model: 'claude-opus-4-7',
     max_tokens: 32000,
