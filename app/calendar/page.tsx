@@ -13,6 +13,18 @@ const TYPE_COLOUR: Record<string, string> = {
 const IF_BY_TYPE: Record<string, number> = {
   recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90,
 }
+const STATUS_STYLE: Record<string, string> = {
+  completed:    'text-emerald-600',
+  needs_review: 'text-amber-500',
+  planned:      'text-blue-400',
+  skipped:      'text-slate-400',
+}
+const STATUS_LABEL: Record<string, string> = {
+  completed:    '✓ done',
+  needs_review: 'review',
+  planned:      'planned',
+  skipped:      'missed',
+}
 function tssLabel(workout: Workout): string | null {
   if (workout.tss !== null) return `${workout.tss} TSS`
   if (workout.status === 'planned') {
@@ -118,6 +130,9 @@ export default function CalendarPage() {
                         {tssLabel(workout) && (
                           <span className="text-[8px] text-gray-400">{tssLabel(workout)}</span>
                         )}
+                        <span className={`text-[7px] font-semibold ${STATUS_STYLE[workout.status] ?? 'text-gray-400'}`}>
+                          {STATUS_LABEL[workout.status] ?? workout.status}
+                        </span>
                       </>
                     )}
                   </button>
@@ -142,6 +157,9 @@ export default function CalendarPage() {
                       {tssLabel(workout) && (
                         <span className="text-[9px] text-gray-400">{tssLabel(workout)}</span>
                       )}
+                      <span className={`text-[8px] font-semibold ${STATUS_STYLE[workout.status] ?? 'text-gray-400'}`}>
+                        {STATUS_LABEL[workout.status] ?? workout.status}
+                      </span>
                     </>
                   )}
                 </button>
