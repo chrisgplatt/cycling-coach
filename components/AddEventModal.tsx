@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import type { TrainingEvent, EventRPE } from '@/types'
+import type { TrainingEvent, EventRPE, RaceType } from '@/types'
 
 interface Props {
   initialEvent?: Omit<TrainingEvent, '_key'>
@@ -32,6 +32,7 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
   const [rpe, setRpe] = useState<EventRPE | ''>(initialEvent?.rpe ?? '')
   const [duration, setDuration] = useState(initialEvent?.duration_minutes?.toString() ?? '')
   const [distance, setDistance] = useState(initialEvent?.distance_km?.toString() ?? '')
+  const [raceType, setRaceType] = useState<RaceType | ''>(initialEvent?.race_type ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [phase, setPhase] = useState<'form' | 'saved'>('form')
@@ -49,6 +50,7 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
         date,
         type,
         priority,
+        ...(type === 'race' && raceType ? { race_type: raceType } : {}),
         ...(startTime ? { start_time: startTime } : {}),
         ...(rpe ? { rpe } : {}),
         ...(duration ? { duration_minutes: Number(duration) } : {}),
@@ -129,6 +131,18 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
                     <option value="C">C — Secondary</option>
                   </select>
                 </Field>
+
+                {type === 'race' && (
+                  <Field label="Race type">
+                    <select value={raceType} onChange={e => setRaceType(e.target.value as RaceType | '')} className={fieldClass}>
+                      <option value="">Not specified</option>
+                      <option value="road_race">Road Race</option>
+                      <option value="criterium">Criterium</option>
+                      <option value="time_trial">Time Trial</option>
+                      <option value="cyclocross">Cyclocross</option>
+                    </select>
+                  </Field>
+                )}
               </div>
 
               {/* Optional fields */}

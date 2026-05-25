@@ -4,6 +4,7 @@ export type PlanStatus = 'active' | 'archived'
 export type EventPriority = 'A' | 'B' | 'C'
 export type EventType = 'sportive' | 'race' | 'holiday' | 'fitness'
 export type EventRPE = 'race_pace' | 'high' | 'medium' | 'low'
+export type RaceType = 'road_race' | 'criterium' | 'time_trial' | 'cyclocross'
 export type PlanPhase = 'base' | 'build' | 'peak' | 'taper'
 
 export interface TrainingEvent {
@@ -11,6 +12,7 @@ export interface TrainingEvent {
   date: string           // YYYY-MM-DD
   type: EventType
   priority: EventPriority
+  race_type?: RaceType   // only for type === 'race'
   icu_event_id?: string  // set when imported from intervals.icu; used for deletion
   start_time?: string    // HH:MM
   rpe?: EventRPE

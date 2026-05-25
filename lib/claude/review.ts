@@ -101,7 +101,10 @@ ${formatSchedule(profile.weekly_availability)}
 
 UPCOMING EVENTS — these dates are BLOCKED, no workout may be scheduled on them:
 ${allEvents.length
-    ? allEvents.map((e: TrainingEvent) => `- ${e.date} BLOCKED: ${e.name} | ${e.type} | Priority ${e.priority}`).join('\n')
+    ? allEvents.map((e: TrainingEvent) => {
+        const raceTypeStr = e.type === 'race' && e.race_type ? ` — ${e.race_type.replace('_', ' ')}` : ''
+        return `- ${e.date} BLOCKED: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}`
+      }).join('\n')
     : 'None'}
 
 CURRENT ATHLETE STATE:

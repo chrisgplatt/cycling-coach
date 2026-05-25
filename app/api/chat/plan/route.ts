@@ -45,7 +45,8 @@ function buildSystemPrompt(
         if (e.rpe) extras.push(`effort: ${e.rpe.replace('_', ' ')}`)
         if (e.duration_minutes) extras.push(`~${e.duration_minutes}min`)
         if (e.distance_km) extras.push(`~${e.distance_km}km`)
-        return `- ${e.date} (${rel}) BLOCKED: ${e.name} (${e.type}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''})`
+        const raceTypeStr = e.type === 'race' && e.race_type ? ` — ${e.race_type.replace('_', ' ')}` : ''
+        return `- ${e.date} (${rel}) BLOCKED: ${e.name} (${e.type}${raceTypeStr}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''})`
       }).join('\n')
     : 'None'
 
