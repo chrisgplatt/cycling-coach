@@ -164,11 +164,14 @@ export default function EventDetailModal({
               />
             )}
           </div>
-          {(event.start_time || event.duration_minutes || event.distance_km) && (
-            <div className="flex gap-3 mt-3 text-xs text-slate-500">
+          {(event.start_time || event.duration_minutes || event.distance_km || event.estimated_tss != null) && (
+            <div className="flex gap-3 mt-3 text-xs text-slate-500 flex-wrap">
               {event.start_time && <span>Starts {event.start_time}</span>}
               {event.duration_minutes && <span>~{event.duration_minutes}min</span>}
               {event.distance_km && <span>~{event.distance_km}km</span>}
+              {event.estimated_tss != null && (
+                <span className="text-slate-400">~{event.estimated_tss} TSS (est.)</span>
+              )}
             </div>
           )}
         </div>
