@@ -361,6 +361,7 @@ export default function DashboardPage() {
 
   const todayStr = localDateStr(new Date())
   const todayWorkout = workouts.find(w => w.date === todayStr) ?? null
+  const todaySessionCount = workouts.filter(w => w.date === todayStr).length
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const today = new Date()
@@ -424,6 +425,7 @@ export default function DashboardPage() {
           workout={todayWorkout}
           wellness={latestWellness}
           todayEvent={events.find(e => e.date === todayStr) ?? null}
+          extraSessionCount={todaySessionCount - 1}
           onWorkoutClick={w => setSelectedWorkout(w)}
           onChatWithCoach={todayWorkout ? () => setChatWorkout(todayWorkout) : undefined}
         />
