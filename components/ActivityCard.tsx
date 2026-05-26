@@ -19,7 +19,7 @@ export default function ActivityCard({ activity }: Props) {
           <div className="font-semibold text-sm text-sky-900 truncate">{activity.name}</div>
           <div className="text-xs text-sky-700 mt-0.5 flex gap-2 flex-wrap">
             <span>{fmtDuration(activity.moving_time)}</span>
-            {activity.training_load != null && <span>{activity.training_load} TSS</span>}
+            {activity.training_load != null && <span>{Math.round(activity.training_load)} TSS</span>}
             {activity.weighted_average_watts != null && <span>{Math.round(activity.weighted_average_watts)}W NP</span>}
           </div>
         </div>
