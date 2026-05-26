@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import SessionChatModal from '@/components/SessionChatModal'
-import type { Workout, TrainingEvent, SessionFeedback } from '@/types'
+import EventDetailModal from '@/components/EventDetailModal'
+import type { Workout, TrainingEvent, SessionFeedback, ICUActivity } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -46,6 +47,24 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<TrainingEvent[]>([])
   const [month, setMonth] = useState(() => new Date().getMonth())
   const [year, setYear] = useState(() => new Date().getFullYear())
+  const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(null)
+  const [eventActivities, setEventActivities] = useState<ICUActivity[]>([])
+  const [eventActivitiesLoading, setEventActivitiesLoading] = useState(false)
+
+  async function openEvent(event: TrainingEvent) {
+    setSelectedEvent(event)
+    setEventActivities([])
+    setEventActivitiesLoading(true)
+    try {
+      const res = await fetch(`/api/activities?date=${event.date}`)
+      const data = res.ok ? await res.json() : { activities: [] }
+      setEventActivities(data.activities ?? [])
+    } catch {
+      setEventActivities([])
+    } finally {
+      setEventActivitiesLoading(false)
+    }
+  }
 
   function loadPlan() {
     fetch('/api/plan').then(r => r.json()).then(plan => {
@@ -116,14 +135,17 @@ export default function CalendarPage() {
                 return (
                   <button
                     key={day}
-                    onClick={() => workout && setSelectedWorkout(workout)}
-                    className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm border-2 ${EVENT_COLOURS[event.priority]} ${workout ? 'cursor-pointer' : 'cursor-default'}`}
+                    onClick={() => openEvent(event)}
+                    className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm border-2 cursor-pointer hover:brightness-95 transition-all ${EVENT_COLOURS[event.priority]}`}
                   >
                     <span className="font-semibold">{day}</span>
                     <span className="text-[10px]">🏁</span>
                     <span title={event.name} className="text-[8px] font-semibold text-center leading-tight px-0.5 w-full truncate">
                       {event.name}
                     </span>
+                    {event.icu_activity_id && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" title="Result recorded" />
+                    )}
                     {workout && (
                       <>
                         <span className={`text-[8px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
@@ -198,6 +220,19 @@ export default function CalendarPage() {
             setSelectedWorkout(null)
             loadPlan()
           }}
+          nearbyEvents={events.filter(e => {
+            if (!selectedWorkout) return false
+            const diff = Math.abs(
+              Math.floor(new Date(e.date + 'T00:00:00Z').getTime() / 86400000) -
+              Math.floor(new Date(selectedWorkout.date + 'T00:00:00Z').getTime() / 86400000)
+            )
+            return diff <= 7
+          })}
+          onEventLinked={(updated) => {
+            setEvents(prev =>
+              prev.map(e => e.name === updated.name && e.date === updated.date ? updated : e)
+            )
+          }}
         />
       )}
 
@@ -220,6 +255,21 @@ export default function CalendarPage() {
           onWorkoutUpdated={updated => {
             setWorkouts(prev => prev.map(w => w.id === updated.id ? updated : w))
             setChatWorkout(null)
+          }}
+        />
+      )}
+
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          activitiesOnDate={eventActivities}
+          activitiesLoading={eventActivitiesLoading}
+          onClose={() => { setSelectedEvent(null); setEventActivities([]) }}
+          onResultSaved={(updated) => {
+            setEvents(prev =>
+              prev.map(e => e.name === updated.name && e.date === updated.date ? updated : e)
+            )
+            setSelectedEvent(updated)
           }}
         />
       )}
