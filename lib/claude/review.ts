@@ -61,6 +61,24 @@ function formatRemainingWorkouts(workouts: Workout[]): string {
     .join('\n')
 }
 
+function formatEventResults(events: TrainingEvent[], since: string): string {
+  const results = events.filter(e => e.icu_activity_id && e.date >= since)
+  if (!results.length) return ''
+  return '\nEVENT RESULTS (last 14 days):\n' + results.map(e => {
+    const raceTypeStr = e.race_type ? ` — ${e.race_type.replace(/_/g, ' ')}` : ''
+    const metrics: string[] = []
+    if (e.result_tss != null) metrics.push(`TSS ${e.result_tss}`)
+    if (e.result_duration_minutes != null) {
+      const h = Math.floor(e.result_duration_minutes / 60)
+      const m = e.result_duration_minutes % 60
+      metrics.push(m > 0 ? `${h}h ${String(m).padStart(2, '0')}min` : `${h}h`)
+    }
+    if (e.result_avg_power != null) metrics.push(`NP ${e.result_avg_power}W`)
+    const note = e.result_note ? `\n  Athlete note: "${e.result_note}"` : ''
+    return `- ${e.date}: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}${metrics.length ? ' | ' + metrics.join(', ') : ''}${note}`
+  }).join('\n')
+}
+
 const SYSTEM_PROMPT = `You are an expert road cycling coach adapting a training plan based on last week's execution. Always respond with ONLY valid JSON matching the exact schema requested. No markdown, no explanation outside the JSON.`
 
 export function buildReviewPrompt(
@@ -76,6 +94,8 @@ export function buildReviewPrompt(
     a.date.localeCompare(b.date)
   )
   const today = new Date().toISOString().split('T')[0]
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 864e5).toISOString().split('T')[0]
+  const eventResultsSection = formatEventResults(profile.events ?? [], fourteenDaysAgo)
   const sortedRemaining = [...remainingWorkouts].sort((a, b) => a.date.localeCompare(b.date))
   const lastDate = sortedRemaining.length ? sortedRemaining[sortedRemaining.length - 1].date : today
   const plannedDates = new Set(lastWeekWorkouts.map(w => w.date))
@@ -106,7 +126,7 @@ ${allEvents.length
         return `- ${e.date} BLOCKED: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}`
       }).join('\n')
     : 'None'}
-
+${eventResultsSection}
 CURRENT ATHLETE STATE:
 ${latestWellness
   ? `CTL: ${latestWellness.ctl ?? '?'} TSS/day (fitness), ATL: ${latestWellness.atl ?? '?'} TSS/day (fatigue), Form (TSB): ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'} ms, Resting HR: ${latestWellness.resting_hr ?? '?'} bpm`

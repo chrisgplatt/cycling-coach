@@ -33,6 +33,26 @@ function buildSystemPrompt(
     ? `CTL: ${wellness.ctl ?? '?'} TSS/day, ATL: ${wellness.atl ?? '?'} TSS/day, Form (TSB): ${tsb != null ? Math.round(tsb) : '?'}, HRV: ${wellness.hrv ?? '?'} ms, Resting HR: ${wellness.resting_hr ?? '?'} bpm`
     : 'No fitness data available.'
 
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 864e5).toISOString().split('T')[0]
+  const recentResults = (profile.events ?? []).filter(
+    (e: TrainingEvent) => e.icu_activity_id && e.date >= thirtyDaysAgo
+  )
+  const eventResultsBlock = recentResults.length
+    ? 'RECENT EVENT RESULTS (last 30 days):\n' + recentResults.map((e: TrainingEvent) => {
+        const raceTypeStr = e.race_type ? ` — ${e.race_type.replace(/_/g, ' ')}` : ''
+        const parts: string[] = []
+        if (e.result_tss != null) parts.push(`TSS ${e.result_tss}`)
+        if (e.result_duration_minutes != null) {
+          const h = Math.floor(e.result_duration_minutes / 60)
+          const m = e.result_duration_minutes % 60
+          parts.push(m > 0 ? `${h}h ${String(m).padStart(2, '0')}min` : `${h}h`)
+        }
+        if (e.result_avg_power != null) parts.push(`NP ${e.result_avg_power}W`)
+        const note = e.result_note ? `\n  Athlete note: "${e.result_note}"` : ''
+        return `- ${e.date}: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}${parts.length ? ' | ' + parts.join(', ') : ''}${note}`
+      }).join('\n')
+    : ''
+
   const events = (profile.events ?? []) as TrainingEvent[]
   const upcomingEvents = events
     .filter(e => e.date >= today)
@@ -71,7 +91,7 @@ ${formatSchedule(profile.weekly_availability)}
 
 CURRENT FITNESS:
 ${fitnessSection}
-
+${eventResultsBlock ? '\n' + eventResultsBlock : ''}
 ACTIVE PLAN: ${plan.name} (${plan.phase} phase)
 Target: ${plan.target_event_name} on ${plan.target_event_date}
 Rationale: ${plan.rationale}
