@@ -491,7 +491,10 @@ export default function DashboardPage() {
             {weekDates.map((date, i) => {
               const dayWorkouts = workouts.filter(w => w.date === date)
               const dayEvents = events.filter(e => e.date === date)
-              const linkedIds = new Set<string>(dayWorkouts.map(w => w.icu_activity_id).filter((id): id is string => id != null))
+              const linkedIds = new Set<string>([
+                ...dayWorkouts.map(w => w.icu_activity_id).filter((id): id is string => id != null),
+                ...dayEvents.map(e => e.icu_activity_id).filter((id): id is string => id != null),
+              ])
               const unplannedActivities = (syncData?.activities ?? [])
                 .filter(a => a.start_date_local.startsWith(date) && /ride/i.test(a.type) && !linkedIds.has(a.id))
               const isEmpty = dayWorkouts.length === 0 && dayEvents.length === 0 && unplannedActivities.length === 0

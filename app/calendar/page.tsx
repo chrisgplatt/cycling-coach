@@ -120,7 +120,10 @@ export default function CalendarPage() {
               const ds = dateStr(day)
               const dayWorkouts = workouts.filter(w => w.date === ds)
               const dayEvents = events.filter(e => e.date === ds)
-              const linkedIds = new Set<string>(dayWorkouts.map(w => w.icu_activity_id).filter((id): id is string => id != null))
+              const linkedIds = new Set<string>([
+                ...dayWorkouts.map(w => w.icu_activity_id).filter((id): id is string => id != null),
+                ...dayEvents.map(e => e.icu_activity_id).filter((id): id is string => id != null),
+              ])
               const dayActivities = (syncData?.activities ?? [])
                 .filter(a => a.start_date_local.startsWith(ds) && /ride/i.test(a.type) && !linkedIds.has(a.id))
               const hasAnything = dayWorkouts.length > 0 || dayEvents.length > 0 || dayActivities.length > 0
