@@ -166,7 +166,7 @@ export default function CalendarPage() {
                       key={a.id}
                       className="bg-sky-100 text-sky-700 rounded-sm px-0.5 py-px text-[7px] truncate leading-tight"
                     >
-                      ↑ {Math.round(a.moving_time / 60)}m{a.training_load != null ? ` · ${Math.round(a.training_load)}TSS` : ''}
+                      ↑ {(() => { const mins = Math.round(a.moving_time / 60); return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m` })()}{a.training_load != null ? ` · ${Math.round(a.training_load)}TSS` : ''}
                     </div>
                   ))}
                 </div>
