@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { estimateEventTss } from '@/lib/events'
 import type { TrainingEvent } from '@/types'
 
 export async function PUT(req: NextRequest) {
@@ -83,7 +84,15 @@ export async function PUT(req: NextRequest) {
     ...(rpe ? { rpe } : {}),
     ...(duration_minutes ? { duration_minutes } : {}),
     ...(distance_km ? { distance_km } : {}),
+    // Preserve result fields from the original event
+    ...(old.icu_activity_id ? { icu_activity_id: old.icu_activity_id } : {}),
+    ...(old.result_tss != null ? { result_tss: old.result_tss } : {}),
+    ...(old.result_duration_minutes != null ? { result_duration_minutes: old.result_duration_minutes } : {}),
+    ...(old.result_avg_power != null ? { result_avg_power: old.result_avg_power } : {}),
+    ...(old.result_note ? { result_note: old.result_note } : {}),
   }
+  const est = estimateEventTss({ duration_minutes, rpe })
+  if (est !== null) updated.estimated_tss = est
 
   const updatedEvents = [...existing]
   updatedEvents[idx] = updated

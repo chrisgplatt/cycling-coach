@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { estimateEventTss } from '@/lib/events'
 import type { TrainingEvent } from '@/types'
 
 export async function POST(req: NextRequest) {
@@ -50,6 +51,8 @@ export async function POST(req: NextRequest) {
     ...(duration_minutes ? { duration_minutes } : {}),
     ...(distance_km ? { distance_km } : {}),
   }
+  const est = estimateEventTss({ duration_minutes, rpe })
+  if (est !== null) newEvent.estimated_tss = est
 
   const existing: TrainingEvent[] = profile.events ?? []
   const { error: saveError } = await supabase
