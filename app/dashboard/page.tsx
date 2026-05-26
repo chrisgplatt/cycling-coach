@@ -31,6 +31,7 @@ import SessionChatModal from '@/components/SessionChatModal'
 import PlanChatModal from '@/components/PlanChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
 import AddEventModal from '@/components/AddEventModal'
+import ActivityCard from '@/components/ActivityCard'
 
 function getReadinessSummary(wellness: ICUWellness): string {
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -486,8 +487,12 @@ export default function DashboardPage() {
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="space-y-2">
             {weekDates.map((date, i) => {
-              const dayWorkout = workouts.find(w => w.date === date)
-              const dayEvent = events.find(e => e.date === date)
+              const dayWorkouts = workouts.filter(w => w.date === date)
+              const dayEvents = events.filter(e => e.date === date)
+              const linkedIds = new Set(dayWorkouts.map(w => w.icu_activity_id).filter(Boolean))
+              const unplannedActivities = (syncData?.activities ?? [])
+                .filter(a => a.start_date_local.startsWith(date) && /ride/i.test(a.type) && !linkedIds.has(a.id))
+              const isEmpty = dayWorkouts.length === 0 && dayEvents.length === 0 && unplannedActivities.length === 0
               const isToday = date === localDateStr(new Date())
               return (
                 <div key={date} className="flex gap-4 items-start">
@@ -496,29 +501,33 @@ export default function DashboardPage() {
                     <div className={`text-xl font-extrabold tracking-tight mt-0.5 ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>{date.slice(8)}</div>
                   </div>
                   <DroppableDay date={date}>
-                    {dayWorkout && dayWorkout.status === 'planned' ? (
-                      <DraggableWorkoutCard workout={dayWorkout} onClick={() => setSelectedWorkout(dayWorkout)} />
-                    ) : dayWorkout ? (
-                      <WorkoutCard workout={dayWorkout} onClick={() => setSelectedWorkout(dayWorkout)} />
-                    ) : null}
-                    {dayEvent && (
+                    {dayWorkouts.map(w => w.status === 'planned' ? (
+                      <DraggableWorkoutCard key={w.id} workout={w} onClick={() => setSelectedWorkout(w)} />
+                    ) : (
+                      <WorkoutCard key={w.id} workout={w} onClick={() => setSelectedWorkout(w)} />
+                    ))}
+                    {dayEvents.map(e => (
                       <button
-                        onClick={() => setSelectedEvent(dayEvent)}
-                        className={`w-full text-left rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-3 hover:brightness-95 transition-all ${EVENT_COLOURS[dayEvent.priority]}`}
+                        key={e.date + e.name}
+                        onClick={() => setSelectedEvent(e)}
+                        className={`w-full text-left rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-3 hover:brightness-95 transition-all ${EVENT_COLOURS[e.priority]}`}
                       >
                         <div className="flex items-center gap-2">
                           <span>🏁</span>
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-sm">{dayEvent.name}</div>
-                            <div className="text-xs capitalize opacity-75">{dayEvent.type} · {dayEvent.priority} priority</div>
+                            <div className="font-semibold text-sm">{e.name}</div>
+                            <div className="text-xs capitalize opacity-75">{e.type} · {e.priority} priority</div>
                           </div>
-                          {dayEvent.icu_activity_id && (
+                          {e.icu_activity_id && (
                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" title="Result recorded" />
                           )}
                         </div>
                       </button>
-                    )}
-                    {!dayWorkout && !dayEvent && (
+                    ))}
+                    {unplannedActivities.map(a => (
+                      <ActivityCard key={a.id} activity={a} />
+                    ))}
+                    {isEmpty && (
                       <div className="text-sm text-gray-300 italic py-3.5 pl-1">Rest day</div>
                     )}
                   </DroppableDay>
