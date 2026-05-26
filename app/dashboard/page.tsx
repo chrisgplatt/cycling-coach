@@ -29,6 +29,7 @@ import TodayCard from '@/components/TodayCard'
 import NotificationBanner from '@/components/NotificationBanner'
 import SessionChatModal from '@/components/SessionChatModal'
 import PlanChatModal from '@/components/PlanChatModal'
+import EventDetailModal from '@/components/EventDetailModal'
 
 function getReadinessSummary(wellness: ICUWellness): string {
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -112,6 +113,7 @@ export default function DashboardPage() {
   const [planTargetDate, setPlanTargetDate] = useState('')
   const [currentFTP, setCurrentFTP] = useState(200)
   const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
+  const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -486,15 +488,21 @@ export default function DashboardPage() {
                       <WorkoutCard workout={dayWorkout} onClick={() => setSelectedWorkout(dayWorkout)} />
                     ) : null}
                     {dayEvent && (
-                      <div className={`rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-3 ${EVENT_COLOURS[dayEvent.priority]}`}>
+                      <button
+                        onClick={() => setSelectedEvent(dayEvent)}
+                        className={`w-full text-left rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-3 hover:brightness-95 transition-all ${EVENT_COLOURS[dayEvent.priority]}`}
+                      >
                         <div className="flex items-center gap-2">
                           <span>🏁</span>
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <div className="font-semibold text-sm">{dayEvent.name}</div>
                             <div className="text-xs capitalize opacity-75">{dayEvent.type} · {dayEvent.priority} priority</div>
                           </div>
+                          {dayEvent.icu_activity_id && (
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" title="Result recorded" />
+                          )}
                         </div>
-                      </div>
+                      </button>
                     )}
                     {!dayWorkout && !dayEvent && (
                       <div className="text-sm text-gray-300 italic py-3.5 pl-1">Rest day</div>
@@ -540,6 +548,36 @@ export default function DashboardPage() {
           onReschedule={() => {
             setSelectedWorkout(null)
             loadPlan()
+          }}
+          nearbyEvents={events.filter(e => {
+            if (!selectedWorkout) return false
+            const diff = Math.abs(
+              new Date(e.date).getTime() - new Date(selectedWorkout.date).getTime()
+            ) / 86400000
+            return diff <= 7
+          })}
+          onEventLinked={(updated) => {
+            setEvents(prev =>
+              prev.map(e => e.name === updated.name && e.date === updated.date ? updated : e)
+            )
+          }}
+        />
+      )}
+
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          activitiesOnDate={
+            syncData?.activities.filter(a =>
+              a.start_date_local.startsWith(selectedEvent.date)
+            ) ?? []
+          }
+          onClose={() => setSelectedEvent(null)}
+          onResultSaved={(updated) => {
+            setEvents(prev =>
+              prev.map(e => e.name === updated.name && e.date === updated.date ? updated : e)
+            )
+            setSelectedEvent(updated)
           }}
         />
       )}
