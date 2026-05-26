@@ -42,7 +42,7 @@ function buildSystemPrompt(
         const raceTypeStr = e.race_type ? ` — ${e.race_type.replace(/_/g, ' ')}` : ''
         const parts: string[] = []
         if (e.result_tss != null) parts.push(`TSS ${e.result_tss}`)
-        if (e.result_duration_minutes != null) {
+        if (e.result_duration_minutes != null && e.result_duration_minutes > 0) {
           const h = Math.floor(e.result_duration_minutes / 60)
           const m = e.result_duration_minutes % 60
           parts.push(m > 0 ? `${h}h ${String(m).padStart(2, '0')}min` : `${h}h`)

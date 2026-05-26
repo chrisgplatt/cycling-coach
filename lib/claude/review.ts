@@ -64,11 +64,11 @@ function formatRemainingWorkouts(workouts: Workout[]): string {
 function formatEventResults(events: TrainingEvent[], since: string): string {
   const results = events.filter(e => e.icu_activity_id && e.date >= since)
   if (!results.length) return ''
-  return '\nEVENT RESULTS (last 14 days):\n' + results.map(e => {
+  return 'EVENT RESULTS (last 14 days):\n' + results.map(e => {
     const raceTypeStr = e.race_type ? ` — ${e.race_type.replace(/_/g, ' ')}` : ''
     const metrics: string[] = []
     if (e.result_tss != null) metrics.push(`TSS ${e.result_tss}`)
-    if (e.result_duration_minutes != null) {
+    if (e.result_duration_minutes != null && e.result_duration_minutes > 0) {
       const h = Math.floor(e.result_duration_minutes / 60)
       const m = e.result_duration_minutes % 60
       metrics.push(m > 0 ? `${h}h ${String(m).padStart(2, '0')}min` : `${h}h`)
@@ -126,7 +126,7 @@ ${allEvents.length
         return `- ${e.date} BLOCKED: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}`
       }).join('\n')
     : 'None'}
-${eventResultsSection}
+${eventResultsSection ? '\n' + eventResultsSection : ''}
 CURRENT ATHLETE STATE:
 ${latestWellness
   ? `CTL: ${latestWellness.ctl ?? '?'} TSS/day (fitness), ATL: ${latestWellness.atl ?? '?'} TSS/day (fatigue), Form (TSB): ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'} ms, Resting HR: ${latestWellness.resting_hr ?? '?'} bpm`
