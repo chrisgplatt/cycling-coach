@@ -1,11 +1,12 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import WorkoutCard from '@/components/WorkoutCard'
-import type { Workout, ICUWellness } from '@/types'
+import type { Workout, ICUWellness, TrainingEvent } from '@/types'
 
 interface Props {
   workout: Workout | null
   wellness: ICUWellness | null
+  todayEvent?: TrainingEvent | null
   onWorkoutClick?: (workout: Workout) => void
   onChatWithCoach?: () => void
 }
@@ -26,7 +27,7 @@ function tsbColour(tsb: number | null): string {
 
 const BRIEFING_CACHE_KEY = 'cycling_coach_briefing'
 
-export default function TodayCard({ workout, wellness, onWorkoutClick, onChatWithCoach }: Props) {
+export default function TodayCard({ workout, wellness, todayEvent, onWorkoutClick, onChatWithCoach }: Props) {
   const [coachNote, setCoachNote] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -104,7 +105,11 @@ export default function TodayCard({ workout, wellness, onWorkoutClick, onChatWit
 
   const today = new Date()
   const dateLabel = today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
-  const dayType = workout ? workout.type.charAt(0).toUpperCase() + workout.type.slice(1) + ' day' : 'Rest day'
+  const dayType = workout
+    ? workout.type.charAt(0).toUpperCase() + workout.type.slice(1) + ' day'
+    : todayEvent
+      ? todayEvent.type.charAt(0).toUpperCase() + todayEvent.type.slice(1) + ' day'
+      : 'Rest day'
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
@@ -114,9 +119,29 @@ export default function TodayCard({ workout, wellness, onWorkoutClick, onChatWit
         <p className="text-sm font-medium text-slate-700 mt-0.5">{dateLabel} · {dayType}</p>
       </div>
 
-      {/* Today's workout */}
+      {/* Today's workout or event */}
       {workout ? (
         <WorkoutCard workout={workout} onClick={() => onWorkoutClick?.(workout)} />
+      ) : todayEvent ? (
+        <div className="bg-red-50 rounded-xl border border-red-100 px-4 py-3 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🏁</span>
+            <p className="text-sm font-semibold text-slate-800">{todayEvent.name}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+            <span className="capitalize font-medium text-red-600">{todayEvent.type}</span>
+            <span>·</span>
+            <span>Priority {todayEvent.priority}</span>
+            {todayEvent.race_type && <><span>·</span><span className="capitalize">{todayEvent.race_type.replace(/_/g, ' ')}</span></>}
+            {todayEvent.start_time && <><span>·</span><span>Starts {todayEvent.start_time}</span></>}
+            {todayEvent.distance_km && <><span>·</span><span>~{todayEvent.distance_km}km</span></>}
+          </div>
+          {todayEvent.result_tss != null ? (
+            <p className="text-xs text-emerald-600 font-medium">Result recorded · TSS {todayEvent.result_tss}</p>
+          ) : (
+            <p className="text-xs text-slate-400">Good luck — no training session scheduled today.</p>
+          )}
+        </div>
       ) : (
         <div className="bg-slate-50 rounded-xl border border-slate-100 px-4 py-3">
           <p className="text-sm text-slate-500">No session planned — rest and recover.</p>

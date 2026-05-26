@@ -422,6 +422,7 @@ export default function DashboardPage() {
         <TodayCard
           workout={todayWorkout}
           wellness={latestWellness}
+          todayEvent={events.find(e => e.date === todayStr) ?? null}
           onWorkoutClick={w => setSelectedWorkout(w)}
           onChatWithCoach={todayWorkout ? () => setChatWorkout(todayWorkout) : undefined}
         />
