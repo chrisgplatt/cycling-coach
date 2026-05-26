@@ -41,15 +41,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  console.log('[cron] daily-briefing started at', new Date().toISOString())
+  const runAt = new Date()
+  console.log('[cron] daily-briefing started at', runAt.toISOString())
 
-  // Service role client bypasses RLS — needed to read all users
   const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const nowISO = new Date().toISOString()
+  async function log(userId: string | null, event: string, status: 'ok' | 'error' | 'skipped', details?: Record<string, unknown>) {
+    await supabase.from('cron_logs').insert({
+      run_at: runAt.toISOString(),
+      user_id: userId,
+      event,
+      status,
+      details: details ?? null,
+    }).then(({ error }) => {
+      if (error) console.error('[cron] failed to write log:', error.message)
+    })
+  }
+
+  const nowISO = runAt.toISOString()
 
   const { data: profiles, error: profilesError } = await supabase
     .from('user_profile')
@@ -58,10 +70,13 @@ export async function GET(req: NextRequest) {
 
   if (profilesError) {
     console.error('[cron] failed to fetch profiles:', profilesError.message)
+    await log(null, 'cron_start', 'error', { error: profilesError.message })
     return NextResponse.json({ error: profilesError.message }, { status: 500 })
   }
 
-  console.log(`[cron] found ${profiles?.length ?? 0} profile(s) with notifications enabled`)
+  const profileCount = profiles?.length ?? 0
+  console.log(`[cron] found ${profileCount} profile(s) with notifications enabled`)
+  await log(null, 'cron_start', 'ok', { profiles_found: profileCount, run_at: nowISO })
 
   let pushSent = 0
   let emailSent = 0
@@ -75,10 +90,10 @@ export async function GET(req: NextRequest) {
 
     if (!isNotificationTime(notifTime, tz)) {
       console.log(`[cron] user ${profile.user_id}: not their notification time, skipping`)
+      await log(profile.user_id, 'time_mismatch', 'skipped', { notification_time: notifTime, timezone: tz, today })
       continue
     }
 
-    // Skip if already notified today
     const { data: existing } = await supabase
       .from('daily_briefings')
       .select('id, coach_note, notification_sent_at')
@@ -88,6 +103,7 @@ export async function GET(req: NextRequest) {
 
     if (existing?.notification_sent_at) {
       console.log(`[cron] user ${profile.user_id}: already notified today, skipping`)
+      await log(profile.user_id, 'already_notified', 'skipped', { date: today })
       continue
     }
 
@@ -140,6 +156,7 @@ export async function GET(req: NextRequest) {
         console.log(`[cron] user ${profile.user_id}: ICU data fetched, CTL=${ctl} ATL=${atl} TSB=${tsb}`)
       } catch (err) {
         console.error(`[cron] user ${profile.user_id}: ICU fetch failed:`, err)
+        await log(profile.user_id, 'icu_fetch_failed', 'error', { error: String(err) })
       }
     } else {
       console.log(`[cron] user ${profile.user_id}: no ICU credentials, skipping fitness data`)
@@ -160,8 +177,10 @@ export async function GET(req: NextRequest) {
       try {
         coach_note = await generateBriefing(ctx)
         console.log(`[cron] user ${profile.user_id}: briefing generated (${coach_note.length} chars)`)
+        await log(profile.user_id, 'briefing_generated', 'ok', { chars: coach_note.length, date: today })
       } catch (err) {
         console.error(`[cron] user ${profile.user_id}: generateBriefing failed:`, err)
+        await log(profile.user_id, 'briefing_failed', 'error', { error: String(err) })
         coach_note = todayWorkout
           ? `You have a ${todayWorkout.type} session today — ${todayWorkout.duration_minutes} minutes.`
           : 'Rest day today. Recover well.'
@@ -183,7 +202,12 @@ export async function GET(req: NextRequest) {
       .select('id, endpoint, p256dh, auth')
       .eq('user_id', profile.user_id)
 
-    console.log(`[cron] user ${profile.user_id}: found ${subs?.length ?? 0} push subscription(s)`)
+    const subCount = subs?.length ?? 0
+    console.log(`[cron] user ${profile.user_id}: found ${subCount} push subscription(s)`)
+
+    if (subCount === 0) {
+      await log(profile.user_id, 'no_subscriptions', 'skipped', { date: today })
+    }
 
     const firstSentence = coach_note.split(/[.!?]/)[0].trim().slice(0, 100)
     const pushBody = todayWorkout
@@ -195,12 +219,19 @@ export async function GET(req: NextRequest) {
         await sendPush(sub, { title: 'My Cycling Coach', body: pushBody, url: '/dashboard' })
         pushSent++
         console.log(`[cron] user ${profile.user_id}: push sent OK`)
+        await log(profile.user_id, 'push_sent', 'ok', { endpoint_prefix: sub.endpoint.slice(0, 40) })
       } catch (err: unknown) {
         const statusCode = (err as { statusCode?: number }).statusCode
         console.error(`[cron] user ${profile.user_id}: push failed (status ${statusCode}):`, err)
+        await log(profile.user_id, 'push_failed', 'error', {
+          status_code: statusCode,
+          error: String(err),
+          endpoint_prefix: sub.endpoint.slice(0, 40),
+        })
         if (statusCode === 410) {
           console.log(`[cron] user ${profile.user_id}: subscription expired, deleting`)
           await supabase.from('push_subscriptions').delete().eq('id', sub.id)
+          await log(profile.user_id, 'subscription_deleted', 'ok', { reason: '410_gone' })
         }
       }
     }
@@ -214,11 +245,13 @@ export async function GET(req: NextRequest) {
           await sendBriefingEmail(email, coach_note, todayWorkout, today)
           emailSent++
           console.log(`[cron] user ${profile.user_id}: email sent to ${email}`)
+          await log(profile.user_id, 'email_sent', 'ok', { date: today })
         } else {
           console.log(`[cron] user ${profile.user_id}: no email address found, skipping email`)
         }
       } catch (err) {
         console.error(`[cron] user ${profile.user_id}: email failed:`, err)
+        await log(profile.user_id, 'email_failed', 'error', { error: String(err) })
       }
     } else {
       console.log('[cron] RESEND_API_KEY not set, skipping email')
@@ -226,5 +259,6 @@ export async function GET(req: NextRequest) {
   }
 
   console.log(`[cron] done: pushSent=${pushSent} emailSent=${emailSent}`)
+  await log(null, 'cron_done', 'ok', { push_sent: pushSent, email_sent: emailSent })
   return NextResponse.json({ ok: true, pushSent, emailSent })
 }
