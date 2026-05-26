@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { Workout, ICUActivity, WorkoutType, SessionFeedback } from '@/types'
+import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent } from '@/types'
 import { getWeekBounds } from '@/lib/week-bounds'
 
 const TYPE_COLOURS: Record<WorkoutType, string> = {
@@ -32,16 +32,19 @@ interface Props {
   workout: Workout
   athleteId: string
   activitiesOnDate?: ICUActivity[]
+  nearbyEvents?: TrainingEvent[]
   onClose: () => void
   onFeedback?: (existingFeedback?: SessionFeedback) => void
   onStatusChange?: () => void
   onDelete?: () => void
   onReschedule?: () => void
   onChat?: () => void
+  onEventLinked?: (updated: TrainingEvent) => void
 }
 
 export default function WorkoutDetailModal({
-  workout, athleteId, activitiesOnDate, onClose, onFeedback, onStatusChange, onDelete, onReschedule, onChat,
+  workout, athleteId, activitiesOnDate, nearbyEvents, onClose, onFeedback,
+  onStatusChange, onDelete, onReschedule, onChat, onEventLinked,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [showChange, setShowChange] = useState(false)
@@ -57,6 +60,9 @@ export default function WorkoutDetailModal({
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState<string | null>(null)
   const [existingFeedback, setExistingFeedback] = useState<SessionFeedback | null | 'loading'>('loading')
+  const [linkEventOpen, setLinkEventOpen] = useState(false)
+  const [linkingEvent, setLinkingEvent] = useState(false)
+  const [linkError, setLinkError] = useState<string | null>(null)
 
   useEffect(() => {
     if (workout.status !== 'completed' && workout.status !== 'needs_review') {
@@ -196,6 +202,37 @@ export default function WorkoutDetailModal({
       setRescheduleError('Network error')
     } finally {
       setRescheduling(false)
+    }
+  }
+
+  async function linkToEvent(event: TrainingEvent) {
+    if (!workout.icu_activity_id) return
+    setLinkingEvent(true)
+    setLinkError(null)
+    try {
+      const res = await fetch('/api/events/result', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_name: event.name,
+          event_date: event.date,
+          icu_activity_id: workout.icu_activity_id,
+          result_tss: workout.tss ?? undefined,
+          result_duration_minutes: workout.duration_minutes,
+        }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setLinkError(d.error ?? 'Failed to link')
+        return
+      }
+      const { event: updated } = await res.json()
+      setLinkEventOpen(false)
+      onEventLinked?.(updated)
+    } catch {
+      setLinkError('Network error')
+    } finally {
+      setLinkingEvent(false)
     }
   }
 
@@ -428,6 +465,50 @@ export default function WorkoutDetailModal({
                   Cancel
                 </button>
               </div>
+            </div>
+          )}
+
+          {workout.icu_activity_id && nearbyEvents && nearbyEvents.length > 0 && !linkEventOpen && (
+            <button
+              onClick={() => setLinkEventOpen(true)}
+              className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              Link to event
+            </button>
+          )}
+
+          {linkEventOpen && (
+            <div className="border border-slate-200 rounded-xl p-4 space-y-2 bg-slate-50">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Link to event</p>
+              <div className="space-y-1.5">
+                {(nearbyEvents ?? []).map(ev => (
+                  <button
+                    key={`${ev.name}-${ev.date}`}
+                    onClick={() => linkToEvent(ev)}
+                    disabled={linkingEvent || !!ev.icu_activity_id}
+                    className={`w-full text-left text-sm px-3 py-2.5 rounded-xl border transition-colors ${
+                      ev.icu_activity_id
+                        ? 'border-slate-100 bg-white text-slate-300 cursor-default'
+                        : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50'
+                    }`}
+                  >
+                    <span className="font-medium">{ev.name}</span>
+                    <span className="ml-2 text-xs text-slate-400">{ev.date} · {ev.priority} priority</span>
+                    {ev.icu_activity_id && (
+                      <span className="ml-2 text-xs text-emerald-500">already linked</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {linkError && (
+                <p className="text-sm text-red-600">{linkError}</p>
+              )}
+              <button
+                onClick={() => { setLinkEventOpen(false); setLinkError(null) }}
+                className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           )}
 
