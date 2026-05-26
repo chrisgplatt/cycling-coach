@@ -9,33 +9,6 @@ import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData 
 import { EVENT_COLOURS } from '@/lib/event-colours'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const TYPE_COLOUR: Record<string, string> = {
-  endurance: 'text-blue-500', threshold: 'text-orange-500',
-  intervals: 'text-red-500', recovery: 'text-green-500',
-}
-const IF_BY_TYPE: Record<string, number> = {
-  recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90,
-}
-const STATUS_STYLE: Record<string, string> = {
-  completed:    'text-emerald-600',
-  needs_review: 'text-amber-500',
-  planned:      'text-blue-400',
-  skipped:      'text-slate-400',
-}
-const STATUS_LABEL: Record<string, string> = {
-  completed:    '✓ done',
-  needs_review: 'review',
-  planned:      'planned',
-  skipped:      'missed',
-}
-function tssLabel(workout: Workout): string | null {
-  if (workout.tss !== null) return `${workout.tss} TSS`
-  if (workout.status === 'planned') {
-    const if_ = IF_BY_TYPE[workout.type] ?? 0.68
-    return `~${Math.round((workout.duration_minutes * 60 * if_ * if_) / 36)} TSS`
-  }
-  return null
-}
 
 export default function CalendarPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
