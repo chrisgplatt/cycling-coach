@@ -471,7 +471,7 @@ export default function WorkoutDetailModal({
           {workout.icu_activity_id && nearbyEvents && nearbyEvents.length > 0 && !linkEventOpen && (
             <button
               onClick={() => setLinkEventOpen(true)}
-              className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors py-2"
             >
               Link to event
             </button>
@@ -483,7 +483,7 @@ export default function WorkoutDetailModal({
               <div className="space-y-1.5">
                 {(nearbyEvents ?? []).map(ev => (
                   <button
-                    key={`${ev.name}-${ev.date}`}
+                    key={`${ev.name}-${ev.date}-${ev.type}`}
                     onClick={() => linkToEvent(ev)}
                     disabled={linkingEvent || !!ev.icu_activity_id}
                     className={`w-full text-left text-sm px-3 py-2.5 rounded-xl border transition-colors ${
