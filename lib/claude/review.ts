@@ -123,7 +123,8 @@ UPCOMING EVENTS — these dates are BLOCKED, no workout may be scheduled on them
 ${allEvents.length
     ? allEvents.map((e: TrainingEvent) => {
         const raceTypeStr = e.type === 'race' && e.race_type ? ` — ${e.race_type.replace('_', ' ')}` : ''
-        return `- ${e.date} BLOCKED: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}`
+        const tssStr = e.estimated_tss != null ? ` | ~${e.estimated_tss} TSS (est.)` : ''
+        return `- ${e.date} BLOCKED: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}${tssStr}`
       }).join('\n')
     : 'None'}
 ${eventResultsSection ? '\n' + eventResultsSection : ''}

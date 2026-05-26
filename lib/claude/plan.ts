@@ -109,6 +109,7 @@ ${allEvents.map(e => {
   if (e.rpe) extras.push(`effort: ${e.rpe.replace('_', ' ')}`)
   if (e.duration_minutes) extras.push(`~${e.duration_minutes}min`)
   if (e.distance_km) extras.push(`~${e.distance_km}km`)
+  if (e.estimated_tss != null) extras.push(`~${e.estimated_tss} TSS (est.)`)
   const raceTypeStr = e.type === 'race' && e.race_type ? ` — ${e.race_type.replace('_', ' ')}` : ''
   return `- ${e.date} BLOCKED: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}${extras.length ? ` | ${extras.join(', ')}` : ''}`
 }).join('\n')}
@@ -161,6 +162,8 @@ RECENT WEEKLY TRAINING LOAD:
 ${weeklyTssSummary(syncData.activities)}
 
 LOAD CALIBRATION — critical: set week 1 of the plan so its total TSS closely matches the athlete's recent average weekly TSS shown above. Build from that baseline; do not start above it. If form (TSB) is significantly negative (below -15), reduce week 1 by 10–20% to allow recovery before building.
+
+When an event week contains an event with a TSS estimate, treat that estimated TSS as part of the week's total training load. Reduce the surrounding workout load so the combined total (workouts + event) stays within the appropriate range for the training phase — do not stack a full training week on top of a hard event day.
 
 RECENT ACTIVITIES (last 10 — use these to understand training history, discipline mix, and current intensity):
 ${summariseActivities(syncData.activities)}
