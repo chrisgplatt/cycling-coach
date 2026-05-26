@@ -21,6 +21,14 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+  const { data: profile } = await supabase
+    .from('user_profile')
+    .select('is_admin, intervals_icu_athlete_id, intervals_icu_api_key, events, timezone')
+    .eq('user_id', user.id)
+    .single()
+  if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const runAt = new Date()
   const logged: Array<{ event: string; status: string; details: unknown }> = []
 
@@ -29,16 +37,6 @@ export async function POST() {
     logged.push({ event, status, details: details ?? null })
     const { error } = await supabase.from('cron_logs').insert(entry)
     if (error) logged.push({ event: 'log_write_failed', status: 'error', details: error.message })
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key, events, timezone')
-    .eq('user_id', user.id)
-    .single()
-
-  if (!profile) {
-    return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
   }
 
   const tz = (profile.timezone as string | null) ?? 'Europe/London'

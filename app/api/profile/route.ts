@@ -30,7 +30,8 @@ export async function PATCH(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await req.json()
-  const { id, ...fields } = body
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id, is_admin, ...fields } = body
 
   let error
   if (id) {

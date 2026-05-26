@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [notifWorking, setNotifWorking] = useState(false)
   const [notifError, setNotifError] = useState<string | null>(null)
   const [testSending, setTestSending] = useState(false)
@@ -57,6 +58,7 @@ export default function SettingsPage() {
         setNotifTime(time); setSavedNotifTime(time)
         setTimezone(tz); setSavedTimezone(tz)
         setNotificationsEnabled(data.notifications_enabled ?? false)
+        setIsAdmin(data.is_admin ?? false)
       })
       .catch(() => {})
   }, [])
@@ -294,30 +296,32 @@ export default function SettingsPage() {
                 </p>
               )}
             </div>
-            <div className="space-y-2">
-              <button
-                onClick={runCronTest}
-                disabled={cronTesting}
-                className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
-              >
-                {cronTesting ? 'Running…' : 'Test full cron run'}
-              </button>
-              {cronTestLogs && (
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1">
-                  {cronTestLogs.map((entry, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs font-mono">
-                      <span className={`shrink-0 font-semibold ${entry.status === 'ok' ? 'text-emerald-600' : entry.status === 'error' ? 'text-red-500' : 'text-amber-500'}`}>
-                        {entry.status === 'ok' ? '✓' : entry.status === 'error' ? '✗' : '–'}
-                      </span>
-                      <span className="text-slate-700">{entry.event}</span>
-                      {entry.details != null && (
-                        <span className="text-slate-400 truncate">{JSON.stringify(entry.details)}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {isAdmin && (
+              <div className="space-y-2">
+                <button
+                  onClick={runCronTest}
+                  disabled={cronTesting}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+                >
+                  {cronTesting ? 'Running…' : 'Test full cron run'}
+                </button>
+                {cronTestLogs && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1">
+                    {cronTestLogs.map((entry, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs font-mono">
+                        <span className={`shrink-0 font-semibold ${entry.status === 'ok' ? 'text-emerald-600' : entry.status === 'error' ? 'text-red-500' : 'text-amber-500'}`}>
+                          {entry.status === 'ok' ? '✓' : entry.status === 'error' ? '✗' : '–'}
+                        </span>
+                        <span className="text-slate-700">{entry.event}</span>
+                        {entry.details != null && (
+                          <span className="text-slate-400 truncate">{JSON.stringify(entry.details)}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </section>
