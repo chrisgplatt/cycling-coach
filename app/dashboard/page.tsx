@@ -511,7 +511,7 @@ export default function DashboardPage() {
                     ) : (
                       <WorkoutCard key={w.id} workout={w} onClick={() => setSelectedWorkout(w)} />
                     ))}
-                    {dayEvents.map(e => (
+                    {dayEvents.map((e, idx) => (
                       <button
                         key={e.icu_event_id ?? `${e.date}-${e.name}`}
                         onClick={() => setSelectedEvent(e)}
@@ -527,9 +527,25 @@ export default function DashboardPage() {
                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" title="Result recorded" />
                           )}
                         </div>
+                        {idx === 0 && unplannedActivities.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-current/10 space-y-1">
+                            {unplannedActivities.map(a => {
+                              const mins = Math.round(a.moving_time / 60)
+                              const dur = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`
+                              return (
+                                <div key={a.id} className="flex items-center gap-2 text-xs opacity-70">
+                                  <span>↑</span>
+                                  <span className="flex-1 truncate">{a.name}</span>
+                                  <span className="shrink-0">{dur}</span>
+                                  {a.training_load != null && <span className="shrink-0">{Math.round(a.training_load)} TSS</span>}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
                       </button>
                     ))}
-                    {unplannedActivities.map(a => (
+                    {dayEvents.length === 0 && unplannedActivities.map(a => (
                       <ActivityCard key={a.id} activity={a} />
                     ))}
                     {isEmpty && (
