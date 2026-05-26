@@ -552,8 +552,9 @@ export default function DashboardPage() {
           nearbyEvents={events.filter(e => {
             if (!selectedWorkout) return false
             const diff = Math.abs(
-              new Date(e.date).getTime() - new Date(selectedWorkout.date).getTime()
-            ) / 86400000
+              Math.floor(new Date(e.date + 'T00:00:00Z').getTime() / 86400000) -
+              Math.floor(new Date(selectedWorkout.date + 'T00:00:00Z').getTime() / 86400000)
+            )
             return diff <= 7
           })}
           onEventLinked={(updated) => {
