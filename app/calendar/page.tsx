@@ -5,7 +5,7 @@ import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import SessionChatModal from '@/components/SessionChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
 import AddEventModal from '@/components/AddEventModal'
-import type { Workout, TrainingEvent, SessionFeedback, ICUActivity } from '@/types'
+import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -52,6 +52,7 @@ export default function CalendarPage() {
   const [eventActivities, setEventActivities] = useState<ICUActivity[]>([])
   const [eventActivitiesLoading, setEventActivitiesLoading] = useState(false)
   const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
+  const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
 
   async function openEvent(event: TrainingEvent) {
     setSelectedEvent(event)
@@ -90,7 +91,10 @@ export default function CalendarPage() {
     loadPlan()
     fetch('/api/sync', { method: 'POST' })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.athlete_id) setAthleteId(data.athlete_id) })
+      .then(data => {
+        if (data?.athlete_id) setAthleteId(data.athlete_id)
+        if (data) setSyncData(data)
+      })
       .catch(() => {})
     fetch('/api/profile')
       .then(r => r.ok ? r.json() : null)
@@ -141,65 +145,58 @@ export default function CalendarPage() {
             {blanks.map((_, i) => <div key={`b${i}`} />)}
             {days.map(day => {
               const ds = dateStr(day)
-              const workout = workouts.find(w => w.date === ds)
-              const event = events.find(e => e.date === ds)
-
-              if (event) {
-                return (
-                  <button
-                    key={day}
-                    onClick={() => openEvent(event)}
-                    className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm border-2 cursor-pointer hover:brightness-95 transition-all ${EVENT_COLOURS[event.priority]}`}
-                  >
-                    <span className="font-semibold">{day}</span>
-                    <span className="text-[10px]">🏁</span>
-                    <span title={event.name} className="text-[8px] font-semibold text-center leading-tight px-0.5 w-full truncate">
-                      {event.name}
-                    </span>
-                    {event.icu_activity_id && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" title="Result recorded" />
-                    )}
-                    {workout && (
-                      <>
-                        <span className={`text-[8px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
-                          {workout.type}
-                        </span>
-                        {tssLabel(workout) && (
-                          <span className="text-[8px] text-gray-400">{tssLabel(workout)}</span>
-                        )}
-                        <span className={`text-[7px] font-semibold ${STATUS_STYLE[workout.status] ?? 'text-gray-400'}`}>
-                          {STATUS_LABEL[workout.status] ?? workout.status}
-                        </span>
-                      </>
-                    )}
-                  </button>
-                )
-              }
+              const dayWorkouts = workouts.filter(w => w.date === ds)
+              const dayEvents = events.filter(e => e.date === ds)
+              const linkedIds = new Set<string>(dayWorkouts.map(w => w.icu_activity_id).filter((id): id is string => id != null))
+              const dayActivities = (syncData?.activities ?? [])
+                .filter(a => a.start_date_local.startsWith(ds) && /ride/i.test(a.type) && !linkedIds.has(a.id))
+              const hasAnything = dayWorkouts.length > 0 || dayEvents.length > 0 || dayActivities.length > 0
+              const hasEvent = dayEvents.length > 0
 
               return (
-                <button
+                <div
                   key={day}
-                  onClick={() => workout && setSelectedWorkout(workout)}
-                  className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm
-                    ${workout ? 'bg-white border border-gray-200 hover:border-blue-400 cursor-pointer' : 'text-gray-300'}
+                  className={`min-h-[72px] flex flex-col rounded-lg text-sm p-1 gap-0.5
+                    ${hasEvent
+                      ? `border-2 ${EVENT_COLOURS[dayEvents[0].priority]}`
+                      : hasAnything
+                        ? 'bg-white border border-gray-200'
+                        : 'text-gray-300'
+                    }
                   `}
                 >
-                  <span>{day}</span>
-                  {workout && (
-                    <>
-                      <span className={`text-[10px] font-medium capitalize ${TYPE_COLOUR[workout.type] ?? 'text-gray-500'}`}>
-                        {workout.type}
-                      </span>
-                      <span className="text-[10px] text-gray-400">{workout.duration_minutes}m</span>
-                      {tssLabel(workout) && (
-                        <span className="text-[9px] text-gray-400">{tssLabel(workout)}</span>
-                      )}
-                      <span className={`text-[8px] font-semibold ${STATUS_STYLE[workout.status] ?? 'text-gray-400'}`}>
-                        {STATUS_LABEL[workout.status] ?? workout.status}
-                      </span>
-                    </>
-                  )}
-                </button>
+                  <span className={`text-[10px] font-semibold self-start px-0.5 leading-tight
+                    ${hasEvent ? '' : hasAnything ? 'text-gray-500' : 'text-gray-300'}`}
+                  >
+                    {day}
+                  </span>
+                  {dayEvents.map(e => (
+                    <div
+                      key={e.icu_event_id ?? `${e.date}-${e.name}`}
+                      onClick={() => openEvent(e)}
+                      className="bg-red-100 text-red-700 rounded-sm px-0.5 py-px text-[7px] font-semibold truncate cursor-pointer leading-tight"
+                    >
+                      🏁 {e.name}
+                    </div>
+                  ))}
+                  {dayWorkouts.map(w => (
+                    <div
+                      key={w.id}
+                      onClick={() => setSelectedWorkout(w)}
+                      className="bg-blue-100 text-blue-700 rounded-sm px-0.5 py-px text-[7px] truncate cursor-pointer capitalize leading-tight"
+                    >
+                      {w.type} {w.duration_minutes}m{w.status === 'completed' ? ' ✓' : w.status === 'skipped' ? ' –' : ''}
+                    </div>
+                  ))}
+                  {dayActivities.map(a => (
+                    <div
+                      key={a.id}
+                      className="bg-sky-100 text-sky-700 rounded-sm px-0.5 py-px text-[7px] truncate leading-tight"
+                    >
+                      ↑ {Math.round(a.moving_time / 60)}m{a.training_load != null ? ` · ${Math.round(a.training_load)}TSS` : ''}
+                    </div>
+                  ))}
+                </div>
               )
             })}
           </div>
