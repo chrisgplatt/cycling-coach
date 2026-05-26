@@ -30,6 +30,7 @@ import NotificationBanner from '@/components/NotificationBanner'
 import SessionChatModal from '@/components/SessionChatModal'
 import PlanChatModal from '@/components/PlanChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
+import AddEventModal from '@/components/AddEventModal'
 
 function getReadinessSummary(wellness: ICUWellness): string {
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -114,6 +115,7 @@ export default function DashboardPage() {
   const [currentFTP, setCurrentFTP] = useState(200)
   const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
   const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(null)
+  const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -275,6 +277,17 @@ export default function DashboardPage() {
 
   function handleWorkoutUpdated(updated: Workout) {
     setWorkouts(prev => prev.map(w => w.id === updated.id ? updated : w))
+  }
+
+  async function updateEvent(original: TrainingEvent, updated: Omit<TrainingEvent, '_key'>) {
+    const res = await fetch('/api/events/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ original_name: original.name, original_date: original.date, ...updated }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error ?? 'Failed to update event')
+    setEvents(prev => prev.map(e => e.name === original.name && e.date === original.date ? data.event : e))
   }
 
   useEffect(() => () => reviewAbortRef.current?.abort(), [])
@@ -580,6 +593,21 @@ export default function DashboardPage() {
             )
             setSelectedEvent(updated)
           }}
+          onEdit={() => {
+            setEditingEvent(selectedEvent)
+            setSelectedEvent(null)
+          }}
+        />
+      )}
+
+      {editingEvent && (
+        <AddEventModal
+          initialEvent={editingEvent}
+          onConfirm={async (updated) => {
+            await updateEvent(editingEvent, updated)
+            setEditingEvent(null)
+          }}
+          onClose={() => setEditingEvent(null)}
         />
       )}
 

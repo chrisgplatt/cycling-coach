@@ -8,6 +8,7 @@ interface Props {
   activitiesLoading?: boolean
   onClose: () => void
   onResultSaved: (updated: TrainingEvent) => void
+  onEdit?: () => void
 }
 
 function fmtDuration(mins: number): string {
@@ -29,7 +30,7 @@ const TYPE_COLOUR: Record<string, string> = {
 }
 
 export default function EventDetailModal({
-  event, activitiesOnDate, activitiesLoading = false, onClose, onResultSaved,
+  event, activitiesOnDate, activitiesLoading = false, onClose, onResultSaved, onEdit,
 }: Props) {
   const rides = activitiesOnDate.filter(a => /ride/i.test(a.type))
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
@@ -330,12 +331,22 @@ export default function EventDetailModal({
               </>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-2">
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                Edit event
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

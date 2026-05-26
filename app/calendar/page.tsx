@@ -4,6 +4,7 @@ import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import SessionChatModal from '@/components/SessionChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
+import AddEventModal from '@/components/AddEventModal'
 import type { Workout, TrainingEvent, SessionFeedback, ICUActivity } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 
@@ -50,6 +51,7 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(null)
   const [eventActivities, setEventActivities] = useState<ICUActivity[]>([])
   const [eventActivitiesLoading, setEventActivitiesLoading] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
 
   async function openEvent(event: TrainingEvent) {
     setSelectedEvent(event)
@@ -64,6 +66,17 @@ export default function CalendarPage() {
     } finally {
       setEventActivitiesLoading(false)
     }
+  }
+
+  async function updateEvent(original: TrainingEvent, updated: Omit<TrainingEvent, '_key'>) {
+    const res = await fetch('/api/events/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ original_name: original.name, original_date: original.date, ...updated }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error ?? 'Failed to update event')
+    setEvents(prev => prev.map(e => e.name === original.name && e.date === original.date ? data.event : e))
   }
 
   function loadPlan() {
@@ -271,6 +284,22 @@ export default function CalendarPage() {
             )
             setSelectedEvent(updated)
           }}
+          onEdit={() => {
+            setEditingEvent(selectedEvent)
+            setSelectedEvent(null)
+            setEventActivities([])
+          }}
+        />
+      )}
+
+      {editingEvent && (
+        <AddEventModal
+          initialEvent={editingEvent}
+          onConfirm={async (updated) => {
+            await updateEvent(editingEvent, updated)
+            setEditingEvent(null)
+          }}
+          onClose={() => setEditingEvent(null)}
         />
       )}
     </div>
