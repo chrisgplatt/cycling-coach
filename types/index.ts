@@ -24,6 +24,7 @@ export interface TrainingEvent {
   result_duration_minutes?: number  // actual ride duration in minutes
   result_avg_power?: number         // normalised power (weighted_average_watts)
   result_note?: string              // athlete race reflection
+  estimated_tss?: number
 }
 
 export interface UserProfile {
