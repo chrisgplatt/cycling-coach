@@ -30,6 +30,8 @@ export default function SettingsPage() {
   const [notifError, setNotifError] = useState<string | null>(null)
   const [testSending, setTestSending] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [cronTesting, setCronTesting] = useState(false)
+  const [cronTestLogs, setCronTestLogs] = useState<Array<{ event: string; status: string; details: unknown }> | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
 
@@ -141,6 +143,20 @@ export default function SettingsPage() {
       setNotifError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setNotifWorking(false)
+    }
+  }
+
+  async function runCronTest() {
+    setCronTesting(true)
+    setCronTestLogs(null)
+    try {
+      const res = await fetch('/api/cron/test', { method: 'POST' })
+      const data = await res.json()
+      setCronTestLogs(data.logged ?? [{ event: data.error ?? 'Unknown error', status: 'error', details: null }])
+    } catch {
+      setCronTestLogs([{ event: 'network_error', status: 'error', details: null }])
+    } finally {
+      setCronTesting(false)
     }
   }
 
@@ -263,19 +279,45 @@ export default function SettingsPage() {
           <p className="text-xs text-amber-600">{notifError}</p>
         )}
         {notificationsEnabled && (
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              onClick={sendTestNotification}
-              disabled={testSending}
-              className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
-            >
-              {testSending ? 'Sending…' : 'Send test notification'}
-            </button>
-            {testResult && (
-              <p className={`text-xs ${testResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
-                {testResult.message}
-              </p>
-            )}
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={sendTestNotification}
+                disabled={testSending}
+                className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+              >
+                {testSending ? 'Sending…' : 'Send test notification'}
+              </button>
+              {testResult && (
+                <p className={`text-xs ${testResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {testResult.message}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <button
+                onClick={runCronTest}
+                disabled={cronTesting}
+                className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+              >
+                {cronTesting ? 'Running…' : 'Test full cron run'}
+              </button>
+              {cronTestLogs && (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1">
+                  {cronTestLogs.map((entry, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs font-mono">
+                      <span className={`shrink-0 font-semibold ${entry.status === 'ok' ? 'text-emerald-600' : entry.status === 'error' ? 'text-red-500' : 'text-amber-500'}`}>
+                        {entry.status === 'ok' ? '✓' : entry.status === 'error' ? '✗' : '–'}
+                      </span>
+                      <span className="text-slate-700">{entry.event}</span>
+                      {entry.details != null && (
+                        <span className="text-slate-400 truncate">{JSON.stringify(entry.details)}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>
