@@ -489,7 +489,7 @@ export default function DashboardPage() {
             {weekDates.map((date, i) => {
               const dayWorkouts = workouts.filter(w => w.date === date)
               const dayEvents = events.filter(e => e.date === date)
-              const linkedIds = new Set(dayWorkouts.map(w => w.icu_activity_id).filter(Boolean))
+              const linkedIds = new Set<string>(dayWorkouts.map(w => w.icu_activity_id).filter((id): id is string => id != null))
               const unplannedActivities = (syncData?.activities ?? [])
                 .filter(a => a.start_date_local.startsWith(date) && /ride/i.test(a.type) && !linkedIds.has(a.id))
               const isEmpty = dayWorkouts.length === 0 && dayEvents.length === 0 && unplannedActivities.length === 0
@@ -508,7 +508,7 @@ export default function DashboardPage() {
                     ))}
                     {dayEvents.map(e => (
                       <button
-                        key={e.date + e.name}
+                        key={e.icu_event_id ?? `${e.date}-${e.name}`}
                         onClick={() => setSelectedEvent(e)}
                         className={`w-full text-left rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-3 hover:brightness-95 transition-all ${EVENT_COLOURS[e.priority]}`}
                       >
