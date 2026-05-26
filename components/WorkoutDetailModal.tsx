@@ -209,6 +209,7 @@ export default function WorkoutDetailModal({
     if (!workout.icu_activity_id) return
     setLinkingEvent(true)
     setLinkError(null)
+    const act = activitiesOnDate?.find(a => a.id === workout.icu_activity_id)
     try {
       const res = await fetch('/api/events/result', {
         method: 'PATCH',
@@ -219,6 +220,7 @@ export default function WorkoutDetailModal({
           icu_activity_id: workout.icu_activity_id,
           result_tss: workout.tss ?? undefined,
           result_duration_minutes: workout.duration_minutes,
+          result_avg_power: act?.weighted_average_watts ?? undefined,
         }),
       })
       if (!res.ok) {
