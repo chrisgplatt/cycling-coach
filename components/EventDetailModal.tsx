@@ -335,7 +335,7 @@ export default function EventDetailModal({
             )}
           </div>
           <div className="flex items-center gap-2">
-            {onEdit && (
+            {onEdit && !hasResult && (
               <button
                 onClick={onEdit}
                 className="text-sm font-medium text-blue-600 hover:text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"

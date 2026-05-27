@@ -154,6 +154,7 @@ export default function DashboardPage() {
         try {
           localStorage.setItem(SYNC_CACHE_KEY, JSON.stringify({ syncedAt: now.toISOString(), data }))
         } catch { /* ignore storage errors */ }
+        await loadPlan()
       }
     } finally {
       setSyncing(false)
