@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { IntervalsClient } from '@/lib/intervals/client'
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
@@ -48,5 +49,18 @@ export async function PATCH(req: Request) {
   }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Push FTP to intervals.icu when it changes — fire and forget, don't block the response
+  if (typeof fields.current_ftp === 'number') {
+    const { data: profileRow } = await supabase
+      .from('user_profile')
+      .select('intervals_icu_athlete_id, intervals_icu_api_key')
+      .maybeSingle()
+    if (profileRow?.intervals_icu_athlete_id && profileRow?.intervals_icu_api_key) {
+      const client = new IntervalsClient(profileRow.intervals_icu_athlete_id, profileRow.intervals_icu_api_key)
+      client.updateAthlete({ ftp: fields.current_ftp }).catch(() => {})
+    }
+  }
+
   return NextResponse.json({ ok: true })
 }

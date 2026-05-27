@@ -103,6 +103,13 @@ export class IntervalsClient {
     return { ftp: data.ftp ?? null, weight: data.weight ?? null }
   }
 
+  async updateAthlete(fields: { ftp?: number; weight?: number }): Promise<void> {
+    await this.request(`/athlete/${this.athleteId}`, {
+      method: 'PUT',
+      body: JSON.stringify(fields),
+    })
+  }
+
   async getActivities(oldest: string, newest: string): Promise<ICUActivity[]> {
     const raw = await this.request<Record<string, unknown>[]>(
       `/athlete/${this.athleteId}/activities?oldest=${oldest}&newest=${newest}`
