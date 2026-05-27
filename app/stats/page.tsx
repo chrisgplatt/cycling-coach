@@ -332,7 +332,7 @@ export default function StatsPage() {
       </div>
 
       {tabs.length > 1 && (
-        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto overflow-y-hidden scrollbar-none -mx-4 px-4" style={{ touchAction: 'pan-x' }}>
+        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto scrollbar-none" style={{ touchAction: 'pan-x' }}>
           {tabs.map(tab => (
             <button
               key={tab.id}
