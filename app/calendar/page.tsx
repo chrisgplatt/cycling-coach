@@ -117,9 +117,9 @@ function MonthStrip({
     <div className="bg-white rounded-xl border border-slate-200 p-3">
       {/* Month navigation */}
       <div className="flex items-center justify-between mb-2">
-        <button onClick={onPrevMonth} aria-label="Previous month" className="p-1 text-slate-400 hover:text-slate-700 text-lg leading-none">‹</button>
+        <button onClick={onPrevMonth} aria-label="Previous month" className="p-2 text-slate-400 hover:text-slate-700 text-lg leading-none min-h-[44px]">‹</button>
         <span className="text-sm font-semibold text-slate-700">{MONTHS[displayMonth]} {displayYear}</span>
-        <button onClick={onNextMonth} aria-label="Next month" className="p-1 text-slate-400 hover:text-slate-700 text-lg leading-none">›</button>
+        <button onClick={onNextMonth} aria-label="Next month" className="p-2 text-slate-400 hover:text-slate-700 text-lg leading-none min-h-[44px]">›</button>
       </div>
 
       {/* Day-of-week headers */}
