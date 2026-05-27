@@ -213,7 +213,7 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
                 onClick={handleRegenerate}
                 className="bg-blue-600 text-white text-sm font-medium px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
               >
-                Regenerate plan
+                Adapt plan
               </button>
             </>
           ) : (

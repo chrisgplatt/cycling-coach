@@ -1,11 +1,12 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import SessionChatModal from '@/components/SessionChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
 import AddEventModal from '@/components/AddEventModal'
-import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus } from '@/types'
+import PlanReviewModal from '@/components/PlanReviewModal'
+import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus, GeneratedPlan } from '@/types'
 import { calendarMonthDays, weekDates, formatDuration, formatMovingTime, toLocalDateStr } from '@/lib/calendar-helpers'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -274,6 +275,61 @@ export default function CalendarPage() {
   const [displayYear, setDisplayYear] = useState(() => new Date().getFullYear())
   const [displayMonth, setDisplayMonth] = useState(() => new Date().getMonth())
 
+  const reviewAbortRef = useRef<AbortController | null>(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [reviewWorkoutsFound, setReviewWorkoutsFound] = useState(0)
+  const [reviewEstimatedWorkouts, setReviewEstimatedWorkouts] = useState(0)
+
+  async function startAdaptation(note: string) {
+    reviewAbortRef.current?.abort()
+    const controller = new AbortController()
+    reviewAbortRef.current = controller
+    setReviewLoading(true)
+    setReviewPlan(null)
+    setReviewWorkoutsFound(0)
+    setShowReviewModal(true)
+    try {
+      const res = await fetch('/api/plan/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note }),
+        signal: controller.signal,
+      })
+      if (!res.ok || !res.body) { setReviewLoading(false); return }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done || controller.signal.aborted) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const msg = JSON.parse(line)
+            if (msg.type === 'total') setReviewEstimatedWorkouts(msg.count)
+            if (msg.type === 'progress') setReviewWorkoutsFound(msg.found)
+            if (msg.type === 'done') { setReviewPlan(msg.plan); setReviewLoading(false) }
+            if (msg.type === 'error') setReviewLoading(false)
+          } catch { /* ignore */ }
+        }
+      }
+      if (buf.trim()) {
+        try {
+          const msg = JSON.parse(buf)
+          if (msg.type === 'done') { setReviewPlan(msg.plan); setReviewLoading(false) }
+        } catch { /* ignore */ }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      setReviewLoading(false)
+    }
+  }
+
   function loadPlan() {
     fetch('/api/plan').then(r => r.json()).then(plan => {
       setWorkouts(plan?.workouts ?? [])
@@ -459,8 +515,21 @@ export default function CalendarPage() {
       {editingEvent && (
         <AddEventModal
           initialEvent={editingEvent}
-          onConfirm={async (updated) => { await updateEvent(editingEvent, updated); setEditingEvent(null) }}
+          onConfirm={async (updated) => { await updateEvent(editingEvent, updated) }}
           onClose={() => setEditingEvent(null)}
+          hasPlan={!!planName}
+          onRegenerate={(note) => startAdaptation(note)}
+        />
+      )}
+
+      {showReviewModal && (
+        <PlanReviewModal
+          plan={reviewPlan}
+          loading={reviewLoading}
+          workoutsFound={reviewWorkoutsFound}
+          estimatedWorkouts={reviewEstimatedWorkouts}
+          onApprove={() => { setShowReviewModal(false); setReviewPlan(null); loadPlan() }}
+          onReject={() => { setShowReviewModal(false); setReviewPlan(null) }}
         />
       )}
     </div>

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import AddEventModal from '@/components/AddEventModal'
 import PlanDurationModal from '@/components/PlanDurationModal'
 import PlanApprovalModal from '@/components/PlanApprovalModal'
+import PlanReviewModal from '@/components/PlanReviewModal'
 import ClearWorkoutsModal from '@/components/ClearWorkoutsModal'
 import PlanChatModal from '@/components/PlanChatModal'
 import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData } from '@/types'
@@ -74,6 +75,15 @@ export default function PlanPage() {
   const [workoutsFound, setWorkoutsFound] = useState(0)
   const [estimatedWorkouts, setEstimatedWorkouts] = useState(0)
 
+  // Adaptation (plan review after event changes)
+  const reviewAbortRef = useRef<AbortController | null>(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [reviewWorkoutsFound, setReviewWorkoutsFound] = useState(0)
+  const [reviewEstimatedWorkouts, setReviewEstimatedWorkouts] = useState(0)
+  const [pendingAdaptNote, setPendingAdaptNote] = useState<string | null>(null)
+
   // Fix 1: timer ref to avoid unmount leak and double-save race
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -89,6 +99,60 @@ export default function PlanPage() {
         setFuturePlanWorkouts((data?.workouts ?? []).filter((w: Workout) => w.date >= today && w.status === 'planned'))
       })
       .catch(() => {})
+  }
+
+  async function startAdaptation(note: string) {
+    reviewAbortRef.current?.abort()
+    const controller = new AbortController()
+    reviewAbortRef.current = controller
+    setReviewLoading(true)
+    setReviewPlan(null)
+    setReviewWorkoutsFound(0)
+    setShowReviewModal(true)
+    try {
+      const res = await fetch('/api/plan/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note }),
+        signal: controller.signal,
+      })
+      if (!res.ok || !res.body) { setReviewLoading(false); return }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done || controller.signal.aborted) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const msg = JSON.parse(line)
+            if (msg.type === 'total') setReviewEstimatedWorkouts(msg.count)
+            if (msg.type === 'progress') setReviewWorkoutsFound(msg.found)
+            if (msg.type === 'done') { setReviewPlan(msg.plan); setReviewLoading(false) }
+            if (msg.type === 'error') setReviewLoading(false)
+          } catch { /* ignore */ }
+        }
+      }
+      if (buf.trim()) {
+        try {
+          const msg = JSON.parse(buf)
+          if (msg.type === 'done') { setReviewPlan(msg.plan); setReviewLoading(false) }
+        } catch { /* ignore */ }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      setReviewLoading(false)
+    }
+  }
+
+  function handleAdaptationApprove() {
+    setShowReviewModal(false)
+    setReviewPlan(null)
+    loadPlan()
   }
 
   useEffect(() => {
@@ -190,6 +254,9 @@ export default function PlanPage() {
       const data = await res.json()
       if (!res.ok) { setSyncResult(`Error deleting event: ${data.error ?? 'Failed'}`); return }
       setEvents(ev => ev.filter(e => !(e.name === name && e.date === date)))
+      if (planName) {
+        setPendingAdaptNote(`The event "${name}" on ${date} has been removed — please adapt the training plan accordingly.`)
+      }
     } catch { setSyncResult('Network error') }
     finally { setDeletingEvent(null); setConfirmingEvent(null) }
   }
@@ -676,10 +743,7 @@ export default function PlanPage() {
             onConfirm={addEvent}
             onClose={() => setShowAddEvent(false)}
             hasPlan={planName !== null}
-            onRegenerate={(note) => {
-              setPlanGenNote(note)
-              setShowDurationPrompt(true)
-            }}
+            onRegenerate={(note) => startAdaptation(note)}
           />
         )}
         {editingEvent && (
@@ -688,10 +752,43 @@ export default function PlanPage() {
             onConfirm={updated => updateEvent(editingEvent, updated)}
             onClose={() => setEditingEvent(null)}
             hasPlan={planName !== null}
-            onRegenerate={(note) => {
-              setPlanGenNote(note)
-              setShowDurationPrompt(true)
-            }}
+            onRegenerate={(note) => startAdaptation(note)}
+          />
+        )}
+
+        {pendingAdaptNote && (
+          <div className="fixed inset-x-0 bottom-0 z-40 p-4 sm:p-6">
+            <div className="max-w-sm mx-auto bg-blue-600 text-white rounded-2xl shadow-xl px-5 py-4 space-y-3">
+              <p className="text-sm font-semibold">Adapt your training plan?</p>
+              <p className="text-xs text-blue-100">
+                This event change may affect your upcoming schedule. Claude can adjust your future workouts to account for it.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { const note = pendingAdaptNote; setPendingAdaptNote(null); startAdaptation(note) }}
+                  className="flex-1 bg-white text-blue-700 text-sm font-semibold py-2 rounded-xl hover:bg-blue-50 transition-colors"
+                >
+                  Adapt plan
+                </button>
+                <button
+                  onClick={() => setPendingAdaptNote(null)}
+                  className="px-4 text-sm text-blue-200 hover:text-white transition-colors"
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showReviewModal && (
+          <PlanReviewModal
+            plan={reviewPlan}
+            loading={reviewLoading}
+            workoutsFound={reviewWorkoutsFound}
+            estimatedWorkouts={reviewEstimatedWorkouts}
+            onApprove={handleAdaptationApprove}
+            onReject={() => { setShowReviewModal(false); setReviewPlan(null) }}
           />
         )}
       </div>

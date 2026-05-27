@@ -661,9 +661,10 @@ export default function DashboardPage() {
           initialEvent={editingEvent}
           onConfirm={async (updated) => {
             await updateEvent(editingEvent, updated)
-            setEditingEvent(null)
           }}
           onClose={() => setEditingEvent(null)}
+          hasPlan={!!planName}
+          onRegenerate={(note) => startReview(note)}
         />
       )}
 
