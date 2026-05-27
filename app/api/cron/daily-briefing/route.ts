@@ -15,6 +15,8 @@ function readinessLabel(tsb: number | null): BriefingContext['readinessLabel'] {
   return 'Fatigued'
 }
 
+// Crons run at the top of the hour, so match on hour only — this tolerates Vercel's
+// timing jitter (typically <2 min) without risking double-firing (crons are 1h apart).
 function isNotificationTime(notifTime: string, timezone: string): boolean {
   try {
     const now = new Date()
@@ -24,10 +26,11 @@ function isNotificationTime(notifTime: string, timezone: string): boolean {
       minute: '2-digit',
       hour12: false,
     }).formatToParts(now)
-    const h = parts.find(p => p.type === 'hour')?.value.padStart(2, '0') ?? '00'
-    const m = parts.find(p => p.type === 'minute')?.value.padStart(2, '0') ?? '00'
-    const localTime = `${h}:${m}`
-    const matches = localTime === notifTime.slice(0, 5)
+    const localHour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10)
+    const localMinute = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10)
+    const notifHour = parseInt(notifTime.slice(0, 2), 10)
+    const localTime = `${String(localHour).padStart(2, '0')}:${String(localMinute).padStart(2, '0')}`
+    const matches = localHour === notifHour
     console.log(`[cron] time check: local=${localTime} setting=${notifTime.slice(0, 5)} tz=${timezone} match=${matches}`)
     return matches
   } catch (err) {
@@ -118,6 +121,7 @@ export async function GET(req: NextRequest) {
     const { data: workouts } = await supabase
       .from('workouts')
       .select('*')
+      .eq('user_id', profile.user_id)
       .eq('date', today)
       .eq('status', 'planned')
       .order('created_at')
