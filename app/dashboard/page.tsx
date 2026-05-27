@@ -491,13 +491,26 @@ export default function DashboardPage() {
             {weekDates.map((date, i) => {
               const dayWorkouts = workouts.filter(w => w.date === date)
               const dayEvents = events.filter(e => e.date === date)
+
+              // Events whose icu_activity_id matches a workout on the same day — shown below that workout
+              const eventByActivityId = new Map<string, TrainingEvent>()
+              dayEvents.forEach(e => {
+                if (e.icu_activity_id && dayWorkouts.some(w => w.icu_activity_id === e.icu_activity_id)) {
+                  eventByActivityId.set(e.icu_activity_id, e)
+                }
+              })
+              // Events not paired with a workout render as standalone cards
+              const standaloneEvents = dayEvents.filter(e =>
+                !e.icu_activity_id || !dayWorkouts.some(w => w.icu_activity_id === e.icu_activity_id)
+              )
+
               const linkedIds = new Set<string>([
                 ...dayWorkouts.map(w => w.icu_activity_id).filter((id): id is string => id != null),
                 ...dayEvents.map(e => e.icu_activity_id).filter((id): id is string => id != null),
               ])
               const unplannedActivities = (syncData?.activities ?? [])
                 .filter(a => a.start_date_local.startsWith(date) && /ride/i.test(a.type) && !linkedIds.has(a.id))
-              const isEmpty = dayWorkouts.length === 0 && dayEvents.length === 0 && unplannedActivities.length === 0
+              const isEmpty = dayWorkouts.length === 0 && standaloneEvents.length === 0 && unplannedActivities.length === 0
               const isToday = date === localDateStr(new Date())
               return (
                 <div key={date} className="flex gap-4 items-start">
@@ -506,12 +519,36 @@ export default function DashboardPage() {
                     <div className={`text-xl font-extrabold tracking-tight mt-0.5 ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>{date.slice(8)}</div>
                   </div>
                   <DroppableDay date={date}>
-                    {dayWorkouts.map(w => w.status === 'planned' ? (
-                      <DraggableWorkoutCard key={w.id} workout={w} onClick={() => setSelectedWorkout(w)} />
-                    ) : (
-                      <WorkoutCard key={w.id} workout={w} onClick={() => setSelectedWorkout(w)} />
-                    ))}
-                    {dayEvents.map((e, idx) => (
+                    {dayWorkouts.map(w => {
+                      const linkedEvent = w.icu_activity_id ? eventByActivityId.get(w.icu_activity_id) : undefined
+                      return (
+                        <div key={w.id}>
+                          {w.status === 'planned' ? (
+                            <DraggableWorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} />
+                          ) : (
+                            <WorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} />
+                          )}
+                          {linkedEvent && (
+                            <button
+                              onClick={() => setSelectedEvent(linkedEvent)}
+                              className={`ml-4 w-[calc(100%-1rem)] text-left rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-2.5 mt-1 hover:brightness-95 transition-all ${EVENT_COLOURS[linkedEvent.priority]}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span>🏁</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-semibold text-sm">{linkedEvent.name}</div>
+                                  <div className="text-xs capitalize opacity-75">{linkedEvent.type} · {linkedEvent.priority} priority</div>
+                                </div>
+                                {linkedEvent.result_tss != null && (
+                                  <span className="text-xs shrink-0 opacity-75">{linkedEvent.result_tss} TSS</span>
+                                )}
+                              </div>
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {standaloneEvents.map(e => (
                       <button
                         key={e.icu_event_id ?? `${e.date}-${e.name}`}
                         onClick={() => setSelectedEvent(e)}
@@ -527,25 +564,9 @@ export default function DashboardPage() {
                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" title="Result recorded" />
                           )}
                         </div>
-                        {idx === 0 && unplannedActivities.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-current/10 space-y-1">
-                            {unplannedActivities.map(a => {
-                              const mins = Math.round(a.moving_time / 60)
-                              const dur = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`
-                              return (
-                                <div key={a.id} className="flex items-center gap-2 text-xs opacity-70">
-                                  <span>↑</span>
-                                  <span className="flex-1 truncate">{a.name}</span>
-                                  <span className="shrink-0">{dur}</span>
-                                  {a.training_load != null && <span className="shrink-0">{Math.round(a.training_load)} TSS</span>}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
                       </button>
                     ))}
-                    {dayEvents.length === 0 && unplannedActivities.map(a => (
+                    {unplannedActivities.map(a => (
                       <ActivityCard key={a.id} activity={a} />
                     ))}
                     {isEmpty && (
