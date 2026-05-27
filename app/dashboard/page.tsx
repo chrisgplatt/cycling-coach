@@ -529,21 +529,24 @@ export default function DashboardPage() {
                             <WorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} />
                           )}
                           {linkedEvent && (
-                            <button
-                              onClick={() => setSelectedEvent(linkedEvent)}
-                              className={`ml-4 w-[calc(100%-1rem)] text-left rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-2.5 mt-1 hover:brightness-95 transition-all ${EVENT_COLOURS[linkedEvent.priority]}`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span>🏁</span>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-semibold text-sm">{linkedEvent.name}</div>
-                                  <div className="text-xs capitalize opacity-75">{linkedEvent.type} · {linkedEvent.priority} priority</div>
+                            <div className="relative ml-4 mt-1.5">
+                              <div className="absolute -top-2 -left-3 h-6 w-3 border-l-2 border-b-2 border-gray-200 rounded-bl-md pointer-events-none" />
+                              <button
+                                onClick={() => setSelectedEvent(linkedEvent)}
+                                className={`w-full text-left rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-2.5 hover:brightness-95 transition-all ${EVENT_COLOURS[linkedEvent.priority]}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span>🏁</span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-semibold text-sm">{linkedEvent.name}</div>
+                                    <div className="text-xs capitalize opacity-75">{linkedEvent.type} · {linkedEvent.priority} priority</div>
+                                  </div>
+                                  {linkedEvent.result_tss != null && (
+                                    <span className="text-xs shrink-0 opacity-75">{linkedEvent.result_tss} TSS</span>
+                                  )}
                                 </div>
-                                {linkedEvent.result_tss != null && (
-                                  <span className="text-xs shrink-0 opacity-75">{linkedEvent.result_tss} TSS</span>
-                                )}
-                              </div>
-                            </button>
+                              </button>
+                            </div>
                           )}
                         </div>
                       )
