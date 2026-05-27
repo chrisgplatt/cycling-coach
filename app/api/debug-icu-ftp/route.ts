@@ -31,30 +31,31 @@ export async function GET() {
     return { status: getRes.status, raw: rawText.slice(0, 2000), parsed }
   }
 
-  const withoutPrefix = await probe(athleteId)
-  const withPrefix = await probe(`i${athleteId}`)
-
-  // Determine which ID form returns real data
-  const workingId = withPrefix.status === 200 && typeof withPrefix.parsed === 'object' && withPrefix.parsed !== null && !Array.isArray(withPrefix.parsed) && Object.keys(withPrefix.parsed).length > 0
-    ? `i${athleteId}`
-    : athleteId
-
-  // Attempt PUT with the working ID form
-  const putRes = await fetch(`${base}/athlete/${workingId}`, {
-    method: 'PUT',
+  // GET full athlete and extract any field with ftp/threshold/power in the name
+  const athleteRes = await fetch(`${base}/athlete/${athleteId}`, {
     cache: 'no-store',
     headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ftp: current_ftp }),
   })
-  const putRaw = await putRes.text()
+  const athleteJson = await athleteRes.json()
+  const relevantFields = Object.fromEntries(
+    Object.entries(athleteJson).filter(([k]) =>
+      /ftp|threshold|power|zone/i.test(k)
+    )
+  )
+
+  // Probe the sport-settings endpoint (where per-sport FTP often lives)
+  const settingsRes = await fetch(`${base}/athlete/${athleteId}/sport-settings`, {
+    cache: 'no-store',
+    headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+  })
+  const settingsStatus = settingsRes.status
+  const settingsBody = settingsStatus === 200 ? await settingsRes.json().catch(() => null) : await settingsRes.text()
 
   return NextResponse.json({
     stored_athlete_id: athleteId,
     current_ftp_in_db: current_ftp,
-    probe_without_prefix: { status: withoutPrefix.status, raw: withoutPrefix.raw },
-    probe_with_i_prefix: { status: withPrefix.status, raw: withPrefix.raw },
-    working_id_used: workingId,
-    put_status: putRes.status,
-    put_raw: putRaw.slice(0, 2000),
+    athlete_ftp_related_fields: relevantFields,
+    sport_settings_status: settingsStatus,
+    sport_settings: settingsBody,
   })
 }
