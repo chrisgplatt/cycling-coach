@@ -49,7 +49,12 @@ export async function GET() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([weekStart, tss]) => ({ weekStart, tss: Math.round(tss) }))
 
-    const charts: ChartsData = { wellness, weeklyTss }
+    const ftpHistory = rides
+      .filter(a => a.rolling_ftp !== null)
+      .map(a => ({ date: a.start_date_local.split('T')[0], ftp: Math.round(a.rolling_ftp!) }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    const charts: ChartsData = { wellness, weeklyTss, ftpHistory }
     return NextResponse.json({ charts })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

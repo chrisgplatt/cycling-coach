@@ -101,6 +101,104 @@ function PMCChart({ wellness }: { wellness: ICUWellness[] }) {
   )
 }
 
+function FTPHistoryChart({
+  ftpHistory,
+  predictions,
+  currentFTP,
+}: {
+  ftpHistory: Array<{ date: string; ftp: number }>
+  predictions: FTPPrediction[]
+  currentFTP: number
+}) {
+  const predictionPoints = predictions.map(p => ({
+    date: p.created_at.split('T')[0],
+    ftp: p.predicted_ftp,
+    id: p.id,
+  }))
+
+  const allDates = [
+    ...ftpHistory.map(p => p.date),
+    ...predictionPoints.map(p => p.date),
+  ].sort()
+
+  if (!allDates.length) return <p className="text-sm text-gray-400 p-4">No FTP history yet.</p>
+
+  const svgLeft = 30, svgRight = 420, svgTop = 15, svgBottom = 110
+  const chartW = svgRight - svgLeft
+
+  const allFtpValues = [
+    ...ftpHistory.map(p => p.ftp),
+    ...predictionPoints.map(p => p.ftp),
+    currentFTP,
+  ]
+  const minFtp = Math.floor(Math.min(...allFtpValues) / 10) * 10 - 10
+  const maxFtp = Math.ceil(Math.max(...allFtpValues) / 10) * 10 + 10
+
+  const startMs = new Date(allDates[0]).getTime()
+  const endMs = new Date(allDates[allDates.length - 1]).getTime()
+  const spanMs = endMs - startMs || 1
+
+  const xOfDate = (d: string) =>
+    svgLeft + ((new Date(d).getTime() - startMs) / spanMs) * chartW
+  const yOf = (v: number) => normalizeY(v, minFtp, maxFtp, svgTop, svgBottom)
+
+  const rollingPoints = ftpHistory.map(p => `${xOfDate(p.date)},${yOf(p.ftp)}`).join(' ')
+  const currentY = yOf(currentFTP)
+
+  const range = maxFtp - minFtp
+  const ticks = [maxFtp, minFtp + range / 2, minFtp].map(v => Math.round(v))
+  const tickYs = ticks.map(v => yOf(v))
+
+  const monthLabels: { x: number; label: string }[] = []
+  let lastMonth = -1
+  allDates.forEach(d => {
+    const m = new Date(d).getUTCMonth()
+    if (m !== lastMonth) { monthLabels.push({ x: xOfDate(d), label: MONTHS[m] }); lastMonth = m }
+  })
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${svgRight + 10} 145`} className="w-full">
+        {tickYs.map((y, i) => (
+          <g key={ticks[i]}>
+            <line x1={svgLeft} y1={y} x2={svgRight} y2={y} stroke="#f3f4f6" strokeWidth="1"/>
+            <text x={svgLeft - 4} y={y + 4} fontSize="9" fill="#d1d5db" textAnchor="end">{ticks[i]}</text>
+          </g>
+        ))}
+        {/* Current FTP reference line */}
+        <line x1={svgLeft} y1={currentY} x2={svgRight} y2={currentY} stroke="#10b981" strokeWidth="1.5" strokeDasharray="4,3"/>
+        <text x={svgRight - 2} y={currentY - 3} fontSize="8" fill="#10b981" textAnchor="end">{currentFTP}W</text>
+        {/* Rolling FTP line */}
+        {ftpHistory.length > 1 && (
+          <polyline points={rollingPoints} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round"/>
+        )}
+        {ftpHistory.map(p => (
+          <circle key={`r-${p.date}`} cx={xOfDate(p.date)} cy={yOf(p.ftp)} r="2" fill="#3b82f6" opacity="0.5"/>
+        ))}
+        {/* Prediction dots */}
+        {predictionPoints.map(p => (
+          <g key={p.id}>
+            <circle cx={xOfDate(p.date)} cy={yOf(p.ftp)} r="5" fill="white" stroke="#f97316" strokeWidth="2"/>
+            <text x={xOfDate(p.date)} y={yOf(p.ftp) - 8} fontSize="8" fill="#f97316" textAnchor="middle" fontWeight="600">{p.ftp}W</text>
+          </g>
+        ))}
+        {monthLabels.map(ml => (
+          <text key={ml.label + ml.x} x={ml.x} y={svgBottom + 25} fontSize="8" fill="#d1d5db" textAnchor="middle">{ml.label}</text>
+        ))}
+      </svg>
+      <div className="flex gap-4 px-3 pb-3 text-[11px] text-gray-500">
+        {ftpHistory.length > 0 && (
+          <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] bg-blue-500 rounded inline-block"/>Rolling FTP</span>
+        )}
+        <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] bg-emerald-500 rounded inline-block"/>Current ({currentFTP}W)</span>
+        {predictionPoints.length > 0 && (
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full border-2 border-orange-400 inline-block"/>Predicted</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function WeeklyTssChart({ weeklyTss }: { weeklyTss: WeeklyTss[] }) {
   if (!weeklyTss.length) return <p className="text-sm text-gray-400 p-4">No training load data yet.</p>
 
@@ -376,6 +474,14 @@ export default function FitnessPage() {
 
       {!chartsLoading && !chartsError && charts && (
         <>
+          <SectionCard title="FTP History" accent="bg-orange-400">
+            <FTPHistoryChart
+              ftpHistory={charts.ftpHistory}
+              predictions={predictions}
+              currentFTP={currentFTP}
+            />
+          </SectionCard>
+
           <SectionCard title="Performance Management" accent="bg-blue-500">
             <PMCChart wellness={charts.wellness} />
           </SectionCard>
