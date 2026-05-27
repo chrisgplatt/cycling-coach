@@ -117,9 +117,9 @@ function MonthStrip({
     <div className="bg-white rounded-xl border border-slate-200 p-3">
       {/* Month navigation */}
       <div className="flex items-center justify-between mb-2">
-        <button onClick={onPrevMonth} className="p-1 text-slate-400 hover:text-slate-700 text-lg leading-none">‹</button>
+        <button onClick={onPrevMonth} aria-label="Previous month" className="p-1 text-slate-400 hover:text-slate-700 text-lg leading-none">‹</button>
         <span className="text-sm font-semibold text-slate-700">{MONTHS[displayMonth]} {displayYear}</span>
-        <button onClick={onNextMonth} className="p-1 text-slate-400 hover:text-slate-700 text-lg leading-none">›</button>
+        <button onClick={onNextMonth} aria-label="Next month" className="p-1 text-slate-400 hover:text-slate-700 text-lg leading-none">›</button>
       </div>
 
       {/* Day-of-week headers */}
@@ -140,10 +140,11 @@ function MonthStrip({
           if (workouts.some(w => w.date === dateStr)) dots.push('bg-blue-400')
           if (unlinkedActivities.some(a => a.start_date_local.startsWith(dateStr))) dots.push('bg-sky-400')
           return (
-            <div
+            <button
               key={dateStr}
               onClick={() => onDateClick(dateStr)}
-              className={`flex flex-col items-center py-0.5 cursor-pointer rounded-sm ${inSelectedWeek ? 'bg-blue-50' : ''}`}
+              aria-label={dateStr}
+              className={`flex flex-col items-center justify-center min-h-[44px] w-full cursor-pointer rounded-sm ${inSelectedWeek ? 'bg-blue-50' : ''}`}
             >
               <span className={`text-[11px] w-6 h-6 flex items-center justify-center leading-none rounded-full
                 ${isToday ? 'bg-blue-500 text-white font-bold' : 'text-slate-600'}`}>
@@ -154,7 +155,7 @@ function MonthStrip({
                   <div key={j} className={`w-1 h-1 rounded-full ${color}`} />
                 ))}
               </div>
-            </div>
+            </button>
           )
         })}
       </div>
@@ -225,7 +226,7 @@ function WeekDetail({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
-  const todayStr = toLocalDateStr(new Date())
+  const [todayStr] = useState(() => toLocalDateStr(new Date()))
 
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [planName, setPlanName] = useState('')
