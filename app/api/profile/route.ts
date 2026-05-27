@@ -58,7 +58,7 @@ export async function PATCH(req: Request) {
       .maybeSingle()
     if (profileRow?.intervals_icu_athlete_id && profileRow?.intervals_icu_api_key) {
       const client = new IntervalsClient(profileRow.intervals_icu_athlete_id, profileRow.intervals_icu_api_key)
-      client.updateRideFTP(fields.current_ftp).catch(() => {})
+      await client.updateRideFTP(fields.current_ftp).catch(() => {})
     }
   }
 
