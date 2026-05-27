@@ -18,29 +18,43 @@ export async function GET() {
 
   const { intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, current_ftp } = profile
   const authHeader = 'Basic ' + Buffer.from(`API_KEY:${apiKey}`).toString('base64')
+  const base = 'https://intervals.icu/api/v1'
 
-  // Step 1: GET the current athlete record
-  const getRes = await fetch(`https://intervals.icu/api/v1/athlete/${athleteId}`, {
-    headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
-  })
-  const getBody = await getRes.json()
+  async function probe(id: string) {
+    const getRes = await fetch(`${base}/athlete/${id}`, {
+      cache: 'no-store',
+      headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+    })
+    const rawText = await getRes.text()
+    let parsed: unknown = null
+    try { parsed = JSON.parse(rawText) } catch { parsed = rawText }
+    return { status: getRes.status, raw: rawText.slice(0, 300), parsed }
+  }
 
-  // Step 2: Attempt PUT with just ftp
-  const putRes = await fetch(`https://intervals.icu/api/v1/athlete/${athleteId}`, {
+  const withoutPrefix = await probe(athleteId)
+  const withPrefix = await probe(`i${athleteId}`)
+
+  // Determine which ID form returns real data
+  const workingId = withPrefix.status === 200 && typeof withPrefix.parsed === 'object' && withPrefix.parsed !== null && !Array.isArray(withPrefix.parsed) && Object.keys(withPrefix.parsed).length > 0
+    ? `i${athleteId}`
+    : athleteId
+
+  // Attempt PUT with the working ID form
+  const putRes = await fetch(`${base}/athlete/${workingId}`, {
     method: 'PUT',
+    cache: 'no-store',
     headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
     body: JSON.stringify({ ftp: current_ftp }),
   })
-  const putStatus = putRes.status
-  const putBody = putRes.ok ? await putRes.json().catch(() => null) : await putRes.text()
+  const putRaw = await putRes.text()
 
   return NextResponse.json({
-    athlete_id: athleteId,
+    stored_athlete_id: athleteId,
     current_ftp_in_db: current_ftp,
-    icu_ftp_from_get: getBody.ftp,
-    get_status: getRes.status,
-    get_fields: Object.keys(getBody),
-    put_status: putStatus,
-    put_response: putBody,
+    probe_without_prefix: { status: withoutPrefix.status, raw: withoutPrefix.raw },
+    probe_with_i_prefix: { status: withPrefix.status, raw: withPrefix.raw },
+    working_id_used: workingId,
+    put_status: putRes.status,
+    put_raw: putRaw.slice(0, 300),
   })
 }
