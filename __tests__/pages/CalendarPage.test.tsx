@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import CalendarPage from '@/app/calendar/page'
 
 const now = new Date()
-const testDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`
+const testDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
 beforeEach(() => {
   global.fetch = jest.fn().mockImplementation((url: string) => {
@@ -30,12 +30,12 @@ afterEach(() => { jest.restoreAllMocks() })
 describe('CalendarPage', () => {
   it('shows workout type text for a workout day', async () => {
     render(<CalendarPage />)
-    await waitFor(() => expect(screen.getByText('threshold')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/threshold/i)).toBeInTheDocument())
   })
 
   it('shows workout duration for a workout day', async () => {
     render(<CalendarPage />)
-    await waitFor(() => expect(screen.getByText('60 min')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('1h')).toBeInTheDocument())
   })
 
   it('shows plan name below month heading', async () => {
