@@ -38,9 +38,11 @@ export async function GET() {
 
     const sortedRides = [...rides].sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))
 
-    // Enrich the 2 most recent rides with per-ride best power
-    const recentTwo = sortedRides.slice(0, 2)
-    await Promise.all(recentTwo.map(async ride => {
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const last7DaysRides = sortedRides.filter(r => r.start_date_local.split('T')[0] >= sevenDaysAgo)
+
+    // Enrich last 7 days' rides with per-ride best power
+    await Promise.all(last7DaysRides.map(async ride => {
       try {
         const rideDate = ride.start_date_local.split('T')[0]
         const curve = await client.getPowerCurve(rideDate, rideDate)
@@ -49,6 +51,7 @@ export async function GET() {
         ride.power_10min = findNearestPower(curve, 600)
         ride.power_20min = findNearestPower(curve, 1200)
       } catch {
+        ride.power_1min = null
         ride.power_5min = null
         ride.power_10min = null
         ride.power_20min = null
@@ -66,7 +69,7 @@ export async function GET() {
       power_20min: findNearestPower(powerCurve, 1200),
       avg_left_right_balance: computeLeftRightBalance(rides),
       balance_ride_count: rides.filter(r => r.left_right_balance !== null).length,
-      recent_rides: sortedRides.slice(0, 2),
+      recent_rides: last7DaysRides,
       cross_training: groupCrossTraining(activities),
     }
 

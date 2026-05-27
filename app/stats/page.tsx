@@ -324,15 +324,15 @@ export default function StatsPage() {
     <main className="max-w-xl mx-auto px-4 py-6 space-y-4">
       <div>
         <h1 className="text-xl font-bold text-gray-900">Stats</h1>
-        {activeTab === 0 && (
-          <p className="text-sm text-gray-500 mt-0.5">
-            Last 28 days · {stats.ride_count} ride{stats.ride_count !== 1 ? 's' : ''}
-          </p>
-        )}
+        <p className="text-sm text-gray-500 mt-0.5">
+          {activeTab === 0
+            ? `Last 28 days · ${stats.ride_count} ride${stats.ride_count !== 1 ? 's' : ''}`
+            : formatRideTabLabel((stats.recent_rides ?? [])[activeTab - 1]?.start_date_local ?? '')}
+        </p>
       </div>
 
       {tabs.length > 1 && (
-        <div className="flex gap-1 border-b border-gray-200">
+        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto scrollbar-none -mx-4 px-4">
           {tabs.map(tab => (
             <button
               key={tab.id}
