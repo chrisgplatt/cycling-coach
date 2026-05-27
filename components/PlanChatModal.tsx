@@ -86,7 +86,10 @@ export default function PlanChatModal({
     if (markerIdx !== -1) {
       try {
         setProposal(JSON.parse(fullText.slice(markerIdx + PLAN_MARKER.length).trim()) as ProposedAdjustment)
-      } catch { /* malformed — ignore */ }
+      } catch (e) {
+        console.error('Failed to parse plan proposal JSON:', e)
+        setMessages(prev => [...prev, { role: 'assistant', content: 'I outlined some changes but had trouble formatting the proposal. Could you ask me again?' }])
+      }
     }
     setLoading(false)
   }

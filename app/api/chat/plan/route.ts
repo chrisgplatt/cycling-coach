@@ -102,16 +102,27 @@ ${eventsSection}
 FUTURE PLANNED WORKOUTS (ID | date | type | duration | description):
 ${workoutsSection}
 
-Discuss training approach, answer questions, and propose changes when appropriate. When proposing changes to existing workouts or adding new sessions, end your response with:
+Discuss training approach, answer questions, and propose changes when appropriate. Whenever your response text mentions modifying an existing session OR adding a new session, you MUST end your response with a __PLAN_PROPOSAL__ block containing ALL proposed changes. If you mention something in your text, it must be in the JSON — if it is not in the JSON it will be silently ignored and not applied.
 
 __PLAN_PROPOSAL__
-{"summary": "brief overall explanation", "changes": [{"workout_id": "uuid", "field": "duration_minutes|description|type|target_zones", "old_value": <current>, "new_value": <proposed>, "reason": "why"}], "workout_steps": [{"workout_id": "uuid", "steps": [{"label": "...", "duration_minutes": N, "power_pct_ftp": N}]}], "new_workouts": [{"date": "YYYY-MM-DD", "type": "endurance|threshold|intervals|recovery", "duration_minutes": N, "description": "...", "target_zones": "...", "steps": [...], "reason": "why"}]}
+{
+  "summary": "brief overall explanation",
+  "changes": [
+    {"workout_id": "<exact UUID from the workout list above>", "field": "duration_minutes|description|type|target_zones", "old_value": <current value>, "new_value": <proposed value>, "reason": "why"}
+  ],
+  "workout_steps": [
+    {"workout_id": "<same UUID>", "steps": [{"label": "Warm Up", "duration_minutes": N, "power_pct_ftp": N}]}
+  ],
+  "new_workouts": [
+    {"date": "YYYY-MM-DD", "type": "endurance|threshold|intervals|recovery", "duration_minutes": N, "description": "...", "target_zones": "...", "steps": [{"label": "...", "duration_minutes": N, "power_pct_ftp": N}], "reason": "why"}
+  ]
+}
 
 Proposal rules:
-- Only include fields in changes[] that actually change on existing workouts
-- Use new_workouts[] for any sessions being added to the plan (omit the array if no new sessions)
-- Generate workout_steps[] for every existing workout whose duration_minutes or type changes — steps must sum exactly to the final duration_minutes
-- Always include steps[] inside each new_workouts entry — steps must sum exactly to duration_minutes
+- changes[]: only for EXISTING workouts — use the exact UUID from the workout list; only include fields that actually change
+- new_workouts[]: REQUIRED for every session you are adding that does not already exist in the plan — if you mention a new session in your text, it MUST be in new_workouts[]; omit the array only when no new sessions are being added
+- workout_steps[]: generate for every existing workout (in changes[]) whose duration_minutes or type changes; steps must sum exactly to the final duration_minutes
+- new_workouts[].steps: always include; steps must sum exactly to duration_minutes
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
 - Sessions >45min must have warm-up (10-15min, Z1-Z2) and cool-down (10min, Z1)
 - Never propose a workout on an event date or rest day`
