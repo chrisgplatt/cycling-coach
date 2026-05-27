@@ -28,7 +28,7 @@ export async function GET() {
     const rawText = await getRes.text()
     let parsed: unknown = null
     try { parsed = JSON.parse(rawText) } catch { parsed = rawText }
-    return { status: getRes.status, raw: rawText.slice(0, 300), parsed }
+    return { status: getRes.status, raw: rawText.slice(0, 2000), parsed }
   }
 
   const withoutPrefix = await probe(athleteId)
@@ -55,6 +55,6 @@ export async function GET() {
     probe_with_i_prefix: { status: withPrefix.status, raw: withPrefix.raw },
     working_id_used: workingId,
     put_status: putRes.status,
-    put_raw: putRaw.slice(0, 300),
+    put_raw: putRaw.slice(0, 2000),
   })
 }
