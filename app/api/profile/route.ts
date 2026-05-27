@@ -50,15 +50,15 @@ export async function PATCH(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Push FTP to intervals.icu sport-settings when it changes — fire and forget
-  if (typeof fields.current_ftp === 'number') {
+  if (typeof fields.current_ftp === 'number' || typeof fields.weight_kg === 'number') {
     const { data: profileRow } = await supabase
       .from('user_profile')
       .select('intervals_icu_athlete_id, intervals_icu_api_key')
       .maybeSingle()
     if (profileRow?.intervals_icu_athlete_id && profileRow?.intervals_icu_api_key) {
       const client = new IntervalsClient(profileRow.intervals_icu_athlete_id, profileRow.intervals_icu_api_key)
-      await client.updateRideFTP(fields.current_ftp).catch(() => {})
+      if (typeof fields.current_ftp === 'number') await client.updateRideFTP(fields.current_ftp).catch(() => {})
+      if (typeof fields.weight_kg === 'number') await client.updateAthleteWeight(fields.weight_kg).catch(() => {})
     }
   }
 

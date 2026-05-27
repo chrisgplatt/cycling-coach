@@ -103,6 +103,13 @@ export class IntervalsClient {
     return { ftp: data.ftp ?? null, weight: data.weight ?? null }
   }
 
+  async updateAthleteWeight(weight: number): Promise<void> {
+    await this.request(`/athlete/${this.athleteId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ weight }),
+    })
+  }
+
   async updateRideFTP(ftp: number): Promise<void> {
     const settings = await this.request<Array<{ id: number; types: string[] }>>(
       `/athlete/${this.athleteId}/sport-settings`
