@@ -103,10 +103,15 @@ export class IntervalsClient {
     return { ftp: data.ftp ?? null, weight: data.weight ?? null }
   }
 
-  async updateAthlete(fields: { ftp?: number; weight?: number }): Promise<void> {
-    await this.request(`/athlete/${this.athleteId}`, {
+  async updateRideFTP(ftp: number): Promise<void> {
+    const settings = await this.request<Array<{ id: number; types: string[] }>>(
+      `/athlete/${this.athleteId}/sport-settings`
+    )
+    const rideEntry = settings.find(s => s.types.includes('Ride'))
+    if (!rideEntry) return
+    await this.request(`/athlete/${this.athleteId}/sport-settings/${rideEntry.id}`, {
       method: 'PUT',
-      body: JSON.stringify(fields),
+      body: JSON.stringify({ ftp }),
     })
   }
 
