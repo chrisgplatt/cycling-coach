@@ -190,6 +190,24 @@ function WeekDetail({
         const isToday = dateStr === todayStr
         const isEmpty = !dayWorkouts.length && !dayEvents.length && !dayActivities.length
         const dayNum = parseInt(dateStr.split('-')[2], 10)
+
+        // Build a map from workout id → linked event (event whose icu_activity_id matches the workout's)
+        const workoutByActivityId = new Map(
+          dayWorkouts
+            .filter(w => w.icu_activity_id != null)
+            .map(w => [w.icu_activity_id!, w])
+        )
+        const linkedEventByWorkoutId = new Map<string, TrainingEvent>()
+        const standaloneEvents: TrainingEvent[] = []
+        for (const e of dayEvents) {
+          const matchedWorkout = e.icu_activity_id ? workoutByActivityId.get(e.icu_activity_id) : undefined
+          if (matchedWorkout) {
+            linkedEventByWorkoutId.set(matchedWorkout.id, e)
+          } else {
+            standaloneEvents.push(e)
+          }
+        }
+
         return (
           <div key={dateStr} className="flex gap-3 px-3 py-2.5 items-start">
             {/* Date column */}
@@ -206,11 +224,22 @@ function WeekDetail({
             {/* Sessions column */}
             <div className="flex-1 flex flex-col gap-1.5 min-w-0 py-0.5">
               {isEmpty && <p className="text-sm text-slate-300 italic py-1.5">Rest day</p>}
-              {dayEvents.map(e => (
+              {dayWorkouts.map(w => {
+                const linkedEvent = linkedEventByWorkoutId.get(w.id)
+                return (
+                  <div key={w.id}>
+                    <WorkoutCard workout={w} onClick={() => onWorkoutClick(w)} />
+                    {linkedEvent && (
+                      <div className="relative ml-4 mt-1">
+                        <div className="absolute -top-2 -left-3 h-6 w-3 border-l-2 border-b-2 border-gray-200 rounded-bl-md" />
+                        <EventCard event={linkedEvent} onClick={() => onEventClick(linkedEvent)} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {standaloneEvents.map(e => (
                 <EventCard key={`${e.date}-${e.name}`} event={e} onClick={() => onEventClick(e)} />
-              ))}
-              {dayWorkouts.map(w => (
-                <WorkoutCard key={w.id} workout={w} onClick={() => onWorkoutClick(w)} />
               ))}
               {dayActivities.map(a => (
                 <ActivityCard key={a.id} activity={a} />
