@@ -46,6 +46,10 @@ export async function PATCH(
   const { id } = await params
   const body = await req.json()
 
+  function estimateTss(steps: WorkoutStep[]): number {
+    return Math.round(steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0))
+  }
+
   const update: Record<string, unknown> = {}
   if (body.status !== undefined) update.status = body.status
   if (body.icu_activity_id !== undefined) update.icu_activity_id = body.icu_activity_id
@@ -55,6 +59,10 @@ export async function PATCH(
   if (body.duration_minutes !== undefined) update.duration_minutes = body.duration_minutes
   if (body.description !== undefined) update.description = body.description
   if (body.target_zones !== undefined) update.target_zones = body.target_zones
+  if (body.steps !== undefined) {
+    update.steps = body.steps
+    update.tss = estimateTss(body.steps as WorkoutStep[])
+  }
   if (body.date !== undefined) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.date))) {
       return NextResponse.json({ error: 'Invalid date format' }, { status: 400 })
@@ -98,13 +106,16 @@ export async function PATCH(
       if (profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
         const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
         let steps = (updated.steps as WorkoutStep[] | null) ?? []
-        if (body.duration_minutes !== undefined) {
+        if (body.duration_minutes !== undefined && body.steps === undefined) {
           try {
             steps = await generateWorkoutSteps(updated as Workout)
-            await supabase.from('workouts').update({ steps }).eq('id', id)
+            const tss = estimateTss(steps)
+            await supabase.from('workouts').update({ steps, tss }).eq('id', id)
           } catch {
             steps = []
           }
+        } else if (body.steps !== undefined) {
+          steps = body.steps as WorkoutStep[]
         }
         const name = `${updated.type.charAt(0).toUpperCase() + updated.type.slice(1)} — ${updated.duration_minutes}min`
         const description = `${updated.description}\n\nTarget: ${updated.target_zones}`

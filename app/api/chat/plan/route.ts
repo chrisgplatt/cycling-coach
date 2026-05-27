@@ -102,14 +102,16 @@ ${eventsSection}
 FUTURE PLANNED WORKOUTS (ID | date | type | duration | description):
 ${workoutsSection}
 
-Discuss training approach, answer questions, and propose changes when appropriate. When proposing changes to one or more workouts, end your response with:
+Discuss training approach, answer questions, and propose changes when appropriate. When proposing changes to existing workouts or adding new sessions, end your response with:
 
 __PLAN_PROPOSAL__
-{"summary": "brief overall explanation", "changes": [{"workout_id": "uuid", "field": "duration_minutes|description|type|target_zones", "old_value": <current>, "new_value": <proposed>, "reason": "why"}], "workout_steps": [{"workout_id": "uuid", "steps": [{"label": "...", "duration_minutes": N, "power_pct_ftp": N}]}]}
+{"summary": "brief overall explanation", "changes": [{"workout_id": "uuid", "field": "duration_minutes|description|type|target_zones", "old_value": <current>, "new_value": <proposed>, "reason": "why"}], "workout_steps": [{"workout_id": "uuid", "steps": [{"label": "...", "duration_minutes": N, "power_pct_ftp": N}]}], "new_workouts": [{"date": "YYYY-MM-DD", "type": "endurance|threshold|intervals|recovery", "duration_minutes": N, "description": "...", "target_zones": "...", "steps": [...], "reason": "why"}]}
 
 Proposal rules:
-- Only include fields that actually change
-- Generate workout_steps for every workout whose duration_minutes or type changes — steps must sum exactly to the final duration_minutes
+- Only include fields in changes[] that actually change on existing workouts
+- Use new_workouts[] for any sessions being added to the plan (omit the array if no new sessions)
+- Generate workout_steps[] for every existing workout whose duration_minutes or type changes — steps must sum exactly to the final duration_minutes
+- Always include steps[] inside each new_workouts entry — steps must sum exactly to duration_minutes
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
 - Sessions >45min must have warm-up (10-15min, Z1-Z2) and cool-down (10min, Z1)
 - Never propose a workout on an event date or rest day`

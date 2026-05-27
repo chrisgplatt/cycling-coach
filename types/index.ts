@@ -85,10 +85,21 @@ export interface WorkoutChange {
   reason: string
 }
 
+export interface NewWorkoutProposal {
+  date: string
+  type: WorkoutType
+  duration_minutes: number
+  description: string
+  target_zones: string
+  steps: WorkoutStep[]
+  reason: string
+}
+
 export interface ProposedAdjustment {
   summary: string
   changes: WorkoutChange[]
   workout_steps?: Array<{ workout_id: string; steps: WorkoutStep[] }>
+  new_workouts?: NewWorkoutProposal[]
 }
 
 export interface SessionWorkoutUpdate {

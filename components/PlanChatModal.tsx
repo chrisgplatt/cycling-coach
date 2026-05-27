@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import type { ICUWellness, ProposedAdjustment, Workout } from '@/types'
+import type { ICUWellness, ProposedAdjustment, NewWorkoutProposal, Workout } from '@/types'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -112,7 +112,7 @@ export default function PlanChatModal({
     }
 
     try {
-      const results = await Promise.all(
+      const patchResults = await Promise.all(
         [...byWorkout.entries()].map(([id, body]) =>
           fetch(`/api/workouts/${id}`, {
             method: 'PATCH',
@@ -121,10 +121,22 @@ export default function PlanChatModal({
           })
         )
       )
-      const failed = results.filter(r => !r.ok)
+
+      const postResults = await Promise.all(
+        (proposal.new_workouts ?? []).map((nw: NewWorkoutProposal) =>
+          fetch('/api/workouts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nw),
+          })
+        )
+      )
+
+      const allResults = [...patchResults, ...postResults]
+      const failed = allResults.filter(r => !r.ok)
       setProposal(null)
       if (failed.length > 0) {
-        setMessages(prev => [...prev, { role: 'assistant', content: `${results.length - failed.length} of ${results.length} changes applied. Some updates failed — try again.` }])
+        setMessages(prev => [...prev, { role: 'assistant', content: `${allResults.length - failed.length} of ${allResults.length} changes applied. Some updates failed — try again.` }])
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: 'Done — plan updated. Intervals.icu is synced.' }])
         onWorkoutsUpdated()
@@ -197,6 +209,14 @@ export default function PlanChatModal({
                   </div>
                 )
               })}
+              {(proposal.new_workouts ?? []).map((nw, i) => (
+                <div key={`new-${i}`} className="bg-white border border-emerald-200 rounded-lg px-3 py-2 space-y-0.5">
+                  <p className="text-xs font-semibold text-emerald-600">+ New session · {nw.date}</p>
+                  <p className="text-sm font-medium capitalize text-slate-700">{nw.type} — {nw.duration_minutes}min</p>
+                  <p className="text-xs text-slate-500 line-clamp-2">{nw.description}</p>
+                  <p className="text-xs text-slate-400">{nw.reason}</p>
+                </div>
+              ))}
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   onClick={handleReject}
@@ -210,7 +230,10 @@ export default function PlanChatModal({
                   disabled={applying}
                   className="text-sm bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 min-h-[44px]"
                 >
-                  {applying ? 'Applying…' : `Approve ${proposal.changes.length} change${proposal.changes.length === 1 ? '' : 's'}`}
+                  {applying ? 'Applying…' : (() => {
+                    const total = proposal.changes.length + (proposal.new_workouts?.length ?? 0)
+                    return `Approve ${total} change${total === 1 ? '' : 's'}`
+                  })()}
                 </button>
               </div>
             </div>
