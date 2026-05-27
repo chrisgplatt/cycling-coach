@@ -1,7 +1,11 @@
 import { getWeekBounds } from '@/lib/week-bounds'
 
-// Returns a grid of date strings (YYYY-MM-DD) for a calendar month.
-// Cells before the 1st of the month are null (Mon-start grid).
+/**
+ * Returns a Monday-start grid of YYYY-MM-DD strings for a calendar month.
+ * Cells before the 1st of the month are null.
+ * @param year - Full year (e.g. 2026)
+ * @param month - 0-based month index (0 = January, 11 = December)
+ */
 export function calendarMonthDays(year: number, month: number): (string | null)[] {
   const firstDayUTC = new Date(Date.UTC(year, month, 1)).getUTCDay() // 0=Sun
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
@@ -15,6 +19,7 @@ export function calendarMonthDays(year: number, month: number): (string | null)[
 
 // Returns 7 YYYY-MM-DD strings for Mon–Sun of the week containing dateStr.
 export function weekDates(dateStr: string): string[] {
+  if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return []
   const { start } = getWeekBounds(dateStr)
   const [y, m, d] = start.split('-').map(Number)
   return Array.from({ length: 7 }, (_, i) => {
@@ -32,6 +37,7 @@ export function formatDuration(minutes: number): string {
 }
 
 // Formats a moving time in seconds to the same string format.
+// Rounds to nearest minute; imperceptible for activities measured in hours.
 export function formatMovingTime(seconds: number): string {
   return formatDuration(Math.round(seconds / 60))
 }

@@ -73,3 +73,11 @@ describe('formatMovingTime', () => {
     expect(formatMovingTime(2700)).toBe('45m')
   })
 })
+
+describe('toLocalDateStr', () => {
+  it('formats a Date as YYYY-MM-DD using local time', () => {
+    // May 1 2026 at local midnight
+    const d = new Date(2026, 4, 1) // month 4 = May (local time)
+    expect(toLocalDateStr(d)).toBe('2026-05-01')
+  })
+})
