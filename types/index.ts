@@ -217,7 +217,6 @@ export interface WeeklyTss {
 export interface ChartsData {
   wellness: ICUWellness[]
   weeklyTss: WeeklyTss[]
-  ftpHistory: Array<{ date: string; ftp: number }>
 }
 
 export interface ICUPowerCurvePoint {
