@@ -5,6 +5,8 @@ const SYSTEM_MORNING = 'You are a personal cycling coach. Write a short, direct,
 
 const SYSTEM_POST_RIDE = 'You are a personal cycling coach. Write a short post-ride note — 2–3 sentences maximum. The athlete has just completed their session. Reflect briefly on how the numbers look, how the session fits their current training load, and what to prioritise now (recovery, nutrition, what is coming next). Be direct and specific, like a real coach. No markdown, no bullet points, plain text only.'
 
+const SYSTEM_POST_RACE = 'You are a personal cycling coach. Write a short post-race note — 2–3 sentences maximum. The athlete has just completed a race or sportive. Acknowledge the effort, comment on how the result fits their training, and give a clear steer on recovery and what comes next. Be warm but direct, like a real coach texting after a race. No markdown, no bullet points, plain text only.'
+
 function buildLoadString(ctx: BriefingContext): string {
   return [
     ctx.ctl !== null ? `Fitness (CTL): ${Math.round(ctx.ctl)}` : null,
@@ -59,6 +61,9 @@ async function callClaude(system: string, prompt: string): Promise<string> {
 }
 
 export async function generateBriefing(ctx: BriefingContext): Promise<string> {
+  if (ctx.todayEvent?.result_tss != null) {
+    return generatePostRaceNote(ctx)
+  }
   if (ctx.workoutCompleted) {
     return generatePostRideNote(ctx)
   }
@@ -66,9 +71,20 @@ export async function generateBriefing(ctx: BriefingContext): Promise<string> {
 }
 
 async function generateMorningBriefing(ctx: BriefingContext): Promise<string> {
-  const workout = ctx.todayWorkout
-    ? `${ctx.todayWorkout.type} ${ctx.todayWorkout.duration_minutes}min — ${ctx.todayWorkout.description}`
-    : 'Rest day'
+  const allSessions = ctx.todayWorkouts?.length
+    ? ctx.todayWorkouts
+        .map(w => `${w.type} ${w.duration_minutes}min — ${w.description}`)
+        .join(' | ')
+    : ctx.todayWorkout
+      ? `${ctx.todayWorkout.type} ${ctx.todayWorkout.duration_minutes}min — ${ctx.todayWorkout.description}`
+      : null
+
+  const sessionCount = ctx.todayWorkouts?.length ?? (ctx.todayWorkout ? 1 : 0)
+  const sessionLine = allSessions
+    ? `${sessionCount} session${sessionCount > 1 ? 's' : ''}: ${allSessions}`
+    : ctx.todayEvent
+      ? `Event day: ${ctx.todayEvent.name} (${ctx.todayEvent.type}, priority ${ctx.todayEvent.priority})`
+      : 'Rest day'
 
   const recent = ctx.recentWorkouts.length
     ? ctx.recentWorkouts
@@ -77,7 +93,7 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<string> {
     : 'none'
 
   const prompt = `Today's date: ${ctx.today}
-Today's session: ${workout}
+Today's plan: ${sessionLine}
 Training load: ${buildLoadString(ctx)}
 Recent sessions: ${recent}
 Upcoming events: ${buildEventsString(ctx)}
@@ -87,22 +103,33 @@ Write the morning briefing.`
   return await callClaude(SYSTEM_MORNING, prompt) || 'Have a great session today.'
 }
 
-async function generatePostRideNote(ctx: BriefingContext): Promise<string> {
-  const session = ctx.todayWorkout
-    ? `${ctx.todayWorkout.type} ${ctx.todayWorkout.duration_minutes}min — ${ctx.todayWorkout.description}`
-    : 'session'
+function rideDataString(ride: { name: string; moving_time: number; avg_power: number | null; weighted_avg_power: number | null; tss: number | null }): string {
+  return [
+    `"${ride.name}"`,
+    ride.moving_time ? `${Math.round(ride.moving_time / 60)} min` : null,
+    ride.avg_power !== null ? `avg ${Math.round(ride.avg_power)}W` : null,
+    ride.weighted_avg_power !== null ? `NP ${Math.round(ride.weighted_avg_power)}W` : null,
+    ride.tss !== null ? `TSS ${Math.round(ride.tss)}` : null,
+  ].filter(Boolean).join(', ')
+}
 
-  const rideStats = ctx.completedRide
-    ? [
-        ctx.completedRide.moving_time ? `Duration: ${Math.round(ctx.completedRide.moving_time / 60)} min` : null,
-        ctx.completedRide.avg_power !== null ? `Avg power: ${Math.round(ctx.completedRide.avg_power)}W` : null,
-        ctx.completedRide.weighted_avg_power !== null ? `NP: ${Math.round(ctx.completedRide.weighted_avg_power)}W` : null,
-        ctx.completedRide.tss !== null ? `TSS: ${Math.round(ctx.completedRide.tss)}` : null,
-      ].filter(Boolean).join(', ')
+async function generatePostRideNote(ctx: BriefingContext): Promise<string> {
+  const rides = ctx.completedRides?.length ? ctx.completedRides : ctx.completedRide ? [ctx.completedRide] : []
+  const rideCount = rides.length
+
+  const sessionsPlanned = ctx.todayWorkouts?.length ?? (ctx.todayWorkout ? 1 : 0)
+  const sessionSummary = sessionsPlanned > 1
+    ? `${rideCount} of ${sessionsPlanned} sessions completed`
+    : ctx.todayWorkout
+      ? `${ctx.todayWorkout.type} ${ctx.todayWorkout.duration_minutes}min`
+      : 'session'
+
+  const rideStats = rides.length
+    ? rides.map(r => rideDataString(r)).join(' | ')
     : 'No power data synced yet'
 
   const prompt = `Today's date: ${ctx.today}
-Completed session: ${session}
+Sessions today: ${sessionSummary}
 Ride data: ${rideStats}
 Training load after ride: ${buildLoadString(ctx)}
 Upcoming events: ${buildEventsString(ctx)}
@@ -110,4 +137,30 @@ Upcoming events: ${buildEventsString(ctx)}
 Write the post-ride note.`
 
   return await callClaude(SYSTEM_POST_RIDE, prompt) || 'Good work — rest up and recover well.'
+}
+
+async function generatePostRaceNote(ctx: BriefingContext): Promise<string> {
+  const event = ctx.todayEvent!
+  const eventDetail = [
+    event.name,
+    `(${event.type}, priority ${event.priority})`,
+    event.distance_km ? `~${event.distance_km}km` : null,
+    event.duration_minutes ? `~${event.duration_minutes}min` : null,
+    event.result_tss != null ? `TSS: ${event.result_tss}` : null,
+  ].filter(Boolean).join(' ')
+
+  const rides = ctx.completedRides?.length ? ctx.completedRides : ctx.completedRide ? [ctx.completedRide] : []
+  const rideStats = rides.length
+    ? rides.map(r => rideDataString(r)).join(' | ')
+    : 'No power data synced yet'
+
+  const prompt = `Today's date: ${ctx.today}
+Race/event: ${eventDetail}
+Ride data from today: ${rideStats}
+Training load: ${buildLoadString(ctx)}
+Upcoming events: ${buildEventsString(ctx)}
+
+Write the post-race note.`
+
+  return await callClaude(SYSTEM_POST_RACE, prompt) || 'Great effort today — focus on recovery now.'
 }

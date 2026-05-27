@@ -80,17 +80,19 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
   // Initial load — reads from localStorage cache if available, otherwise fetches
   useEffect(() => { fetchNote() }, [])
 
-  // Auto-refresh when the ride is completed but the cached note is still a morning briefing.
-  // Only triggers once per session (hasAutoRefreshed ref) and only in the planned→completed direction.
+  // Auto-refresh when a ride is completed or a race result is recorded, but cache still has morning note.
+  // Only triggers once per session (hasAutoRefreshed ref).
   useEffect(() => {
-    if (cacheWorkoutCompleted !== false) return   // cache already reflects completed, or not yet loaded
+    if (cacheWorkoutCompleted !== false) return
     if (hasAutoRefreshed.current) return
-    if (workout?.status === 'completed') {
+    const rideCompleted = workout?.status === 'completed'
+    const raceResultRecorded = todayEvent?.result_tss != null
+    if (rideCompleted || raceResultRecorded) {
       hasAutoRefreshed.current = true
       setRefreshing(true)
       fetchNote(true)
     }
-  }, [workout, cacheWorkoutCompleted])
+  }, [workout, todayEvent, cacheWorkoutCompleted])
 
   async function handleRefresh() {
     setRefreshing(true)
@@ -195,7 +197,7 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
             disabled={refreshing}
             className="text-xs text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
           >
-            {refreshing ? 'Getting note…' : workout?.status === 'completed' ? 'Get post-ride note' : 'Refresh note'}
+            {refreshing ? 'Getting note…' : todayEvent?.result_tss != null ? 'Get post-race note' : workout?.status === 'completed' ? 'Get post-ride note' : 'Refresh note'}
           </button>
         )}
         {!loading && onChatWithCoach && workout && (

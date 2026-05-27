@@ -248,16 +248,21 @@ export interface GeneratedPlan {
 }
 
 // Daily briefing
+export interface CompletedRideData {
+  name: string
+  avg_power: number | null
+  weighted_avg_power: number | null
+  tss: number | null
+  moving_time: number
+}
+
 export interface BriefingContext {
   todayWorkout: Workout | null
+  todayWorkouts?: Workout[]           // all of today's planned/completed workouts
+  todayEvent?: TrainingEvent | null   // event scheduled for today (race, sportive, etc.)
   workoutCompleted: boolean
-  completedRide: {
-    name: string
-    avg_power: number | null
-    weighted_avg_power: number | null
-    tss: number | null
-    moving_time: number
-  } | null
+  completedRide: CompletedRideData | null
+  completedRides?: CompletedRideData[] | null  // all completed rides today
   ctl: number | null
   atl: number | null
   tsb: number | null

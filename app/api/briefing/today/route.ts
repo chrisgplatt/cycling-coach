@@ -44,12 +44,14 @@ export async function GET(req: NextRequest) {
     .eq('date', today)
     .in('status', ['planned', 'completed', 'needs_review'])
     .order('created_at')
-    .limit(1)
 
-  const todayWorkout = (workouts?.[0] as Workout | undefined) ?? null
+  const todayWorkouts = (workouts ?? []) as Workout[]
+  const todayWorkout = todayWorkouts[0] ?? null
 
+  const allEvents = (profile?.events ?? []) as TrainingEvent[]
+  const todayEvent = allEvents.find((e: TrainingEvent) => e.date === today) ?? null
   const fourWeeks = new Date(Date.now() + 28 * 864e5).toISOString().split('T')[0]
-  const upcomingEvents = ((profile?.events ?? []) as TrainingEvent[]).filter(
+  const upcomingEvents = allEvents.filter(
     (e: TrainingEvent) => e.date >= today && e.date <= fourWeeks
   )
 
@@ -85,31 +87,36 @@ export async function GET(req: NextRequest) {
     } catch { /* ICU unavailable — briefing proceeds without metrics */ }
   }
 
-  const workoutCompleted = todayWorkout?.status === 'completed'
+  const anyWorkoutCompleted = todayWorkouts.some(w => w.status === 'completed')
+  const raceResultRecorded = todayEvent != null && todayEvent.result_tss != null
+  const workoutCompleted = anyWorkoutCompleted || raceResultRecorded
 
   let completedRide: BriefingContext['completedRide'] = null
+  let completedRides: BriefingContext['completedRides'] = null
   if (workoutCompleted && profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
     const client2 = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
     try {
       const todayActivities = await client2.getActivities(today, today)
-      const ride = todayActivities.find((a: ICUActivity) => /ride/i.test(a.type))
-      if (ride) {
-        completedRide = {
-          name: ride.name,
-          avg_power: ride.average_watts,
-          weighted_avg_power: ride.weighted_average_watts,
-          tss: ride.training_load,
-          moving_time: ride.moving_time,
-        }
-      }
+      const rides = todayActivities.filter((a: ICUActivity) => /ride/i.test(a.type))
+      completedRides = rides.map((ride: ICUActivity) => ({
+        name: ride.name,
+        avg_power: ride.average_watts,
+        weighted_avg_power: ride.weighted_average_watts,
+        tss: ride.training_load,
+        moving_time: ride.moving_time,
+      }))
+      completedRide = completedRides[0] ?? null
     } catch { /* if ICU unavailable, proceed without ride data */ }
   }
 
   const ctx: BriefingContext = {
     today,
     todayWorkout,
-    workoutCompleted: workoutCompleted ?? false,
+    todayWorkouts,
+    todayEvent,
+    workoutCompleted,
     completedRide,
+    completedRides,
     ctl,
     atl,
     tsb,
