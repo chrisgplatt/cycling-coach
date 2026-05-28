@@ -162,7 +162,13 @@ Return ONLY valid JSON matching this exact schema:
     messages: [{ role: 'user', content: prompt }],
   })
   const block = response.content.find(b => b.type === 'text')
-  const raw = block?.type === 'text' ? block.text : ''
-  const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
-  return JSON.parse(text) as DossierContent
+  if (!block || block.type !== 'text') {
+    throw new Error('generateDossier: Claude returned no text block')
+  }
+  const text = block.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+  try {
+    return JSON.parse(text) as DossierContent
+  } catch {
+    throw new Error(`generateDossier: failed to parse Claude response: ${text.slice(0, 300)}`)
+  }
 }
