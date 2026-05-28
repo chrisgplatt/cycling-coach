@@ -19,6 +19,34 @@ interface Props {
 }
 
 const PLAN_MARKER = '__PLAN_PROPOSAL__'
+const REMEMBER_MARKER = '__REMEMBER__'
+const FORGET_MARKER = '__FORGET__'
+
+function extractNoteMarker(text: string): { visible: string; note?: string; forget?: string } {
+  for (const [marker, key] of [
+    [REMEMBER_MARKER, 'note'],
+    [FORGET_MARKER, 'forget'],
+  ] as [string, string][]) {
+    const idx = text.indexOf(marker)
+    if (idx !== -1) {
+      try {
+        const parsed = JSON.parse(text.slice(idx + marker.length).trim()) as { note?: string }
+        if (parsed.note) return { visible: text.slice(0, idx).trim(), [key]: parsed.note }
+      } catch { /* malformed — strip it */ }
+      return { visible: text.slice(0, idx).trim() }
+    }
+  }
+  return { visible: text }
+}
+
+function postNote(note?: string, forget?: string): void {
+  if (!note && !forget) return
+  fetch('/api/dossier/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(note ? { note } : { forget }),
+  }).catch(() => {})
+}
 
 export default function PlanChatModal({
   planName, targetEvent, targetDate, futureWorkouts, wellness, currentFTP, onClose, onWorkoutsUpdated,
@@ -73,7 +101,11 @@ export default function PlanChatModal({
       const { done, value } = await reader.read()
       if (done) break
       fullText += decoder.decode(value)
-      const cutIdx = fullText.includes(PLAN_MARKER) ? fullText.indexOf(PLAN_MARKER) : Infinity
+      const cutIdx = Math.min(
+        fullText.includes(PLAN_MARKER) ? fullText.indexOf(PLAN_MARKER) : Infinity,
+        fullText.includes(REMEMBER_MARKER) ? fullText.indexOf(REMEMBER_MARKER) : Infinity,
+        fullText.includes(FORGET_MARKER) ? fullText.indexOf(FORGET_MARKER) : Infinity,
+      )
       const visibleText = cutIdx < Infinity ? fullText.slice(0, cutIdx) : fullText
       setMessages(prev => {
         const updated = [...prev]
@@ -91,6 +123,20 @@ export default function PlanChatModal({
         setMessages(prev => [...prev, { role: 'assistant', content: 'I outlined some changes but had trouble formatting the proposal. Could you ask me again?' }])
       }
     }
+
+    // Handle note markers (mutually exclusive with plan proposals)
+    if (fullText.indexOf(PLAN_MARKER) === -1) {
+      const { visible, note, forget } = extractNoteMarker(fullText)
+      if (note || forget) {
+        postNote(note, forget)
+        setMessages(prev => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: 'assistant', content: visible }
+          return updated
+        })
+      }
+    }
+
     setLoading(false)
   }
 

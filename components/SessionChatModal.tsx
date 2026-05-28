@@ -31,6 +31,34 @@ function buildOpeningMessage(workout: Workout, wellness: ICUWellness | null): st
 
 const PROPOSAL_MARKER = '__PROPOSAL__'
 const WEEK_MARKER = '__WEEK_PROPOSAL__'
+const REMEMBER_MARKER = '__REMEMBER__'
+const FORGET_MARKER = '__FORGET__'
+
+function extractNoteMarker(text: string): { visible: string; note?: string; forget?: string } {
+  for (const [marker, key] of [
+    [REMEMBER_MARKER, 'note'],
+    [FORGET_MARKER, 'forget'],
+  ] as [string, string][]) {
+    const idx = text.indexOf(marker)
+    if (idx !== -1) {
+      try {
+        const parsed = JSON.parse(text.slice(idx + marker.length).trim()) as { note?: string }
+        if (parsed.note) return { visible: text.slice(0, idx).trim(), [key]: parsed.note }
+      } catch { /* malformed — strip it */ }
+      return { visible: text.slice(0, idx).trim() }
+    }
+  }
+  return { visible: text }
+}
+
+function postNote(note?: string, forget?: string): void {
+  if (!note && !forget) return
+  fetch('/api/dossier/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(note ? { note } : { forget }),
+  }).catch(() => {})
+}
 
 export default function SessionChatModal({ workout, wellness, onClose, onWorkoutUpdated }: Props) {
   const [messages, setMessages] = useState<Message[]>([
@@ -82,6 +110,8 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
       const cutIdx = Math.min(
         fullText.includes(PROPOSAL_MARKER) ? fullText.indexOf(PROPOSAL_MARKER) : Infinity,
         fullText.includes(WEEK_MARKER) ? fullText.indexOf(WEEK_MARKER) : Infinity,
+        fullText.includes(REMEMBER_MARKER) ? fullText.indexOf(REMEMBER_MARKER) : Infinity,
+        fullText.includes(FORGET_MARKER) ? fullText.indexOf(FORGET_MARKER) : Infinity,
       )
       const visibleText = cutIdx < Infinity ? fullText.slice(0, cutIdx) : fullText
       setMessages(prev => {
@@ -103,6 +133,19 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
       try {
         setWeekProposal(JSON.parse(fullText.slice(weekIdx + WEEK_MARKER.length).trim()) as SessionWeekProposal)
       } catch { /* malformed — ignore */ }
+    }
+
+    // Handle note markers (mutually exclusive with proposals)
+    if (fullText.indexOf(PROPOSAL_MARKER) === -1 && fullText.indexOf(WEEK_MARKER) === -1) {
+      const { visible, note, forget } = extractNoteMarker(fullText)
+      if (note || forget) {
+        postNote(note, forget)
+        setMessages(prev => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: 'assistant', content: visible }
+          return updated
+        })
+      }
     }
 
     setLoading(false)

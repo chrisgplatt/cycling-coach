@@ -12,6 +12,35 @@ interface Props {
   syncData: ICUSyncData | null
 }
 
+const REMEMBER_MARKER = '__REMEMBER__'
+const FORGET_MARKER = '__FORGET__'
+
+function extractNoteMarker(text: string): { visible: string; note?: string; forget?: string } {
+  for (const [marker, key] of [
+    [REMEMBER_MARKER, 'note'],
+    [FORGET_MARKER, 'forget'],
+  ] as [string, string][]) {
+    const idx = text.indexOf(marker)
+    if (idx !== -1) {
+      try {
+        const parsed = JSON.parse(text.slice(idx + marker.length).trim()) as { note?: string }
+        if (parsed.note) return { visible: text.slice(0, idx).trim(), [key]: parsed.note }
+      } catch { /* malformed — strip it */ }
+      return { visible: text.slice(0, idx).trim() }
+    }
+  }
+  return { visible: text }
+}
+
+function postNote(note?: string, forget?: string): void {
+  if (!note && !forget) return
+  fetch('/api/dossier/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(note ? { note } : { forget }),
+  }).catch(() => {})
+}
+
 export default function ChatPanel({ currentFTP, syncData }: Props) {
   const [open, setOpen] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
@@ -72,6 +101,17 @@ export default function ChatPanel({ currentFTP, syncData }: Props) {
         return updated
       })
     }
+    // Strip any note markers and fire the notes API
+    setMessages(prev => {
+      const updated = [...prev]
+      const last = updated[updated.length - 1]
+      if (last.role === 'assistant') {
+        const { visible, note, forget } = extractNoteMarker(last.content)
+        postNote(note, forget)
+        updated[updated.length - 1] = { ...last, content: visible }
+      }
+      return updated
+    })
     setLoading(false)
   }
 
