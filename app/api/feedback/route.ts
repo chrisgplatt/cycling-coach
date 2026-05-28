@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { analyseFeedback } from '@/lib/claude/feedback'
+import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
+import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { Workout, ProposedAdjustment } from '@/types'
 
 export async function GET(req: NextRequest) {
@@ -44,9 +46,10 @@ export async function POST(req: NextRequest) {
   if (shouldAdapt) {
     const today = new Date().toISOString().split('T')[0]
     const next7 = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
-    const [{ data: upcomingWorkouts }, { data: profileData }] = await Promise.all([
+    const [{ data: upcomingWorkouts }, { data: profileData }, dossier] = await Promise.all([
       supabase.from('workouts').select('*').eq('status', 'planned').gte('date', today).lte('date', next7).order('date'),
       supabase.from('user_profile').select('events').maybeSingle(),
+      fetchDossier(supabase, user.id),
     ])
     const events = ((profileData as { events?: import('@/types').TrainingEvent[] } | null)?.events ?? [])
 
@@ -58,6 +61,7 @@ export async function POST(req: NextRequest) {
       activityAvgHR ?? null,
       (upcomingWorkouts ?? []) as Workout[],
       events,
+      formatDossier(dossier as AthleteDossier | null),
     )
   }
 

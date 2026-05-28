@@ -1,13 +1,22 @@
 import { analyseFeedback } from '@/lib/claude/feedback'
 import type { Workout, ProposedAdjustment } from '@/types'
+import { formatDossier } from '@/lib/claude/dossier'
+import type { AthleteDossier } from '@/lib/claude/dossier'
 
+const mockFinalMessage = jest.fn()
 jest.mock('@/lib/claude/client', () => ({
   MODEL: 'claude-sonnet-4-6',
-  anthropic: { messages: { create: jest.fn() } },
+  anthropic: {
+    messages: {
+      create: jest.fn(),
+      stream: jest.fn(() => ({ finalMessage: mockFinalMessage })),
+    },
+  },
 }))
 
 import { anthropic } from '@/lib/claude/client'
 const mockCreate = anthropic.messages.create as jest.Mock
+const mockStream = anthropic.messages.stream as jest.Mock
 
 const workout: Workout = {
   id: 'wk1', plan_id: 'p1', date: '2026-05-10',
@@ -32,7 +41,7 @@ describe('analyseFeedback', () => {
         old_value: 90, new_value: 60, reason: 'Athlete reported heavy legs',
       }],
     }
-    mockCreate.mockResolvedValueOnce({
+    mockFinalMessage.mockResolvedValueOnce({
       content: [{ type: 'text', text: JSON.stringify(adjustment) }],
     })
 
@@ -45,7 +54,7 @@ describe('analyseFeedback', () => {
 
   it('returns empty changes when no adjustment needed', async () => {
     const adjustment: ProposedAdjustment = { summary: 'No adjustments needed', changes: [] }
-    mockCreate.mockResolvedValueOnce({
+    mockFinalMessage.mockResolvedValueOnce({
       content: [{ type: 'text', text: JSON.stringify(adjustment) }],
     })
 
@@ -53,5 +62,45 @@ describe('analyseFeedback', () => {
       workout, 'Felt great, hit all targets', 80, 240, 148, upcomingWorkouts
     )
     expect(result.changes).toHaveLength(0)
+  })
+})
+
+const feedbackDossier: AthleteDossier = {
+  id: 'd6',
+  user_id: 'u1',
+  synthesized_at: new Date().toISOString(),
+  content: {
+    as_rider: 'Committed racer with strong base.',
+    strengths: ['Threshold power'],
+    weaknesses: ['Sprint finish'],
+    training_compliance: 'Rarely misses sessions.',
+    recovery_profile: 'Handles back-to-back well.',
+    event_performance: 'A-races always go to plan.',
+    trajectory: 'Peak fitness in 4 weeks.',
+  },
+  explicit_notes: [],
+  created_at: new Date().toISOString(),
+}
+
+describe('analyseFeedback — dossier injection', () => {
+  it('accepts an 8th dossierSection argument', async () => {
+    const dossierSection = formatDossier(feedbackDossier)
+    const adjustment: ProposedAdjustment = { summary: 'No adjustments needed', changes: [], workout_steps: [] }
+    mockFinalMessage.mockResolvedValueOnce({
+      content: [{ type: 'text', text: JSON.stringify(adjustment) }],
+    })
+
+    await expect(
+      analyseFeedback(
+        workout,
+        'Felt great, hit all the targets',
+        250,
+        null,
+        null,
+        [],
+        [],
+        dossierSection,
+      )
+    ).resolves.toBeDefined()
   })
 })
