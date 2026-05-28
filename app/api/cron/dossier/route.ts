@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
       .eq('user_id', profile.user_id)
       .maybeSingle()
 
-    if (existing?.synthesized_at && existing.synthesized_at.startsWith(today)) {
+    if (existing?.synthesized_at && localDateStr(tz, new Date(existing.synthesized_at)) === today) {
       console.log(`[cron/dossier] user ${profile.user_id}: already synthesized today, skipping`)
       await log(profile.user_id, 'skipped_already_done', 'skipped', { date: today })
       continue
@@ -149,7 +149,7 @@ export async function GET(req: NextRequest) {
         added_at: string
       }>
 
-      await supabase.from('athlete_dossier').upsert(
+      const { error: upsertError } = await supabase.from('athlete_dossier').upsert(
         {
           user_id: profile.user_id,
           synthesized_at: runAt.toISOString(),
@@ -158,6 +158,9 @@ export async function GET(req: NextRequest) {
         },
         { onConflict: 'user_id' },
       )
+      if (upsertError) {
+        throw new Error(`upsert failed: ${upsertError.message}`)
+      }
 
       updated++
       console.log(`[cron/dossier] user ${profile.user_id}: synthesis complete`)
