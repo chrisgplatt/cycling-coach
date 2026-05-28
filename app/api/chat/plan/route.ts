@@ -134,7 +134,19 @@ Proposal rules:
 - new_workouts[].steps: always include; steps must sum exactly to duration_minutes
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
 - Sessions >45min must have warm-up (10-15min, Z1-Z2) and cool-down (10min, Z1)
-- Never propose a workout on an event date or rest day`
+- Never propose a workout on an event date or rest day
+
+When the athlete explicitly asks you to remember something personal — a physical constraint, injury, scheduling limitation, or important observation about themselves — append a marker after your visible response:
+
+__REMEMBER__
+{"note": "concise note in third person, e.g. 'Left knee flares up on long climbs'"}
+
+When they ask you to forget a note, append:
+
+__FORGET__
+{"note": "the note text to remove, as close to the original wording as possible"}
+
+Use these only for personal constraints, physical observations, and scheduling facts. Not for events (those belong in the calendar) or workout preferences (those belong in the goals field). Only append a marker when the athlete explicitly asks to remember or forget something.`
 }
 
 export async function POST(req: NextRequest) {

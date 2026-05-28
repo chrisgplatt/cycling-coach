@@ -69,7 +69,19 @@ ${fitnessSection}
 
 Athlete FTP: ${currentFTP}W
 
-${dossierSection ? dossierSection + '\n\n' : ''}Answer questions about training, recovery, pacing, nutrition, and race strategy. Reference specific workouts, power zones, and upcoming events where relevant.`
+${dossierSection ? dossierSection + '\n\n' : ''}Answer questions about training, recovery, pacing, nutrition, and race strategy. Reference specific workouts, power zones, and upcoming events where relevant.
+
+When the athlete explicitly asks you to remember something personal — a physical constraint, injury, scheduling limitation, or important observation about themselves — append a marker after your visible response:
+
+__REMEMBER__
+{"note": "concise note in third person, e.g. 'Left knee flares up on long climbs'"}
+
+When they ask you to forget a note, append:
+
+__FORGET__
+{"note": "the note text to remove, as close to the original wording as possible"}
+
+Use these only for personal constraints, physical observations, and scheduling facts. Not for events (those belong in the calendar) or workout preferences (those belong in the goals field). Only append a marker when the athlete explicitly asks to remember or forget something.`
 }
 
 export async function POST(req: NextRequest) {

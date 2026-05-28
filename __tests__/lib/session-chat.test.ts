@@ -75,6 +75,16 @@ describe('buildSessionSystemPrompt', () => {
   it('handles null wellness gracefully', () => {
     expect(() => buildSessionSystemPrompt(workout, null, [], null, 200)).not.toThrow()
   })
+
+  it('includes __REMEMBER__ instruction', () => {
+    const prompt = buildSessionSystemPrompt(workout, plan, upcoming, wellness, 240)
+    expect(prompt).toContain('__REMEMBER__')
+  })
+
+  it('includes __FORGET__ instruction', () => {
+    const prompt = buildSessionSystemPrompt(workout, plan, upcoming, wellness, 240)
+    expect(prompt).toContain('__FORGET__')
+  })
 })
 
 const mockDossierForSession: AthleteDossier = {

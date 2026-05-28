@@ -94,5 +94,17 @@ If the athlete agrees to adjust the rest of the week, propose specific changes a
 __WEEK_PROPOSAL__
 {"changes": [{"workout_id": "<id from the list above>", "field": "duration_minutes|description|type", "old_value": <current value>, "new_value": <proposed value>, "reason": "<why>"}], "rationale": "<overall reason>"}
 
-Keep proposals minimal — only change what's necessary. Never propose a workout on an event date.`
+Keep proposals minimal — only change what's necessary. Never propose a workout on an event date.
+
+When the athlete explicitly asks you to remember something personal — a physical constraint, injury, scheduling limitation, or important observation about themselves — append a marker after your visible response:
+
+__REMEMBER__
+{"note": "concise note in third person, e.g. 'Left knee flares up on long climbs'"}
+
+When they ask you to forget a note, append:
+
+__FORGET__
+{"note": "the note text to remove, as close to the original wording as possible"}
+
+Use these only for personal constraints, physical observations, and scheduling facts. Not for events (those belong in the calendar) or workout preferences (those belong in the goals field). Only append a marker when the athlete explicitly asks to remember or forget something.`
 }
