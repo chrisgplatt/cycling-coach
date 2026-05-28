@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
 import type { ChatMessage, TrainingPlan, Workout, ICUWellness, ICUSyncData, TrainingEvent } from '@/types'
+import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
+import type { AthleteDossier } from '@/lib/claude/dossier'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -20,6 +22,7 @@ function buildSystemPrompt(
   latestWellness: ICUWellness | null,
   currentFTP: number,
   events: TrainingEvent[],
+  dossierSection = '',
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' })
@@ -66,7 +69,7 @@ ${fitnessSection}
 
 Athlete FTP: ${currentFTP}W
 
-Answer questions about training, recovery, pacing, nutrition, and race strategy. Reference specific workouts, power zones, and upcoming events where relevant.`
+${dossierSection ? dossierSection + '\n\n' : ''}Answer questions about training, recovery, pacing, nutrition, and race strategy. Reference specific workouts, power zones, and upcoming events where relevant.`
 }
 
 export async function POST(req: NextRequest) {
@@ -91,7 +94,7 @@ export async function POST(req: NextRequest) {
     return new Response('Message is required', { status: 400 })
   }
 
-  const [{ data: plan }, { data: recentMessages }, { data: upcomingWorkouts }, { data: profileData }] = await Promise.all([
+  const [{ data: plan }, { data: recentMessages }, { data: upcomingWorkouts }, { data: profileData }, dossier] = await Promise.all([
     supabase.from('training_plans').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('chat_messages').select('*').order('created_at', { ascending: false }).limit(20),
     supabase.from('workouts').select('*').eq('status', 'planned')
@@ -99,6 +102,7 @@ export async function POST(req: NextRequest) {
       .lte('date', new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0])
       .order('date'),
     supabase.from('user_profile').select('events').maybeSingle(),
+    fetchDossier(supabase, user.id),
   ])
 
   const messages = ((recentMessages ?? []) as ChatMessage[])
@@ -118,6 +122,7 @@ export async function POST(req: NextRequest) {
     latestWellness,
     currentFTP,
     events,
+    formatDossier(dossier as AthleteDossier | null),
   )
 
   const stream = await anthropic.messages.stream({
