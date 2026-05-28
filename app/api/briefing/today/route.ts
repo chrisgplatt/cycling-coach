@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { generateBriefing } from '@/lib/claude/briefing'
+import { fetchDossier } from '@/lib/claude/dossier'
 import { IntervalsClient } from '@/lib/intervals/client'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness } from '@/types'
 
@@ -39,11 +40,14 @@ export async function GET(req: NextRequest) {
     if (cached) return NextResponse.json({ coach_note: cached.coach_note, cached: true })
   }
 
-  const { data: workouts } = await supabase.from('workouts')
-    .select('*')
-    .eq('date', today)
-    .in('status', ['planned', 'completed', 'needs_review'])
-    .order('created_at')
+  const [{ data: workouts }, dossier] = await Promise.all([
+    supabase.from('workouts')
+      .select('*')
+      .eq('date', today)
+      .in('status', ['planned', 'completed', 'needs_review'])
+      .order('created_at'),
+    fetchDossier(supabase, user.id),
+  ])
 
   const todayWorkouts = (workouts ?? []) as Workout[]
   const todayWorkout = todayWorkouts[0] ?? null
@@ -124,6 +128,7 @@ export async function GET(req: NextRequest) {
     hrv,
     recentWorkouts,
     upcomingEvents,
+    dossier,
   }
 
   const coach_note = await generateBriefing(ctx)

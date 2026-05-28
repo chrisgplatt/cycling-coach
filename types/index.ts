@@ -287,6 +287,19 @@ export interface BriefingContext {
   }>
   upcomingEvents: TrainingEvent[]
   today: string  // YYYY-MM-DD in user's local timezone
+  dossier?: {
+    synthesized_at: string
+    content: {
+      as_rider?: string
+      strengths?: string[]
+      weaknesses?: string[]
+      training_compliance?: string
+      recovery_profile?: string
+      event_performance?: string
+      trajectory?: string
+    }
+    explicit_notes: Array<{ note: string; added_at: string }>
+  } | null
 }
 
 export interface DailyBriefing {
