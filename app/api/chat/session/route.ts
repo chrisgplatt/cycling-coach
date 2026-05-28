@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
 import { buildSessionSystemPrompt } from '@/lib/claude/session-chat'
+import { formatDossier } from '@/lib/claude/dossier'
+import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
 
 export async function POST(req: NextRequest) {
@@ -33,6 +35,7 @@ export async function POST(req: NextRequest) {
     { data: plan },
     { data: upcomingWorkouts },
     { data: profile },
+    { data: dossierRow },
   ] = await Promise.all([
     supabase.from('workouts').select('*').eq('id', workoutId).maybeSingle(),
     supabase.from('training_plans').select('*').eq('status', 'active').maybeSingle(),
@@ -41,6 +44,7 @@ export async function POST(req: NextRequest) {
       .lte('date', new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0])
       .order('date'),
     supabase.from('user_profile').select('current_ftp, events').maybeSingle(),
+    supabase.from('athlete_dossier').select('*').eq('user_id', user.id).maybeSingle(),
   ])
 
   if (!workout) return new Response('Workout not found', { status: 404 })
@@ -55,6 +59,7 @@ export async function POST(req: NextRequest) {
     wellness,
     currentFTP,
     events,
+    formatDossier(dossierRow as AthleteDossier | null),
   )
 
   const messages = [

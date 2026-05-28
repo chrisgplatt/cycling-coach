@@ -18,6 +18,7 @@ export function buildSessionSystemPrompt(
   wellness: ICUWellness | null,
   currentFTP: number,
   events: TrainingEvent[] = [],
+  dossierSection = '',
 ): string {
   const tsb = wellness?.form ?? (
     wellness?.ctl != null && wellness?.atl != null ? wellness.ctl - wellness.atl : null
@@ -75,7 +76,7 @@ FTP: ${currentFTP}W
 
 ${planSection}
 
-UPCOMING EVENTS (races, sportives, holidays — do not propose workouts on these dates):
+${dossierSection ? dossierSection + '\n\n' : ''}UPCOMING EVENTS (races, sportives, holidays — do not propose workouts on these dates):
 ${eventsSection}
 
 NEXT 7 DAYS (ID | date: type duration — description):

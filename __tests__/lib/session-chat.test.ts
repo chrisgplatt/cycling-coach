@@ -1,4 +1,6 @@
 import { buildSessionSystemPrompt } from '@/lib/claude/session-chat'
+import { formatDossier } from '@/lib/claude/dossier'
+import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { Workout, TrainingPlan, ICUWellness } from '@/types'
 
 const workout: Workout = {
@@ -72,5 +74,36 @@ describe('buildSessionSystemPrompt', () => {
 
   it('handles null wellness gracefully', () => {
     expect(() => buildSessionSystemPrompt(workout, null, [], null, 200)).not.toThrow()
+  })
+})
+
+const mockDossierForSession: AthleteDossier = {
+  id: 'd1',
+  user_id: 'u1',
+  synthesized_at: new Date().toISOString(),
+  content: {
+    as_rider: 'Strong climber with good aerobic base.',
+    strengths: ['Z2 compliance'],
+    weaknesses: ['Pacing'],
+    training_compliance: 'Consistent.',
+    recovery_profile: 'Recovers fast.',
+    event_performance: 'Solid sportive results.',
+    trajectory: 'Improving.',
+  },
+  explicit_notes: [],
+  created_at: new Date().toISOString(),
+}
+
+describe('buildSessionSystemPrompt — dossier injection', () => {
+  it('includes dossier section when provided', () => {
+    const dossierSection = formatDossier(mockDossierForSession)
+    const prompt = buildSessionSystemPrompt(workout, plan, upcoming, wellness, 240, [], dossierSection)
+    expect(prompt).toContain("COACH'S NOTES ON THIS ATHLETE")
+    expect(prompt).toContain('Strong climber')
+  })
+
+  it('omits dossier section when empty string', () => {
+    const prompt = buildSessionSystemPrompt(workout, plan, upcoming, wellness, 240, [], '')
+    expect(prompt).not.toContain("COACH'S NOTES ON THIS ATHLETE")
   })
 })
