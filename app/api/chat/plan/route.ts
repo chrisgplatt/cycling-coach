@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic } from '@/lib/claude/client'
 import { formatZones, formatSchedule } from '@/lib/claude/plan'
 import type { ICUWellness, TrainingEvent, TrainingPlan, UserProfile, Workout } from '@/types'
+import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
+import type { AthleteDossier } from '@/lib/claude/dossier'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -21,6 +23,7 @@ function buildSystemPrompt(
   wellness: ICUWellness | null,
   currentFTP: number,
   profile: UserProfile,
+  dossierSection = '',
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' })
@@ -102,7 +105,7 @@ ACTIVE PLAN: ${plan.name} (${plan.phase} phase)
 Target: ${plan.target_event_name} on ${plan.target_event_date}
 Rationale: ${plan.rationale}
 ${removedTargetNote}
-UPCOMING EVENTS (BLOCKED — never propose a workout on these dates):
+${dossierSection ? dossierSection + '\n\n' : ''}UPCOMING EVENTS (BLOCKED — never propose a workout on these dates):
 ${eventsSection}
 
 FUTURE PLANNED WORKOUTS (ID | date | type | duration | description):
@@ -156,9 +159,10 @@ export async function POST(req: NextRequest) {
 
   if (!message?.trim()) return new Response('Message is required', { status: 400 })
 
-  const [{ data: plan }, { data: profile }] = await Promise.all([
+  const [{ data: plan }, { data: profile }, dossier] = await Promise.all([
     supabase.from('training_plans').select('*').eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('user_profile').select('*').maybeSingle(),
+    fetchDossier(supabase, user.id),
   ])
 
   if (!plan) return new Response('No active plan', { status: 400 })
@@ -179,6 +183,7 @@ export async function POST(req: NextRequest) {
     wellness,
     currentFTP,
     profile as unknown as UserProfile,
+    formatDossier(dossier as AthleteDossier | null),
   )
 
   const messages = [
