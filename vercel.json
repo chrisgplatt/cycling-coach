@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/daily-briefing",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/dossier",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/dossier",
+      "schedule": "0 3 * * *"
     }
   ]
 }
