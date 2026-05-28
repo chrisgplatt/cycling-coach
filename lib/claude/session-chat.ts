@@ -27,10 +27,6 @@ export function buildSessionSystemPrompt(
     ? `CTL: ${wellness.ctl ?? '?'}, ATL: ${wellness.atl ?? '?'}, Form: ${tsb != null ? Math.round(tsb) : '?'}, HRV: ${wellness.hrv ?? '?'}`
     : 'No fitness data available.'
 
-  const planSection = plan
-    ? `Plan: ${plan.target_event_name} on ${plan.target_event_date} (${plan.phase} phase)`
-    : 'No active training plan.'
-
   const weekSection = upcomingWorkouts.length
     ? upcomingWorkouts.map(w => `- ${w.id} | ${w.date}: ${w.type} ${w.duration_minutes}min — ${w.description}`).join('\n')
     : 'No other upcoming workouts this week.'
@@ -40,6 +36,17 @@ export function buildSessionSystemPrompt(
   const upcomingEvents = events
     .filter(e => e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
+
+  const planTargetDate = plan?.target_event_date
+  const planTargetStillActive = !planTargetDate || upcomingEvents.some(e => e.date === planTargetDate)
+  const removedTargetNote = !planTargetStillActive && plan
+    ? ` — NOTE: this event has been cancelled or removed from the athlete's schedule. Do NOT refer to it. Workout descriptions may still mention it; treat those references as outdated and ignore them.`
+    : ''
+
+  const planSection = plan
+    ? `Plan: ${plan.target_event_name} on ${plan.target_event_date} (${plan.phase} phase)${removedTargetNote}`
+    : 'No active training plan.'
+
   const eventsSection = upcomingEvents.length
     ? upcomingEvents.map(e => {
         const rel = relativeDay(e.date, today)

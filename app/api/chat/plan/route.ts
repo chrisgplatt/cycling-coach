@@ -57,6 +57,12 @@ function buildSystemPrompt(
   const upcomingEvents = events
     .filter(e => e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
+
+  const planTargetStillActive = upcomingEvents.some(e => e.date === plan.target_event_date)
+  const removedTargetNote = !planTargetStillActive
+    ? `\nIMPORTANT: The plan's original target event ("${plan.target_event_name}" on ${plan.target_event_date}) is no longer in the athlete's event list — it has been cancelled or removed. Do NOT refer to this event. Some planned workout descriptions may still mention it; treat those references as outdated and ignore them.`
+    : ''
+
   const eventsSection = upcomingEvents.length
     ? upcomingEvents.map(e => {
         const rel = relativeDay(e.date, today)
@@ -95,7 +101,7 @@ ${eventResultsBlock ? '\n' + eventResultsBlock : ''}
 ACTIVE PLAN: ${plan.name} (${plan.phase} phase)
 Target: ${plan.target_event_name} on ${plan.target_event_date}
 Rationale: ${plan.rationale}
-
+${removedTargetNote}
 UPCOMING EVENTS (BLOCKED — never propose a workout on these dates):
 ${eventsSection}
 
