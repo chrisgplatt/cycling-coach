@@ -65,3 +65,104 @@ export function formatDossier(dossier: AthleteDossier | null): string {
   }
   return lines.join('\n')
 }
+
+import type { TrainingEvent } from '@/types'
+
+const SYNTHESIS_SYSTEM = `You are a cycling coach writing a structured profile of your athlete based on training data. Be specific and evidence-based — reference actual sessions and results, not generalities. Keep each field to 2–4 sentences. Do not invent patterns not supported by the data. Return ONLY valid JSON.`
+
+export async function generateDossier(
+  goals: string,
+  currentFtp: number,
+  weightKg: number,
+  wellnessSummary: string,
+  completedWorkouts: Array<{
+    date: string
+    type: string
+    duration_minutes: number
+    tss: number | null
+    status: string
+    missed_reason: string | null
+  }>,
+  feedbacks: Array<{ created_at: string; feedback_text: string }>,
+  eventResults: TrainingEvent[],
+  chatMessages: Array<{ role: string; content: string }>,
+): Promise<DossierContent> {
+  const workoutsSection = completedWorkouts.length
+    ? completedWorkouts
+        .map(w =>
+          `${w.date} | ${w.type} | ${w.duration_minutes}min | TSS ${w.tss ?? '?'} | ${w.status}${w.missed_reason ? ` (${w.missed_reason})` : ''}`
+        )
+        .join('\n')
+    : 'No completed sessions recorded.'
+
+  const feedbackSection = feedbacks.length
+    ? feedbacks.map(f => `${f.created_at.slice(0, 10)}: "${f.feedback_text}"`).join('\n')
+    : 'No session feedback recorded.'
+
+  const eventsSection = eventResults.length
+    ? eventResults
+        .map(e => {
+          const parts: string[] = [`${e.date}: ${e.name} (${e.type}, priority ${e.priority})`]
+          if (e.result_tss != null) parts.push(`TSS ${e.result_tss}`)
+          if (e.result_duration_minutes != null) {
+            const h = Math.floor(e.result_duration_minutes / 60)
+            const m = e.result_duration_minutes % 60
+            parts.push(m > 0 ? `${h}h ${m}min` : `${h}h`)
+          }
+          if (e.result_avg_power != null) parts.push(`NP ${e.result_avg_power}W`)
+          if (e.result_note) parts.push(`"${e.result_note}"`)
+          return parts.join(' | ')
+        })
+        .join('\n')
+    : 'No event results recorded.'
+
+  const chatSection = chatMessages.length
+    ? chatMessages
+        .map(m => `${m.role}: ${m.content.slice(0, 200)}`)
+        .join('\n')
+    : 'No recent chat history.'
+
+  const prompt = `You are a cycling coach writing a structured profile of your athlete based on 90 days of training data.
+
+ATHLETE DATA:
+Goals: ${goals}
+FTP: ${currentFtp}W | Weight: ${weightKg}kg
+Current fitness: ${wellnessSummary}
+
+COMPLETED SESSIONS (last 90 days):
+${workoutsSection}
+
+SESSION FEEDBACK (last 90 days):
+${feedbackSection}
+
+EVENT RESULTS:
+${eventsSection}
+
+RECENT CHAT TOPICS (last 100 messages):
+${chatSection}
+
+Write a structured athlete profile. Be specific and evidence-based — reference actual sessions and results, not generalities. Keep each section to 2–4 sentences. Do not invent patterns not supported by the data.
+
+Return ONLY valid JSON matching this exact schema:
+{
+  "as_rider": "...",
+  "strengths": ["...", "..."],
+  "weaknesses": ["...", "..."],
+  "training_compliance": "...",
+  "recovery_profile": "...",
+  "event_performance": "...",
+  "trajectory": "..."
+}`
+
+  const { anthropic } = await import('./client')
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    system: SYNTHESIS_SYSTEM,
+    messages: [{ role: 'user', content: prompt }],
+  })
+  const block = response.content.find(b => b.type === 'text')
+  const raw = block?.type === 'text' ? block.text : ''
+  const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+  return JSON.parse(text) as DossierContent
+}
