@@ -39,6 +39,7 @@ export async function fetchDossier(
 export function formatDossier(dossier: AthleteDossier | null): string {
   if (!dossier) return ''
   const { content, explicit_notes, synthesized_at } = dossier
+  if (!content) return ''
   const daysAgo = Math.round(
     (Date.now() - new Date(synthesized_at).getTime()) / 864e5
   )

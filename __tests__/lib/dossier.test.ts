@@ -41,9 +41,9 @@ describe('formatDossier', () => {
     expect(result).toContain('Goes too hard on endurance days · Race pacing')
   })
 
-  it('includes explicit notes', () => {
+  it('includes explicit notes with date label', () => {
     const result = formatDossier(fullDossier)
-    expect(result).toContain('Knee flares up on long climbs')
+    expect(result).toContain('Knee flares up on long climbs (3 May)')
   })
 
   it('includes last updated age', () => {
