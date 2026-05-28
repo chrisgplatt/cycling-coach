@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       const s = wordOverlap(n.note.toLowerCase(), target)
       if (s > bestScore) { bestScore = s; bestIdx = i }
     })
-    if (bestIdx !== -1) {
+    if (bestIdx !== -1 && bestScore > 0.15) {
       const updated = notes.filter((_, i) => i !== bestIdx)
       const { error } = await supabase.from('athlete_dossier').update({ explicit_notes: updated }).eq('user_id', user.id)
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
