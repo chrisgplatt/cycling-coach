@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { createReviewStream, parsePlanText } from '@/lib/claude/review'
+import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
+import type { AthleteDossier } from '@/lib/claude/dossier'
 import { isoWeek } from '@/lib/iso-week'
 import type { GeneratedPlan, ICUActivity, Workout } from '@/types'
 
@@ -13,7 +15,10 @@ export async function POST(req: NextRequest) {
   const { note: rawNote = '' } = await req.json().catch(() => ({}))
   const note = String(rawNote).slice(0, 1000)
 
-  const { data: profile } = await supabase.from('user_profile').select('*').maybeSingle()
+  const [{ data: profile }, dossier] = await Promise.all([
+    supabase.from('user_profile').select('*').maybeSingle(),
+    fetchDossier(supabase, user.id),
+  ])
   if (!profile) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
   if (!profile.intervals_icu_athlete_id || !profile.intervals_icu_api_key) {
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
 
   let messageStream
   try {
-    messageStream = createReviewStream(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities)
+    messageStream = createReviewStream(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, formatDossier(dossier as AthleteDossier | null))
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Review generation failed'
     return NextResponse.json({ error: message }, { status: 500 })

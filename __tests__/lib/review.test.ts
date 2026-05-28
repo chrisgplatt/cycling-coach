@@ -49,3 +49,40 @@ describe('buildReviewPrompt — formatLastWeekWorkouts', () => {
     expect(prompt).not.toContain('completed (')
   })
 })
+
+import { formatDossier } from '@/lib/claude/dossier'
+import type { AthleteDossier } from '@/lib/claude/dossier'
+
+const mockDossierForReview: AthleteDossier = {
+  id: 'd5',
+  user_id: 'u1',
+  synthesized_at: new Date().toISOString(),
+  content: {
+    as_rider: 'Dedicated cyclist with strong Z2 base.',
+    strengths: ['Endurance', 'Recovery'],
+    weaknesses: ['High-intensity efforts'],
+    training_compliance: 'Consistently completes all sessions.',
+    recovery_profile: 'Bounces back quickly.',
+    event_performance: 'Strong sportive results.',
+    trajectory: 'Peak fitness approaching.',
+  },
+  explicit_notes: [],
+  created_at: new Date().toISOString(),
+}
+
+describe('buildReviewPrompt — dossier injection', () => {
+  it('includes dossier notes when dossierSection provided', () => {
+    const dossierSection = formatDossier(mockDossierForReview)
+    const prompt = buildReviewPrompt(
+      profile,
+      [],
+      [],
+      [],
+      '',
+      [],
+      dossierSection,
+    )
+    expect(prompt).toContain("COACH'S NOTES ON THIS ATHLETE")
+    expect(prompt).toContain('Dedicated cyclist')
+  })
+})

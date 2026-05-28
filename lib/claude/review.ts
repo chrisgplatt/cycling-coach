@@ -88,6 +88,7 @@ export function buildReviewPrompt(
   remainingWorkouts: Workout[],
   note: string,
   recentActivities: ICUActivity[] = [],
+  dossierSection = '',
 ): string {
   const wPerKg = (profile.current_ftp / profile.weight_kg).toFixed(2)
   const allEvents = [...(profile.events ?? [])].sort((a: TrainingEvent, b: TrainingEvent) =>
@@ -113,7 +114,7 @@ export function buildReviewPrompt(
 ATHLETE PROFILE:
 - Goals: ${profile.goals}
 - FTP: ${profile.current_ftp}W | Weight: ${profile.weight_kg}kg | Power-to-weight: ${wPerKg} W/kg
-
+${dossierSection ? '\n' + dossierSection + '\n' : ''}
 TRAINING ZONES (use these exact watt ranges):
 ${formatZones(profile.current_ftp)}
 
@@ -188,8 +189,9 @@ export function createReviewStream(
   remainingWorkouts: Workout[],
   note: string,
   recentActivities: ICUActivity[] = [],
+  dossierSection = '',
 ) {
-  const prompt = buildReviewPrompt(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities)
+  const prompt = buildReviewPrompt(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, dossierSection)
   return anthropic.messages.stream({
     model: 'claude-opus-4-7',
     max_tokens: 32000,
