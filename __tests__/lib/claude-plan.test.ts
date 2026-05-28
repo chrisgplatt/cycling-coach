@@ -1,18 +1,16 @@
-import { generatePlan } from '@/lib/claude/plan'
+import { generatePlan, createPlanStream } from '@/lib/claude/plan'
 import type { UserProfile, ICUSyncData, GeneratedPlan } from '@/types'
 
+const mockFinalMessage = jest.fn()
 jest.mock('@/lib/claude/client', () => ({
   MODEL: 'claude-sonnet-4-6',
   anthropic: {
     messages: {
       create: jest.fn(),
+      stream: jest.fn(() => ({ on: jest.fn(), finalMessage: mockFinalMessage })),
     },
   },
 }))
-
-import { anthropic } from '@/lib/claude/client'
-
-const mockCreate = anthropic.messages.create as jest.Mock
 
 const profile: UserProfile = {
   goals: 'Complete a gran fondo in June',
@@ -50,7 +48,7 @@ const validPlan: GeneratedPlan = {
 
 describe('generatePlan', () => {
   it('returns a GeneratedPlan when Claude returns valid JSON', async () => {
-    mockCreate.mockResolvedValueOnce({
+    mockFinalMessage.mockResolvedValueOnce({
       content: [{ type: 'text', text: JSON.stringify(validPlan) }],
     })
 
@@ -61,10 +59,40 @@ describe('generatePlan', () => {
   })
 
   it('throws if Claude returns malformed JSON', async () => {
-    mockCreate.mockResolvedValueOnce({
+    mockFinalMessage.mockResolvedValueOnce({
       content: [{ type: 'text', text: 'not json' }],
     })
 
     await expect(generatePlan(profile, syncData)).rejects.toThrow('Failed to parse plan')
+  })
+})
+
+import { formatDossier } from '@/lib/claude/dossier'
+import type { AthleteDossier } from '@/lib/claude/dossier'
+
+const mockDossierForPlan: AthleteDossier = {
+  id: 'd4',
+  user_id: 'u1',
+  synthesized_at: new Date().toISOString(),
+  content: {
+    as_rider: 'Consistent amateur cyclist.',
+    strengths: ['Aerobic base'],
+    weaknesses: ['Pacing in races'],
+    training_compliance: 'Very reliable.',
+    recovery_profile: 'Good 48h recovery.',
+    event_performance: 'Solid B-race results.',
+    trajectory: 'Building toward peak.',
+  },
+  explicit_notes: [],
+  created_at: new Date().toISOString(),
+}
+
+describe('createPlanStream — dossier injection', () => {
+  it('accepts a 6th dossierSection argument without error', () => {
+    const dossierSection = formatDossier(mockDossierForPlan)
+    // Just verify createPlanStream accepts the argument — it returns a stream object
+    expect(() => {
+      createPlanStream(profile, syncData, 4, '2026-06-01', '', dossierSection)
+    }).not.toThrow()
   })
 })

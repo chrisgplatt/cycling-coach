@@ -76,6 +76,7 @@ function buildPrompt(
   weeks: number,
   startDate: string,
   notes: string,
+  dossierSection = '',
 ): string {
   const allEvents = [...profile.events].sort((a, b) => a.date.localeCompare(b.date))
   if (!allEvents.length) throw new Error('Cannot generate a plan: no events configured.')
@@ -157,7 +158,7 @@ GOAL INTERPRETATION — derive training emphases from the athlete's goals:
 
 CURRENT ATHLETE STATE:
 ${summariseWellness(syncData.wellness)}
-
+${dossierSection ? '\n' + dossierSection + '\n' : ''}
 RECENT WEEKLY TRAINING LOAD:
 ${weeklyTssSummary(syncData.activities)}
 
@@ -234,8 +235,9 @@ export function createPlanStream(
   weeks: number,
   startDate: string,
   notes = '',
+  dossierSection = '',
 ) {
-  const prompt = buildPrompt(profile, syncData, weeks, startDate, notes)
+  const prompt = buildPrompt(profile, syncData, weeks, startDate, notes, dossierSection)
   return anthropic.messages.stream({
     model: 'claude-opus-4-7',
     max_tokens: 32000,
@@ -248,9 +250,10 @@ export async function generatePlan(
   profile: UserProfile,
   syncData: ICUSyncData,
   weeks: number = 6,
-  startDate: string = new Date().toISOString().split('T')[0]
+  startDate: string = new Date().toISOString().split('T')[0],
+  dossierSection = '',
 ): Promise<GeneratedPlan> {
-  const stream = createPlanStream(profile, syncData, weeks, startDate)
+  const stream = createPlanStream(profile, syncData, weeks, startDate, '', dossierSection)
   const response = await stream.finalMessage()
   const raw = response.content[0].type === 'text' ? response.content[0].text : ''
   try {
