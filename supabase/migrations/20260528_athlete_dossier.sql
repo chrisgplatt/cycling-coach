@@ -1,4 +1,5 @@
-create table athlete_dossier (
+-- Athlete dossier: persistent synthesized athlete profile, updated nightly
+create table if not exists athlete_dossier (
   id              uuid primary key default gen_random_uuid(),
   user_id         uuid not null references auth.users(id) on delete cascade,
   synthesized_at  timestamptz not null default now(),
@@ -14,4 +15,5 @@ create policy "Users can read own dossier" on athlete_dossier
   for select using (auth.uid() = user_id);
 
 create policy "Users can update own dossier" on athlete_dossier
-  for update using (auth.uid() = user_id);
+  for update using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
