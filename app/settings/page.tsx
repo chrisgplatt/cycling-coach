@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import type { AthleteDossier } from '@/lib/claude/dossier'
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -35,11 +36,26 @@ export default function SettingsPage() {
   const [cronTestLogs, setCronTestLogs] = useState<Array<{ event: string; status: string; details: unknown }> | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [dossier, setDossier] = useState<AthleteDossier | null | 'loading'>('loading')
 
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
 
   const isDirty = fullName !== savedFullName || athleteId !== savedAthleteId || apiKey !== savedApiKey || notifTime !== savedNotifTime || timezone !== savedTimezone
+
+  function daysAgoLabel(ts: string): string {
+    const days = Math.round((Date.now() - new Date(ts).getTime()) / 864e5)
+    if (days === 0) return 'today'
+    if (days === 1) return 'yesterday'
+    return `${days} days ago`
+  }
+
+  useEffect(() => {
+    fetch('/api/dossier')
+      .then(r => r.json())
+      .then(d => setDossier(d.dossier ?? null))
+      .catch(() => setDossier(null))
+  }, [])
 
   useEffect(() => {
     fetch('/api/profile')
@@ -62,6 +78,18 @@ export default function SettingsPage() {
       })
       .catch(() => {})
   }, [])
+
+  async function deleteNote(noteText: string) {
+    await fetch('/api/dossier/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forget: noteText }),
+    }).catch(() => {})
+    fetch('/api/dossier')
+      .then(r => r.json())
+      .then(d => setDossier(d.dossier ?? null))
+      .catch(() => {})
+  }
 
   async function save() {
     setSaving(true)
@@ -371,6 +399,93 @@ export default function SettingsPage() {
             </p>
           )}
         </div>
+      </section>
+
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Coach&apos;s View</h2>
+        {dossier === 'loading' && <p className="text-sm text-slate-400">Loading…</p>}
+        {dossier === null && (
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Your coach&apos;s notes will build up after a few days of training data.
+          </p>
+        )}
+        {dossier && dossier !== 'loading' && (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-400">Last updated: {daysAgoLabel(dossier.synthesized_at)}</p>
+            {dossier.content.as_rider && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">As a rider</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{dossier.content.as_rider}</p>
+              </div>
+            )}
+            {dossier.content.strengths?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Strengths</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {dossier.content.strengths.map((s, i) => (
+                    <span key={i} className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full px-2.5 py-1">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {dossier.content.weaknesses?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tendencies to watch</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {dossier.content.weaknesses.map((w, i) => (
+                    <span key={i} className="text-xs bg-amber-50 text-amber-700 border border-amber-100 rounded-full px-2.5 py-1">{w}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {dossier.content.training_compliance && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Training compliance</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{dossier.content.training_compliance}</p>
+              </div>
+            )}
+            {dossier.content.recovery_profile && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Recovery profile</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{dossier.content.recovery_profile}</p>
+              </div>
+            )}
+            {dossier.content.event_performance && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Event performance</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{dossier.content.event_performance}</p>
+              </div>
+            )}
+            {dossier.content.trajectory && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Current trajectory</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{dossier.content.trajectory}</p>
+              </div>
+            )}
+            {dossier.explicit_notes?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Remember</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {dossier.explicit_notes.map((n, i) => (
+                    <span
+                      key={i}
+                      className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-100 rounded-full pl-2.5 pr-1.5 py-1"
+                    >
+                      {n.note}
+                      <button
+                        onClick={() => deleteNote(n.note)}
+                        className="ml-0.5 text-blue-400 hover:text-blue-600 leading-none font-bold"
+                        aria-label={`Remove note: ${n.note}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
