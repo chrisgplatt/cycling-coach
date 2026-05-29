@@ -18,6 +18,7 @@ export const metadata: Metadata = {
     title: 'My Cycling Coach',
   },
   icons: {
+    icon: '/icon-192.png',
     apple: '/apple-touch-icon.png',
   },
 }
