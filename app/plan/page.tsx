@@ -70,6 +70,7 @@ export default function PlanPage() {
   const [planWorkouts, setPlanWorkouts] = useState<Workout[]>([])
   const [planTargetEvent, setPlanTargetEvent] = useState('')
   const [planTargetDate, setPlanTargetDate] = useState('')
+  const [planCreatedAt, setPlanCreatedAt] = useState('')
   const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
   const [planChatOpen, setPlanChatOpen] = useState(false)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
@@ -103,6 +104,7 @@ export default function PlanPage() {
         setPlanWorkouts(data?.workouts ?? [])
         if (data?.target_event_name) setPlanTargetEvent(data.target_event_name)
         if (data?.target_event_date) setPlanTargetDate(data.target_event_date)
+        if (data?.created_at) setPlanCreatedAt(data.created_at)
         const today = new Date().toISOString().split('T')[0]
         setFuturePlanWorkouts((data?.workouts ?? []).filter((w: Workout) => w.date >= today && w.status === 'planned'))
       })
@@ -325,11 +327,11 @@ export default function PlanPage() {
   }
 
   function weekNumber(): { current: number; total: number } | null {
-    // Only count workouts that belong to the active plan; unplanned rides can predate the plan
+    if (!planCreatedAt) return null
     const planOnly = planWorkouts.filter(w => w.plan_id !== null)
     if (planOnly.length === 0) return null
+    const start = new Date(planCreatedAt)
     const dates = planOnly.map(w => w.date).sort()
-    const start = new Date(dates[0])
     const end = new Date(dates[dates.length - 1])
     const total = Math.floor((end.getTime() - start.getTime()) / (7 * 864e5)) + 1
     const today = new Date()
