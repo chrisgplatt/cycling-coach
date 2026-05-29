@@ -260,6 +260,78 @@ export class IntervalsClient {
     return String(data.id)
   }
 
+  async createUnavailabilityEvent(params: {
+    type: import('@/types').UnavailabilityType
+    start_date: string
+    end_date: string
+    notes?: string
+  }): Promise<string> {
+    const { icuCategory } = await import('@/lib/utils/unavailability')
+    const label = params.type.charAt(0).toUpperCase() + params.type.slice(1)
+    const body: Record<string, unknown> = {
+      category: icuCategory(params.type),
+      start_date_local: `${params.start_date}T00:00:00`,
+      end_date_local: `${params.end_date}T23:59:59`,
+      name: label,
+    }
+    if (params.notes) body.description = params.notes
+    try {
+      const data = await this.request<{ id: number }>(
+        `/athlete/${this.athleteId}/events?upsertOnUid=false`,
+        { method: 'POST', body: JSON.stringify(body) }
+      )
+      return String(data.id)
+    } catch {
+      // ICU may not support end_date_local — fall back to start_date only
+      const fallback: Record<string, unknown> = {
+        category: icuCategory(params.type),
+        start_date_local: `${params.start_date}T00:00:00`,
+        name: label,
+      }
+      if (params.notes) fallback.description = params.notes
+      const data = await this.request<{ id: number }>(
+        `/athlete/${this.athleteId}/events?upsertOnUid=false`,
+        { method: 'POST', body: JSON.stringify(fallback) }
+      )
+      return String(data.id)
+    }
+  }
+
+  async updateUnavailabilityEvent(eventId: string, params: {
+    type: import('@/types').UnavailabilityType
+    start_date: string
+    end_date: string
+    notes?: string
+  }): Promise<void> {
+    const { icuCategory } = await import('@/lib/utils/unavailability')
+    const label = params.type.charAt(0).toUpperCase() + params.type.slice(1)
+    const body: Record<string, unknown> = {
+      category: icuCategory(params.type),
+      start_date_local: `${params.start_date}T00:00:00`,
+      end_date_local: `${params.end_date}T23:59:59`,
+      name: label,
+    }
+    if (params.notes) body.description = params.notes
+    try {
+      await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      })
+    } catch {
+      // Fall back without end_date_local
+      const fallback: Record<string, unknown> = {
+        category: icuCategory(params.type),
+        start_date_local: `${params.start_date}T00:00:00`,
+        name: label,
+      }
+      if (params.notes) fallback.description = params.notes
+      await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify(fallback),
+      })
+    }
+  }
+
   async updateEvent(eventId: string, params: Partial<CreateEventParams>): Promise<void> {
     const body: Record<string, unknown> = {}
     if (params.name !== undefined) body.name = params.name
