@@ -40,12 +40,20 @@ export async function GET(req: NextRequest) {
     if (cached) return NextResponse.json({ coach_note: cached.coach_note, cached: true })
   }
 
-  const [{ data: workouts }, dossier] = await Promise.all([
+  const fiveDaysLater = new Date(Date.now() + 5 * 864e5).toISOString().split('T')[0]
+
+  const [{ data: workouts }, { data: upcomingWorkoutsData }, dossier] = await Promise.all([
     supabase.from('workouts')
       .select('*')
       .eq('date', today)
       .in('status', ['planned', 'completed', 'needs_review'])
       .order('created_at'),
+    supabase.from('workouts')
+      .select('date, type, duration_minutes, description')
+      .eq('status', 'planned')
+      .gt('date', today)
+      .lte('date', fiveDaysLater)
+      .order('date'),
     fetchDossier(supabase, user.id),
   ])
 
@@ -128,6 +136,7 @@ export async function GET(req: NextRequest) {
     hrv,
     recentWorkouts,
     upcomingEvents,
+    upcomingWorkouts: (upcomingWorkoutsData ?? []) as BriefingContext['upcomingWorkouts'],
     dossier,
   }
 

@@ -3,7 +3,7 @@ import type { BriefingContext } from '@/types'
 
 const SYSTEM_MORNING = "You are a personal cycling coach. Write a short, direct, personalised morning briefing — 2–3 sentences maximum. Be specific about the numbers. Sound like a real coach texting an athlete, not a generic wellness app. No markdown, no bullet points, plain text only. If there is a pattern or trend from the athlete's profile that is specifically relevant to today — an upcoming A-race taper, a fatigue warning, a known compliance issue on this type of session — include one brief sentence about it. Surface it only when genuinely relevant; do not force a pattern observation into every briefing."
 
-const SYSTEM_POST_RIDE = 'You are a personal cycling coach. Write a short post-ride note — 2–3 sentences maximum. The athlete has just completed their session. Reflect briefly on how the numbers look, how the session fits their current training load, and what to prioritise now (recovery, nutrition, what is coming next). Be direct and specific, like a real coach. No markdown, no bullet points, plain text only.'
+const SYSTEM_POST_RIDE = 'You are a personal cycling coach. Write a short post-ride note — 2–3 sentences maximum. The athlete has just completed their session. Reflect briefly on how the numbers look, how the session fits their current training load, and what to prioritise now (recovery, nutrition, what is coming next). If there are planned sessions in the next few days, factor them into your advice — do not tell the athlete to rest if they already have sessions scheduled; instead advise how to approach those sessions given their current fatigue. Be direct and specific, like a real coach. No markdown, no bullet points, plain text only.'
 
 const SYSTEM_POST_RACE = 'You are a personal cycling coach. Write a short post-race note — 2–3 sentences maximum. The athlete has just completed a race or sportive. Acknowledge the effort, comment on how the result fits their training, and give a clear steer on recovery and what comes next. Be warm but direct, like a real coach texting after a race. No markdown, no bullet points, plain text only.'
 
@@ -145,10 +145,15 @@ async function generatePostRideNote(ctx: BriefingContext): Promise<string> {
     ? rides.map(r => rideDataString(r)).join(' | ')
     : 'No power data synced yet'
 
+  const upcomingPlan = ctx.upcomingWorkouts?.length
+    ? ctx.upcomingWorkouts.map(w => `${w.date}: ${w.type} ${w.duration_minutes}min`).join('; ')
+    : 'none scheduled'
+
   const prompt = `Today's date: ${ctx.today}
 Sessions today: ${sessionSummary}
 Ride data: ${rideStats}
 Training load after ride: ${buildLoadString(ctx)}
+Next 5 days planned sessions: ${upcomingPlan}
 Upcoming events: ${buildEventsString(ctx)}
 
 Write the post-ride note.`

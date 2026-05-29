@@ -299,6 +299,7 @@ export interface BriefingContext {
     tss: number | null
   }>
   upcomingEvents: TrainingEvent[]
+  upcomingWorkouts?: Array<{ date: string; type: string; duration_minutes: number; description: string }>
   activeUnavailability?: Array<{ type: string; end_date: string; notes?: string }>
   today: string  // YYYY-MM-DD in user's local timezone
   dossier?: {
