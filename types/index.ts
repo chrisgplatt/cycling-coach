@@ -5,7 +5,18 @@ export type EventPriority = 'A' | 'B' | 'C'
 export type EventType = 'sportive' | 'race' | 'holiday' | 'fitness'
 export type EventRPE = 'race_pace' | 'high' | 'medium' | 'low'
 export type RaceType = 'road_race' | 'criterium' | 'time_trial' | 'cyclocross'
+export type UnavailabilityType = 'sick' | 'injury' | 'holiday' | 'unavailable'
 export type PlanPhase = 'base' | 'build' | 'peak' | 'taper'
+
+export interface UnavailabilityPeriod {
+  id: string
+  type: UnavailabilityType
+  start_date: string     // YYYY-MM-DD
+  end_date: string       // YYYY-MM-DD (inclusive)
+  notes?: string
+  impact_plan: boolean
+  icu_event_id?: string
+}
 
 export interface TrainingEvent {
   name: string
@@ -32,6 +43,7 @@ export interface UserProfile {
   full_name?: string
   goals: string
   events: TrainingEvent[]
+  unavailability?: UnavailabilityPeriod[]
   weekly_hours?: number       // optional — superseded by weekly_availability
   rest_days?: string[]        // optional — superseded by weekly_availability
   weekly_availability?: Array<{ day: string; duration_minutes: number }>
