@@ -10,16 +10,18 @@ These rules govern every AI interaction that designs, adapts, or evaluates train
 
 | Task | Model |
 |------|-------|
-| Plan generation (`lib/claude/plan.ts`) | `claude-opus-4-7` |
-| Plan review/adaptation (`lib/claude/review.ts`) | `claude-opus-4-7` |
-| Post-session feedback analysis (`lib/claude/feedback.ts`) | `claude-opus-4-7` |
-| Workout step generation (`lib/claude/steps.ts`) | `claude-opus-4-7` |
-| FTP estimation (`lib/claude/ftp.ts`) | `claude-opus-4-7` |
-| Session coach chat (`/api/chat/session`) | `claude-sonnet-4-6` |
-| General coach chat (`/api/chat`) | `claude-sonnet-4-6` |
-| Daily briefing (`lib/claude/briefing.ts`) | `claude-sonnet-4-6` |
+| Plan generation (`lib/claude/plan.ts`) | `claude-opus-4-8` |
+| Plan review/adaptation (`lib/claude/review.ts`) | `claude-opus-4-8` |
+| Post-session feedback analysis (`lib/claude/feedback.ts`) | `claude-opus-4-8` |
+| Workout step generation (`lib/claude/steps.ts`) | `claude-opus-4-8` |
+| FTP estimation (`lib/claude/ftp.ts`) | `claude-opus-4-8` |
+| Session coach chat (`/api/chat/session`) | `claude-opus-4-8` |
+| General coach chat (`/api/chat`) | `claude-opus-4-8` |
+| Daily briefing (`lib/claude/briefing.ts`) | `claude-opus-4-8` |
+| Dossier synthesis (`lib/claude/dossier.ts`) | `claude-opus-4-8` |
+| Plan chat (`/api/chat/plan`) | `claude-opus-4-8` |
 
-Use the most capable model for anything that designs or modifies workouts. Sonnet is appropriate for conversational and briefing tasks only.
+All tasks now use the most capable model for best coaching results.
 
 ---
 
