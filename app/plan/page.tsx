@@ -159,9 +159,23 @@ export default function PlanPage() {
     }
   }
 
-  function handleAdaptationApprove() {
+  async function handleAdaptationApprove() {
     setShowReviewModal(false)
     setReviewPlan(null)
+    // If the plan target was cleared when the event was deleted, repopulate with the next upcoming event
+    if (!planTargetDate) {
+      const today = new Date().toISOString().split('T')[0]
+      const next = [...events].filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
+      if (next) {
+        await fetch('/api/plan/target', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target_event_name: next.name, target_event_date: next.date }),
+        }).catch(() => {})
+        setPlanTargetEvent(next.name)
+        setPlanTargetDate(next.date)
+      }
+    }
     loadPlan()
   }
 
@@ -265,6 +279,16 @@ export default function PlanPage() {
       const data = await res.json()
       if (!res.ok) { setSyncResult(`Error deleting event: ${data.error ?? 'Failed'}`); return }
       setEvents(ev => ev.filter(e => !(e.name === name && e.date === date)))
+      // If the deleted event was the plan's target, clear those fields from the plan record
+      if (planName && planTargetDate === date && planTargetEvent === name) {
+        fetch('/api/plan/target', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target_event_name: '', target_event_date: '' }),
+        }).catch(() => {})
+        setPlanTargetEvent('')
+        setPlanTargetDate('')
+      }
       if (planName) {
         setPendingAdaptNote(`The event "${name}" on ${date} has been removed — please adapt the training plan accordingly.`)
       }
