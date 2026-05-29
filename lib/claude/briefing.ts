@@ -146,7 +146,11 @@ async function generatePostRideNote(ctx: BriefingContext): Promise<string> {
     : 'No power data synced yet'
 
   const upcomingPlan = ctx.upcomingWorkouts?.length
-    ? ctx.upcomingWorkouts.map(w => `${w.date}: ${w.type} ${w.duration_minutes}min`).join('; ')
+    ? ctx.upcomingWorkouts.map(w => {
+        const [y, m, d] = w.date.split('-').map(Number)
+        const day = DAY_NAMES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+        return `${day} ${w.date}: ${w.type} ${w.duration_minutes}min`
+      }).join('; ')
     : 'none scheduled'
 
   const prompt = `Today's date: ${ctx.today}
