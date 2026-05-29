@@ -101,11 +101,19 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<string> {
     }
   }
 
+  const unavailLine = ctx.activeUnavailability?.length
+    ? ctx.activeUnavailability.map(u => {
+        const label = u.type.charAt(0).toUpperCase() + u.type.slice(1)
+        return `${label} until ${u.end_date}${u.notes ? ` (${u.notes})` : ''}`
+      }).join('; ')
+    : null
+
   const prompt = `Today's date: ${ctx.today}
 Today's plan: ${sessionLine}
 Training load: ${buildLoadString(ctx)}
 Recent sessions: ${recent}
 Upcoming events: ${buildEventsString(ctx)}
+${unavailLine ? `Current unavailability: ${unavailLine}` : ''}
 ${dossierLines.length ? '\nAthlete context:\n' + dossierLines.join('\n') : ''}
 Write the morning briefing.`
 

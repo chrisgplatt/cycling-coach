@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
 
   const { data: profiles, error: profilesError } = await supabase
     .from('user_profile')
-    .select('user_id, intervals_icu_athlete_id, intervals_icu_api_key, events, notification_time, timezone')
+    .select('user_id, intervals_icu_athlete_id, intervals_icu_api_key, events, unavailability, notification_time, timezone')
     .eq('notifications_enabled', true)
 
   if (profilesError) {
@@ -166,6 +166,10 @@ export async function GET(req: NextRequest) {
       console.log(`[cron] user ${profile.user_id}: no ICU credentials, skipping fitness data`)
     }
 
+    const activeUnavailability = ((profile.unavailability ?? []) as Array<{ type: string; start_date: string; end_date: string; notes?: string }>)
+      .filter(u => u.start_date <= today && u.end_date >= today)
+      .map(u => ({ type: u.type, end_date: u.end_date, notes: u.notes }))
+
     const ctx: BriefingContext = {
       today,
       todayWorkout,
@@ -174,6 +178,7 @@ export async function GET(req: NextRequest) {
       ctl, atl, tsb,
       readinessLabel: readinessLabel(tsb),
       hrv, recentWorkouts, upcomingEvents,
+      activeUnavailability,
     }
 
     let coach_note = existing?.coach_note ?? null
