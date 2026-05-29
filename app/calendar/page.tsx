@@ -6,8 +6,10 @@ import SessionChatModal from '@/components/SessionChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
 import AddEventModal from '@/components/AddEventModal'
 import PlanReviewModal from '@/components/PlanReviewModal'
-import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus, GeneratedPlan } from '@/types'
+import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus, GeneratedPlan, UnavailabilityPeriod } from '@/types'
 import { calendarMonthDays, weekDates, formatDuration, formatMovingTime, toLocalDateStr } from '@/lib/calendar-helpers'
+import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
+import { periodOverlapsWeek, coveredDaysInWeek, periodDurationDays } from '@/lib/utils/unavailability'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -88,6 +90,16 @@ function ActivityCard({ activity }: { activity: ICUActivity }) {
       </div>
     </div>
   )
+}
+
+const PERIOD_STYLES: Record<string, { bg: string; text: string; border: string; daybg: string }> = {
+  sick:        { bg: 'bg-red-100',    text: 'text-red-700',    border: 'border-red-300',    daybg: 'bg-red-50' },
+  injury:      { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300', daybg: 'bg-orange-50' },
+  holiday:     { bg: 'bg-teal-100',   text: 'text-teal-700',   border: 'border-teal-300',   daybg: 'bg-teal-50' },
+  unavailable: { bg: 'bg-slate-100',  text: 'text-slate-600',  border: 'border-slate-300',  daybg: 'bg-slate-50' },
+}
+const PERIOD_ICONS: Record<string, string> = {
+  sick: '🤒', injury: '🤕', holiday: '🏖️', unavailable: '🚫',
 }
 
 // ─── Month strip ─────────────────────────────────────────────────────────────
@@ -174,15 +186,37 @@ interface WeekDetailProps {
   todayStr: string
   onWorkoutClick: (w: Workout) => void
   onEventClick: (e: TrainingEvent) => void
+  unavailability: UnavailabilityPeriod[]
+  onAddUnavailability: (date: string) => void
 }
 
 function WeekDetail({
   selectedDateStr, workouts, events, unlinkedActivities, todayStr,
-  onWorkoutClick, onEventClick,
+  onWorkoutClick, onEventClick, unavailability, onAddUnavailability,
 }: WeekDetailProps) {
   const dates = weekDates(selectedDateStr)
+  const overlappingPeriods = unavailability.filter(p => periodOverlapsWeek(p, dates))
+  const coveredMap = new Map(
+    overlappingPeriods.map(p => [p.id, coveredDaysInWeek(p, dates)])
+  )
   return (
     <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+      {overlappingPeriods.map(period => {
+        const style = PERIOD_STYLES[period.type] ?? PERIOD_STYLES.unavailable
+        const icon = PERIOD_ICONS[period.type] ?? '🚫'
+        const label = period.type.charAt(0).toUpperCase() + period.type.slice(1)
+        const days = periodDurationDays(period)
+        return (
+          <div
+            key={period.id}
+            className={`mx-3 mt-2 mb-1 px-3 py-1.5 rounded-lg border flex items-center gap-2 text-xs font-semibold ${style.bg} ${style.text} ${style.border}`}
+          >
+            <span>{icon}</span>
+            <span>{label}{period.notes ? ` · ${period.notes}` : ''}</span>
+            <span className="font-normal ml-auto opacity-70">{period.start_date} – {period.end_date} · {days}d</span>
+          </div>
+        )
+      })}
       {dates.map((dateStr, i) => {
         const dayWorkouts = workouts.filter(w => w.date === dateStr)
         const dayEvents = events.filter(e => e.date === dateStr)
@@ -209,18 +243,27 @@ function WeekDetail({
           }
         }
 
+        const isCovered = overlappingPeriods.some(p => coveredMap.get(p.id)?.[i])
+        const coveringPeriod = overlappingPeriods.find(p => coveredMap.get(p.id)?.[i])
+        const dayStyle = coveringPeriod ? (PERIOD_STYLES[coveringPeriod.type] ?? PERIOD_STYLES.unavailable) : null
+
         return (
-          <div key={dateStr} className="flex gap-3 px-3 py-2.5 items-start">
+          <div key={dateStr} className={`flex gap-3 px-3 py-2.5 items-start${isCovered && dayStyle ? ` ${dayStyle.daybg}` : ''}`}>
             {/* Date column */}
             <div className="w-10 flex-shrink-0 text-center pt-0.5">
               <div className={`text-[10px] font-semibold uppercase
                 ${hasEvent ? 'text-red-500' : isToday ? 'text-blue-500' : 'text-slate-400'}`}>
                 {DAY_NAMES[i]}
               </div>
-              <div className={`text-lg font-bold leading-tight
-                ${hasEvent ? 'text-red-600' : isToday ? 'text-blue-600' : 'text-slate-500'}`}>
+              <button
+                onClick={() => onAddUnavailability(dateStr)}
+                className={`text-lg font-bold leading-tight w-full active:opacity-70 ${
+                  hasEvent ? 'text-red-600' : isToday ? 'text-blue-600' : 'text-slate-500'
+                }`}
+                aria-label={`Add unavailability on ${dateStr}`}
+              >
                 {dayNum}
-              </div>
+              </button>
             </div>
             {/* Sessions column */}
             <div className="flex-1 flex flex-col gap-1.5 min-w-0 py-0.5">
@@ -274,6 +317,9 @@ export default function CalendarPage() {
   const [selectedDateStr, setSelectedDateStr] = useState(todayStr)
   const [displayYear, setDisplayYear] = useState(() => new Date().getFullYear())
   const [displayMonth, setDisplayMonth] = useState(() => new Date().getMonth())
+
+  const [unavailability, setUnavailability] = useState<UnavailabilityPeriod[]>([])
+  const [addUnavailDate, setAddUnavailDate] = useState<string | null>(null)
 
   const reviewAbortRef = useRef<AbortController | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -348,7 +394,10 @@ export default function CalendarPage() {
       .catch(() => {})
     fetch('/api/profile')
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.events) setEvents(data.events) })
+      .then(data => {
+        if (data?.events) setEvents(data.events)
+        if (data) setUnavailability(data.unavailability ?? [])
+      })
       .catch(() => {})
   }, [])
 
@@ -359,6 +408,15 @@ export default function CalendarPage() {
   function nextMonth() {
     if (displayMonth === 11) { setDisplayMonth(0); setDisplayYear(y => y + 1) }
     else setDisplayMonth(m => m + 1)
+  }
+
+  function handlePeriodSaved(period: UnavailabilityPeriod) {
+    setUnavailability(prev => {
+      const idx = prev.findIndex(p => p.id === period.id)
+      if (idx !== -1) { const next = [...prev]; next[idx] = period; return next }
+      return [...prev, period]
+    })
+    setAddUnavailDate(null)
   }
 
   async function openEvent(event: TrainingEvent) {
@@ -440,7 +498,17 @@ export default function CalendarPage() {
         todayStr={todayStr}
         onWorkoutClick={(w) => setSelectedWorkout(w)}
         onEventClick={openEvent}
+        unavailability={unavailability}
+        onAddUnavailability={date => setAddUnavailDate(date)}
       />
+
+      {addUnavailDate && (
+        <AddUnavailabilityModal
+          defaultStartDate={addUnavailDate}
+          onClose={() => setAddUnavailDate(null)}
+          onSaved={handlePeriodSaved}
+        />
+      )}
 
       {/* Modals — all unchanged from original */}
       {selectedWorkout && (
