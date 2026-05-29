@@ -17,6 +17,21 @@ export async function POST(req: NextRequest) {
   if (typeof type !== 'string' || typeof start_date !== 'string' || typeof end_date !== 'string') {
     return NextResponse.json({ error: 'type, start_date, and end_date are required' }, { status: 400 })
   }
+
+  const validTypes = ['sick', 'injury', 'holiday', 'unavailable'] as const
+  if (!validTypes.includes(type as UnavailabilityType)) {
+    return NextResponse.json({ error: 'type must be one of: sick, injury, holiday, unavailable' }, { status: 400 })
+  }
+
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+  if (!dateRegex.test(start_date) || !dateRegex.test(end_date)) {
+    return NextResponse.json({ error: 'start_date and end_date must be YYYY-MM-DD format' }, { status: 400 })
+  }
+
+  if (impact_plan !== undefined && typeof impact_plan !== 'boolean') {
+    return NextResponse.json({ error: 'impact_plan must be a boolean' }, { status: 400 })
+  }
+
   if (end_date < start_date) {
     return NextResponse.json({ error: 'end_date must be >= start_date' }, { status: 400 })
   }
