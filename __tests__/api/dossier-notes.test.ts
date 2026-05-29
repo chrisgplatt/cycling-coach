@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { wordOverlap } from '@/app/api/dossier/notes/route'
+import { wordOverlap } from '@/lib/utils/word-overlap'
 
 describe('wordOverlap', () => {
   it('returns 1 for identical strings', () => {

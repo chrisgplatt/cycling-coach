@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import type { ExplicitNote } from '@/lib/claude/dossier'
+import { wordOverlap } from '@/lib/utils/word-overlap'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -47,11 +48,3 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ error: 'Must provide note or forget' }, { status: 400 })
 }
 
-export function wordOverlap(a: string, b: string): number {
-  const aW = new Set(a.split(/\s+/).filter(Boolean))
-  const bW = new Set(b.split(/\s+/).filter(Boolean))
-  if (aW.size === 0 || bW.size === 0) return 0
-  let overlap = 0
-  for (const w of bW) if (aW.has(w)) overlap++
-  return overlap / Math.max(aW.size, bW.size)
-}
