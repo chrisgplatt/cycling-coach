@@ -1,12 +1,14 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import AddEventModal from '@/components/AddEventModal'
+import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
 import PlanDurationModal from '@/components/PlanDurationModal'
 import PlanApprovalModal from '@/components/PlanApprovalModal'
 import PlanReviewModal from '@/components/PlanReviewModal'
 import ClearWorkoutsModal from '@/components/ClearWorkoutsModal'
 import PlanChatModal from '@/components/PlanChatModal'
-import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData } from '@/types'
+import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod } from '@/types'
+import { periodDurationDays } from '@/lib/utils/unavailability'
 
 type Tab = 'plan' | 'profile' | 'events'
 
@@ -57,6 +59,12 @@ export default function PlanPage() {
   const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
   const [deletingEvent, setDeletingEvent] = useState<string | null>(null)
   const [confirmingEvent, setConfirmingEvent] = useState<string | null>(null)
+
+  const [unavailability, setUnavailability] = useState<UnavailabilityPeriod[]>([])
+  const [showAddUnavailability, setShowAddUnavailability] = useState(false)
+  const [editingPeriod, setEditingPeriod] = useState<UnavailabilityPeriod | null>(null)
+  const [confirmingPeriod, setConfirmingPeriod] = useState<string | null>(null)
+  const [deletingPeriod, setDeletingPeriod] = useState<string | null>(null)
 
   const [planName, setPlanName] = useState<string | null>(null)
   const [planWorkouts, setPlanWorkouts] = useState<Workout[]>([])
@@ -175,6 +183,7 @@ export default function PlanPage() {
         setMinSessions(minSess); setSavedMinSessions(minSess)
         setMaxSessions(maxSess); setSavedMaxSessions(maxSess)
         setEvents(data.events ?? [])
+        setUnavailability(data.unavailability ?? [])
       })
       // Fix 2: surface load errors instead of silently swallowing them
       .catch(() => setLoadError('Failed to load profile'))
@@ -284,6 +293,35 @@ export default function PlanPage() {
     if (!res.ok) throw new Error(data.error ?? 'Failed to update event')
     setEvents(ev => ev.map(e => e.name === original.name && e.date === original.date ? data.event : e))
     if (data.icu_error) setSyncResult(`Event updated, but intervals.icu sync failed: ${data.icu_error}`)
+  }
+
+  async function deletePeriod(id: string) {
+    setDeletingPeriod(id)
+    try {
+      const res = await fetch('/api/unavailability/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) { const d = await res.json(); setSyncResult(`Error: ${d.error ?? 'Delete failed'}`); return }
+      setUnavailability(prev => prev.filter(p => p.id !== id))
+    } catch { setSyncResult('Network error') }
+    finally { setDeletingPeriod(null); setConfirmingPeriod(null) }
+  }
+
+  function handlePeriodSaved(period: UnavailabilityPeriod, impactPlan: boolean) {
+    setUnavailability(prev => {
+      const idx = prev.findIndex(p => p.id === period.id)
+      if (idx !== -1) { const next = [...prev]; next[idx] = period; return next }
+      return [...prev, period]
+    })
+    setShowAddUnavailability(false)
+    setEditingPeriod(null)
+    if (impactPlan) {
+      const label = period.type.charAt(0).toUpperCase() + period.type.slice(1)
+      const note = period.notes ? `${label}: ${period.notes}` : label
+      startAdaptation(`I've added a ${note} period from ${period.start_date} to ${period.end_date}. Please adapt my training plan around it.`)
+    }
   }
 
   function weekNumber(): { current: number; total: number } | null {
@@ -743,6 +781,70 @@ export default function PlanPage() {
           <p className="text-xs text-slate-400 px-1">
             A-priority events trigger a taper in your plan. B-priority events are treated as hard training days.
           </p>
+
+          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Unavailability Periods</h2>
+              <button
+                onClick={() => setShowAddUnavailability(true)}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              >
+                + Add period
+              </button>
+            </div>
+            {unavailability.length === 0 && (
+              <p className="text-sm text-slate-400">No unavailability periods. Add one when sick, injured or away.</p>
+            )}
+            {[...unavailability].sort((a, b) => a.start_date.localeCompare(b.start_date)).map(period => {
+              const TYPE_ICONS: Record<string, string> = { sick: '🤒', injury: '🤕', holiday: '🏖️', unavailable: '🚫' }
+              const icon = TYPE_ICONS[period.type] ?? '🚫'
+              const label = period.type.charAt(0).toUpperCase() + period.type.slice(1)
+              const days = periodDurationDays(period)
+              const dateRange = period.start_date === period.end_date
+                ? period.start_date
+                : `${period.start_date} – ${period.end_date}`
+              return (
+                <div key={period.id} className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-800">{icon} {label}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{dateRange} · {days} day{days !== 1 ? 's' : ''}</p>
+                    {period.notes && <p className="text-xs text-slate-400 mt-0.5 truncate">{period.notes}</p>}
+                    <p className="text-xs mt-0.5">
+                      {period.impact_plan
+                        ? <span className="text-amber-600 font-medium">● impacts plan</span>
+                        : <span className="text-slate-400">○ info only</span>}
+                      {period.icu_event_id && <span className="ml-2 text-green-600">↑ synced</span>}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => setEditingPeriod(period)}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                    >Edit</button>
+                    {confirmingPeriod === period.id ? (
+                      <>
+                        <span className="text-xs text-slate-600">Delete?</span>
+                        <button
+                          onClick={() => deletePeriod(period.id)}
+                          disabled={deletingPeriod === period.id}
+                          className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors"
+                        >{deletingPeriod === period.id ? 'Deleting…' : 'Yes'}</button>
+                        <button
+                          onClick={() => setConfirmingPeriod(null)}
+                          className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                        >Cancel</button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmingPeriod(period.id)}
+                        className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                      >Delete</button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </section>
         </div>
 
         {showAddEvent && (
@@ -760,6 +862,19 @@ export default function PlanPage() {
             onClose={() => setEditingEvent(null)}
             hasPlan={planName !== null}
             onRegenerate={(note) => startAdaptation(note)}
+          />
+        )}
+        {showAddUnavailability && (
+          <AddUnavailabilityModal
+            onClose={() => setShowAddUnavailability(false)}
+            onSaved={handlePeriodSaved}
+          />
+        )}
+        {editingPeriod && (
+          <AddUnavailabilityModal
+            period={editingPeriod}
+            onClose={() => setEditingPeriod(null)}
+            onSaved={handlePeriodSaved}
           />
         )}
 
