@@ -71,6 +71,7 @@ export default function PlanPage() {
   const [planTargetEvent, setPlanTargetEvent] = useState('')
   const [planTargetDate, setPlanTargetDate] = useState('')
   const [planCreatedAt, setPlanCreatedAt] = useState('')
+  const [planTotalWeeks, setPlanTotalWeeks] = useState<number | null>(null)
   const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
   const [planChatOpen, setPlanChatOpen] = useState(false)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
@@ -105,6 +106,7 @@ export default function PlanPage() {
         if (data?.target_event_name) setPlanTargetEvent(data.target_event_name)
         if (data?.target_event_date) setPlanTargetDate(data.target_event_date)
         if (data?.created_at) setPlanCreatedAt(data.created_at)
+        if (data?.plan_weeks) setPlanTotalWeeks(data.plan_weeks)
         const today = new Date().toISOString().split('T')[0]
         setFuturePlanWorkouts((data?.workouts ?? []).filter((w: Workout) => w.date >= today && w.status === 'planned'))
       })
@@ -355,9 +357,15 @@ export default function PlanPage() {
     const planOnly = planWorkouts.filter(w => w.plan_id !== null)
     if (planOnly.length === 0) return null
     const start = new Date(planCreatedAt)
-    const dates = planOnly.map(w => w.date).sort()
-    const end = new Date(dates[dates.length - 1])
-    const total = Math.floor((end.getTime() - start.getTime()) / (7 * 864e5)) + 1
+    // Use the stored week count if available; fall back to deriving from last workout date
+    let total: number
+    if (planTotalWeeks) {
+      total = planTotalWeeks
+    } else {
+      const dates = planOnly.map(w => w.date).sort()
+      const end = new Date(dates[dates.length - 1])
+      total = Math.floor((end.getTime() - start.getTime()) / (7 * 864e5)) + 1
+    }
     const today = new Date()
     const current = Math.max(1, Math.min(total, Math.floor((today.getTime() - start.getTime()) / (7 * 864e5)) + 1))
     return { current, total }

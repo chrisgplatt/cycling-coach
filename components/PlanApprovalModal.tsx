@@ -23,7 +23,7 @@ export default function PlanApprovalModal({ plan, loading = false, weeks = 6, wo
       const res = await fetch('/api/plan', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, name: name.trim() }),
+        body: JSON.stringify({ plan, name: name.trim(), weeks }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {

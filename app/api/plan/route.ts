@@ -115,10 +115,13 @@ export async function PATCH(req: NextRequest) {
 
   let plan: GeneratedPlan
   let name = ''
+  let planWeeks: number | null = null
   try {
     const body = await req.json()
     plan = body.plan
     name = (body.name ?? '').trim()
+    const rawWeeks = body.weeks
+    planWeeks = typeof rawWeeks === 'number' && rawWeeks > 0 ? Math.min(13, Math.round(rawWeeks)) : null
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
@@ -192,6 +195,7 @@ export async function PATCH(req: NextRequest) {
       target_event_date: plan.target_event_date,
       phase: plan.phase,
       rationale: plan.rationale,
+      plan_weeks: planWeeks,
       user_id: user.id,
     })
     .select()
