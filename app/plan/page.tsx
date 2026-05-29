@@ -325,11 +325,12 @@ export default function PlanPage() {
   }
 
   function weekNumber(): { current: number; total: number } | null {
-    if (planWorkouts.length === 0) return null
-    const dates = planWorkouts.map(w => w.date).sort()
+    // Only count workouts that belong to the active plan; unplanned rides can predate the plan
+    const planOnly = planWorkouts.filter(w => w.plan_id !== null)
+    if (planOnly.length === 0) return null
+    const dates = planOnly.map(w => w.date).sort()
     const start = new Date(dates[0])
-    // Use the stored plan target date for accurate total weeks; fall back to last workout
-    const end = new Date(planTargetDate || dates[dates.length - 1])
+    const end = new Date(dates[dates.length - 1])
     const total = Math.floor((end.getTime() - start.getTime()) / (7 * 864e5)) + 1
     const today = new Date()
     const current = Math.max(1, Math.min(total, Math.floor((today.getTime() - start.getTime()) / (7 * 864e5)) + 1))
