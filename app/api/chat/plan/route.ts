@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic } from '@/lib/claude/client'
 import { formatZones, formatSchedule } from '@/lib/claude/plan'
-import type { ICUWellness, TrainingEvent, TrainingPlan, UserProfile, Workout } from '@/types'
+import type { ICUWellness, TrainingEvent, TrainingPlan, UserProfile, Workout, UnavailabilityPeriod } from '@/types'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 
@@ -24,6 +24,7 @@ function buildSystemPrompt(
   currentFTP: number,
   profile: UserProfile,
   dossierSection = '',
+  unavailability: UnavailabilityPeriod[] = [],
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' })
@@ -79,6 +80,19 @@ function buildSystemPrompt(
       }).join('\n')
     : 'None'
 
+  const unavailSection = unavailability.length
+    ? 'UNAVAILABILITY PERIODS (never propose a workout on these dates):\n' +
+      unavailability
+        .sort((a, b) => a.start_date.localeCompare(b.start_date))
+        .map(p => {
+          const label = p.type.charAt(0).toUpperCase() + p.type.slice(1)
+          const note = p.notes ? ` | "${p.notes}"` : ''
+          const impact = p.impact_plan ? ' | impacts plan' : ' | info only'
+          return `- ${p.start_date} to ${p.end_date} | ${label}${note}${impact}`
+        })
+        .join('\n')
+    : ''
+
   const workoutsSection = futureWorkouts.length
     ? futureWorkouts
         .map(w => `- ${w.id} | ${w.date} | ${w.type} | ${w.duration_minutes}min | ${w.description}`)
@@ -105,7 +119,7 @@ ACTIVE PLAN: ${plan.name} (${plan.phase} phase)
 Target: ${plan.target_event_name} on ${plan.target_event_date}
 Rationale: ${plan.rationale}
 ${removedTargetNote}
-${dossierSection ? dossierSection + '\n\n' : ''}UPCOMING EVENTS (BLOCKED — never propose a workout on these dates):
+${unavailSection ? unavailSection + '\n\n' : ''}${dossierSection ? dossierSection + '\n\n' : ''}UPCOMING EVENTS (BLOCKED — never propose a workout on these dates):
 ${eventsSection}
 
 FUTURE PLANNED WORKOUTS (ID | date | type | duration | description):
@@ -196,6 +210,7 @@ export async function POST(req: NextRequest) {
     currentFTP,
     profile as unknown as UserProfile,
     formatDossier(dossier as AthleteDossier | null),
+    ((profile as Record<string, unknown>).unavailability ?? []) as UnavailabilityPeriod[],
   )
 
   const messages = [
