@@ -697,7 +697,9 @@ export default function PlanPage() {
               const key = `${event.name}|${event.date}`
               const today = new Date().toISOString().split('T')[0]
               const diffDays = Math.round((new Date(event.date).getTime() - new Date(today).getTime()) / 864e5)
-              const countdown = diffDays === 0 ? 'Today!' : diffDays === 1 ? 'Tomorrow' : diffDays > 0 ? `In ${diffDays} days` : `${Math.abs(diffDays)} days ago`
+              const absDays = Math.abs(diffDays)
+              const weeksStr = absDays >= 14 ? ` / ${Math.floor(absDays / 7)}w` : ''
+              const countdown = diffDays === 0 ? 'Today!' : diffDays === 1 ? 'Tomorrow' : diffDays > 0 ? `In ${diffDays}d${weeksStr}` : `${absDays}d${weeksStr} ago`
               const countdownColor = diffDays < 0 ? 'text-slate-400' : diffDays === 0 ? 'text-green-600 font-semibold' : diffDays <= 7 ? 'text-amber-600' : 'text-slate-500'
               return (
                 <div key={key} className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
