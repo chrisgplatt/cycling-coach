@@ -82,7 +82,7 @@ function buildSystemPrompt(
 
   const unavailSection = unavailability.length
     ? 'UNAVAILABILITY PERIODS (never propose a workout on these dates):\n' +
-      unavailability
+      [...unavailability]
         .sort((a, b) => a.start_date.localeCompare(b.start_date))
         .map(p => {
           const label = p.type.charAt(0).toUpperCase() + p.type.slice(1)
