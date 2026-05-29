@@ -31,13 +31,14 @@ export default function PlanDurationModal({ onStart, onCancel, initialNotes }: P
           <h2 className="text-lg font-bold text-slate-900">Build a new plan</h2>
           <p className="text-sm text-slate-500 mt-1">Claude will generate a periodized training block.</p>
         </div>
-        <div className="overflow-hidden">
+        <div>
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Start date</label>
           <input
             type="date"
             value={startDate}
             onChange={e => setStartDate(e.target.value)}
-            className="w-full min-w-0 text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            style={{ WebkitAppearance: 'none', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+            className="text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
         <div>
