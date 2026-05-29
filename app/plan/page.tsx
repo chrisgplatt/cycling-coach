@@ -328,19 +328,19 @@ export default function PlanPage() {
     if (planWorkouts.length === 0) return null
     const dates = planWorkouts.map(w => w.date).sort()
     const start = new Date(dates[0])
-    const end = new Date(dates[dates.length - 1])
+    // Use the stored plan target date for accurate total weeks; fall back to last workout
+    const end = new Date(planTargetDate || dates[dates.length - 1])
     const total = Math.floor((end.getTime() - start.getTime()) / (7 * 864e5)) + 1
     const today = new Date()
     const current = Math.max(1, Math.min(total, Math.floor((today.getTime() - start.getTime()) / (7 * 864e5)) + 1))
     return { current, total }
   }
 
-  function daysToAEvent(): number | null {
+  function nextEvent(): { days: number; name: string } | null {
     const upcoming = events
-      .filter(e => e.priority === 'A')
-      .map(e => Math.ceil((new Date(e.date).getTime() - Date.now()) / 864e5))
-      .filter(d => d > 0)
-      .sort((a, b) => a - b)
+      .map(e => ({ days: Math.ceil((new Date(e.date).getTime() - Date.now()) / 864e5), name: e.name }))
+      .filter(e => e.days > 0)
+      .sort((a, b) => a.days - b.days)
     return upcoming[0] ?? null
   }
 
@@ -426,7 +426,7 @@ export default function PlanPage() {
       <div data-testid="tab-plan" style={{ display: tab === 'plan' ? 'block' : 'none' }}>
         {planName ? (() => {
           const wk = weekNumber()
-          const days = daysToAEvent()
+          const next = nextEvent()
           return (
             <div className="space-y-4">
               <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl p-5 text-white shadow-md">
@@ -445,7 +445,7 @@ export default function PlanPage() {
                 </div>
                 <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
                   {wk && <span>Week <strong>{wk.current}</strong> of <strong>{wk.total}</strong></span>}
-                  {days !== null && <span>🏁 A event in <strong>{days} days</strong></span>}
+                  {next !== null && <span>🏁 {next.name} in <strong>{next.days} day{next.days !== 1 ? 's' : ''}</strong></span>}
                   <span>Phase: <strong>Base</strong></span>
                 </div>
                 {wk && (
