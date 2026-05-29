@@ -31,7 +31,7 @@ export default function PlanDurationModal({ onStart, onCancel, initialNotes }: P
           <h2 className="text-lg font-bold text-slate-900">Build a new plan</h2>
           <p className="text-sm text-slate-500 mt-1">Claude will generate a periodized training block.</p>
         </div>
-        <div>
+        <div className="overflow-hidden">
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Start date</label>
           <input
             type="date"
