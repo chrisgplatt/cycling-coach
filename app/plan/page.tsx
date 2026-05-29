@@ -317,7 +317,7 @@ export default function PlanPage() {
     })
     setShowAddUnavailability(false)
     setEditingPeriod(null)
-    if (impactPlan) {
+    if (impactPlan && planName) {
       const label = period.type.charAt(0).toUpperCase() + period.type.slice(1)
       const note = period.notes ? `${label}: ${period.notes}` : label
       startAdaptation(`I've added a ${note} period from ${period.start_date} to ${period.end_date}. Please adapt my training plan around it.`)

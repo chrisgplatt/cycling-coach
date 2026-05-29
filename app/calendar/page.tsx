@@ -410,13 +410,18 @@ export default function CalendarPage() {
     else setDisplayMonth(m => m + 1)
   }
 
-  function handlePeriodSaved(period: UnavailabilityPeriod) {
+  function handlePeriodSaved(period: UnavailabilityPeriod, impactPlan: boolean) {
     setUnavailability(prev => {
       const idx = prev.findIndex(p => p.id === period.id)
       if (idx !== -1) { const next = [...prev]; next[idx] = period; return next }
       return [...prev, period]
     })
     setAddUnavailDate(null)
+    if (impactPlan && planName) {
+      const label = period.type.charAt(0).toUpperCase() + period.type.slice(1)
+      const note = period.notes ? `${label}: ${period.notes}` : label
+      startAdaptation(`I've added a ${note} period from ${period.start_date} to ${period.end_date}. Please adapt my training plan around it.`)
+    }
   }
 
   async function openEvent(event: TrainingEvent) {
