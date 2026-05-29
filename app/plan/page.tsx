@@ -695,14 +695,19 @@ export default function PlanPage() {
             )}
             {[...events].sort((a, b) => a.date.localeCompare(b.date)).map((event, i) => {
               const key = `${event.name}|${event.date}`
+              const today = new Date().toISOString().split('T')[0]
+              const diffDays = Math.round((new Date(event.date).getTime() - new Date(today).getTime()) / 864e5)
+              const countdown = diffDays === 0 ? 'Today!' : diffDays === 1 ? 'Tomorrow' : diffDays > 0 ? `In ${diffDays} days` : `${Math.abs(diffDays)} days ago`
+              const countdownColor = diffDays < 0 ? 'text-slate-400' : diffDays === 0 ? 'text-green-600 font-semibold' : diffDays <= 7 ? 'text-amber-600' : 'text-slate-500'
               return (
                 <div key={key} className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-800 truncate">{event.name}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
                       {event.date} · {event.type} · Priority {event.priority}
-                      {event.icu_event_id && <span className="ml-1.5 text-green-600">↑ synced</span>}
                     </p>
+                    <p className={`text-xs mt-0.5 ${countdownColor}`}>{countdown}</p>
+                    {event.icu_event_id && <p className="text-xs text-green-600 mt-0.5">↑ synced to intervals.icu</p>}
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <button
