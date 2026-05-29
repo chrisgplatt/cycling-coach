@@ -169,7 +169,7 @@ When an event week contains an event with a TSS estimate, treat that estimated T
 RECENT ACTIVITIES (last 10 — use these to understand training history, discipline mix, and current intensity):
 ${summariseActivities(syncData.activities)}
 
-PLAN LENGTH: Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts, starting on ${startDate}.
+PLAN LENGTH: Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts. The plan window is ${startDate} to ${(() => { const d = new Date(startDate); d.setDate(d.getDate() + weeks * 7 - 1); return d.toISOString().split('T')[0] })()} inclusive. Do not place any workouts before ${startDate} or after this end date. The final week of workouts must fall within the last 7 days of this window.
 ${notes ? `
 ADDITIONAL COACHING NOTES (take these into account when designing the plan):
 ${notes}
