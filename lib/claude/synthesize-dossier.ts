@@ -1,0 +1,72 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { TrainingEvent } from '@/types'
+import { generateDossier } from './dossier'
+
+export interface SynthesisProfile {
+  user_id: string
+  goals: string | null
+  current_ftp: number | null
+  weight_kg: number | null
+  events: TrainingEvent[] | null
+}
+
+export async function synthesizeDossier(
+  supabase: SupabaseClient,
+  profile: SynthesisProfile,
+): Promise<void> {
+  const ninetyDaysAgoDate = new Date(Date.now() - 90 * 864e5).toISOString().split('T')[0]
+  const ninetyDaysAgoTs = new Date(Date.now() - 90 * 864e5).toISOString()
+
+  const [{ data: workouts }, { data: feedbacks }, { data: chatMessages }, { data: existing }] =
+    await Promise.all([
+      supabase.from('workouts')
+        .select('date, type, duration_minutes, tss, status, missed_reason')
+        .eq('user_id', profile.user_id)
+        .in('status', ['completed', 'skipped'])
+        .gte('date', ninetyDaysAgoDate)
+        .order('date'),
+      supabase.from('session_feedback')
+        .select('created_at, feedback_text')
+        .eq('user_id', profile.user_id)
+        .gte('created_at', ninetyDaysAgoTs)
+        .order('created_at'),
+      supabase.from('chat_messages')
+        .select('role, content')
+        .eq('user_id', profile.user_id)
+        .order('created_at', { ascending: false })
+        .limit(100),
+      supabase.from('athlete_dossier')
+        .select('explicit_notes')
+        .eq('user_id', profile.user_id)
+        .maybeSingle(),
+    ])
+
+  const eventResults = ((profile.events ?? []) as TrainingEvent[]).filter(e => e.icu_activity_id)
+
+  const content = await generateDossier(
+    profile.goals ?? '',
+    profile.current_ftp ?? 200,
+    profile.weight_kg ?? 70,
+    'No inline fitness data — see workout history.',
+    (workouts ?? []) as Array<{
+      date: string; type: string; duration_minutes: number
+      tss: number | null; status: string; missed_reason: string | null
+    }>,
+    (feedbacks ?? []) as Array<{ created_at: string; feedback_text: string }>,
+    eventResults,
+    ((chatMessages ?? []) as Array<{ role: string; content: string }>).reverse(),
+  )
+
+  const explicitNotes = (existing?.explicit_notes ?? []) as Array<{ note: string; added_at: string }>
+
+  const { error } = await supabase.from('athlete_dossier').upsert(
+    {
+      user_id: profile.user_id,
+      synthesized_at: new Date().toISOString(),
+      content,
+      explicit_notes: explicitNotes,
+    },
+    { onConflict: 'user_id' },
+  )
+  if (error) throw new Error(`synthesizeDossier upsert failed: ${error.message}`)
+}
