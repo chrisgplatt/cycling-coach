@@ -193,7 +193,7 @@ export function createReviewStream(
 ) {
   const prompt = buildReviewPrompt(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, dossierSection)
   return anthropic.messages.stream({
-    model: 'claude-opus-4-7',
+    model: 'claude-opus-4-8',
     max_tokens: 32000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
