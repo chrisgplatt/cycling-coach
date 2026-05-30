@@ -1,7 +1,7 @@
 // Pure, dependency-free formatters for enriched completed-ride detail.
 // Kept free of the intervals.icu and Anthropic clients so prompt builders can
 // import it without dragging in network/SDK code (mirrors lib/claude/zones.ts).
-import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics } from '@/types'
+import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep } from '@/types'
 
 // Best-effort durations we sample the power curve down to (seconds).
 const CANONICAL_SECS = [5, 15, 60, 300, 1200, 3600]
@@ -57,4 +57,30 @@ export function formatActivityMetrics(m: ActivityMetrics): string {
   const twentyMin = findBest(m, 1200)
   if (twentyMin !== null) parts.push(`20min best ${twentyMin}W`)
   return parts.length ? parts.join(' · ') : 'no power data'
+}
+
+function mmss(secs: number): string {
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+export function formatRideExecution(
+  plannedSteps: WorkoutStep[] | null,
+  m: ActivityMetrics | null,
+): string {
+  if (!plannedSteps?.length) return ''
+  if (!m?.intervals?.length) return ''
+  const planned = plannedSteps
+    .map(s => `${s.label} ${s.duration_minutes}min @ ${s.power_pct_ftp}%`)
+    .join(' | ')
+  const actual = m.intervals
+    .map(iv => {
+      const bits = [iv.label ?? 'Interval', mmss(iv.duration_secs)]
+      if (iv.avg_watts !== null) bits.push(`avg ${Math.round(iv.avg_watts)}W`)
+      if (iv.avg_hr !== null) bits.push(`HR ${Math.round(iv.avg_hr)}`)
+      return bits.join(' ')
+    })
+    .join(' | ')
+  return `Planned steps: ${planned}\nActual intervals: ${actual}`
 }

@@ -1,6 +1,6 @@
 /** @jest-environment node */
-import { extractActivityMetrics, formatActivityMetrics } from '@/lib/claude/activity-metrics'
-import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval } from '@/types'
+import { extractActivityMetrics, formatActivityMetrics, formatRideExecution } from '@/lib/claude/activity-metrics'
+import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, WorkoutStep, ActivityMetrics } from '@/types'
 
 const act: ICUActivity = {
   id: 'a1', start_date_local: '2026-05-28T08:00:00', type: 'Ride',
@@ -91,5 +91,40 @@ describe('formatActivityMetrics', () => {
       synced_at: '2026-05-28T09:00:00Z',
     })
     expect(s).toBe('no power data')
+  })
+})
+
+describe('formatRideExecution', () => {
+  const steps: WorkoutStep[] = [
+    { label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 },
+    { label: 'Work', duration_minutes: 8, power_pct_ftp: 95 },
+    { label: 'Recovery', duration_minutes: 4, power_pct_ftp: 55 },
+  ]
+  const metricsWithIntervals: ActivityMetrics = {
+    np: 248, avg_power: 231, max_power: 612, avg_hr: 152, distance_m: 32500,
+    elevation_m: 84, lr_balance: 51, best_efforts: null,
+    intervals: [
+      { label: 'Warm Up', duration_secs: 602, avg_watts: 142, avg_hr: 120 },
+      { label: 'Work', duration_secs: 480, avg_watts: 244, avg_hr: 161 },
+    ],
+    synced_at: '2026-05-28T09:00:00Z',
+  }
+
+  it('lays planned steps and actual intervals side by side', () => {
+    const s = formatRideExecution(steps, metricsWithIntervals)
+    expect(s).toContain('Planned steps:')
+    expect(s).toContain('Warm Up 10min @ 60%')
+    expect(s).toContain('Work 8min @ 95%')
+    expect(s).toContain('Actual intervals:')
+    expect(s).toContain('Work 8:00 avg 244W HR 161')
+  })
+
+  it('returns empty string when there are no planned steps', () => {
+    expect(formatRideExecution(null, metricsWithIntervals)).toBe('')
+    expect(formatRideExecution([], metricsWithIntervals)).toBe('')
+  })
+
+  it('returns empty string when there are no detected intervals', () => {
+    expect(formatRideExecution(steps, { ...metricsWithIntervals, intervals: null })).toBe('')
   })
 })
