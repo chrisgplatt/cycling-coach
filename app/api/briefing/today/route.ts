@@ -113,9 +113,8 @@ export async function GET(req: NextRequest) {
       const { formatRideExecution } = await import('@/lib/claude/activity-metrics')
       completedRides = rides.map((ride: ICUActivity) => {
         const match = todayWorkouts.find(w => w.icu_activity_id === ride.id)
-        const matchRow = match as (typeof match & { activity_metrics?: import('@/types').ActivityMetrics })
-        const metrics = (matchRow?.activity_metrics ?? null) as import('@/types').ActivityMetrics | null
-        const steps = (match?.steps ?? null) as import('@/types').WorkoutStep[] | null
+        const metrics = match?.activity_metrics ?? null
+        const steps = match?.steps ?? null
         return {
           name: ride.name,
           avg_power: ride.average_watts,

@@ -87,6 +87,7 @@ export interface Workout {
   tss: number | null
   missed_reason: string | null
   steps: WorkoutStep[] | null
+  activity_metrics: ActivityMetrics | null  // enriched ride detail captured at sync; null until backfilled
   created_at: string
 }
 
