@@ -33,4 +33,9 @@ describe('NavBar', () => {
     render(<NavBar />)
     expect(screen.getByRole('link', { name: 'Stats' })).toHaveAttribute('href', '/stats')
   })
+
+  it('renders a Coach link pointing to /coach', () => {
+    render(<NavBar />)
+    expect(screen.getByRole('link', { name: 'Coach' })).toHaveAttribute('href', '/coach')
+  })
 })
