@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
     // Skip if already synthesized today
     const { data: existing } = await supabase
       .from('athlete_dossier')
-      .select('synthesized_at, explicit_notes')
+      .select('synthesized_at')
       .eq('user_id', profile.user_id)
       .maybeSingle()
 
