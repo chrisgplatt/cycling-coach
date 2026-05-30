@@ -1,4 +1,5 @@
 import { anthropic, MODEL } from './client'
+import { formatZones } from './zones'
 import type { UserProfile, ICUSyncData, GeneratedPlan, ICUActivity, ICUWellness } from '@/types'
 
 function summariseActivities(activities: ICUActivity[]): string {
@@ -55,17 +56,7 @@ export function formatSchedule(availability: Array<{ day: string; duration_minut
   return `Weekly training schedule:\n${lines.join('\n')}`
 }
 
-export function formatZones(ftp: number): string {
-  const z = (lo: number, hi: number) => `${Math.round(ftp * lo)}–${Math.round(ftp * hi)}W`
-  return [
-    `  Recovery  (Z1): <${Math.round(ftp * 0.55)}W`,
-    `  Endurance (Z2): ${z(0.56, 0.75)}`,
-    `  Tempo     (Z3): ${z(0.76, 0.90)}`,
-    `  Threshold (Z4): ${z(0.91, 1.05)}`,
-    `  VO2max    (Z5): ${z(1.06, 1.20)}`,
-    `  Anaerobic (Z6): >${Math.round(ftp * 1.20)}W`,
-  ].join('\n')
-}
+export { formatZones }
 
 const SYSTEM_PROMPT = `You are an expert road cycling coach. Generate periodized training plans based on athlete data.
 Always respond with ONLY valid JSON matching the exact schema requested. No markdown, no explanation outside the JSON.`

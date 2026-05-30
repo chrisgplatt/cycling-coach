@@ -1,4 +1,5 @@
 import type { TrainingPlan, Workout, ICUWellness, TrainingEvent } from '@/types'
+import { formatZones } from './zones'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -64,7 +65,10 @@ ${fitnessSection}
 
 Athlete FTP: ${currentFTP}W
 
-${dossierSection ? dossierSection + '\n\n' : ''}Answer questions about training, recovery, pacing, nutrition, and race strategy. Reference specific workouts, power zones, and upcoming events where relevant.
+Power zones (watts, derived from FTP):
+${formatZones(currentFTP)}
+
+${dossierSection ? dossierSection + '\n\n' : ''}Answer questions about training, recovery, pacing, nutrition, and race strategy. Reference specific workouts, power zones, and upcoming events where relevant — use the watt ranges above when giving pacing or zone advice.
 
 You also keep private notes about this athlete. When the conversation surfaces something durable and personal worth remembering — a persistent feeling or mood (burnout, low motivation, stress), a physical constraint or niggle, a sleep or recovery pattern, or a scheduling limitation — save it yourself by appending a marker after your visible response, even if the athlete did not explicitly ask:
 

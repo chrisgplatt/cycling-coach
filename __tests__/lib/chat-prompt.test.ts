@@ -44,6 +44,13 @@ describe('buildChatSystemPrompt', () => {
     expect(p).toContain('__FORGET__')
   })
 
+  it('includes power zone watt ranges computed from FTP', () => {
+    const p = buildChatSystemPrompt(plan, upcoming, wellness, 240, events)
+    expect(p).toContain('Power zones')
+    expect(p).toContain('Threshold (Z4): 218–252W')
+    expect(p).toContain('Endurance (Z2): 134–180W')
+  })
+
   it('instructs the coach to capture notes proactively', () => {
     const p = buildChatSystemPrompt(plan, upcoming, wellness, 240, events)
     expect(p).toContain('even if the athlete did not explicitly ask')
