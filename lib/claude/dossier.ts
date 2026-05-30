@@ -82,6 +82,7 @@ export async function generateDossier(
     tss: number | null
     status: string
     missed_reason: string | null
+    metrics_summary?: string | null
   }>,
   feedbacks: Array<{ created_at: string; feedback_text: string }>,
   eventResults: TrainingEvent[],
@@ -90,7 +91,7 @@ export async function generateDossier(
   const workoutsSection = completedWorkouts.length
     ? completedWorkouts
         .map(w =>
-          `${w.date} | ${w.type} | ${w.duration_minutes}min | TSS ${w.tss ?? '?'} | ${w.status}${w.missed_reason ? ` (${w.missed_reason})` : ''}`
+          `${w.date} | ${w.type} | ${w.duration_minutes}min | TSS ${w.tss ?? '?'} | ${w.status}${w.missed_reason ? ` (${w.missed_reason})` : ''}${w.metrics_summary ? ` | ${w.metrics_summary}` : ''}`
         )
         .join('\n')
     : 'No completed sessions recorded.'

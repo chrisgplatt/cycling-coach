@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TrainingEvent } from '@/types'
 import { generateDossier } from './dossier'
+import { formatActivityMetrics } from './activity-metrics'
 
 export interface SynthesisProfile {
   user_id: string
@@ -26,7 +27,7 @@ export async function synthesizeDossier(
   ] =
     await Promise.all([
       supabase.from('workouts')
-        .select('date, type, duration_minutes, tss, status, missed_reason')
+        .select('date, type, duration_minutes, tss, status, missed_reason, activity_metrics')
         .eq('user_id', profile.user_id)
         .in('status', ['completed', 'skipped'])
         .gte('date', ninetyDaysAgoDate)
@@ -57,10 +58,15 @@ export async function synthesizeDossier(
     profile.current_ftp ?? 200,
     profile.weight_kg ?? 70,
     'No inline fitness data — see workout history.',
-    (workouts ?? []) as Array<{
+    ((workouts ?? []) as Array<{
       date: string; type: string; duration_minutes: number
       tss: number | null; status: string; missed_reason: string | null
-    }>,
+      activity_metrics: import('@/types').ActivityMetrics | null
+    }>).map(w => ({
+      date: w.date, type: w.type, duration_minutes: w.duration_minutes,
+      tss: w.tss, status: w.status, missed_reason: w.missed_reason,
+      metrics_summary: w.activity_metrics ? formatActivityMetrics(w.activity_metrics) : null,
+    })),
     (feedbacks ?? []) as Array<{ created_at: string; feedback_text: string }>,
     eventResults,
     [...((chatMessages ?? []) as Array<{ role: string; content: string }>)].reverse(),

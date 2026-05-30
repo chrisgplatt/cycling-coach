@@ -99,4 +99,27 @@ describe('synthesizeDossier', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(synthesizeDossier(supabase as any, profile as any)).rejects.toThrow('boom')
   })
+
+  it('passes per-session activity_metrics summary into generateDossier', async () => {
+    (generateDossier as jest.Mock).mockResolvedValue(fakeContent)
+    const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
+    const workouts = [{
+      date: '2026-05-20', type: 'intervals', duration_minutes: 60, tss: 78,
+      status: 'completed', missed_reason: null,
+      activity_metrics: {
+        np: 248, avg_power: 231, max_power: 612, avg_hr: 152, distance_m: 32500,
+        elevation_m: 84, lr_balance: 51, best_efforts: [{ secs: 1200, watts: 264 }],
+        intervals: null, synced_at: '2026-05-20T09:00:00Z',
+      },
+      steps: null,
+    }]
+    const supabase = makeSupabase({ workouts, upsertSpy })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await synthesizeDossier(supabase as any, profile as any)
+
+    const passedWorkouts = (generateDossier as jest.Mock).mock.calls[0][4] as Array<{ metrics_summary?: string }>
+    expect(passedWorkouts[0].metrics_summary).toContain('NP 248W')
+    expect(passedWorkouts[0].metrics_summary).toContain('84m climb')
+  })
 })
