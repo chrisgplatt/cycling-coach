@@ -39,6 +39,7 @@ export async function backfillActivityMetrics(
     .in('status', ['completed', 'needs_review'])
     .gte('date', ninetyDaysAgo)
     .not('icu_activity_id', 'is', null)
+    .is('activity_metrics', null)
     .order('date', { ascending: false })
     .limit(BACKFILL_LIMIT)
 

@@ -17,12 +17,12 @@ function makeClient(opts: { throwOn?: string } = {}) {
   }
 }
 
-// Minimal chainable Supabase stub: select/eq/in/gte/not/order/limit resolve to { data }.
+// Minimal chainable Supabase stub: select/eq/in/gte/not/is/order/limit resolve to { data }.
 function makeSupabase(rows: Array<{ id: string; icu_activity_id: string }>, updateSpy: jest.Mock) {
   const query: Record<string, unknown> = {}
   const self = () => query
   Object.assign(query, {
-    select: self, eq: self, in: self, gte: self, not: self, order: self,
+    select: self, eq: self, in: self, gte: self, not: self, is: self, order: self,
     limit: () => Promise.resolve({ data: rows, error: null }),
   })
   return {
