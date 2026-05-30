@@ -301,6 +301,8 @@ export interface CompletedRideData {
   weighted_avg_power: number | null
   tss: number | null
   moving_time: number
+  elevation_m: number | null
+  execution: string | null
 }
 
 export interface BriefingContext {

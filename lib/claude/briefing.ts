@@ -120,13 +120,14 @@ Write the morning briefing.`
   return await callClaude(SYSTEM_MORNING, prompt) || 'Have a great session today.'
 }
 
-function rideDataString(ride: { name: string; moving_time: number; avg_power: number | null; weighted_avg_power: number | null; tss: number | null }): string {
+function rideDataString(ride: { name: string; moving_time: number; avg_power: number | null; weighted_avg_power: number | null; tss: number | null; elevation_m: number | null }): string {
   return [
     `"${ride.name}"`,
     ride.moving_time ? `${Math.round(ride.moving_time / 60)} min` : null,
     ride.avg_power !== null ? `avg ${Math.round(ride.avg_power)}W` : null,
     ride.weighted_avg_power !== null ? `NP ${Math.round(ride.weighted_avg_power)}W` : null,
     ride.tss !== null ? `TSS ${Math.round(ride.tss)}` : null,
+    ride.elevation_m !== null ? `${Math.round(ride.elevation_m)}m climb` : null,
   ].filter(Boolean).join(', ')
 }
 
@@ -153,10 +154,15 @@ async function generatePostRideNote(ctx: BriefingContext): Promise<string> {
       }).join('; ')
     : 'none scheduled'
 
+  const execution = rides
+    .map(r => r.execution)
+    .filter((e): e is string => !!e)
+    .join('\n')
+
   const prompt = `Today's date: ${ctx.today}
 Sessions today: ${sessionSummary}
 Ride data: ${rideStats}
-Training load after ride: ${buildLoadString(ctx)}
+${execution ? `Planned vs actual:\n${execution}\n` : ''}Training load after ride: ${buildLoadString(ctx)}
 Next 5 days planned sessions: ${upcomingPlan}
 Upcoming events: ${buildEventsString(ctx)}
 

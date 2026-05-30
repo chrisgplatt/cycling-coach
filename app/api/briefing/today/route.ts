@@ -110,13 +110,22 @@ export async function GET(req: NextRequest) {
     try {
       const todayActivities = await client2.getActivities(today, today)
       const rides = todayActivities.filter((a: ICUActivity) => /ride/i.test(a.type))
-      completedRides = rides.map((ride: ICUActivity) => ({
-        name: ride.name,
-        avg_power: ride.average_watts,
-        weighted_avg_power: ride.weighted_average_watts,
-        tss: ride.training_load,
-        moving_time: ride.moving_time,
-      }))
+      const { formatRideExecution } = await import('@/lib/claude/activity-metrics')
+      completedRides = rides.map((ride: ICUActivity) => {
+        const match = todayWorkouts.find(w => w.icu_activity_id === ride.id)
+        const matchRow = match as (typeof match & { activity_metrics?: import('@/types').ActivityMetrics })
+        const metrics = (matchRow?.activity_metrics ?? null) as import('@/types').ActivityMetrics | null
+        const steps = (match?.steps ?? null) as import('@/types').WorkoutStep[] | null
+        return {
+          name: ride.name,
+          avg_power: ride.average_watts,
+          weighted_avg_power: ride.weighted_average_watts,
+          tss: ride.training_load,
+          moving_time: ride.moving_time,
+          elevation_m: metrics?.elevation_m ?? ride.total_elevation_gain ?? null,
+          execution: formatRideExecution(steps, metrics) || null,
+        }
+      })
       completedRide = completedRides[0] ?? null
     } catch { /* if ICU unavailable, proceed without ride data */ }
   }
