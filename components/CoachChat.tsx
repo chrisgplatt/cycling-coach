@@ -61,50 +61,55 @@ export default function CoachChat({ currentFTP, onClose }: Props) {
     setMessages(prev => [...prev, { role: 'user', content: userMsg }])
     setLoading(true)
 
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userMsg, syncData: null, currentFTP }),
-    })
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg, syncData: null, currentFTP }),
+      })
 
-    if (!res.body) { setLoading(false); return }
+      if (!res.body) return
 
-    setMessages(prev => [...prev, { role: 'assistant', content: '' }])
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      const chunk = decoder.decode(value)
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value)
+        setMessages(prev => {
+          const updated = [...prev]
+          updated[updated.length - 1] = {
+            role: 'assistant',
+            content: updated[updated.length - 1].content + chunk,
+          }
+          return updated
+        })
+      }
+
       setMessages(prev => {
         const updated = [...prev]
-        updated[updated.length - 1] = {
-          role: 'assistant',
-          content: updated[updated.length - 1].content + chunk,
+        const last = updated[updated.length - 1]
+        if (last.role === 'assistant') {
+          const { visible, note, forget } = extractNoteMarker(last.content)
+          postNote(note, forget)
+          updated[updated.length - 1] = { ...last, content: visible }
         }
         return updated
       })
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry — something went wrong. Please try again.' }])
+    } finally {
+      setLoading(false)
     }
-
-    setMessages(prev => {
-      const updated = [...prev]
-      const last = updated[updated.length - 1]
-      if (last.role === 'assistant') {
-        const { visible, note, forget } = extractNoteMarker(last.content)
-        postNote(note, forget)
-        updated[updated.length - 1] = { ...last, content: visible }
-      }
-      return updated
-    })
-    setLoading(false)
   }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
         <span className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Coach Chat</span>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-sm font-medium py-2 px-2">
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-sm font-medium py-3 px-3">
           Close
         </button>
       </div>
