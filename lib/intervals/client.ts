@@ -148,19 +148,23 @@ export class IntervalsClient {
     return raw.map(a => this.mapActivity(a))
   }
 
+  // Single activity by id. intervals.icu exposes this as /api/v1/activity/{id}
+  // (NOT under /athlete/.../activities/...), returning the full Activity object
+  // with the same field names mapActivity reads from the list endpoint.
   async getActivity(activityId: string): Promise<ICUActivity> {
     const raw = await this.request<Record<string, unknown>>(
-      `/athlete/${this.athleteId}/activities/${activityId}`
+      `/activity/${activityId}`
     )
     return this.mapActivity(raw)
   }
 
-  // Detected intervals (laps) for one activity. Field names per intervals.icu
-  // activity intervals endpoint; returns [] on any unexpected shape so a flaky
-  // or schema-changed response never aborts a sync.
+  // Detected intervals (laps) for one activity. intervals.icu returns these on
+  // the single-activity endpoint with ?intervals=true, as an icu_intervals array.
+  // Returns [] on any unexpected shape so a flaky/schema-changed response never
+  // aborts a sync.
   async getActivityIntervals(activityId: string): Promise<ActivityInterval[]> {
     const data = await this.request<{ icu_intervals?: Array<Record<string, unknown>> }>(
-      `/athlete/${this.athleteId}/activities/${activityId}/intervals`
+      `/activity/${activityId}?intervals=true`
     )
     if (!Array.isArray(data?.icu_intervals)) return []
     return data.icu_intervals.map(iv => ({

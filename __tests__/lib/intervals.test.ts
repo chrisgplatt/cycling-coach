@@ -154,7 +154,7 @@ describe('IntervalsClient', () => {
     expect(a.id).toBe('act9')
     expect(a.weighted_average_watts).toBe(195)
     expect(a.total_elevation_gain).toBe(420)
-    expect(mockFetch.mock.calls[0][0]).toBe('https://intervals.icu/api/v1/athlete/i12345/activities/act9')
+    expect(mockFetch.mock.calls[0][0]).toBe('https://intervals.icu/api/v1/activity/act9')
   })
 
   it('getActivityIntervals maps icu_intervals to ActivityInterval[]', async () => {
@@ -172,7 +172,7 @@ describe('IntervalsClient', () => {
 
     expect(ivs).toHaveLength(2)
     expect(ivs[1]).toEqual({ label: 'Work', duration_secs: 480, avg_watts: 248, avg_hr: 161 })
-    expect(mockFetch.mock.calls[0][0]).toBe('https://intervals.icu/api/v1/athlete/i12345/activities/act9/intervals')
+    expect(mockFetch.mock.calls[0][0]).toBe('https://intervals.icu/api/v1/activity/act9?intervals=true')
   })
 
   it('getActivityIntervals returns [] on a malformed payload', async () => {
