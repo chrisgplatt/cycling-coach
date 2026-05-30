@@ -248,6 +248,29 @@ export interface ICUPowerCurvePoint {
   watts: number
 }
 
+export interface ActivityInterval {
+  label: string | null
+  duration_secs: number
+  avg_watts: number | null
+  avg_hr: number | null
+}
+
+export interface ActivityMetrics {
+  // Tier 1 — already in the sync payload
+  np: number | null            // weighted_average_watts
+  avg_power: number | null
+  max_power: number | null
+  avg_hr: number | null
+  distance_m: number | null
+  elevation_m: number | null   // total_elevation_gain
+  lr_balance: number | null    // left %
+  // Tier 2 — power-curve best efforts, sampled to canonical durations
+  best_efforts: Array<{ secs: number; watts: number }> | null
+  // Tier 3 — detected intervals (laps)
+  intervals: ActivityInterval[] | null
+  synced_at: string
+}
+
 export interface WorkoutStep {
   label: string
   duration_minutes: number
