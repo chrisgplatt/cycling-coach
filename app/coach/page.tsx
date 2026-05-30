@@ -44,6 +44,11 @@ export default function CoachPage() {
 
   async function loadDossier() {
     const res = await fetch('/api/dossier')
+    if (!res.ok) {
+      setError("Couldn't load your coach's notes — try again.")
+      setLoaded(true)
+      return
+    }
     const data = await res.json().catch(() => ({ dossier: null }))
     setDossier(data.dossier ?? null)
     setLoaded(true)
@@ -133,13 +138,13 @@ export default function CoachPage() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mb-2.5">Remember</p>
           <ul className="space-y-2">
-            {notes.map((n, i) => (
-              <li key={i} className="flex items-start justify-between gap-3 text-sm text-gray-700">
-                <span className="leading-relaxed">{n.note}</span>
+            {notes.map(n => (
+              <li key={n.added_at} className="flex items-start justify-between gap-2 text-sm text-gray-700">
+                <span className="leading-relaxed pt-2">{n.note}</span>
                 <button
                   onClick={() => removeNote(n.note)}
                   aria-label="Remove note"
-                  className="text-gray-300 hover:text-red-500 shrink-0 w-8 h-8 flex items-center justify-center -mt-1"
+                  className="text-gray-300 hover:text-red-500 shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
                 >
                   ✕
                 </button>
