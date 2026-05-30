@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Figtree } from 'next/font/google'
 import './globals.css'
-// import ChatPanel from '@/components/ChatPanel'
 import NavBar from '@/components/NavBar'
 import IOSInstallBanner from '@/components/IOSInstallBanner'
 import SessionSync from '@/components/SessionSync'
@@ -36,7 +35,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <NavBar />
             <main className="flex-1 p-4 md:p-6">{children}</main>
           </div>
-          {/* <ChatPanel currentFTP={200} syncData={null} /> */}
         </div>
         <IOSInstallBanner />
         <SessionSync />
