@@ -53,6 +53,12 @@ export async function POST(req: NextRequest) {
     ])
     const events = ((profileData as { events?: import('@/types').TrainingEvent[] } | null)?.events ?? [])
 
+    const { formatRideExecution } = await import('@/lib/claude/activity-metrics')
+    const rideExecution = formatRideExecution(
+      (workout.steps ?? null) as import('@/types').WorkoutStep[] | null,
+      ((workout as { activity_metrics?: import('@/types').ActivityMetrics | null }).activity_metrics ?? null),
+    )
+
     proposed = await analyseFeedback(
       workout as Workout,
       feedbackText,
@@ -62,6 +68,7 @@ export async function POST(req: NextRequest) {
       (upcomingWorkouts ?? []) as Workout[],
       events,
       formatDossier(dossier as AthleteDossier | null),
+      rideExecution,
     )
   }
 

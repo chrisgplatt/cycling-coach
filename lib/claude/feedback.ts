@@ -13,6 +13,7 @@ export async function analyseFeedback(
   upcomingWorkouts: Workout[],
   events: TrainingEvent[] = [],
   dossierSection = '',
+  rideExecution = '',
 ): Promise<ProposedAdjustment> {
   const upcoming = upcomingWorkouts
     .map(w => `- ID ${w.id}: ${w.date} ${w.type} ${w.duration_minutes}min — ${w.description}`)
@@ -31,7 +32,7 @@ Description: ${plannedWorkout.description}
 Target: ${plannedWorkout.target_zones}
 
 Actual: TSS ${actualTSS ?? 'unknown'}, Avg power ${actualAvgPower ?? 'unknown'}W, Avg HR ${actualAvgHR ?? 'unknown'}bpm
-
+${rideExecution ? `\n${rideExecution}\n` : ''}
 Athlete feedback: "${feedbackText}"
 
 ${dossierSection ? dossierSection + '\n\n' : ''}Upcoming events (races, sportives, holidays — never propose workouts on these dates):

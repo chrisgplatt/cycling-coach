@@ -104,3 +104,20 @@ describe('analyseFeedback — dossier injection', () => {
     ).resolves.toBeDefined()
   })
 })
+
+describe('analyseFeedback — ride execution', () => {
+  it('includes the ride execution block in the feedback prompt when provided', async () => {
+    mockFinalMessage.mockResolvedValueOnce({
+      content: [{ type: 'text', text: '{"summary":"ok","changes":[],"workout_steps":[]}' }],
+    })
+    const execution = 'Planned steps: Work 8min @ 95%\nActual intervals: Work 8:00 avg 244W HR 161'
+    await analyseFeedback(
+      { ...workout, steps: [{ label: 'Work', duration_minutes: 8, power_pct_ftp: 95 }] },
+      'felt hard', 78, 244, 161, [], [], '', execution,
+    )
+    const lastCall = mockStream.mock.calls[mockStream.mock.calls.length - 1]
+    const prompt = lastCall[0].messages[0].content
+    expect(prompt).toContain('Actual intervals:')
+    expect(prompt).toContain('Work 8:00 avg 244W')
+  })
+})
