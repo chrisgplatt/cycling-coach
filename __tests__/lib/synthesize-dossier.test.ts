@@ -62,7 +62,7 @@ describe('synthesizeDossier', () => {
 
     expect(generateDossier).toHaveBeenCalledTimes(1)
     expect(upsertSpy).toHaveBeenCalledTimes(1)
-    const [row, options] = upsertSpy.mock.calls[0]
+    const [row, options] = upsertSpy.mock.calls[0] as [Record<string, unknown>, Record<string, unknown>]
     expect(row.content).toEqual(fakeContent)
     expect(row.explicit_notes).toEqual(existingNotes)
     expect(row.user_id).toBe('u1')

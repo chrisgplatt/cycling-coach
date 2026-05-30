@@ -14,10 +14,16 @@ export async function synthesizeDossier(
   supabase: SupabaseClient,
   profile: SynthesisProfile,
 ): Promise<void> {
-  const ninetyDaysAgoDate = new Date(Date.now() - 90 * 864e5).toISOString().split('T')[0]
-  const ninetyDaysAgoTs = new Date(Date.now() - 90 * 864e5).toISOString()
+  const cutoff = new Date(Date.now() - 90 * 864e5)
+  const ninetyDaysAgoDate = cutoff.toISOString().split('T')[0]
+  const ninetyDaysAgoTs = cutoff.toISOString()
 
-  const [{ data: workouts }, { data: feedbacks }, { data: chatMessages }, { data: existing }] =
+  const [
+    { data: workouts, error: workoutsError },
+    { data: feedbacks, error: feedbacksError },
+    { data: chatMessages, error: chatError },
+    { data: existing },
+  ] =
     await Promise.all([
       supabase.from('workouts')
         .select('date, type, duration_minutes, tss, status, missed_reason')
@@ -41,6 +47,9 @@ export async function synthesizeDossier(
         .maybeSingle(),
     ])
 
+  const readError = workoutsError ?? feedbacksError ?? chatError
+  if (readError) throw new Error(`synthesizeDossier read failed: ${readError.message}`)
+
   const eventResults = ((profile.events ?? []) as TrainingEvent[]).filter(e => e.icu_activity_id)
 
   const content = await generateDossier(
@@ -54,7 +63,7 @@ export async function synthesizeDossier(
     }>,
     (feedbacks ?? []) as Array<{ created_at: string; feedback_text: string }>,
     eventResults,
-    ((chatMessages ?? []) as Array<{ role: string; content: string }>).reverse(),
+    [...((chatMessages ?? []) as Array<{ role: string; content: string }>)].reverse(),
   )
 
   const explicitNotes = (existing?.explicit_notes ?? []) as Array<{ note: string; added_at: string }>
