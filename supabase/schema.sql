@@ -62,6 +62,7 @@ create table if not exists workouts (
   tss numeric,
   missed_reason text,
   steps jsonb,
+  activity_metrics jsonb,
   status text not null default 'planned' check (status in ('planned', 'completed', 'skipped', 'needs_review')),
   created_at timestamptz not null default now()
 );
