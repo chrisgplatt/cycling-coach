@@ -26,6 +26,20 @@ const events: TrainingEvent[] = [
   { name: 'Etape', date: '2026-07-10', type: 'sportive', priority: 'A' },
 ]
 
+const recentRides = [{
+  id: 'r1', date: '2026-05-28', type: 'intervals', duration_minutes: 60,
+  steps: [
+    { label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 },
+    { label: 'Work', duration_minutes: 8, power_pct_ftp: 95 },
+  ],
+  activity_metrics: {
+    np: 248, avg_power: 231, max_power: 612, avg_hr: 152, distance_m: 32500,
+    elevation_m: 84, lr_balance: 51, best_efforts: [{ secs: 1200, watts: 264 }],
+    intervals: [{ label: 'Work', duration_secs: 480, avg_watts: 244, avg_hr: 161 }],
+    synced_at: '2026-05-28T09:00:00Z',
+  },
+}]
+
 const dossier: AthleteDossier = {
   id: 'd1', user_id: 'u1', synthesized_at: new Date().toISOString(),
   content: {
@@ -71,5 +85,14 @@ describe('buildChatSystemPrompt', () => {
 
   it('handles a null plan and null wellness without throwing', () => {
     expect(() => buildChatSystemPrompt(null, [], null, 200, [])).not.toThrow()
+  })
+
+  it('includes a recent rides block with metrics and execution', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = buildChatSystemPrompt(plan, upcoming, wellness, 240, events, '', recentRides as any)
+    expect(p).toContain('Recent rides')
+    expect(p).toContain('NP 248W')
+    expect(p).toContain('Actual intervals:')
+    expect(p).toContain('Work 8:00 avg 244W HR 161')
   })
 })

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     return new Response('Message is required', { status: 400 })
   }
 
-  const [{ data: plan }, { data: recentMessages }, { data: upcomingWorkouts }, { data: profileData }, dossier] = await Promise.all([
+  const [{ data: plan }, { data: recentMessages }, { data: upcomingWorkouts }, { data: profileData }, dossier, { data: recentRides }] = await Promise.all([
     supabase.from('training_plans').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('chat_messages').select('*').order('created_at', { ascending: false }).limit(20),
     supabase.from('workouts').select('*').eq('status', 'planned')
@@ -37,6 +37,12 @@ export async function POST(req: NextRequest) {
       .order('date'),
     supabase.from('user_profile').select('events').maybeSingle(),
     fetchDossier(supabase, user.id),
+    supabase.from('workouts')
+      .select('date, type, duration_minutes, steps, activity_metrics')
+      .eq('status', 'completed')
+      .not('activity_metrics', 'is', null)
+      .order('date', { ascending: false })
+      .limit(5),
   ])
 
   const messages = ((recentMessages ?? []) as ChatMessage[])
@@ -57,6 +63,7 @@ export async function POST(req: NextRequest) {
     currentFTP,
     events,
     formatDossier(dossier as AthleteDossier | null),
+    (recentRides ?? []) as import('@/lib/claude/chat').RecentRide[],
   )
 
   const stream = await anthropic.messages.stream({

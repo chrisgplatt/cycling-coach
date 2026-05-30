@@ -1,5 +1,6 @@
-import type { TrainingPlan, Workout, ICUWellness, TrainingEvent } from '@/types'
+import type { TrainingPlan, Workout, ICUWellness, TrainingEvent, ActivityMetrics, WorkoutStep } from '@/types'
 import { formatZones } from './zones'
+import { formatActivityMetrics, formatRideExecution } from './activity-metrics'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -12,6 +13,14 @@ function relativeDay(eventDate: string, today: string): string {
   return 'past'
 }
 
+export interface RecentRide {
+  date: string
+  type: string
+  duration_minutes: number
+  steps: WorkoutStep[] | null
+  activity_metrics: ActivityMetrics | null
+}
+
 export function buildChatSystemPrompt(
   plan: TrainingPlan | null,
   upcomingWorkouts: Workout[],
@@ -19,6 +28,7 @@ export function buildChatSystemPrompt(
   currentFTP: number,
   events: TrainingEvent[],
   dossierSection = '',
+  recentRides: RecentRide[] = [],
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' })
@@ -30,6 +40,14 @@ export function buildChatSystemPrompt(
   const workoutSection = upcomingWorkouts.length
     ? upcomingWorkouts.map(w => `- ${w.date}: ${w.type} ${w.duration_minutes}min — ${w.description}`).join('\n')
     : 'No upcoming workouts.'
+
+  const recentRidesSection = recentRides.length
+    ? recentRides.map(r => {
+        const summary = r.activity_metrics ? formatActivityMetrics(r.activity_metrics) : 'no power data'
+        const execution = formatRideExecution(r.steps, r.activity_metrics)
+        return `- ${r.date} ${r.type} ${r.duration_minutes}min: ${summary}${execution ? `\n  ${execution.replace('\n', '\n  ')}` : ''}`
+      }).join('\n')
+    : 'No recent rides with detail.'
 
   const fitnessSection = latestWellness
     ? `CTL: ${latestWellness.ctl ?? '?'}, ATL: ${latestWellness.atl ?? '?'}, Form: ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'}, Resting HR: ${latestWellness.resting_hr ?? '?'}`
@@ -62,6 +80,9 @@ ${workoutSection}
 
 Current fitness:
 ${fitnessSection}
+
+Recent rides (last ${recentRides.length} completed, most recent first):
+${recentRidesSection}
 
 Athlete FTP: ${currentFTP}W
 
