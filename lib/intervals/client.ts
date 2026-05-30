@@ -1,4 +1,4 @@
-import type { ICUActivity, ICUWellness, ICUSyncData, WorkoutStep, ICUEvent, ICUPowerCurvePoint } from '@/types'
+import type { ICUActivity, ICUWellness, ICUSyncData, WorkoutStep, ICUEvent, ICUPowerCurvePoint, ActivityInterval } from '@/types'
 
 const BASE = 'https://intervals.icu/api/v1'
 
@@ -122,11 +122,8 @@ export class IntervalsClient {
     })
   }
 
-  async getActivities(oldest: string, newest: string): Promise<ICUActivity[]> {
-    const raw = await this.request<Record<string, unknown>[]>(
-      `/athlete/${this.athleteId}/activities?oldest=${oldest}&newest=${newest}`
-    )
-    return raw.map(a => ({
+  private mapActivity(a: Record<string, unknown>): ICUActivity {
+    return {
       id: a.id as string,
       start_date_local: a.start_date_local as string,
       type: a.type as string,
@@ -141,6 +138,36 @@ export class IntervalsClient {
       distance: (a.distance ?? null) as number | null,
       total_elevation_gain: (a.total_elevation_gain ?? null) as number | null,
       left_right_balance: (a.avg_lr_balance ?? null) as number | null,
+    }
+  }
+
+  async getActivities(oldest: string, newest: string): Promise<ICUActivity[]> {
+    const raw = await this.request<Record<string, unknown>[]>(
+      `/athlete/${this.athleteId}/activities?oldest=${oldest}&newest=${newest}`
+    )
+    return raw.map(a => this.mapActivity(a))
+  }
+
+  async getActivity(activityId: string): Promise<ICUActivity> {
+    const raw = await this.request<Record<string, unknown>>(
+      `/athlete/${this.athleteId}/activities/${activityId}`
+    )
+    return this.mapActivity(raw)
+  }
+
+  // Detected intervals (laps) for one activity. Field names per intervals.icu
+  // activity intervals endpoint; returns [] on any unexpected shape so a flaky
+  // or schema-changed response never aborts a sync.
+  async getActivityIntervals(activityId: string): Promise<ActivityInterval[]> {
+    const data = await this.request<{ icu_intervals?: Array<Record<string, unknown>> }>(
+      `/athlete/${this.athleteId}/activities/${activityId}/intervals`
+    )
+    if (!Array.isArray(data?.icu_intervals)) return []
+    return data.icu_intervals.map(iv => ({
+      label: (iv.label ?? null) as string | null,
+      duration_secs: (iv.elapsed_time ?? 0) as number,
+      avg_watts: (iv.average_watts ?? null) as number | null,
+      avg_hr: (iv.average_heartrate ?? null) as number | null,
     }))
   }
 

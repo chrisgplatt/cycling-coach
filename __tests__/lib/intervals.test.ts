@@ -138,4 +138,46 @@ describe('IntervalsClient', () => {
     expect(body.start_date_local).toBeUndefined()
     expect(body.name).toBe('New Name')
   })
+
+  it('getActivity maps a single activity by id', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'act9', start_date_local: '2026-05-20T07:00:00', type: 'Ride',
+        moving_time: 5400, name: 'Long Z2', icu_average_watts: 180,
+        icu_weighted_avg_watts: 195, total_elevation_gain: 420, icu_training_load: 110,
+      }),
+    })
+
+    const a = await client.getActivity('act9')
+
+    expect(a.id).toBe('act9')
+    expect(a.weighted_average_watts).toBe(195)
+    expect(a.total_elevation_gain).toBe(420)
+    expect(mockFetch.mock.calls[0][0]).toBe('https://intervals.icu/api/v1/athlete/i12345/activities/act9')
+  })
+
+  it('getActivityIntervals maps icu_intervals to ActivityInterval[]', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        icu_intervals: [
+          { label: 'Warm Up', elapsed_time: 600, average_watts: 140, average_heartrate: 118 },
+          { label: 'Work', elapsed_time: 480, average_watts: 248, average_heartrate: 161 },
+        ],
+      }),
+    })
+
+    const ivs = await client.getActivityIntervals('act9')
+
+    expect(ivs).toHaveLength(2)
+    expect(ivs[1]).toEqual({ label: 'Work', duration_secs: 480, avg_watts: 248, avg_hr: 161 })
+    expect(mockFetch.mock.calls[0][0]).toBe('https://intervals.icu/api/v1/athlete/i12345/activities/act9/intervals')
+  })
+
+  it('getActivityIntervals returns [] on a malformed payload', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ unexpected: true }) })
+    const ivs = await client.getActivityIntervals('act9')
+    expect(ivs).toEqual([])
+  })
 })
