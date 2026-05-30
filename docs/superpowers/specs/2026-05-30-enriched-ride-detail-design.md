@@ -92,6 +92,25 @@ the two per-activity calls (power curve + intervals), and write the whole blob i
 `activity_metrics` alongside the existing `tss`/`status` update. The two extra calls degrade
 gracefully — `best_efforts`/`intervals` fall to `null`, Tier-1 still lands.
 
+## Backfill (self-healing, in sync)
+
+Newly synced rides get enriched going forward, but the dossier's 90-day window and the
+recent-rides chat block stay thin until history fills in. A **self-healing backfill pass**
+runs as part of every sync, after the normal match/import:
+
+1. Query completed/`needs_review` workouts in the last 90 days that have a non-null
+   `icu_activity_id` but a null `activity_metrics`, ordered most-recent first.
+2. Take up to **25 per run** (the cap bounds ICU calls — ~3 per ride — so a single sync never
+   fires more than ~75 backfill calls).
+3. For each: `getActivity` (Tier-1 scalars, since older rides fall outside the windowed
+   list), `getActivityPowerCurve`, `getActivityIntervals`; write `activity_metrics` via
+   `extractActivityMetrics`. Same graceful per-tier degradation as the forward path.
+
+This needs no UI and no separate trigger: history fills in over the next few syncs and the
+pass stays self-correcting forever — any ride that ever ends up missing `activity_metrics`
+(e.g. a sync that failed mid-way) is repaired on a later sync. A per-ride failure is logged
+and skipped, not fatal to the sync.
+
 ## intervals.icu Client
 
 **New method** (`lib/intervals/client.ts`): `getActivityIntervals(activityId)` →
@@ -100,6 +119,11 @@ gracefully — `best_efforts`/`intervals` fall to `null`, Tier-1 still lands.
 field names validated against a real response during implementation) to our
 `{ label, duration_secs, avg_watts, avg_hr }[]`. Returns `[]` on any shape mismatch rather
 than throwing, so a flaky/unknown response never breaks a sync.
+
+**New method** `getActivity(activityId)` → `GET /athlete/{id}/activities/{activityId}`,
+returning a single `ICUActivity` (Tier-1 scalars). Needed by the backfill, where a historical
+ride may fall outside the normal date-windowed `getActivities` list. Reuses the same field
+mapping as `getActivities`.
 
 `getActivityPowerCurve(activityId)` already exists; reuse it for Tier 2.
 
@@ -152,9 +176,10 @@ not just aggregate TSS/power.
 1. **Migration + storage** — add the column, extend sync to write Tier-1 scalars.
 2. **Metrics module + formatters** — `extractActivityMetrics`, `formatActivityMetrics`, pure
    and fully unit-tested.
-3. **Tier 2 + 3 fetch** — `getActivityIntervals`, power-curve sampling, wired into the sync
-   write path; `formatRideExecution`.
-4. **Surface wiring** — dossier, then chat, then briefing, then feedback (each independently
+3. **Tier 2 + 3 fetch** — `getActivityIntervals`, `getActivity`, power-curve sampling, wired
+   into the sync write path; `formatRideExecution`.
+4. **Backfill pass** — self-healing, capped-per-run enrichment of historical rides in sync.
+5. **Surface wiring** — dossier, then chat, then briefing, then feedback (each independently
    testable).
 
 If Tier 3 proves flaky against the real ICU API, phases 1–2 and Tier-1 surfacing still ship
@@ -167,6 +192,9 @@ and stand alone — the `null` degradation means nothing downstream breaks.
   `formatRideExecution` (side-by-side layout; returns `''` when either side missing).
 - `getActivityIntervals` mapping test with a mock ICU payload, plus the
   malformed-payload-returns-`[]` case.
+- Backfill pass test: selects only completed rides with `icu_activity_id` set and
+  `activity_metrics` null, respects the 25-per-run cap, and a per-ride fetch failure is
+  skipped without aborting the rest.
 - One assertion per surface that the enriched block reaches the prompt (extend the existing
   `chat-prompt`, dossier, briefing, feedback tests).
 - `npm run build` as the type-check gate; full Jest run against the known 6-failing-suite
@@ -174,7 +202,7 @@ and stand alone — the `null` degradation means nothing downstream breaks.
 
 ## Out of Scope
 
-- Backfilling `activity_metrics` for historical rides (only newly synced rides get enriched;
-  the dossier window naturally fills over 90 days).
+- Backfilling rides older than 90 days (the dossier window is 90 days; older history is never
+  read by any surface).
 - Any UI display of the enriched metrics — this design is prompt-side only.
 - Forcing full per-ride interval breakdowns into the dossier (token-budget decision above).
