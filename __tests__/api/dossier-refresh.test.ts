@@ -35,15 +35,25 @@ describe('POST /api/dossier/refresh', () => {
     await expect(res.json()).resolves.toEqual({ ok: true })
     expect(synthesizeDossier).toHaveBeenCalledTimes(1)
     const [, passedProfile] = (synthesizeDossier as jest.Mock).mock.calls[0]
-    expect(passedProfile).toMatchObject({ user_id: 'u1', goals: 'g', current_ftp: 250 })
+    expect(passedProfile).toMatchObject({ user_id: 'u1', goals: 'g', current_ftp: 250, weight_kg: 72, events: [] })
   })
 
-  it('returns 500 when synthesis fails, surfacing nothing destructive', async () => {
+  it('returns 400 when the user has no profile', async () => {
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue(supabaseWith({ id: 'u1' }, null))
+    const res = await POST()
+    expect(res.status).toBe(400)
+    expect(synthesizeDossier).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 with a generic message when synthesis fails', async () => {
     (createSupabaseServerClient as jest.Mock).mockResolvedValue(
       supabaseWith({ id: 'u1' }, { goals: 'g', current_ftp: 250, weight_kg: 72, events: [] })
     );
     (synthesizeDossier as jest.Mock).mockRejectedValue(new Error('claude down'))
     const res = await POST()
     expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('Failed to refresh notes')
+    expect(body.error).not.toContain('claude down')
   })
 })
