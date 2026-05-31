@@ -23,7 +23,9 @@ export default function FeedbackModal({ workout, onClose, initialFeedback }: Pro
       : null
   )
   const [adapt, setAdapt] = useState(
-    initialFeedback ? initialFeedback.proposed_adjustment !== null : true
+    // New entries default to NOT suggesting adaptations; when editing existing
+    // feedback, preserve whether that entry had an adaptation analysis.
+    initialFeedback ? initialFeedback.proposed_adjustment !== null : false
   )
   const [loading, setLoading] = useState(false)
 
