@@ -186,6 +186,18 @@ export class IntervalsClient {
     return normaliseStreams(Array.isArray(raw) ? raw : [])
   }
 
+  // The per-sample route as real [lat,lng] pairs. The streams `latlng` channel is
+  // latitude-only for many activities, so the map comes from /activity/{id}/map,
+  // whose `latlngs` array is index-aligned with the streams. Null when absent.
+  async getActivityMap(activityId: string): Promise<{ latlngs: [number, number][] | null }> {
+    const data = await this.request<{ latlngs?: unknown }>(`/activity/${activityId}/map`)
+    const ll = data?.latlngs
+    const latlngs = Array.isArray(ll) && ll.length && Array.isArray(ll[0])
+      ? (ll as [number, number][])
+      : null
+    return { latlngs }
+  }
+
   async getWellness(start: string, end: string): Promise<ICUWellness[]> {
     const raw = await this.request<Array<Record<string, unknown>>>(
       `/athlete/${this.athleteId}/wellness?start=${start}&end=${end}`

@@ -36,7 +36,15 @@ export async function GET(
 
   const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
   try {
-    const streams = await client.getActivityStreams(workout.icu_activity_id)
+    // Streams carry the graph channels; the real route comes from /map (the streams
+    // latlng channel is latitude-only). latlngs is index-aligned with the streams.
+    const [streams, map] = await Promise.all([
+      client.getActivityStreams(workout.icu_activity_id),
+      client.getActivityMap(workout.icu_activity_id).catch(() => ({ latlngs: null })),
+    ])
+    if (map.latlngs && map.latlngs.length === streams.time.length) {
+      streams.latlng = map.latlngs
+    }
     return NextResponse.json({ streams: downsampleStreams(streams, 600) })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

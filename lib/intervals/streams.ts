@@ -10,8 +10,13 @@ export function normaliseStreams(raw: Array<{ type: string; data: unknown[] }>):
     return Array.isArray(d) ? d.map(v => (typeof v === 'number' ? v : NaN)) : null
   }
   const time = num('time') ?? []
+  // The streams `latlng` channel is unreliable — for many activities intervals.icu
+  // returns it latitude-only (flat numbers). Only accept genuine [lat,lng] pairs;
+  // the API route sources the real route from /activity/{id}/map instead.
   const latRaw = byType.get('latlng')
-  const latlng = Array.isArray(latRaw) && latRaw.length ? (latRaw as [number, number][]) : null
+  const latlng = Array.isArray(latRaw) && latRaw.length && Array.isArray(latRaw[0])
+    ? (latRaw as [number, number][])
+    : null
   return {
     time,
     distance: num('distance') ?? time.map(() => 0),

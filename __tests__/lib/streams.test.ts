@@ -26,6 +26,14 @@ describe('normaliseStreams', () => {
     expect(s.latlng).toBeNull()
     expect(s.distance).toEqual([0, 0]) // falls back to zeros, length of time
   })
+
+  it('rejects a latitude-only latlng channel (intervals.icu flat-number quirk)', () => {
+    const s = normaliseStreams([
+      { type: 'time', data: [0, 1, 2] },
+      { type: 'latlng', data: [53.59, 53.59, 53.6] }, // flat numbers, not [lat,lng] pairs
+    ])
+    expect(s.latlng).toBeNull()
+  })
 })
 
 describe('downsampleStreams', () => {
