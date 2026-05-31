@@ -1,5 +1,54 @@
 /** @jest-environment node */
-import { parseInterviewCompletion } from '@/lib/claude/interview'
+import { parseInterviewCompletion, buildInterviewSystemPrompt } from '@/lib/claude/interview'
+import type { UserProfile, ICUWellness } from '@/types'
+
+function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
+  return {
+    goals: 'Complete the Dragon Ride sportive in July',
+    events: [
+      { name: 'Dragon Ride', date: '2026-07-12', type: 'sportive', priority: 'A' },
+    ],
+    weekly_availability: [
+      { day: 'tuesday', duration_minutes: 60 },
+      { day: 'saturday', duration_minutes: 180 },
+    ],
+    current_ftp: 250,
+    weight_kg: 72,
+    intervals_icu_athlete_id: 'i1',
+    intervals_icu_api_key: 'k',
+    ...overrides,
+  }
+}
+
+describe('buildInterviewSystemPrompt', () => {
+  const wellness: ICUWellness = {
+    id: '2026-05-31', ctl: 55, atl: 70, form: -15, hrv: 60, resting_hr: 48, sleep_secs: null,
+  }
+
+  it('surfaces the athlete goals, FTP and the upcoming event', () => {
+    const p = buildInterviewSystemPrompt(makeProfile(), wellness, 250, '')
+    expect(p).toContain('Complete the Dragon Ride sportive in July')
+    expect(p).toContain('250W')
+    expect(p).toContain('Dragon Ride')
+  })
+
+  it('includes all six backbone topic cues and the completion marker instruction', () => {
+    const p = buildInterviewSystemPrompt(makeProfile(), wellness, 250, '')
+    for (const cue of ['goal', 'felt', 'injur', 'sleep', 'like', 'else']) {
+      expect(p.toLowerCase()).toContain(cue)
+    }
+    expect(p).toContain('__INTERVIEW_COMPLETE__')
+  })
+
+  it('embeds the dossier section when provided', () => {
+    const p = buildInterviewSystemPrompt(makeProfile(), wellness, 250, "COACH'S NOTES: strong climber")
+    expect(p).toContain("COACH'S NOTES: strong climber")
+  })
+
+  it('handles missing wellness without throwing', () => {
+    expect(() => buildInterviewSystemPrompt(makeProfile(), null, 250, '')).not.toThrow()
+  })
+})
 
 describe('parseInterviewCompletion', () => {
   it('returns visible only when no marker is present', () => {
