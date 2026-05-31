@@ -12,7 +12,9 @@ function makeClient(opts: { throwOn?: string } = {}) {
         total_elevation_gain: 300, left_right_balance: 50,
       }
     }),
-    getActivityPowerCurve: jest.fn(async () => []),
+    getPowerCurve: jest.fn(async () => [
+      { secs: 300, watts: 312 }, { secs: 1200, watts: 264 },
+    ]),
     getActivityIntervals: jest.fn(async () => []),
   }
 }
@@ -58,6 +60,11 @@ describe('backfillActivityMetrics', () => {
     const [, patch] = updateSpy.mock.calls[0]
     expect(patch.activity_metrics.np).toBe(210)
     expect(patch.activity_metrics.elevation_m).toBe(300)
+    // best_efforts comes from the day-scoped power curve
+    expect(patch.activity_metrics.best_efforts).toEqual([
+      { secs: 300, watts: 312 }, { secs: 1200, watts: 264 },
+    ])
+    expect(client.getPowerCurve).toHaveBeenCalledWith('2026-05-20', '2026-05-20')
   })
 
   it('skips a ride whose enrichment throws, without aborting the rest', async () => {

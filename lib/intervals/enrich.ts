@@ -4,10 +4,14 @@ import type { IntervalsClient } from './client'
 import { extractActivityMetrics } from '@/lib/claude/activity-metrics'
 
 // Build the full metrics blob for an activity already in hand. The two extra
-// per-activity calls degrade gracefully — a failure leaves that tier null.
+// calls degrade gracefully — a failure leaves that tier null. The power curve
+// is fetched via the day-scoped getPowerCurve (the proven endpoint the stats
+// page uses for per-ride bests); if multiple rides share a day it reflects the
+// day's best, which is acceptable for a best-effort summary.
 export async function enrichActivity(client: IntervalsClient, activity: ICUActivity): Promise<ActivityMetrics> {
+  const date = activity.start_date_local.split('T')[0]
   const [curve, intervals] = await Promise.all([
-    client.getActivityPowerCurve(activity.id).catch(() => null),
+    client.getPowerCurve(date, date).catch(() => null),
     client.getActivityIntervals(activity.id).catch(() => null),
   ])
   return extractActivityMetrics(activity, curve, intervals)
