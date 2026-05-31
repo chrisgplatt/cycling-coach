@@ -20,6 +20,7 @@ These rules govern every AI interaction that designs, adapts, or evaluates train
 | Daily briefing (`lib/claude/briefing.ts`) | `claude-opus-4-8` |
 | Dossier synthesis (`lib/claude/dossier.ts`) | `claude-opus-4-8` |
 | Plan chat (`/api/chat/plan`) | `claude-opus-4-8` |
+| Coach interview (`/api/chat/interview`) | `claude-opus-4-8` |
 
 All tasks now use the most capable model for best coaching results.
 

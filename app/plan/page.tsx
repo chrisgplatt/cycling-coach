@@ -7,6 +7,7 @@ import PlanApprovalModal from '@/components/PlanApprovalModal'
 import PlanReviewModal from '@/components/PlanReviewModal'
 import ClearWorkoutsModal from '@/components/ClearWorkoutsModal'
 import PlanChatModal from '@/components/PlanChatModal'
+import InterviewModal from '@/components/InterviewModal'
 import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod } from '@/types'
 import { periodDurationDays } from '@/lib/utils/unavailability'
 
@@ -77,6 +78,8 @@ export default function PlanPage() {
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [generating, setGenerating] = useState(false)
   const [showDurationPrompt, setShowDurationPrompt] = useState(false)
+  const [showInterviewOffer, setShowInterviewOffer] = useState(false)
+  const [showInterview, setShowInterview] = useState(false)
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false)
   const [showClearModal, setShowClearModal] = useState(false)
   const [planGenNote, setPlanGenNote] = useState('')
@@ -96,6 +99,11 @@ export default function PlanPage() {
 
   // Fix 1: timer ref to avoid unmount leak and double-save race
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function latestWellness() {
+    const w = syncData?.wellness
+    return w && w.length ? w[w.length - 1] : null
+  }
 
   function loadPlan() {
     fetch('/api/plan')
@@ -532,7 +540,7 @@ export default function PlanPage() {
               <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{saveError}</p>
             )}
             <button
-              onClick={() => events.length > 0 ? setShowDurationPrompt(true) : setTab('events')}
+              onClick={() => events.length > 0 ? setShowInterviewOffer(true) : setTab('events')}
               disabled={generating}
               className="bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm mt-2"
             >
@@ -555,12 +563,52 @@ export default function PlanPage() {
                   className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
                 >Cancel</button>
                 <button
-                  onClick={() => { setShowReplaceConfirm(false); setShowDurationPrompt(true) }}
+                  onClick={() => { setShowReplaceConfirm(false); setShowInterviewOffer(true) }}
                   className="bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                 >Continue</button>
               </div>
             </div>
           </div>
+        )}
+
+        {showInterviewOffer && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+              <h2 className="text-lg font-bold text-slate-900">Chat with your coach first?</h2>
+              <p className="text-sm text-slate-500">
+                A two-minute conversation lets your coach tailor the plan to how you&apos;re feeling, any
+                niggles, and what&apos;s coming up. You can talk or type. It&apos;s optional — skip to go
+                straight to the plan settings.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => { setShowInterviewOffer(false); setShowDurationPrompt(true) }}
+                  className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={() => { setShowInterviewOffer(false); setShowInterview(true) }}
+                  className="bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  Start chat
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showInterview && (
+          <InterviewModal
+            wellness={latestWellness()}
+            currentFTP={currentFtp}
+            onClose={() => setShowInterview(false)}
+            onComplete={(brief) => {
+              setShowInterview(false)
+              setPlanGenNote(brief)
+              setShowDurationPrompt(true)
+            }}
+          />
         )}
 
         {showDurationPrompt && (
