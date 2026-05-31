@@ -128,3 +128,30 @@ describe('formatRideExecution', () => {
     expect(formatRideExecution(steps, { ...metricsWithIntervals, intervals: null })).toBe('')
   })
 })
+
+import { formatRideShape } from '@/lib/claude/activity-metrics'
+import type { ActivityMetrics as AM } from '@/types'
+
+describe('insight formatting', () => {
+  const m: AM = {
+    np: 240, avg_power: 230, max_power: 600, avg_hr: 150, distance_m: 40000,
+    elevation_m: 500, lr_balance: 50, best_efforts: null, intervals: null,
+    decoupling_pct: 6.2,
+    time_in_zone: { z1: 0, z2: 6800, z3: 2200, z4: 800, z5: 0, z6: 0 },
+    climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 }],
+    shape: [{ label: 'Work', planned_w: 250, actual_w: 238 }],
+    synced_at: '2026-05-31T00:00:00Z',
+  }
+
+  it('formatActivityMetrics appends decoupling, zones and climbs', () => {
+    const s = formatActivityMetrics(m)
+    expect(s).toContain('decoupling 6.2%')
+    expect(s).toContain('Z2 69%')
+    expect(s).toContain('1 climb: 8min@268W')
+  })
+
+  it('formatRideShape renders planned vs actual per step', () => {
+    expect(formatRideShape(m.shape)).toContain('Work: planned 250W, actual 238W')
+    expect(formatRideShape(null)).toBe('')
+  })
+})

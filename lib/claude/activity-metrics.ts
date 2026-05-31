@@ -48,6 +48,30 @@ function findBest(m: ActivityMetrics, secs: number): number | null {
   return m.best_efforts?.find(e => e.secs === secs)?.watts ?? null
 }
 
+const ZONE_LABEL: Record<'z1'|'z2'|'z3'|'z4'|'z5'|'z6', string> = {
+  z1: 'Z1', z2: 'Z2', z3: 'Z3', z4: 'Z4', z5: 'Z5', z6: 'Z6',
+}
+
+function formatTimeInZone(tiz: NonNullable<ActivityMetrics['time_in_zone']>): string | null {
+  const total = Object.values(tiz).reduce((a, b) => a + b, 0)
+  if (total <= 0) return null
+  const parts = (Object.keys(tiz) as Array<keyof typeof tiz>)
+    .map(k => ({ k, pct: Math.round((tiz[k] / total) * 100) }))
+    .filter(z => z.pct >= 3)
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 4)
+    .map(z => `${ZONE_LABEL[z.k]} ${z.pct}%`)
+  return parts.length ? parts.join(' ') : null
+}
+
+function formatClimbsBrief(climbs: ClimbSegment[]): string {
+  const top = climbs.slice(0, 3).map(c => {
+    const mins = Math.round(c.duration_secs / 60)
+    return c.avg_watts != null ? `${mins}min@${c.avg_watts}W` : `${mins}min +${c.elev_gain_m}m`
+  }).join(', ')
+  return `${climbs.length} climb${climbs.length > 1 ? 's' : ''}: ${top}`
+}
+
 export function formatActivityMetrics(m: ActivityMetrics): string {
   const parts: string[] = []
   if (m.np !== null) parts.push(`NP ${Math.round(m.np)}W`)
@@ -60,6 +84,9 @@ export function formatActivityMetrics(m: ActivityMetrics): string {
   if (fiveMin !== null) parts.push(`5min best ${fiveMin}W`)
   const twentyMin = findBest(m, 1200)
   if (twentyMin !== null) parts.push(`20min best ${twentyMin}W`)
+  if (m.decoupling_pct !== null && m.decoupling_pct !== undefined) parts.push(`decoupling ${m.decoupling_pct.toFixed(1)}%`)
+  if (m.time_in_zone) { const z = formatTimeInZone(m.time_in_zone); if (z) parts.push(z) }
+  if (m.climbs?.length) parts.push(formatClimbsBrief(m.climbs))
   return parts.length ? parts.join(' · ') : 'no power data'
 }
 
@@ -215,4 +242,12 @@ export function extractStreamInsights(
     climbs: detectClimbs(s.altitude, s.distance, s.power, s.time),
     shape: computeShape(plannedSteps, s.power, s.time, ftp),
   }
+}
+
+// Per-step planned-vs-actual, for single-ride surfaces only (feedback, briefing).
+// Deliberately NOT added to the 90-day dossier list to protect the token budget.
+export function formatRideShape(shape: ActivityMetrics['shape']): string {
+  if (!shape?.length) return ''
+  const lines = shape.map(s => `${s.label}: planned ${s.planned_w}W, actual ${s.actual_w}W`)
+  return `Planned vs actual by step:\n${lines.join('\n')}`
 }
