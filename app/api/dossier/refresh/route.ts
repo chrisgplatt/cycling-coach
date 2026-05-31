@@ -26,11 +26,6 @@ export async function POST() {
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[dossier/refresh] synthesis failed:', err)
-    // TEMP DIAGNOSTIC: surface the real error so we can see what is throwing.
-    // Revert to the generic message once the root cause is fixed.
-    return NextResponse.json(
-      { error: 'Failed to refresh notes', detail: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: 'Failed to refresh notes' }, { status: 500 })
   }
 }

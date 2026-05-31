@@ -158,7 +158,10 @@ Return ONLY valid JSON matching this exact schema:
   const { anthropic } = await import('./client')
   const response = await anthropic.messages.create({
     model: 'claude-opus-4-8',
-    max_tokens: 1024,
+    // The 7-field profile can run long now that workout lines carry enriched
+    // detail (power/terrain/intervals) for the model to cite. 1024 truncated the
+    // JSON mid-output, breaking the parse — give it ample room to finish.
+    max_tokens: 4096,
     system: SYNTHESIS_SYSTEM,
     messages: [{ role: 'user', content: prompt }],
   })
