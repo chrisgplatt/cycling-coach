@@ -20,6 +20,7 @@ function Chip({ label, value, colour }: { label: string; value: string; colour: 
 export default function RideMapGraph({ streams }: { streams: RideStreams }) {
   const [cursor, setCursor] = useState(0)
   const [show, setShow] = useState({ power: true, hr: true, elevation: true })
+  const [xAxis, setXAxis] = useState<'distance' | 'time'>('distance')
   const hasGps = !!streams.latlng && streams.latlng.length > 0
 
   const at = (arr: number[] | null) => (arr && arr[cursor] != null ? arr[cursor] : null)
@@ -50,7 +51,22 @@ export default function RideMapGraph({ streams }: { streams: RideStreams }) {
         {streams.altitude && <Chip label="Elev" value={alt != null ? `${Math.round(alt)}m` : '—'} colour="#16a34a" />}
       </div>
 
-      <RideGraph streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} />
+      <RideGraph streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis={xAxis} />
+
+      <div className="px-4 pt-3 flex gap-2 items-center">
+        <span className="text-[11px] text-gray-400 mr-1">X axis</span>
+        {(['distance', 'time'] as const).map(ax => (
+          <button
+            key={ax}
+            onClick={() => setXAxis(ax)}
+            className={`text-xs font-medium px-4 min-h-[44px] inline-flex items-center rounded-full border transition-colors ${
+              xAxis === ax ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-500'
+            }`}
+          >
+            {ax === 'distance' ? 'Distance' : 'Time'}
+          </button>
+        ))}
+      </div>
 
       <div className="px-4 py-3 flex gap-2 flex-wrap">
         {(['power', 'hr', 'elevation'] as const).map(k => {

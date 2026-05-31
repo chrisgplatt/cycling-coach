@@ -12,7 +12,7 @@ describe('RideGraph', () => {
   it('renders a polyline for each active series', () => {
     const { container } = render(
       <RideGraph streams={streams} cursorIndex={1} onScrub={() => {}}
-        show={{ power: true, hr: true, elevation: true }} />,
+        show={{ power: true, hr: true, elevation: true }} xAxis="distance" />,
     )
     // power + hr + elevation = 3 polylines, plus the crosshair line
     expect(container.querySelectorAll('polyline').length).toBe(3)

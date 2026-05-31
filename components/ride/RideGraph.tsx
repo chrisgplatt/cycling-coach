@@ -1,7 +1,7 @@
 'use client'
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import type { RideStreams } from '@/types'
-import { pointerToIndex, seriesToPolyline } from '@/lib/ride/graph-math'
+import { axisFractions, nearestIndexForFraction, seriesToPolyline } from '@/lib/ride/graph-math'
 
 const W = 1000
 const H = 260
@@ -13,19 +13,22 @@ interface Props {
   cursorIndex: number
   onScrub: (index: number) => void
   show: { power: boolean; hr: boolean; elevation: boolean }
+  xAxis: 'distance' | 'time'
 }
 
-export default function RideGraph({ streams, cursorIndex, onScrub, show }: Props) {
+export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
-  const n = streams.time.length
+  const axis = xAxis === 'distance' ? streams.distance : streams.time
+  const fractions = useMemo(() => axisFractions(axis), [axis])
 
   function handle(clientX: number) {
     const rect = svgRef.current?.getBoundingClientRect()
-    if (!rect) return
-    onScrub(pointerToIndex(clientX, rect.left, rect.width, n))
+    if (!rect || rect.width <= 0) return
+    const f = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    onScrub(nearestIndexForFraction(fractions, f))
   }
 
-  const crosshairX = n > 1 ? (cursorIndex / (n - 1)) * W : 0
+  const crosshairX = (fractions[cursorIndex] ?? 0) * W
 
   return (
     <svg
@@ -38,13 +41,13 @@ export default function RideGraph({ streams, cursorIndex, onScrub, show }: Props
       onPointerMove={e => { if (e.buttons || e.pointerType === 'touch') handle(e.clientX) }}
     >
       {show.elevation && streams.altitude && (
-        <polyline points={seriesToPolyline(streams.altitude, W, H)} fill="none" stroke={COLOURS.elevation} strokeWidth={2} opacity={0.6} />
+        <polyline points={seriesToPolyline(streams.altitude, W, H, 2, fractions)} fill="none" stroke={COLOURS.elevation} strokeWidth={2} opacity={0.6} />
       )}
       {show.hr && streams.hr && (
-        <polyline points={seriesToPolyline(streams.hr, W, H)} fill="none" stroke={COLOURS.hr} strokeWidth={2} />
+        <polyline points={seriesToPolyline(streams.hr, W, H, 2, fractions)} fill="none" stroke={COLOURS.hr} strokeWidth={2} />
       )}
       {show.power && streams.power && (
-        <polyline points={seriesToPolyline(streams.power, W, H)} fill="none" stroke={COLOURS.power} strokeWidth={2.5} />
+        <polyline points={seriesToPolyline(streams.power, W, H, 2, fractions)} fill="none" stroke={COLOURS.power} strokeWidth={2.5} />
       )}
       <line x1={crosshairX} y1={0} x2={crosshairX} y2={H} stroke="#111" strokeWidth={1.5} opacity={0.5} />
     </svg>
