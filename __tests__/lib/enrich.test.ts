@@ -16,16 +16,25 @@ function makeClient(opts: { throwOn?: string } = {}) {
       { secs: 300, watts: 312 }, { secs: 1200, watts: 264 },
     ]),
     getActivityIntervals: jest.fn(async () => []),
+    getActivityStreams: jest.fn(async () => ({
+      time: [0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600],
+      distance: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      latlng: null,
+      power: Array.from({ length: 11 }, () => 200),
+      hr: [150, 150, 150, 150, 150, 165, 165, 165, 165, 165, 165],
+      altitude: null, cadence: null, velocity: null,
+    })),
   }
 }
 
 // Minimal chainable Supabase stub: select/eq/in/gte/not/is/order/limit resolve to { data }.
-function makeSupabase(rows: Array<{ id: string; icu_activity_id: string }>, updateSpy: jest.Mock) {
+function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown }>, updateSpy: jest.Mock) {
   const query: Record<string, unknown> = {}
   const self = () => query
   Object.assign(query, {
     select: self, eq: self, in: self, gte: self, not: self, is: self, order: self,
     limit: () => Promise.resolve({ data: rows, error: null }),
+    maybeSingle: () => Promise.resolve({ data: { current_ftp: 200 }, error: null }),
   })
   return {
     from: (table: string) => {
@@ -35,7 +44,7 @@ function makeSupabase(rows: Array<{ id: string; icu_activity_id: string }>, upda
           update: (patch: unknown) => ({ eq: (_c: string, id: string) => { updateSpy(id, patch); return Promise.resolve({ error: null }) } }),
         }
       }
-      return query
+      return query // user_profile → maybeSingle resolves { current_ftp: 200 }
     },
   }
 }
@@ -46,7 +55,7 @@ describe('backfillActivityMetrics', () => {
   it('enriches each missing ride and writes activity_metrics', async () => {
     const updateSpy = jest.fn()
     const supabase = makeSupabase(
-      [{ id: 'w1', icu_activity_id: 'a1' }, { id: 'w2', icu_activity_id: 'a2' }],
+      [{ id: 'w1', icu_activity_id: 'a1', steps: null }, { id: 'w2', icu_activity_id: 'a2', steps: null }],
       updateSpy,
     )
     const client = makeClient()
@@ -65,12 +74,14 @@ describe('backfillActivityMetrics', () => {
       { secs: 300, watts: 312 }, { secs: 1200, watts: 264 },
     ])
     expect(client.getPowerCurve).toHaveBeenCalledWith('2026-05-20', '2026-05-20')
+    expect(patch.activity_metrics.decoupling_pct).toBeCloseTo(9.1, 1)
+    expect(patch.activity_metrics.time_in_zone).not.toBeNull()
   })
 
   it('skips a ride whose enrichment throws, without aborting the rest', async () => {
     const updateSpy = jest.fn()
     const supabase = makeSupabase(
-      [{ id: 'w1', icu_activity_id: 'a1' }, { id: 'w2', icu_activity_id: 'a2' }],
+      [{ id: 'w1', icu_activity_id: 'a1', steps: null }, { id: 'w2', icu_activity_id: 'a2', steps: null }],
       updateSpy,
     )
     const client = makeClient({ throwOn: 'a1' })
