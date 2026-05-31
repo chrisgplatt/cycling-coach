@@ -69,7 +69,7 @@ export default function CoachPage() {
       const res = await fetch('/api/dossier/refresh', { method: 'POST' })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
-        setError(d.error ?? 'Refresh failed')
+        setError(d.detail ? `${d.error ?? 'Refresh failed'}: ${d.detail}` : (d.error ?? 'Refresh failed'))
       } else {
         await loadDossier()
       }
