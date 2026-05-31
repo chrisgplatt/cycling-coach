@@ -180,4 +180,21 @@ describe('IntervalsClient', () => {
     const ivs = await client.getActivityIntervals('act9')
     expect(ivs).toEqual([])
   })
+
+  it('getActivityStreams calls the streams endpoint and normalises channels', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ([
+        { type: 'time', data: [0, 1] },
+        { type: 'watts', data: [100, 200] },
+        { type: 'latlng', data: [[53.5, -2.4], [53.6, -2.5]] },
+      ]),
+    })
+    const s = await client.getActivityStreams('act9')
+    expect(s.power).toEqual([100, 200])
+    expect(s.latlng).toEqual([[53.5, -2.4], [53.6, -2.5]])
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      'https://intervals.icu/api/v1/activity/act9/streams?types=time,latlng,watts,heartrate,altitude,distance,cadence,velocity_smooth'
+    )
+  })
 })

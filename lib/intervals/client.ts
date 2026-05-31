@@ -1,4 +1,5 @@
-import type { ICUActivity, ICUWellness, ICUSyncData, WorkoutStep, ICUEvent, ICUPowerCurvePoint, ActivityInterval } from '@/types'
+import type { ICUActivity, ICUWellness, ICUSyncData, WorkoutStep, ICUEvent, ICUPowerCurvePoint, ActivityInterval, RideStreams } from '@/types'
+import { normaliseStreams } from './streams'
 
 const BASE = 'https://intervals.icu/api/v1'
 
@@ -173,6 +174,16 @@ export class IntervalsClient {
       avg_watts: (iv.average_watts ?? null) as number | null,
       avg_hr: (iv.average_heartrate ?? null) as number | null,
     }))
+  }
+
+  // Per-second streams for one activity. intervals.icu exposes these at
+  // /activity/{id}/streams as an array of { type, data } channels.
+  async getActivityStreams(activityId: string): Promise<RideStreams> {
+    const types = 'time,latlng,watts,heartrate,altitude,distance,cadence,velocity_smooth'
+    const raw = await this.request<Array<{ type: string; data: unknown[] }>>(
+      `/activity/${activityId}/streams?types=${types}`
+    )
+    return normaliseStreams(Array.isArray(raw) ? raw : [])
   }
 
   async getWellness(start: string, end: string): Promise<ICUWellness[]> {
