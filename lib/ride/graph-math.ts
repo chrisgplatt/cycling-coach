@@ -38,6 +38,14 @@ export function extent(values: (number | null)[]): [number, number] | null {
   return [Math.min(...nums), Math.max(...nums)]
 }
 
+// Expands a [min,max] domain outward to the nearest `step` (default 10) so axes
+// land on clean round bounds (e.g. [96,171] → [90,180]). Guarantees a non-zero span.
+export function niceDomain([min, max]: [number, number], step = 10): [number, number] {
+  const lo = Math.floor(min / step) * step
+  const hi = Math.ceil(max / step) * step
+  return [lo, hi === lo ? lo + step : hi]
+}
+
 // Light moving-average smoothing that ignores null/NaN and preserves length and
 // gaps. `window` is the total span of samples averaged per point. Pure.
 export function smoothSeries(values: (number | null)[], window: number): (number | null)[] {

@@ -1,5 +1,15 @@
 /** @jest-environment node */
-import { pointerToIndex, seriesToPolyline, formatDuration, axisFractions, nearestIndexForFraction, smoothSeries, extent } from '@/lib/ride/graph-math'
+import { pointerToIndex, seriesToPolyline, formatDuration, axisFractions, nearestIndexForFraction, smoothSeries, extent, niceDomain } from '@/lib/ride/graph-math'
+
+describe('niceDomain', () => {
+  it('expands bounds outward to the nearest 10', () => {
+    expect(niceDomain([96, 171])).toEqual([90, 180])
+    expect(niceDomain([0, 612])).toEqual([0, 620])
+  })
+  it('keeps a non-zero span when min and max round to the same value', () => {
+    expect(niceDomain([150, 150])).toEqual([150, 160])
+  })
+})
 
 describe('extent', () => {
   it('returns [min,max] of finite values, ignoring nulls', () => {

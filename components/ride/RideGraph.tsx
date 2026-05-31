@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useRef } from 'react'
 import type { RideStreams } from '@/types'
-import { axisFractions, nearestIndexForFraction, seriesToPolyline, smoothSeries, extent, formatDuration } from '@/lib/ride/graph-math'
+import { axisFractions, nearestIndexForFraction, seriesToPolyline, smoothSeries, extent, niceDomain, formatDuration } from '@/lib/ride/graph-math'
 
 const W = 1000
 const H = 260
@@ -23,7 +23,7 @@ function YAxis({ domain, colour, side, unit }: {
 }) {
   if (!domain) return <div className="w-10 shrink-0" />
   const [min, max] = domain
-  const labels = [Math.round(max), Math.round((min + max) / 2), Math.round(min)]
+  const labels = [Math.round(max), Math.round((min + max) / 2 / 10) * 10, Math.round(min)]
   return (
     <div
       className={`w-10 shrink-0 flex flex-col justify-between py-1 text-[10px] tabular-nums ${side === 'left' ? 'items-end pr-1' : 'items-start pl-1'}`}
@@ -45,13 +45,15 @@ export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis }
   // (and lines up with) an axis built from the same min/max.
   const power = useMemo(() => {
     if (!streams.power) return null
-    const dom = extent(streams.power)
+    const raw = extent(streams.power)
+    const dom = raw ? niceDomain(raw) : null
     return { dom, line: seriesToPolyline(smoothSeries(streams.power, SMOOTH), W, H, PAD, fractions, dom ?? undefined) }
   }, [streams.power, fractions])
 
   const hr = useMemo(() => {
     if (!streams.hr) return null
-    const dom = extent(streams.hr)
+    const raw = extent(streams.hr)
+    const dom = raw ? niceDomain(raw) : null
     return { dom, line: seriesToPolyline(smoothSeries(streams.hr, SMOOTH), W, H, PAD, fractions, dom ?? undefined) }
   }, [streams.hr, fractions])
 
