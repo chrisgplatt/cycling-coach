@@ -23,7 +23,7 @@ describe('extractStreamInsights', () => {
 
   it('buckets time into power zones by FTP', () => {
     const time = [0, 60, 120, 180]
-    const power = [100, 160, 200, 260] // 50% z1, 80% z3, 100% z4, 130% z6
+    const power = [100, 160, 200, 260] // dt-weighted: 50%→z1, 80%→z3, 100%→z4; final sample (130%) has no dt, so z6 stays 0
     const m = extractStreamInsights({ ...base(), time, power }, 200, null)
     expect(m.time_in_zone).toEqual({ z1: 60, z2: 0, z3: 60, z4: 60, z5: 0, z6: 0 })
   })
@@ -58,5 +58,13 @@ describe('extractStreamInsights', () => {
     const m = extractStreamInsights({ ...base(), time: [0, 60], power: [200, 200] }, null, null)
     expect(m.time_in_zone).toBeNull()
     expect(m.shape).toBeNull()
+  })
+
+  it('returns negative decoupling when efficiency improves over the ride', () => {
+    const time = [0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600]
+    const power = time.map(() => 200)
+    const hr = time.map(t => (t < 300 ? 165 : 150)) // HR drops in second half
+    const m = extractStreamInsights({ ...base(), time, power, hr }, 200, null)
+    expect(m.decoupling_pct).toBeLessThan(0)
   })
 })

@@ -97,7 +97,7 @@ export function formatRideExecution(
 type ZoneKey = 'z1' | 'z2' | 'z3' | 'z4' | 'z5' | 'z6'
 
 function zoneOf(pct: number): ZoneKey {
-  if (pct < 0.55) return 'z1'
+  if (pct < 0.55) return 'z1'  // 55% itself falls through to Z2 (CLAUDE.md boundary is ambiguous there)
   if (pct <= 0.75) return 'z2'
   if (pct <= 0.90) return 'z3'
   if (pct <= 1.05) return 'z4'
@@ -131,6 +131,8 @@ function computeTimeInZone(
 ): ActivityMetrics['time_in_zone'] {
   if (!power || !ftp) return null
   const z = { z1: 0, z2: 0, z3: 0, z4: 0, z5: 0, z6: 0 }
+  // Loop to length-1: a sample's duration is the gap to the next sample, so the
+  // final sample has no computable dt and contributes 0 (trapezoidal rule).
   for (let i = 0; i < power.length - 1; i++) {
     const dt = time[i + 1] - time[i]
     if (dt <= 0 || !Number.isFinite(power[i])) continue
@@ -145,6 +147,9 @@ function detectClimbs(
 ): ClimbSegment[] | null {
   if (!altitude || !distance || altitude.length < 2) return null
   const MIN_GRADE = 0.03, MIN_GAIN = 30, MIN_SECS = 180, WINDOW_M = 200
+  // Known approximation: the final sample has no forward window (dd=0) so it
+  // classifies as non-climbing. A climb finishing exactly at ride end is therefore
+  // undercounted by one sample — negligible at real (≈1 Hz) sampling rates.
   const climbing = altitude.map((_, i) => {
     let j = i
     while (j < distance.length - 1 && distance[j] - distance[i] < WINDOW_M) j++
