@@ -53,9 +53,12 @@ export async function POST(req: NextRequest) {
     ])
     const events = ((profileData as { events?: import('@/types').TrainingEvent[] } | null)?.events ?? [])
 
-    const { formatRideExecution } = await import('@/lib/claude/activity-metrics')
+    const { formatRideExecution, formatRideShape } = await import('@/lib/claude/activity-metrics')
     const w = workout as Workout
-    const rideExecution = formatRideExecution(w.steps, w.activity_metrics)
+    const rideExecution = [
+      formatRideExecution(w.steps, w.activity_metrics),
+      formatRideShape(w.activity_metrics?.shape ?? null),
+    ].filter(Boolean).join('\n\n')
 
     proposed = await analyseFeedback(
       workout as Workout,
