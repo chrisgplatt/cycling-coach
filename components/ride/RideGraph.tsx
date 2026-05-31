@@ -13,7 +13,6 @@ interface Props {
   cursorIndex: number
   onScrub: (index: number) => void
   show: { power: boolean; hr: boolean; elevation: boolean }
-  xAxis: 'distance' | 'time'
 }
 
 export default function RideGraph({ streams, cursorIndex, onScrub, show }: Props) {

@@ -15,6 +15,10 @@ export default function RouteMap({ latlng, cursorIndex }: Props) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LMap | null>(null)
   const markerRef = useRef<CircleMarker | null>(null)
+  // Track the latest cursor so the marker starts at the right place even if the
+  // user scrubbed during the async Leaflet load (the init effect only deps on latlng).
+  const cursorRef = useRef(cursorIndex)
+  useEffect(() => { cursorRef.current = cursorIndex }, [cursorIndex])
 
   useEffect(() => {
     let cancelled = false
@@ -27,7 +31,7 @@ export default function RouteMap({ latlng, cursorIndex }: Props) {
       }).addTo(map)
       const line: Polyline = L.polyline(latlng, { color: '#2563eb', weight: 4 }).addTo(map)
       map.fitBounds(line.getBounds(), { padding: [20, 20] })
-      markerRef.current = L.circleMarker(latlng[0], {
+      markerRef.current = L.circleMarker(latlng[cursorRef.current] ?? latlng[0], {
         radius: 7, color: '#fff', weight: 2, fillColor: '#ef4444', fillOpacity: 1,
       }).addTo(map)
     })

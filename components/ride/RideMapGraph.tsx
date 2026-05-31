@@ -33,6 +33,7 @@ export default function RideMapGraph({ streams }: { streams: RideStreams }) {
     <div className="flex flex-col">
       <div className="h-[40vh] min-h-[220px] bg-slate-100 relative">
         {hasGps ? (
+          // hasGps guarantees latlng is non-null and non-empty
           <RouteMap latlng={streams.latlng!} cursorIndex={cursor} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-sm text-slate-400">
@@ -49,7 +50,7 @@ export default function RideMapGraph({ streams }: { streams: RideStreams }) {
         {streams.altitude && <Chip label="Elev" value={alt != null ? `${Math.round(alt)}m` : '—'} colour="#16a34a" />}
       </div>
 
-      <RideGraph streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis="distance" />
+      <RideGraph streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} />
 
       <div className="px-4 py-3 flex gap-2 flex-wrap">
         {(['power', 'hr', 'elevation'] as const).map(k => {
@@ -60,7 +61,7 @@ export default function RideMapGraph({ streams }: { streams: RideStreams }) {
             <button
               key={k}
               onClick={() => setShow(s => ({ ...s, [k]: !s[k] }))}
-              className={`text-xs font-medium px-3 py-2 rounded-full border transition-colors ${
+              className={`text-xs font-medium px-4 min-h-[44px] inline-flex items-center rounded-full border transition-colors ${
                 show[k] ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-400'
               }`}
             >
