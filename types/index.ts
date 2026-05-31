@@ -269,7 +269,31 @@ export interface ActivityMetrics {
   best_efforts: Array<{ secs: number; watts: number }> | null
   // Tier 3 — detected intervals (laps)
   intervals: ActivityInterval[] | null
+  // Tier 4 — stream-derived coaching insights (computed at sync from full-resolution streams)
+  decoupling_pct: number | null            // aerobic decoupling %, positive = faded
+  climbs: ClimbSegment[] | null
+  time_in_zone: { z1: number; z2: number; z3: number; z4: number; z5: number; z6: number } | null  // seconds per zone
+  shape: Array<{ label: string; planned_w: number; actual_w: number }> | null  // structured rides only
   synced_at: string
+}
+
+export interface ClimbSegment {
+  start_km: number
+  duration_secs: number
+  elev_gain_m: number
+  avg_watts: number | null
+  vam: number            // vertical ascent metres / hour
+}
+
+export interface RideStreams {
+  time: number[]                       // seconds from start
+  distance: number[]                   // metres
+  latlng: [number, number][] | null    // null for indoor rides
+  power: number[] | null
+  hr: number[] | null
+  altitude: number[] | null
+  cadence: number[] | null
+  velocity: number[] | null            // m/s
 }
 
 export interface WorkoutStep {

@@ -1,7 +1,7 @@
 // Pure, dependency-free formatters for enriched completed-ride detail.
 // Kept free of the intervals.icu and Anthropic clients so prompt builders can
 // import it without dragging in network/SDK code (mirrors lib/claude/zones.ts).
-import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep } from '@/types'
+import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment } from '@/types'
 
 // Best-effort durations we sample the power curve down to (seconds).
 const CANONICAL_SECS = [5, 15, 60, 300, 1200, 3600]
@@ -36,6 +36,10 @@ export function extractActivityMetrics(
     lr_balance: act.left_right_balance ?? null,
     best_efforts: best.length ? best : null,
     intervals: intervals?.length ? intervals : null,
+    decoupling_pct: null,
+    climbs: null,
+    time_in_zone: null,
+    shape: null,
     synced_at: new Date().toISOString(),
   }
 }
@@ -83,4 +87,127 @@ export function formatRideExecution(
     })
     .join(' | ')
   return `Planned steps: ${planned}\nActual intervals: ${actual}`
+}
+
+// ── Stream-derived insights ───────────────────────────────────────────────
+// Computed from full-resolution streams at sync. All pure and deterministic.
+// Zone boundaries match CLAUDE.md: Z1<55, Z2 56–75, Z3 76–90, Z4 91–105,
+// Z5 106–120, Z6 >120 (% FTP). Zones/shape need FTP — null when ftp is null.
+
+type ZoneKey = 'z1' | 'z2' | 'z3' | 'z4' | 'z5' | 'z6'
+
+function zoneOf(pct: number): ZoneKey {
+  if (pct < 0.55) return 'z1'
+  if (pct <= 0.75) return 'z2'
+  if (pct <= 0.90) return 'z3'
+  if (pct <= 1.05) return 'z4'
+  if (pct <= 1.20) return 'z5'
+  return 'z6'
+}
+
+function avgRatio(power: number[], hr: number[], lo: number, hi: number): number | null {
+  let ps = 0, hs = 0, n = 0
+  for (let i = lo; i < hi; i++) {
+    const p = power[i], h = hr[i]
+    if (Number.isFinite(p) && Number.isFinite(h) && h > 0) { ps += p; hs += h; n++ }
+  }
+  if (n === 0) return null
+  return (ps / n) / (hs / n)
+}
+
+function computeDecoupling(power: number[] | null, hr: number[] | null, time: number[]): number | null {
+  if (!power || !hr || time.length < 4) return null
+  const mid = time[0] + (time[time.length - 1] - time[0]) / 2
+  let split = time.findIndex(t => t >= mid)
+  if (split <= 0 || split >= time.length) return null
+  const first = avgRatio(power, hr, 0, split)
+  const second = avgRatio(power, hr, split, time.length)
+  if (first === null || second === null || first === 0) return null
+  return Math.round(((first - second) / first) * 1000) / 10
+}
+
+function computeTimeInZone(
+  power: number[] | null, time: number[], ftp: number | null,
+): ActivityMetrics['time_in_zone'] {
+  if (!power || !ftp) return null
+  const z = { z1: 0, z2: 0, z3: 0, z4: 0, z5: 0, z6: 0 }
+  for (let i = 0; i < power.length - 1; i++) {
+    const dt = time[i + 1] - time[i]
+    if (dt <= 0 || !Number.isFinite(power[i])) continue
+    z[zoneOf(power[i] / ftp)] += dt
+  }
+  return z
+}
+
+function detectClimbs(
+  altitude: number[] | null, distance: number[] | null,
+  power: number[] | null, time: number[],
+): ClimbSegment[] | null {
+  if (!altitude || !distance || altitude.length < 2) return null
+  const MIN_GRADE = 0.03, MIN_GAIN = 30, MIN_SECS = 180, WINDOW_M = 200
+  const climbing = altitude.map((_, i) => {
+    let j = i
+    while (j < distance.length - 1 && distance[j] - distance[i] < WINDOW_M) j++
+    const dd = distance[j] - distance[i]
+    if (dd <= 0) return false
+    return (altitude[j] - altitude[i]) / dd >= MIN_GRADE
+  })
+  const out: ClimbSegment[] = []
+  let start = -1
+  for (let i = 0; i <= climbing.length; i++) {
+    if (i < climbing.length && climbing[i]) {
+      if (start === -1) start = i
+    } else if (start !== -1) {
+      const end = i - 1
+      const duration_secs = time[end] - time[start]
+      const elev_gain_m = altitude[end] - altitude[start]
+      if (duration_secs >= MIN_SECS && elev_gain_m >= MIN_GAIN) {
+        let ps = 0, pn = 0
+        if (power) for (let k = start; k <= end; k++) if (Number.isFinite(power[k])) { ps += power[k]; pn++ }
+        out.push({
+          start_km: Math.round((distance[start] / 1000) * 10) / 10,
+          duration_secs,
+          elev_gain_m: Math.round(elev_gain_m),
+          avg_watts: pn ? Math.round(ps / pn) : null,
+          vam: Math.round(elev_gain_m / (duration_secs / 3600)),
+        })
+      }
+      start = -1
+    }
+  }
+  return out.length ? out : null
+}
+
+function computeShape(
+  plannedSteps: WorkoutStep[] | null, power: number[] | null, time: number[], ftp: number | null,
+): ActivityMetrics['shape'] {
+  if (!plannedSteps?.length || !power || !ftp) return null
+  const out: NonNullable<ActivityMetrics['shape']> = []
+  let cursor = 0
+  for (const step of plannedSteps) {
+    const startSec = cursor
+    const endSec = cursor + step.duration_minutes * 60
+    cursor = endSec
+    let ps = 0, n = 0
+    for (let i = 0; i < time.length; i++) {
+      if (time[i] >= startSec && time[i] < endSec && Number.isFinite(power[i])) { ps += power[i]; n++ }
+    }
+    out.push({
+      label: step.label,
+      planned_w: Math.round((ftp * step.power_pct_ftp) / 100),
+      actual_w: n ? Math.round(ps / n) : 0,
+    })
+  }
+  return out
+}
+
+export function extractStreamInsights(
+  s: RideStreams, ftp: number | null, plannedSteps: WorkoutStep[] | null,
+): Pick<ActivityMetrics, 'decoupling_pct' | 'climbs' | 'time_in_zone' | 'shape'> {
+  return {
+    decoupling_pct: computeDecoupling(s.power, s.hr, s.time),
+    time_in_zone: computeTimeInZone(s.power, s.time, ftp),
+    climbs: detectClimbs(s.altitude, s.distance, s.power, s.time),
+    shape: computeShape(plannedSteps, s.power, s.time, ftp),
+  }
 }
