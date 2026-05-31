@@ -378,7 +378,7 @@ export default function SettingsPage() {
         <div className="space-y-1.5 text-sm text-slate-500">
           <div className="flex justify-between">
             <span>Version</span>
-            <span className="font-medium text-slate-700">{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}</span>
+            <span className="font-medium text-slate-700">{process.env.NEXT_PUBLIC_APP_VERSION ? `v${process.env.NEXT_PUBLIC_APP_VERSION}` : '—'}</span>
           </div>
           <div className="flex justify-between">
             <span>Built</span>
