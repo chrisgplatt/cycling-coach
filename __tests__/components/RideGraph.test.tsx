@@ -9,13 +9,13 @@ const streams: RideStreams = {
 }
 
 describe('RideGraph', () => {
-  it('renders a polyline for each active series', () => {
+  it('renders power + HR as lines, elevation as an area, and a crosshair', () => {
     const { container } = render(
       <RideGraph streams={streams} cursorIndex={1} onScrub={() => {}}
         show={{ power: true, hr: true, elevation: true }} xAxis="distance" />,
     )
-    // power + hr + elevation = 3 polylines, plus the crosshair line
-    expect(container.querySelectorAll('polyline').length).toBe(3)
-    expect(container.querySelector('line')).toBeTruthy() // crosshair
+    expect(container.querySelectorAll('polyline').length).toBe(2) // power + HR
+    expect(container.querySelector('polygon')).toBeTruthy()        // elevation area
+    expect(container.querySelector('line')).toBeTruthy()           // crosshair
   })
 })

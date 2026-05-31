@@ -1,5 +1,34 @@
 /** @jest-environment node */
-import { pointerToIndex, seriesToPolyline, formatDuration, axisFractions, nearestIndexForFraction } from '@/lib/ride/graph-math'
+import { pointerToIndex, seriesToPolyline, formatDuration, axisFractions, nearestIndexForFraction, smoothSeries, extent } from '@/lib/ride/graph-math'
+
+describe('extent', () => {
+  it('returns [min,max] of finite values, ignoring nulls', () => {
+    expect(extent([3, null, 1, 5])).toEqual([1, 5])
+  })
+  it('returns null when there are no finite values', () => {
+    expect(extent([null, null])).toBeNull()
+  })
+})
+
+describe('smoothSeries', () => {
+  it('averages within the window and preserves length', () => {
+    expect(smoothSeries([0, 0, 9], 3)).toEqual([0, 3, 4.5])
+  })
+  it('preserves nulls and averages only finite neighbours', () => {
+    expect(smoothSeries([null, 4, null], 3)).toEqual([null, 4, null])
+  })
+  it('returns the input unchanged for window <= 1', () => {
+    const v = [1, 2, 3]
+    expect(smoothSeries(v, 1)).toBe(v)
+  })
+})
+
+describe('seriesToPolyline with a fixed domain', () => {
+  it('scales against the given domain rather than the data extent', () => {
+    // domain 0..20 → y = 100 - (v/20)*100; values 0,5,10 → 100,75,50
+    expect(seriesToPolyline([0, 5, 10], 100, 100, 0, undefined, [0, 20])).toBe('0.0,100.0 50.0,75.0 100.0,50.0')
+  })
+})
 
 describe('axisFractions', () => {
   it('maps a uniform monotonic axis to 0..1', () => {

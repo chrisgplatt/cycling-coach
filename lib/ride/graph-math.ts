@@ -31,16 +31,44 @@ export function nearestIndexForFraction(fractions: number[], f: number): number 
   return best
 }
 
+// Min/max of the finite values, or null when there are none.
+export function extent(values: (number | null)[]): [number, number] | null {
+  const nums = values.filter((v): v is number => v != null && Number.isFinite(v))
+  if (!nums.length) return null
+  return [Math.min(...nums), Math.max(...nums)]
+}
+
+// Light moving-average smoothing that ignores null/NaN and preserves length and
+// gaps. `window` is the total span of samples averaged per point. Pure.
+export function smoothSeries(values: (number | null)[], window: number): (number | null)[] {
+  if (window <= 1) return values
+  const half = Math.floor(window / 2)
+  const out: (number | null)[] = new Array(values.length)
+  for (let i = 0; i < values.length; i++) {
+    const cur = values[i]
+    if (cur == null || !Number.isFinite(cur)) { out[i] = cur; continue }
+    let sum = 0, count = 0
+    for (let j = i - half; j <= i + half; j++) {
+      const v = values[j]
+      if (j >= 0 && j < values.length && v != null && Number.isFinite(v)) { sum += v; count++ }
+    }
+    out[i] = count ? sum / count : cur
+  }
+  return out
+}
+
 // Builds an SVG polyline `points` string scaling values into [0,width]×[0,height].
 // Y is inverted (SVG origin top-left). Nulls/NaNs are skipped. When `xs` (per-sample
 // 0..1 fractions) is given, X follows the axis; otherwise points are evenly spaced.
+// `domain` fixes the value range (e.g. raw min/max) so a smoothed line still scales
+// against the true extent and lines up with an axis built from the same range.
 export function seriesToPolyline(
-  values: (number | null)[], width: number, height: number, pad = 2, xs?: number[],
+  values: (number | null)[], width: number, height: number, pad = 2, xs?: number[], domain?: [number, number],
 ): string {
   const nums = values.filter((v): v is number => v != null && Number.isFinite(v))
   if (!nums.length) return ''
-  const min = Math.min(...nums)
-  const max = Math.max(...nums)
+  const min = domain ? domain[0] : Math.min(...nums)
+  const max = domain ? domain[1] : Math.max(...nums)
   const span = max - min || 1
   const n = values.length
   const out: string[] = []
