@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent } from '@/types'
 import { getWeekBounds } from '@/lib/week-bounds'
 
@@ -349,6 +350,14 @@ export default function WorkoutDetailModal({
               >
                 View completed activity in intervals.icu →
               </a>
+            )}
+            {workout.icu_activity_id && (workout.status === 'completed' || workout.status === 'needs_review') && (
+              <Link
+                href={`/ride/${workout.id}`}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium block transition-colors"
+              >
+                View ride map →
+              </Link>
             )}
           </div>
 
