@@ -8,22 +8,32 @@ function fmtDuration(seconds: number): string {
 
 interface Props {
   activity: ICUActivity
+  onClick?: () => void
 }
 
-export default function ActivityCard({ activity }: Props) {
-  return (
-    <div className="bg-sky-50 border border-sky-200 rounded-xl px-4 py-3">
-      <div className="flex items-center gap-2">
-        <span className="text-sky-500 text-sm font-bold">↑</span>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm text-sky-900 truncate">{activity.name}</div>
-          <div className="text-xs text-sky-700 mt-0.5 flex gap-2 flex-wrap">
-            <span>{fmtDuration(activity.moving_time)}</span>
-            {activity.training_load != null && <span>{Math.round(activity.training_load)} TSS</span>}
-            {activity.weighted_average_watts != null && <span>{Math.round(activity.weighted_average_watts)}W NP</span>}
-          </div>
+export default function ActivityCard({ activity, onClick }: Props) {
+  const inner = (
+    <div className="flex items-center gap-2">
+      <span className="text-sky-500 text-sm font-bold">↑</span>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm text-sky-900 truncate">{activity.name || 'Ride'}</div>
+        <div className="text-xs text-sky-700 mt-0.5 flex gap-2 flex-wrap">
+          <span>{fmtDuration(activity.moving_time)}</span>
+          {activity.training_load != null && <span>{Math.round(activity.training_load)} TSS</span>}
+          {activity.weighted_average_watts != null && <span>{Math.round(activity.weighted_average_watts)}W NP</span>}
         </div>
       </div>
     </div>
   )
+
+  const base = 'w-full text-left bg-sky-50 border border-sky-200 rounded-xl px-4 py-3'
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} className={`${base} active:opacity-70 transition-opacity min-h-[44px]`}>
+        {inner}
+      </button>
+    )
+  }
+  return <div className={base}>{inner}</div>
 }

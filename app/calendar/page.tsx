@@ -6,8 +6,10 @@ import SessionChatModal from '@/components/SessionChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
 import AddEventModal from '@/components/AddEventModal'
 import PlanReviewModal from '@/components/PlanReviewModal'
+import ActivityCard from '@/components/ActivityCard'
+import ActivityDetailModal from '@/components/ActivityDetailModal'
 import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus, GeneratedPlan, UnavailabilityPeriod } from '@/types'
-import { calendarMonthDays, weekDates, formatDuration, formatMovingTime, toLocalDateStr } from '@/lib/calendar-helpers'
+import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr } from '@/lib/calendar-helpers'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
 import { periodOverlapsWeek, coveredDaysInWeek, periodDurationDays } from '@/lib/utils/unavailability'
 
@@ -71,24 +73,6 @@ function EventCard({ event, onClick }: { event: TrainingEvent; onClick: () => vo
         {event.result_avg_power != null && <span>{event.result_avg_power}W</span>}
       </div>
     </button>
-  )
-}
-
-function ActivityCard({ activity }: { activity: ICUActivity }) {
-  return (
-    <div className="bg-sky-50 border-l-4 border-sky-400 rounded-md px-3 py-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-sky-700 truncate">↑ {activity.name || 'Ride'}</span>
-        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 bg-sky-100 text-sky-700">
-          activity
-        </span>
-      </div>
-      <div className="flex gap-3 mt-0.5 text-xs text-slate-500">
-        <span>{formatMovingTime(activity.moving_time)}</span>
-        {activity.training_load != null && <span>TSS {Math.round(activity.training_load)}</span>}
-        {activity.weighted_average_watts != null && <span>{Math.round(activity.weighted_average_watts)}W</span>}
-      </div>
-    </div>
   )
 }
 
@@ -186,13 +170,14 @@ interface WeekDetailProps {
   todayStr: string
   onWorkoutClick: (w: Workout) => void
   onEventClick: (e: TrainingEvent) => void
+  onActivityClick: (a: ICUActivity) => void
   unavailability: UnavailabilityPeriod[]
   onAddUnavailability: (date: string) => void
 }
 
 function WeekDetail({
   selectedDateStr, workouts, events, unlinkedActivities, todayStr,
-  onWorkoutClick, onEventClick, unavailability, onAddUnavailability,
+  onWorkoutClick, onEventClick, onActivityClick, unavailability, onAddUnavailability,
 }: WeekDetailProps) {
   const dates = weekDates(selectedDateStr)
   const overlappingPeriods = unavailability.filter(p => periodOverlapsWeek(p, dates))
@@ -286,7 +271,7 @@ function WeekDetail({
                 <EventCard key={`${e.date}-${e.name}`} event={e} onClick={() => onEventClick(e)} />
               ))}
               {dayActivities.map(a => (
-                <ActivityCard key={a.id} activity={a} />
+                <ActivityCard key={a.id} activity={a} onClick={() => onActivityClick(a)} />
               ))}
             </div>
           </div>
@@ -320,6 +305,7 @@ export default function CalendarPage() {
 
   const [unavailability, setUnavailability] = useState<UnavailabilityPeriod[]>([])
   const [addUnavailDate, setAddUnavailDate] = useState<string | null>(null)
+  const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
 
   const reviewAbortRef = useRef<AbortController | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -503,6 +489,7 @@ export default function CalendarPage() {
         todayStr={todayStr}
         onWorkoutClick={(w) => setSelectedWorkout(w)}
         onEventClick={openEvent}
+        onActivityClick={(a) => setSelectedActivity(a)}
         unavailability={unavailability}
         onAddUnavailability={date => setAddUnavailDate(date)}
       />
@@ -512,6 +499,13 @@ export default function CalendarPage() {
           defaultStartDate={addUnavailDate}
           onClose={() => setAddUnavailDate(null)}
           onSaved={handlePeriodSaved}
+        />
+      )}
+
+      {selectedActivity && (
+        <ActivityDetailModal
+          activity={selectedActivity}
+          onClose={() => setSelectedActivity(null)}
         />
       )}
 

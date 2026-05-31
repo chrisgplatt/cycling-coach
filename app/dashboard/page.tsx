@@ -4,7 +4,7 @@ import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
 import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback } from '@/types'
+import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback, ICUActivity } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
@@ -32,6 +32,7 @@ import PlanChatModal from '@/components/PlanChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
 import AddEventModal from '@/components/AddEventModal'
 import ActivityCard from '@/components/ActivityCard'
+import ActivityDetailModal from '@/components/ActivityDetailModal'
 
 function getReadinessSummary(wellness: ICUWellness): string {
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -117,6 +118,7 @@ export default function DashboardPage() {
   const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
   const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(null)
   const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
+  const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -571,7 +573,7 @@ export default function DashboardPage() {
                       </button>
                     ))}
                     {unplannedActivities.map(a => (
-                      <ActivityCard key={a.id} activity={a} />
+                      <ActivityCard key={a.id} activity={a} onClick={() => setSelectedActivity(a)} />
                     ))}
                     {isEmpty && (
                       <div className="text-sm text-gray-300 italic py-3.5 pl-1">Rest day</div>
@@ -665,6 +667,13 @@ export default function DashboardPage() {
           onClose={() => setEditingEvent(null)}
           hasPlan={!!planName}
           onRegenerate={(note) => startReview(note)}
+        />
+      )}
+
+      {selectedActivity && (
+        <ActivityDetailModal
+          activity={selectedActivity}
+          onClose={() => setSelectedActivity(null)}
         />
       )}
 
