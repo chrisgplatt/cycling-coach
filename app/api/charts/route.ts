@@ -24,9 +24,10 @@ export async function GET() {
 
   const today = new Date()
   const newest = today.toISOString().split('T')[0]
-  const oldest = new Date(today.getTime() - 112 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0]
+  const activitiesOldest = new Date(today.getTime() - 112 * 24 * 60 * 60 * 1000)
+    .toISOString().split('T')[0]
+  const wellnessOldest = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000)
+    .toISOString().split('T')[0]
 
   const client = new IntervalsClient(
     profile.intervals_icu_athlete_id,
@@ -35,8 +36,8 @@ export async function GET() {
 
   try {
     const [wellness, activities] = await Promise.all([
-      client.getWellness(oldest, newest),
-      client.getActivities(oldest, newest),
+      client.getWellness(wellnessOldest, newest),
+      client.getActivities(activitiesOldest, newest),
     ])
 
     const rides = activities.filter(a => /ride/i.test(a.type))
