@@ -4,6 +4,8 @@
 import { formatZones } from './zones'
 import { formatSchedule } from './schedule'
 import type { UserProfile, ICUWellness, TrainingEvent } from '@/types'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
+import type { HrvStatus } from '@/lib/hrv/baseline'
 
 export const INTERVIEW_COMPLETE_MARKER = '__INTERVIEW_COMPLETE__'
 
@@ -51,6 +53,7 @@ export function buildInterviewSystemPrompt(
   wellness: ICUWellness | null,
   currentFTP: number,
   dossierSection = '',
+  hrvStatus?: HrvStatus | null,
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' })
@@ -59,9 +62,10 @@ export function buildInterviewSystemPrompt(
   const tsb = wellness?.form ?? (
     wellness?.ctl != null && wellness?.atl != null ? wellness.ctl - wellness.atl : null
   )
-  const fitnessSection = wellness
+  const fitnessSection = (wellness
     ? `CTL: ${wellness.ctl ?? '?'} TSS/day, ATL: ${wellness.atl ?? '?'} TSS/day, Form (TSB): ${tsb != null ? Math.round(tsb) : '?'}, HRV: ${wellness.hrv ?? '?'} ms, Resting HR: ${wellness.resting_hr ?? '?'} bpm`
-    : 'No fitness data available.'
+    : 'No fitness data available.')
+    + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   const events = (profile.events ?? []) as TrainingEvent[]
   const upcoming = events

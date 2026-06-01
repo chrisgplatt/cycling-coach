@@ -1,4 +1,6 @@
 import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
+import type { HrvStatus } from '@/lib/hrv/baseline'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -19,14 +21,16 @@ export function buildSessionSystemPrompt(
   currentFTP: number,
   events: TrainingEvent[] = [],
   dossierSection = '',
+  hrvStatus?: HrvStatus | null,
 ): string {
   const tsb = wellness?.form ?? (
     wellness?.ctl != null && wellness?.atl != null ? wellness.ctl - wellness.atl : null
   )
 
-  const fitnessSection = wellness
+  const fitnessSection = (wellness
     ? `CTL: ${wellness.ctl ?? '?'}, ATL: ${wellness.atl ?? '?'}, Form: ${tsb != null ? Math.round(tsb) : '?'}, HRV: ${wellness.hrv ?? '?'}`
-    : 'No fitness data available.'
+    : 'No fitness data available.')
+    + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   const weekSection = upcomingWorkouts.length
     ? upcomingWorkouts.map(w => `- ${w.id} | ${w.date}: ${w.type} ${w.duration_minutes}min — ${w.description}`).join('\n')

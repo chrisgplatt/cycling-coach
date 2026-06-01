@@ -5,6 +5,8 @@ import type { ChatMessage, TrainingPlan, Workout, ICUSyncData, TrainingEvent } f
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { buildChatSystemPrompt } from '@/lib/claude/chat'
+import { fetchHrvStatus } from '@/lib/hrv/server'
+import { IntervalsClient } from '@/lib/intervals/client'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
       .gte('date', new Date().toISOString().split('T')[0])
       .lte('date', new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0])
       .order('date'),
-    supabase.from('user_profile').select('events').maybeSingle(),
+    supabase.from('user_profile').select('events, intervals_icu_athlete_id, intervals_icu_api_key').maybeSingle(),
     fetchDossier(supabase, user.id),
     supabase.from('workouts')
       .select('date, type, duration_minutes, steps, activity_metrics')
@@ -56,6 +58,14 @@ export async function POST(req: NextRequest) {
   const latestWellness = syncData?.wellness?.slice(-1)[0] ?? null
   const events = ((profileData as { events?: TrainingEvent[] } | null)?.events ?? []) as TrainingEvent[]
 
+  const hrvToday = new Date().toISOString().split('T')[0]
+  let hrvStatus = null
+  const chatProfile = profileData as { events?: TrainingEvent[]; intervals_icu_athlete_id?: string; intervals_icu_api_key?: string } | null
+  if (chatProfile?.intervals_icu_athlete_id && chatProfile?.intervals_icu_api_key) {
+    const hrvClient = new IntervalsClient(chatProfile.intervals_icu_athlete_id, chatProfile.intervals_icu_api_key)
+    try { hrvStatus = await fetchHrvStatus(hrvClient, hrvToday) } catch { /* optional */ }
+  }
+
   const systemPrompt = buildChatSystemPrompt(
     plan as TrainingPlan | null,
     (upcomingWorkouts ?? []) as Workout[],
@@ -64,6 +74,7 @@ export async function POST(req: NextRequest) {
     events,
     formatDossier(dossier as AthleteDossier | null),
     (recentRides ?? []) as import('@/lib/claude/chat').RecentRide[],
+    hrvStatus,
   )
 
   const stream = await anthropic.messages.stream({

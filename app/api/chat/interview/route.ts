@@ -5,6 +5,8 @@ import { buildInterviewSystemPrompt } from '@/lib/claude/interview'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { ICUWellness, UserProfile } from '@/types'
+import { fetchHrvStatus } from '@/lib/hrv/server'
+import { IntervalsClient } from '@/lib/intervals/client'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -32,11 +34,22 @@ export async function POST(req: NextRequest) {
   ])
   if (!profile) return new Response('Profile not configured', { status: 400 })
 
+  const hrvToday = new Date().toISOString().split('T')[0]
+  let hrvStatus = null
+  if ((profile as unknown as UserProfile).intervals_icu_athlete_id && (profile as unknown as UserProfile).intervals_icu_api_key) {
+    const hrvClient = new IntervalsClient(
+      (profile as unknown as UserProfile).intervals_icu_athlete_id!,
+      (profile as unknown as UserProfile).intervals_icu_api_key!,
+    )
+    try { hrvStatus = await fetchHrvStatus(hrvClient, hrvToday) } catch { /* optional */ }
+  }
+
   const systemPrompt = buildInterviewSystemPrompt(
     profile as unknown as UserProfile,
     wellness,
     currentFTP,
     formatDossier(dossier as AthleteDossier | null),
+    hrvStatus,
   )
 
   // The opening turn arrives with an empty message and no history: seed a single

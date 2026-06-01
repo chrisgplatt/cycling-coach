@@ -48,6 +48,22 @@ describe('buildInterviewSystemPrompt', () => {
   it('handles missing wellness without throwing', () => {
     expect(() => buildInterviewSystemPrompt(makeProfile(), null, 250, '')).not.toThrow()
   })
+
+  it('includes HRV baseline status when hrvStatus is provided', () => {
+    const p = buildInterviewSystemPrompt(makeProfile(), null, 250, '', {
+      label: 'suppressed',
+      sufficient: true,
+      daysOfData: 60,
+      today: 41,
+      sevenDayAvg: 44,
+      baselineMean: 51,
+      lowerBound: 47,
+      upperBound: 55,
+      trend: 'falling',
+      baselineDrift: 'falling',
+    })
+    expect(p).toMatch(/SUPPRESSED/)
+  })
 })
 
 describe('parseInterviewCompletion', () => {

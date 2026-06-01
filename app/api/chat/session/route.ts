@@ -5,6 +5,8 @@ import { buildSessionSystemPrompt } from '@/lib/claude/session-chat'
 import { formatDossier, fetchDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
+import { fetchHrvStatus } from '@/lib/hrv/server'
+import { IntervalsClient } from '@/lib/intervals/client'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
       .gt('date', new Date().toISOString().split('T')[0])
       .lte('date', new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0])
       .order('date'),
-    supabase.from('user_profile').select('current_ftp, events').maybeSingle(),
+    supabase.from('user_profile').select('current_ftp, events, intervals_icu_athlete_id, intervals_icu_api_key').maybeSingle(),
     fetchDossier(supabase, user.id),
   ])
 
@@ -51,6 +53,14 @@ export async function POST(req: NextRequest) {
 
   const currentFTP = (profile as { current_ftp?: number } | null)?.current_ftp ?? 200
   const events = ((profile as { events?: TrainingEvent[] } | null)?.events ?? []) as TrainingEvent[]
+
+  const hrvToday = new Date().toISOString().split('T')[0]
+  let hrvStatus = null
+  const sessionProfile = profile as { current_ftp?: number; events?: TrainingEvent[]; intervals_icu_athlete_id?: string; intervals_icu_api_key?: string } | null
+  if (sessionProfile?.intervals_icu_athlete_id && sessionProfile?.intervals_icu_api_key) {
+    const hrvClient = new IntervalsClient(sessionProfile.intervals_icu_athlete_id, sessionProfile.intervals_icu_api_key)
+    try { hrvStatus = await fetchHrvStatus(hrvClient, hrvToday) } catch { /* optional */ }
+  }
 
   const systemPrompt = buildSessionSystemPrompt(
     workout as Workout,
@@ -60,6 +70,7 @@ export async function POST(req: NextRequest) {
     currentFTP,
     events,
     formatDossier(dossierRow as AthleteDossier | null),
+    hrvStatus,
   )
 
   const messages = [

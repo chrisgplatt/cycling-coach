@@ -1,6 +1,8 @@
 import type { TrainingPlan, Workout, ICUWellness, TrainingEvent, ActivityMetrics, WorkoutStep } from '@/types'
 import { formatZones } from './zones'
 import { formatActivityMetrics, formatRideExecution } from './activity-metrics'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
+import type { HrvStatus } from '@/lib/hrv/baseline'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -29,6 +31,7 @@ export function buildChatSystemPrompt(
   events: TrainingEvent[],
   dossierSection = '',
   recentRides: RecentRide[] = [],
+  hrvStatus?: HrvStatus | null,
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' })
@@ -49,9 +52,10 @@ export function buildChatSystemPrompt(
       }).join('\n')
     : 'No recent rides with detail.'
 
-  const fitnessSection = latestWellness
+  const fitnessSection = (latestWellness
     ? `CTL: ${latestWellness.ctl ?? '?'}, ATL: ${latestWellness.atl ?? '?'}, Form: ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'}, Resting HR: ${latestWellness.resting_hr ?? '?'}`
-    : 'No wellness data.'
+    : 'No wellness data.')
+    + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   const upcomingEvents = events.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date))
   const eventsSection = upcomingEvents.length
