@@ -2,6 +2,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { normalizeY, isoWeekStart } from '@/lib/chart-helpers'
 import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss } from '@/types'
+import { computeHrvBaseline, type HrvStatus } from '@/lib/hrv/baseline'
 
 const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -98,6 +99,90 @@ function PMCChart({ wellness }: { wellness: ICUWellness[] }) {
         <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block" style={{ background: formColour }}/>Form</span>
       </div>
     </div>
+  )
+}
+
+const HRV_RANGES: { label: string; days: number }[] = [
+  { label: '3m', days: 91 }, { label: '6m', days: 182 }, { label: '12m', days: 365 },
+]
+const HRV_STATUS_STYLE: Record<string, { text: string; label: string }> = {
+  suppressed: { text: 'text-rose-600', label: 'Suppressed' },
+  balanced: { text: 'text-emerald-600', label: 'Balanced' },
+  elevated: { text: 'text-violet-600', label: 'Elevated' },
+  building: { text: 'text-slate-500', label: 'Building baseline' },
+  no_data: { text: 'text-slate-400', label: 'No HRV data' },
+}
+
+function HrvSection({ wellness }: { wellness: ICUWellness[] }) {
+  const [rangeDays, setRangeDays] = useState(91)
+  const status: HrvStatus = computeHrvBaseline(wellness)
+
+  const cutoff = new Date(Date.now() - rangeDays * 864e5).toISOString().split('T')[0]
+  const data = wellness.filter(w => w.hrv !== null && w.id >= cutoff)
+
+  const svgLeft = 30, svgRight = 420, svgTop = 15, svgBottom = 115
+  const chartW = svgRight - svgLeft
+  const vals = data.map(w => w.hrv as number)
+  const lo = status.lowerBound, hi = status.upperBound
+  const allY = [...vals, ...(lo ? [lo] : []), ...(hi ? [hi] : [])]
+  const dataMin = allY.length ? Math.floor(Math.min(...allY) / 5) * 5 - 2 : 0
+  const dataMax = allY.length ? Math.ceil(Math.max(...allY) / 5) * 5 + 2 : 100
+  const xOf = (i: number) => svgLeft + (i / Math.max(data.length - 1, 1)) * chartW
+  const yOf = (v: number) => normalizeY(v, dataMin, dataMax, svgTop, svgBottom)
+
+  const avgLine = data.map((_, i) => {
+    const slice = vals.slice(Math.max(0, i - 6), i + 1)
+    return slice.reduce((a, b) => a + b, 0) / slice.length
+  })
+  const avgPoly = avgLine.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ')
+
+  const st = HRV_STATUS_STYLE[status.label]
+
+  return (
+    <SectionCard title="HRV" accent="bg-violet-500">
+      <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100">
+        <div>
+          <div className={`text-sm font-semibold ${st.text}`}>{st.label}</div>
+          {status.sevenDayAvg !== null && status.baselineMean !== null && (
+            <div className="text-xs text-gray-500 mt-0.5">
+              {status.sevenDayAvg}ms 7-day · baseline {status.baselineMean}ms
+              {status.lowerBound !== null && ` (${status.lowerBound}–${status.upperBound}ms)`}
+            </div>
+          )}
+        </div>
+        <div className="flex gap-1">
+          {HRV_RANGES.map(r => (
+            <button
+              key={r.label}
+              onClick={() => setRangeDays(r.days)}
+              className={`text-[11px] font-semibold px-2 py-1.5 rounded min-h-[44px] ${
+                rangeDays === r.days ? 'bg-violet-100 text-violet-700' : 'text-gray-400'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {data.length ? (
+        <svg viewBox={`0 0 ${svgRight + 10} 130`} className="w-full">
+          {lo !== null && hi !== null && (
+            <rect x={svgLeft} y={yOf(hi)} width={chartW} height={Math.max(0, yOf(lo) - yOf(hi))}
+              fill="#ede9fe" opacity="0.7" />
+          )}
+          {data.map((w, i) => (
+            <circle key={w.id} cx={xOf(i)} cy={yOf(w.hrv as number)} r="1.3" fill="#c4b5fd" />
+          ))}
+          <polyline points={avgPoly} fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <p className="text-sm text-gray-400 p-4">No HRV data in this range.</p>
+      )}
+      <div className="flex gap-3 px-3 pb-3 text-[11px] text-gray-500">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block bg-violet-600" />7-day avg</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#ede9fe' }} />normal range</span>
+      </div>
+    </SectionCard>
   )
 }
 
@@ -446,6 +531,8 @@ export default function FitnessPage() {
           <SectionCard title="Performance Management" accent="bg-blue-500">
             <PMCChart wellness={charts.wellness} />
           </SectionCard>
+
+          <HrvSection wellness={charts.wellness} />
 
           <SectionCard title="Weekly Training Load" accent="bg-violet-500">
             <WeeklyTssChart weeklyTss={charts.weeklyTss} />
