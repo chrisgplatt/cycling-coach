@@ -8,7 +8,7 @@ import AddEventModal from '@/components/AddEventModal'
 import PlanReviewModal from '@/components/PlanReviewModal'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
-import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus, GeneratedPlan, UnavailabilityPeriod } from '@/types'
+import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus, WorkoutType, GeneratedPlan, UnavailabilityPeriod } from '@/types'
 import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr } from '@/lib/calendar-helpers'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
 import { periodOverlapsWeek, coveredDaysInWeek, periodDurationDays } from '@/lib/utils/unavailability'
@@ -27,15 +27,24 @@ const STATUS_BADGE: Record<WorkoutStatus, { label: string; className: string }> 
 
 // ─── Session cards ────────────────────────────────────────────────────────────
 
+// Type colours mirror the dashboard workout-type tags (components/WorkoutCard.tsx).
+const TYPE_CARD: Record<WorkoutType, { bg: string; border: string; text: string }> = {
+  endurance: { bg: 'bg-blue-50',    border: 'border-blue-500',    text: 'text-blue-800' },
+  threshold: { bg: 'bg-orange-50',  border: 'border-orange-500',  text: 'text-orange-800' },
+  intervals: { bg: 'bg-red-50',     border: 'border-red-500',     text: 'text-red-800' },
+  recovery:  { bg: 'bg-emerald-50', border: 'border-emerald-500', text: 'text-emerald-800' },
+}
+
 function WorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => void }) {
   const badge = STATUS_BADGE[workout.status]
+  const type = TYPE_CARD[workout.type] ?? TYPE_CARD.endurance
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-blue-50 border-l-4 border-blue-500 rounded-md px-3 py-2.5 active:opacity-70 transition-opacity"
+      className={`w-full text-left border-l-4 rounded-md px-3 py-2.5 active:opacity-70 transition-opacity ${type.bg} ${type.border}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-blue-800 capitalize truncate">🚴 {workout.type}</span>
+        <span className={`text-sm font-semibold capitalize truncate ${type.text}`}>🚴 {workout.type}</span>
         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${badge.className}`}>
           {badge.label}
         </span>
