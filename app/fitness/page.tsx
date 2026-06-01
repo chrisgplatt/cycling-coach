@@ -121,7 +121,7 @@ function HrvSection({ wellness }: { wellness: ICUWellness[] }) {
   const cutoff = new Date(Date.now() - rangeDays * 864e5).toISOString().split('T')[0]
   const data = wellness.filter(w => w.hrv !== null && w.id >= cutoff)
 
-  const svgLeft = 30, svgRight = 420, svgTop = 15, svgBottom = 115
+  const svgLeft = 30, svgRight = 420, svgTop = 15, svgBottom = 105
   const chartW = svgRight - svgLeft
   const vals = data.map(w => w.hrv as number)
   const lo = status.lowerBound, hi = status.upperBound
@@ -131,11 +131,27 @@ function HrvSection({ wellness }: { wellness: ICUWellness[] }) {
   const xOf = (i: number) => svgLeft + (i / Math.max(data.length - 1, 1)) * chartW
   const yOf = (v: number) => normalizeY(v, dataMin, dataMax, svgTop, svgBottom)
 
+  // Raw daily HRV connected into a thin "detailed" line
+  const detailPoly = data.map((w, i) => `${xOf(i)},${yOf(w.hrv as number)}`).join(' ')
+
+  // 7-day rolling average — the bold trend line
   const avgLine = data.map((_, i) => {
     const slice = vals.slice(Math.max(0, i - 6), i + 1)
     return slice.reduce((a, b) => a + b, 0) / slice.length
   })
   const avgPoly = avgLine.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ')
+
+  // Y-axis scale: max / mid / min ticks
+  const yTicks = [dataMax, Math.round((dataMin + dataMax) / 2), dataMin]
+  const yTickYs = yTicks.map(v => yOf(v))
+
+  // X-axis scale: month labels at each month boundary
+  const monthLabels: { x: number; label: string }[] = []
+  let lastMonth = -1
+  data.forEach((w, i) => {
+    const m = new Date(w.id).getUTCMonth()
+    if (m !== lastMonth) { monthLabels.push({ x: xOf(i), label: MONTHS[m] }); lastMonth = m }
+  })
 
   const st = HRV_STATUS_STYLE[status.label]
 
@@ -167,20 +183,36 @@ function HrvSection({ wellness }: { wellness: ICUWellness[] }) {
       </div>
       {data.length ? (
         <svg viewBox={`0 0 ${svgRight + 10} 130`} className="w-full">
+          {/* Y-axis scale: gridlines + ms labels */}
+          {yTickYs.map((y, i) => (
+            <g key={yTicks[i]}>
+              <line x1={svgLeft} y1={y} x2={svgRight} y2={y} stroke="#f3f4f6" strokeWidth="1" />
+              <text x={svgLeft - 4} y={y + 4} fontSize="9" fill="#d1d5db" textAnchor="end">{yTicks[i]}</text>
+            </g>
+          ))}
+          <text x={6} y={svgTop + 2} fontSize="8" fill="#d1d5db" textAnchor="start">ms</text>
           {lo !== null && hi !== null && (
             <rect x={svgLeft} y={yOf(hi)} width={chartW} height={Math.max(0, yOf(lo) - yOf(hi))}
               fill="#ede9fe" opacity="0.7" />
           )}
+          {/* Detailed daily line */}
+          <polyline points={detailPoly} fill="none" stroke="#c4b5fd" strokeWidth="1" strokeLinejoin="round" opacity="0.9" />
           {data.map((w, i) => (
             <circle key={w.id} cx={xOf(i)} cy={yOf(w.hrv as number)} r="1.3" fill="#c4b5fd" />
           ))}
+          {/* 7-day average / trend line */}
           <polyline points={avgPoly} fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinejoin="round" />
+          {/* X-axis scale: month labels */}
+          {monthLabels.map(ml => (
+            <text key={ml.label + ml.x} x={ml.x} y={svgBottom + 18} fontSize="8" fill="#d1d5db" textAnchor="middle">{ml.label}</text>
+          ))}
         </svg>
       ) : (
         <p className="text-sm text-gray-400 p-4">No HRV data in this range.</p>
       )}
       <div className="flex gap-3 px-3 pb-3 text-[11px] text-gray-500">
         <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block bg-violet-600" />7-day avg</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block bg-violet-300" />daily HRV</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#ede9fe' }} />normal range</span>
       </div>
     </SectionCard>
