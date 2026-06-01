@@ -33,6 +33,7 @@ import EventDetailModal from '@/components/EventDetailModal'
 import AddEventModal from '@/components/AddEventModal'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
+import HrvStatusChip from '@/components/HrvStatusChip'
 
 function getReadinessSummary(wellness: ICUWellness): string {
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -435,6 +436,7 @@ export default function DashboardPage() {
       </div>
 
       <MetricsBar wellness={latestWellness} syncedAt={lastSyncedAt} stale={wellnessStale} />
+      <HrvStatusChip />
 
       {latestWellness && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
