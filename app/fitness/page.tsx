@@ -2,6 +2,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { normalizeY, isoWeekStart } from '@/lib/chart-helpers'
 import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss } from '@/types'
+import type { HrvImprovement } from '@/lib/hrv/improvement'
 import { computeHrvBaseline, type HrvStatus } from '@/lib/hrv/baseline'
 
 const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000
@@ -181,6 +182,87 @@ function HrvSection({ wellness }: { wellness: ICUWellness[] }) {
       <div className="flex gap-3 px-3 pb-3 text-[11px] text-gray-500">
         <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block bg-violet-600" />7-day avg</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#ede9fe' }} />normal range</span>
+      </div>
+    </SectionCard>
+  )
+}
+
+const STRENGTH_DOTS: Record<string, number> = { none: 0, mild: 1, moderate: 2, strong: 3 }
+const DIR_SIGN: Record<string, string> = { helps: '+', hurts: '−', unclear: '·' }
+const LEVER_FMT: Record<string, (v: number) => string> = {
+  sleep: v => `${v.toFixed(1)}h`,
+  load: v => v.toFixed(2),
+  intensity: v => `${Math.round(v * 100)}%`,
+}
+
+function HrvImprovementSection() {
+  const [data, setData] = useState<{ improvement: HrvImprovement; coachNote: string | null } | null | 'loading'>('loading')
+
+  useEffect(() => {
+    fetch('/api/hrv/improvement')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setData(d ?? null))
+      .catch(() => setData(null))
+  }, [])
+
+  if (data === 'loading' || data === null) return null
+  const { improvement: imp, coachNote } = data
+
+  if (!imp.hasEnoughHistory) {
+    return (
+      <SectionCard title="HRV improvement" accent="bg-violet-500">
+        <p className="text-sm text-gray-400 p-4">Keep syncing — building your HRV picture. Trends and a focus appear once there's enough history.</p>
+      </SectionCard>
+    )
+  }
+
+  const f = imp.focus
+  const fmt = LEVER_FMT[f.key] ?? ((v: number) => String(v))
+  return (
+    <SectionCard title="HRV improvement" accent="bg-violet-500">
+      {/* Baseline-trend delta */}
+      {imp.baselineDeltaMs !== null && (
+        <div className="px-4 pt-3">
+          <p className="text-xs text-gray-500">
+            Baseline {imp.baselineDeltaMs > 0 ? '+' : ''}{imp.baselineDeltaMs}ms over {imp.baselineDeltaDays} days{' '}
+            {imp.baselineTrend === 'rising' ? '↑' : imp.baselineTrend === 'falling' ? '↓' : '→'}
+          </p>
+        </div>
+      )}
+      {/* Focus card */}
+      <div className="p-4 border-b border-gray-100">
+        <p className="text-[11px] font-bold text-violet-600 uppercase tracking-[0.06em]">Your focus</p>
+        <p className="text-base font-semibold text-slate-900 mt-0.5 capitalize">{f.key === 'load' ? 'Balance training load' : f.key === 'intensity' ? 'Ride easier more often' : 'Protect sleep'}</p>
+        {coachNote && <p className="text-sm text-slate-600 leading-relaxed mt-1.5">{coachNote}</p>}
+        {f.recentValue !== null && f.target !== null && (
+          <div className="mt-2.5">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>{fmt(f.recentValue)} now</span><span>target {fmt(f.target)}</span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-violet-500 rounded-full" style={{ width: `${f.progressPct ?? 0}%` }} />
+            </div>
+          </div>
+        )}
+        {f.caveat && <p className="text-xs text-gray-400 mt-2">{f.caveat}</p>}
+      </div>
+      {/* Lever insight */}
+      <div className="p-4 space-y-2">
+        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em]">What's moving your HRV</p>
+        {imp.levers.map(l => (
+          <div key={l.key} className="flex items-center justify-between text-sm">
+            <span className="text-slate-700">{l.label}</span>
+            {l.sufficient ? (
+              <span className="flex items-center gap-2 text-gray-500">
+                <span className="tracking-tight">{'●'.repeat(STRENGTH_DOTS[l.strength])}{'○'.repeat(3 - STRENGTH_DOTS[l.strength])}</span>
+                <span className="w-4 text-center">{DIR_SIGN[l.direction]}</span>
+              </span>
+            ) : (
+              <span className="text-xs text-gray-400 italic">still learning</span>
+            )}
+          </div>
+        ))}
+        <p className="text-[11px] text-gray-400 pt-1">Associations, not proof.</p>
       </div>
     </SectionCard>
   )
@@ -533,6 +615,8 @@ export default function FitnessPage() {
           </SectionCard>
 
           <HrvSection wellness={charts.wellness} />
+
+          <HrvImprovementSection />
 
           <SectionCard title="Weekly Training Load" accent="bg-violet-500">
             <WeeklyTssChart weeklyTss={charts.weeklyTss} />
