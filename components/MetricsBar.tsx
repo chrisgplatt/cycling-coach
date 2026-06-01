@@ -44,16 +44,18 @@ export default function MetricsBar({
   wellness,
   syncedAt = null,
   stale = {},
+  embedded = false,
 }: {
   wellness: ICUWellness | null
   syncedAt?: Date | null
   stale?: { hrv?: boolean; restingHr?: boolean }
+  embedded?: boolean
 }) {
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
   const formPositive = form !== null && form >= 0
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className={embedded ? 'overflow-hidden' : 'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden'}>
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
         <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Fitness Stats</h2>
         <span className="text-xs text-gray-400">{formatSyncTime(syncedAt)}</span>

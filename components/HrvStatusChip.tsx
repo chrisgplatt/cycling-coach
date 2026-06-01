@@ -12,7 +12,7 @@ const STYLE: Record<string, { dot: string; text: string; label: string }> = {
 
 const ARROW: Record<string, string> = { rising: '↑', falling: '↓', stable: '→' }
 
-export default function HrvStatusChip() {
+export default function HrvStatusChip({ embedded = false }: { embedded?: boolean }) {
   const [status, setStatus] = useState<HrvStatus | null | 'loading'>('loading')
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function HrvStatusChip() {
   const showNumbers = status.sevenDayAvg !== null && status.baselineMean !== null
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex items-center justify-between min-h-[44px]">
+    <div className={`px-4 py-3 flex items-center justify-between min-h-[44px] ${embedded ? 'bg-white' : 'bg-white rounded-xl border border-gray-200 shadow-sm'}`}>
       <div className="flex items-center gap-2">
         <span className={`w-2.5 h-2.5 rounded-full ${st.dot}`} />
         <span className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em]">HRV</span>
