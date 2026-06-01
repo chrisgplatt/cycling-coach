@@ -4,6 +4,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { createReviewStream, parsePlanText } from '@/lib/claude/review'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
+import { fetchHrvStatus } from '@/lib/hrv/server'
 import { isoWeek } from '@/lib/iso-week'
 import type { GeneratedPlan, ICUActivity, Workout } from '@/types'
 
@@ -63,9 +64,11 @@ export async function POST(req: NextRequest) {
     ])
   } catch { /* proceed without live data */ }
 
+  const hrvStatus = await fetchHrvStatus(client, today).catch(() => null)
+
   let messageStream
   try {
-    messageStream = createReviewStream(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, formatDossier(dossier as AthleteDossier | null))
+    messageStream = createReviewStream(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, formatDossier(dossier as AthleteDossier | null), hrvStatus)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Review generation failed'
     return NextResponse.json({ error: message }, { status: 500 })

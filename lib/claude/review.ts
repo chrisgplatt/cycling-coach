@@ -1,6 +1,8 @@
 import { anthropic } from './client'
 import { formatZones, formatSchedule } from './plan'
 import type { UserProfile, ICUActivity, ICUWellness, Workout, TrainingEvent } from '@/types'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
+import type { HrvStatus } from '@/lib/hrv/baseline'
 
 export { parsePlanText } from './plan'
 
@@ -89,6 +91,7 @@ export function buildReviewPrompt(
   note: string,
   recentActivities: ICUActivity[] = [],
   dossierSection = '',
+  hrvStatus?: HrvStatus | null,
 ): string {
   const wPerKg = (profile.current_ftp / profile.weight_kg).toFixed(2)
   const allEvents = [...(profile.events ?? [])].sort((a: TrainingEvent, b: TrainingEvent) =>
@@ -132,7 +135,7 @@ ${eventResultsSection ? '\n' + eventResultsSection : ''}
 CURRENT ATHLETE STATE:
 ${latestWellness
   ? `CTL: ${latestWellness.ctl ?? '?'} TSS/day (fitness), ATL: ${latestWellness.atl ?? '?'} TSS/day (fatigue), Form (TSB): ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'} ms, Resting HR: ${latestWellness.resting_hr ?? '?'} bpm`
-  : 'No wellness data.'}
+  : 'No wellness data.'}${hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : ''}
 Last week's actual total TSS (all rides): ${actualWeeklyTSS || 'unknown'}
 
 WELLNESS TREND — LAST 14 DAYS:
@@ -190,8 +193,9 @@ export function createReviewStream(
   note: string,
   recentActivities: ICUActivity[] = [],
   dossierSection = '',
+  hrvStatus?: HrvStatus | null,
 ) {
-  const prompt = buildReviewPrompt(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, dossierSection)
+  const prompt = buildReviewPrompt(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, dossierSection, hrvStatus)
   return anthropic.messages.stream({
     model: 'claude-opus-4-8',
     max_tokens: 32000,

@@ -4,6 +4,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { createPlanStream, parsePlanText, countPlannedWorkouts } from '@/lib/claude/plan'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
+import { fetchHrvStatus } from '@/lib/hrv/server'
 import type { GeneratedPlan } from '@/types'
 
 export async function GET() {
@@ -57,6 +58,13 @@ export async function POST(req: NextRequest) {
   if (!profileData) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
   if (!profileData.events?.length) return NextResponse.json({ error: 'Add and save at least one event in Settings before generating a plan' }, { status: 400 })
 
+  const hrvToday = new Date().toISOString().split('T')[0]
+  let hrvStatus = null
+  if (profileData?.intervals_icu_athlete_id && profileData?.intervals_icu_api_key) {
+    const hrvClient = new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
+    try { hrvStatus = await fetchHrvStatus(hrvClient, hrvToday) } catch { /* optional */ }
+  }
+
   let messageStream
   try {
     messageStream = createPlanStream(
@@ -66,6 +74,7 @@ export async function POST(req: NextRequest) {
       safeStartDate,
       typeof notes === 'string' ? notes.trim() : '',
       formatDossier(dossier as AthleteDossier | null),
+      hrvStatus,
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Plan generation failed'

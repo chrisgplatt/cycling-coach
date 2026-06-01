@@ -2,6 +2,8 @@ import { anthropic, MODEL } from './client'
 import { formatZones } from './zones'
 import { formatSchedule } from './schedule'
 import type { UserProfile, ICUSyncData, GeneratedPlan, ICUActivity, ICUWellness } from '@/types'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
+import type { HrvStatus } from '@/lib/hrv/baseline'
 
 function summariseActivities(activities: ICUActivity[]): string {
   if (!activities.length) return 'No recent activities.'
@@ -11,10 +13,11 @@ function summariseActivities(activities: ICUActivity[]): string {
     .join('\n')
 }
 
-function summariseWellness(wellness: ICUWellness[]): string {
+function summariseWellness(wellness: ICUWellness[], hrvStatus?: HrvStatus | null): string {
   const latest = wellness[wellness.length - 1]
-  if (!latest) return 'No wellness data.'
-  return `CTL: ${latest.ctl ?? '?'} TSS/day (aerobic fitness base), ATL: ${latest.atl ?? '?'} TSS/day (recent fatigue), Form (TSB): ${latest.form ?? '?'} (positive = fresh, negative = fatigued), HRV: ${latest.hrv ?? '?'} ms, Resting HR: ${latest.resting_hr ?? '?'} bpm`
+  if (!latest) return hrvStatus ? formatHrvForPrompt(hrvStatus) : 'No wellness data.'
+  const base = `CTL: ${latest.ctl ?? '?'} TSS/day (aerobic fitness base), ATL: ${latest.atl ?? '?'} TSS/day (recent fatigue), Form (TSB): ${latest.form ?? '?'} (positive = fresh, negative = fatigued), HRV: ${latest.hrv ?? '?'} ms, Resting HR: ${latest.resting_hr ?? '?'} bpm`
+  return hrvStatus ? `${base}\n${formatHrvForPrompt(hrvStatus)}` : base
 }
 
 function weeklyTssSummary(activities: ICUActivity[]): string {
@@ -47,6 +50,7 @@ function buildPrompt(
   startDate: string,
   notes: string,
   dossierSection = '',
+  hrvStatus?: HrvStatus | null,
 ): string {
   const allEvents = [...profile.events].sort((a, b) => a.date.localeCompare(b.date))
   if (!allEvents.length) throw new Error('Cannot generate a plan: no events configured.')
@@ -127,7 +131,7 @@ GOAL INTERPRETATION — derive training emphases from the athlete's goals:
 - Multiple goals → blend emphases proportionally
 
 CURRENT ATHLETE STATE:
-${summariseWellness(syncData.wellness)}
+${summariseWellness(syncData.wellness, hrvStatus)}
 ${dossierSection ? '\n' + dossierSection + '\n' : ''}
 RECENT WEEKLY TRAINING LOAD:
 ${weeklyTssSummary(syncData.activities)}
@@ -206,8 +210,9 @@ export function createPlanStream(
   startDate: string,
   notes = '',
   dossierSection = '',
+  hrvStatus?: HrvStatus | null,
 ) {
-  const prompt = buildPrompt(profile, syncData, weeks, startDate, notes, dossierSection)
+  const prompt = buildPrompt(profile, syncData, weeks, startDate, notes, dossierSection, hrvStatus)
   return anthropic.messages.stream({
     model: 'claude-opus-4-8',
     max_tokens: 32000,

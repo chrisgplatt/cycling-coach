@@ -32,7 +32,7 @@ Fetch from intervals.icu via `ICUWellness` and `ICUSyncData`:
 - **CTL** — chronic training load in TSS/day; represents the aerobic fitness base and the athlete's average sustainable daily training stress
 - **ATL** — acute training load in TSS/day; represents recent fatigue over ~7 days
 - **Form (TSB)** — CTL minus ATL; positive = fresh, negative = fatigued. Below −15 signals meaningful accumulated fatigue
-- **HRV** — heart rate variability; low HRV signals accumulated stress or illness
+- **HRV** — heart rate variability; supplied as the 7-day average against the athlete's personal 60-day baseline band with a status (suppressed / balanced / elevated) and trend, via `formatHrvForPrompt`. Low/suppressed HRV signals accumulated stress or illness
 - **Resting HR** — secondary recovery indicator; elevated RHR reinforces HRV signal
 - **FTP** (watts) — from `user_profile.current_ftp`
 - **Weight** (kg) — from `user_profile.weight_kg`; derive power-to-weight = FTP / weight_kg
