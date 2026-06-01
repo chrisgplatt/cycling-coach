@@ -2,8 +2,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import AddEventModal from '@/components/AddEventModal'
 
 function fillAndSave() {
-  fireEvent.change(screen.getByPlaceholderText('Event name'), { target: { value: 'Tour de France' } })
-  fireEvent.change(screen.getByDisplayValue(''), { target: { value: '2026-07-04' } })
+  fireEvent.change(screen.getByPlaceholderText('e.g. Cheltenham Sportive'), { target: { value: 'Tour de France' } })
+  fireEvent.change(document.querySelector('input[type="date"]') as HTMLInputElement, { target: { value: '2026-07-04' } })
   fireEvent.click(screen.getByRole('button', { name: /add event/i }))
 }
 
@@ -75,7 +75,7 @@ describe('AddEventModal — with plan', () => {
     expect(onRegenerate).not.toHaveBeenCalled()
   })
 
-  it('"Regenerate plan" calls onRegenerate with event note then closes', async () => {
+  it('"Adapt plan" calls onRegenerate with event note then closes', async () => {
     const onConfirm = jest.fn().mockResolvedValue(undefined)
     const onClose = jest.fn()
     const onRegenerate = jest.fn()
@@ -89,7 +89,7 @@ describe('AddEventModal — with plan', () => {
     )
     fillAndSave()
     await waitFor(() => screen.getByText(/event saved/i))
-    fireEvent.click(screen.getByRole('button', { name: /regenerate plan/i }))
+    fireEvent.click(screen.getByRole('button', { name: /adapt plan/i }))
     expect(onRegenerate).toHaveBeenCalledWith(
       expect.stringContaining('Tour de France')
     )

@@ -28,6 +28,10 @@ const activity: ICUActivity = {
 }
 
 describe('WorkoutDetailModal', () => {
+  beforeEach(() => {
+    // Completed / needs_review workouts fetch existing feedback on mount.
+    ;(global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ feedback: null }) })
+  })
   afterEach(() => { jest.restoreAllMocks() })
 
   it('renders description and target zones', () => {
@@ -55,16 +59,16 @@ describe('WorkoutDetailModal', () => {
     expect(screen.queryByRole('link', { name: /view planned workout/i })).not.toBeInTheDocument()
   })
 
-  it('shows completed badge, planned → actual TSS, and activity link for a matched workout', () => {
+  it('shows completed badge, planned → actual TSS, and activity link for a matched workout', async () => {
     render(<WorkoutDetailModal workout={matchedWorkout} athleteId="i12345" onClose={jest.fn()} />)
-    expect(screen.getByText('✓ Completed')).toBeInTheDocument()
+    expect(await screen.findByText('✓ Completed')).toBeInTheDocument()
     // threshold 60min: IF=0.85, planned = round(60*60*0.85*0.85/36) = 72
     expect(screen.getByText(/~72 → 94 TSS/)).toBeInTheDocument()
-    const link = screen.getByRole('link', { name: /view garmin activity/i })
+    const link = screen.getByRole('link', { name: /view completed activity in intervals\.icu/i })
     expect(link).toHaveAttribute('href', 'https://intervals.icu/activities/act456')
   })
 
-  it('shows needs_review banner with matched activity name', () => {
+  it('shows needs_review banner with matched activity name', async () => {
     render(
       <WorkoutDetailModal
         workout={reviewWorkout}
@@ -73,7 +77,7 @@ describe('WorkoutDetailModal', () => {
         onClose={jest.fn()}
       />
     )
-    expect(screen.getByText('Morning Ride')).toBeInTheDocument()
+    expect(await screen.findByText('Morning Ride')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /change/i })).toBeInTheDocument()
   })
@@ -85,7 +89,7 @@ describe('WorkoutDetailModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onFeedback when Log feedback is clicked for a completed workout', () => {
+  it('calls onFeedback when Log feedback is clicked for a completed workout', async () => {
     const onFeedback = jest.fn()
     render(
       <WorkoutDetailModal
@@ -95,7 +99,8 @@ describe('WorkoutDetailModal', () => {
         onFeedback={onFeedback}
       />
     )
-    fireEvent.click(screen.getByRole('button', { name: /log feedback/i }))
+    // The button only appears once the existing-feedback fetch resolves.
+    fireEvent.click(await screen.findByRole('button', { name: /log feedback/i }))
     expect(onFeedback).toHaveBeenCalledTimes(1)
   })
 
@@ -113,8 +118,9 @@ describe('WorkoutDetailModal', () => {
     expect(input).toHaveAttribute('max', '2026-05-17')
   })
 
-  it('does not render date input for a completed workout', () => {
+  it('does not render date input for a completed workout', async () => {
     render(<WorkoutDetailModal workout={matchedWorkout} athleteId="i12345" onClose={jest.fn()} />)
+    await screen.findByText('✓ Completed')
     expect(screen.queryByDisplayValue('2026-05-15')).not.toBeInTheDocument()
   })
 

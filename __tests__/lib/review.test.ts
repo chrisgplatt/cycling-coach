@@ -46,7 +46,9 @@ describe('buildReviewPrompt — formatLastWeekWorkouts', () => {
     const completed = makeWorkout({ status: 'completed', missed_reason: 'Weather' })
     const prompt = buildReviewPrompt(profile, [completed], [], [], '')
     expect(prompt).toContain('status: completed')
-    expect(prompt).not.toContain('completed (')
+    // The status field must carry no parenthetical for completed workouts.
+    // (The unrelated "actual: completed (no activity data)" string is expected.)
+    expect(prompt).not.toContain('status: completed (')
   })
 })
 

@@ -39,8 +39,14 @@ describe('WorkoutCard', () => {
     expect(screen.getByText(/~72 → 94 TSS/)).toBeInTheDocument()
   })
 
-  it('does not show TSS badge when tss is null', () => {
+  it('shows an estimated TSS badge for a planned workout', () => {
     render(<WorkoutCard workout={workout} />)
+    // threshold 60min: IF=0.85, est = round(60*60*0.85*0.85/36) = 72
+    expect(screen.getByText(/~72 TSS/)).toBeInTheDocument()
+  })
+
+  it('does not show a TSS badge for a non-planned workout with no TSS', () => {
+    render(<WorkoutCard workout={{ ...workout, status: 'skipped' }} />)
     expect(screen.queryByText(/TSS/)).not.toBeInTheDocument()
   })
 
