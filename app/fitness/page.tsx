@@ -134,12 +134,20 @@ function HrvSection({ wellness }: { wellness: ICUWellness[] }) {
   // Raw daily HRV connected into a thin "detailed" line
   const detailPoly = data.map((w, i) => `${xOf(i)},${yOf(w.hrv as number)}`).join(' ')
 
-  // 7-day rolling average — the bold trend line
-  const avgLine = data.map((_, i) => {
-    const slice = vals.slice(Math.max(0, i - 6), i + 1)
-    return slice.reduce((a, b) => a + b, 0) / slice.length
-  })
-  const avgPoly = avgLine.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ')
+  // Straight linear-regression trend over the chosen period (least squares on index vs HRV)
+  let trendPoly: string | null = null
+  if (vals.length >= 2) {
+    const n = vals.length
+    const meanX = (n - 1) / 2
+    const meanY = vals.reduce((a, b) => a + b, 0) / n
+    let num = 0, den = 0
+    vals.forEach((v, i) => { num += (i - meanX) * (v - meanY); den += (i - meanX) ** 2 })
+    const slope = den === 0 ? 0 : num / den
+    const intercept = meanY - slope * meanX
+    const y0 = intercept
+    const y1 = intercept + slope * (n - 1)
+    trendPoly = `${xOf(0)},${yOf(y0)} ${xOf(n - 1)},${yOf(y1)}`
+  }
 
   // Y-axis scale: max / mid / min ticks
   const yTicks = [dataMax, Math.round((dataMin + dataMax) / 2), dataMin]
@@ -200,8 +208,10 @@ function HrvSection({ wellness }: { wellness: ICUWellness[] }) {
           {data.map((w, i) => (
             <circle key={w.id} cx={xOf(i)} cy={yOf(w.hrv as number)} r="1.3" fill="#c4b5fd" />
           ))}
-          {/* 7-day average / trend line */}
-          <polyline points={avgPoly} fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinejoin="round" />
+          {/* Straight linear trend line over the period */}
+          {trendPoly && (
+            <polyline points={trendPoly} fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" />
+          )}
           {/* X-axis scale: month labels */}
           {monthLabels.map(ml => (
             <text key={ml.label + ml.x} x={ml.x} y={svgBottom + 18} fontSize="8" fill="#d1d5db" textAnchor="middle">{ml.label}</text>
@@ -211,7 +221,7 @@ function HrvSection({ wellness }: { wellness: ICUWellness[] }) {
         <p className="text-sm text-gray-400 p-4">No HRV data in this range.</p>
       )}
       <div className="flex gap-3 px-3 pb-3 text-[11px] text-gray-500">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block bg-violet-600" />7-day avg</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block bg-violet-600" />trend</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-[2px] rounded inline-block bg-violet-300" />daily HRV</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#ede9fe' }} />normal range</span>
       </div>
