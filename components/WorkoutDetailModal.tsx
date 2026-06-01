@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent } from '@/types'
 import { getWeekBounds } from '@/lib/week-bounds'
-import WorkoutProfileChart from './WorkoutProfileChart'
+import WorkoutProfileChart, { WorkoutStepList } from './WorkoutProfileChart'
 
 const TYPE_COLOURS: Record<WorkoutType, string> = {
   endurance: 'bg-blue-100 text-blue-700',
@@ -333,8 +333,19 @@ export default function WorkoutDetailModal({
           </div>
 
           {workout.steps && workout.steps.length > 0 && (
-            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/60">
+            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/60 space-y-2">
               <WorkoutProfileChart steps={workout.steps} ftp={ftp} />
+              <details className="group">
+                <summary className="cursor-pointer list-none text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 select-none">
+                  <svg width="10" height="10" viewBox="0 0 12 12" className="transition-transform group-open:rotate-90" fill="currentColor" aria-hidden="true">
+                    <path d="M4 2l4 4-4 4z" />
+                  </svg>
+                  Steps
+                </summary>
+                <div className="mt-1">
+                  <WorkoutStepList steps={workout.steps} ftp={ftp} />
+                </div>
+              </details>
             </div>
           )}
 

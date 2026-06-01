@@ -1,8 +1,10 @@
+'use client'
+import { useState } from 'react'
 import type { WorkoutStep } from '@/types'
 
 // Power-zone colour ramp (ascending intensity). Boundaries match the zone
 // definitions in CLAUDE.md / lib/claude/zones.ts.
-function zoneFor(pct: number): { label: string; fill: string } {
+export function zoneFor(pct: number): { label: string; fill: string } {
   if (pct < 56) return { label: 'Z1 Recovery', fill: '#94a3b8' }   // slate-400
   if (pct <= 75) return { label: 'Z2 Endurance', fill: '#3b82f6' } // blue-500
   if (pct <= 90) return { label: 'Z3 Tempo', fill: '#22c55e' }     // green-500
@@ -11,12 +13,16 @@ function zoneFor(pct: number): { label: string; fill: string } {
   return { label: 'Z6 Anaerobic', fill: '#ef4444' }                // red-500
 }
 
-function fmtTime(minutes: number): string {
+export function fmtTime(minutes: number): string {
   const m = Math.round(minutes)
   if (m < 60) return `${m}m`
   const h = Math.floor(m / 60)
   const rem = m % 60
   return rem === 0 ? `${h}h` : `${h}h${String(rem).padStart(2, '0')}`
+}
+
+function watts(pct: number, ftp?: number): number | null {
+  return ftp ? Math.round((ftp * pct) / 100) : null
 }
 
 export default function WorkoutProfileChart({
@@ -26,6 +32,8 @@ export default function WorkoutProfileChart({
   steps: WorkoutStep[]
   ftp?: number
 }) {
+  const [hovered, setHovered] = useState<number | null>(null)
+
   if (!steps || steps.length === 0) return null
 
   const total = steps.reduce((sum, s) => sum + s.duration_minutes, 0)
@@ -53,7 +61,7 @@ export default function WorkoutProfileChart({
     return { key: i, x, w, y, h: svgBottom - y, fill, label, step: s }
   })
 
-  // Distinct zones present, in intensity order, for the legend.
+  // Distinct zones present, for the legend.
   const legend: { label: string; fill: string }[] = []
   for (const b of bars) {
     if (!legend.some(l => l.label === b.label)) legend.push({ label: b.label, fill: b.fill })
@@ -63,28 +71,55 @@ export default function WorkoutProfileChart({
   const ftpLabel = ftp ? `${ftp}w` : '100%'
   const midTime = total / 2
 
+  // Tooltip geometry for the hovered/tapped bar.
+  let tip: { x: number; y: number; w: number; text: string } | null = null
+  if (hovered !== null && bars[hovered]) {
+    const b = bars[hovered]
+    const w = watts(b.step.power_pct_ftp, ftp)
+    const text = `${fmtTime(b.step.duration_minutes)} · ${b.step.power_pct_ftp}%${w ? ` · ${w}w` : ''}`
+    const boxW = text.length * 4.4 + 10
+    const cx = b.x + b.w / 2
+    const x = Math.min(Math.max(cx - boxW / 2, svgLeft), svgRight - boxW)
+    const y = Math.max(b.y - 16, svgTop)
+    tip = { x, y, w: boxW, text }
+  }
+
   return (
     <div>
-      <svg viewBox="0 0 340 116" className="w-full" role="img" aria-label="Workout power profile">
+      <svg
+        viewBox="0 0 340 116"
+        className="w-full touch-none select-none"
+        role="img"
+        aria-label="Workout power profile"
+        onMouseLeave={() => setHovered(null)}
+      >
         {/* FTP reference line */}
         <line x1={svgLeft} y1={ftpY} x2={svgRight} y2={ftpY} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3 3" />
         <text x={svgLeft - 4} y={ftpY + 3} fontSize="8" fill="#94a3b8" textAnchor="end">{ftpLabel}</text>
         <text x={svgLeft - 4} y={svgBottom + 1} fontSize="8" fill="#cbd5e1" textAnchor="end">0</text>
 
         {/* Effort bars */}
-        {bars.map(b => (
-          <rect
-            key={b.key}
-            x={b.x}
-            y={b.y}
-            width={Math.max(b.w - 0.6, 0.4)}
-            height={b.h}
-            fill={b.fill}
-            rx="0.5"
-          >
-            <title>{`${b.step.label}: ${fmtTime(b.step.duration_minutes)} @ ${b.step.power_pct_ftp}% FTP${ftp ? ` (${Math.round((ftp * b.step.power_pct_ftp) / 100)}w)` : ''}`}</title>
-          </rect>
-        ))}
+        {bars.map(b => {
+          const w = watts(b.step.power_pct_ftp, ftp)
+          return (
+            <rect
+              key={b.key}
+              x={b.x}
+              y={b.y}
+              width={Math.max(b.w - 0.6, 0.4)}
+              height={b.h}
+              fill={b.fill}
+              rx="0.5"
+              opacity={hovered === null || hovered === b.key ? 1 : 0.45}
+              stroke={hovered === b.key ? '#1e293b' : 'none'}
+              strokeWidth={hovered === b.key ? 0.8 : 0}
+              style={{ cursor: 'pointer', transition: 'opacity 0.1s' }}
+              aria-label={`${b.step.label}: ${fmtTime(b.step.duration_minutes)} at ${b.step.power_pct_ftp}% FTP${w ? `, ${w} watts` : ''}`}
+              onMouseEnter={() => setHovered(b.key)}
+              onClick={() => setHovered(prev => (prev === b.key ? null : b.key))}
+            />
+          )
+        })}
 
         {/* Baseline */}
         <line x1={svgLeft} y1={svgBottom} x2={svgRight} y2={svgBottom} stroke="#e2e8f0" strokeWidth="1" />
@@ -93,6 +128,16 @@ export default function WorkoutProfileChart({
         <text x={svgLeft} y={svgBottom + 14} fontSize="8" fill="#94a3b8" textAnchor="start">0</text>
         <text x={(svgLeft + svgRight) / 2} y={svgBottom + 14} fontSize="8" fill="#94a3b8" textAnchor="middle">{fmtTime(midTime)}</text>
         <text x={svgRight} y={svgBottom + 14} fontSize="8" fill="#94a3b8" textAnchor="end">{fmtTime(total)}</text>
+
+        {/* Hover/tap tooltip */}
+        {tip && (
+          <g pointerEvents="none">
+            <rect x={tip.x} y={tip.y} width={tip.w} height={13} rx="2.5" fill="#1e293b" />
+            <text x={tip.x + tip.w / 2} y={tip.y + 9} fontSize="8" fill="#fff" textAnchor="middle" fontWeight="600">
+              {tip.text}
+            </text>
+          </g>
+        )}
       </svg>
 
       {/* Zone legend */}
@@ -105,5 +150,31 @@ export default function WorkoutProfileChart({
         ))}
       </div>
     </div>
+  )
+}
+
+// Textual breakdown of the workout steps — each rep/recovery on its own row.
+export function WorkoutStepList({ steps, ftp }: { steps: WorkoutStep[]; ftp?: number }) {
+  if (!steps || steps.length === 0) return null
+  return (
+    <ol className="divide-y divide-slate-100">
+      {steps.map((s, i) => {
+        const { fill, label: zone } = zoneFor(s.power_pct_ftp)
+        const w = watts(s.power_pct_ftp, ftp)
+        return (
+          <li key={i} className="flex items-center justify-between gap-3 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: fill }} title={zone} />
+              <span className="text-sm text-slate-700 truncate">{s.label}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 text-xs tabular-nums">
+              <span className="text-slate-400">{fmtTime(s.duration_minutes)}</span>
+              <span className="font-semibold text-slate-600">{s.power_pct_ftp}%</span>
+              {w && <span className="text-slate-400">{w}w</span>}
+            </div>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
