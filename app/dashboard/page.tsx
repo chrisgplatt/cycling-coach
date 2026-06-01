@@ -596,6 +596,7 @@ export default function DashboardPage() {
         <WorkoutDetailModal
           workout={selectedWorkout}
           athleteId={athleteId}
+          ftp={currentFTP}
           activitiesOnDate={
             syncData?.activities.filter(a =>
               a.start_date_local.startsWith(selectedWorkout.date)

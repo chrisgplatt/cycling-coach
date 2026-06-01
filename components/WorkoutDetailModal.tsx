@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent } from '@/types'
 import { getWeekBounds } from '@/lib/week-bounds'
+import WorkoutProfileChart from './WorkoutProfileChart'
 
 const TYPE_COLOURS: Record<WorkoutType, string> = {
   endurance: 'bg-blue-100 text-blue-700',
@@ -32,6 +33,7 @@ const MISSED_REASONS = ['Too tired', 'No time', 'Illness', 'Weather', 'Other']
 interface Props {
   workout: Workout
   athleteId: string
+  ftp?: number
   activitiesOnDate?: ICUActivity[]
   nearbyEvents?: TrainingEvent[]
   onClose: () => void
@@ -44,7 +46,7 @@ interface Props {
 }
 
 export default function WorkoutDetailModal({
-  workout, athleteId, activitiesOnDate, nearbyEvents, onClose, onFeedback,
+  workout, athleteId, ftp, activitiesOnDate, nearbyEvents, onClose, onFeedback,
   onStatusChange, onDelete, onReschedule, onChat, onEventLinked,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
@@ -329,6 +331,12 @@ export default function WorkoutDetailModal({
             <p className="text-sm text-slate-700 leading-relaxed">{workout.description}</p>
             <p className="text-xs text-slate-400 mt-1.5">{workout.target_zones}</p>
           </div>
+
+          {workout.steps && workout.steps.length > 0 && (
+            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/60">
+              <WorkoutProfileChart steps={workout.steps} ftp={ftp} />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             {eventUrl && (

@@ -303,6 +303,7 @@ export default function CalendarPage() {
   const [displayYear, setDisplayYear] = useState(() => new Date().getFullYear())
   const [displayMonth, setDisplayMonth] = useState(() => new Date().getMonth())
 
+  const [currentFTP, setCurrentFTP] = useState<number | undefined>(undefined)
   const [unavailability, setUnavailability] = useState<UnavailabilityPeriod[]>([])
   const [addUnavailDate, setAddUnavailDate] = useState<string | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
@@ -382,6 +383,7 @@ export default function CalendarPage() {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.events) setEvents(data.events)
+        if (data?.current_ftp) setCurrentFTP(data.current_ftp)
         if (data) setUnavailability(data.unavailability ?? [])
       })
       .catch(() => {})
@@ -514,6 +516,7 @@ export default function CalendarPage() {
         <WorkoutDetailModal
           workout={selectedWorkout}
           athleteId={athleteId}
+          ftp={currentFTP}
           onClose={() => setSelectedWorkout(null)}
           onFeedback={(existingFeedback) => {
             setInitialFeedback(existingFeedback ?? null)
