@@ -1,7 +1,8 @@
 import { anthropic, MODEL } from './client'
 import type { BriefingContext } from '@/types'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
 
-const SYSTEM_MORNING = "You are a personal cycling coach. Write a short, direct, personalised morning briefing — 2–3 sentences maximum. Be specific about the numbers. Sound like a real coach texting an athlete, not a generic wellness app. No markdown, no bullet points, plain text only. If there is a pattern or trend from the athlete's profile that is specifically relevant to today — an upcoming A-race taper, a fatigue warning, a known compliance issue on this type of session — include one brief sentence about it. Surface it only when genuinely relevant; do not force a pattern observation into every briefing."
+const SYSTEM_MORNING = "You are a personal cycling coach. Write a short, direct, personalised morning briefing — 2–3 sentences maximum. Be specific about the numbers. Sound like a real coach texting an athlete, not a generic wellness app. No markdown, no bullet points, plain text only. If there is a pattern or trend from the athlete's profile that is specifically relevant to today — an upcoming A-race taper, a fatigue warning, a known compliance issue on this type of session — include one brief sentence about it. Surface it only when genuinely relevant; do not force a pattern observation into every briefing. When HRV is SUPPRESSED, steer the athlete toward easing or rescheduling today's planned session; when ELEVATED or well-recovered before a hard day, green-light it; when BALANCED, proceed as planned. Only raise HRV when it genuinely changes today's advice."
 
 const SYSTEM_POST_RIDE = 'You are a personal cycling coach. Write a short post-ride note — 2–3 sentences maximum. The athlete has just completed their session. Reflect briefly on how the numbers look, how the session fits their current training load, and what to prioritise now (recovery, nutrition, what is coming next). If there are planned sessions in the next few days, factor them into your advice — do not tell the athlete to rest if they already have sessions scheduled; instead advise how to approach those sessions given their current fatigue. Be direct and specific, like a real coach. No markdown, no bullet points, plain text only.'
 
@@ -12,7 +13,8 @@ function buildLoadString(ctx: BriefingContext): string {
     ctx.ctl !== null ? `Fitness (CTL): ${Math.round(ctx.ctl)}` : null,
     ctx.atl !== null ? `Fatigue (ATL): ${Math.round(ctx.atl)}` : null,
     ctx.tsb !== null ? `Form (TSB): ${Math.round(ctx.tsb)}` : null,
-    ctx.hrv !== null ? `HRV: ${Math.round(ctx.hrv)} ms` : null,
+    ctx.hrvStatus ? formatHrvForPrompt(ctx.hrvStatus)
+      : ctx.hrv !== null ? `HRV: ${Math.round(ctx.hrv)} ms` : null,
     `Readiness: ${ctx.readinessLabel}`,
   ].filter(Boolean).join(', ')
 }

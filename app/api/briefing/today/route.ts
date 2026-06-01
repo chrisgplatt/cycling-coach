@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { generateBriefing } from '@/lib/claude/briefing'
 import { fetchDossier } from '@/lib/claude/dossier'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { fetchHrvStatus } from '@/lib/hrv/server'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -71,10 +72,12 @@ export async function GET(req: NextRequest) {
   let atl: number | null = null
   let tsb: number | null = null
   let hrv: number | null = null
+  let hrvStatus: BriefingContext['hrvStatus'] = null
   let recentWorkouts: BriefingContext['recentWorkouts'] = []
 
   if (profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
     const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
+    try { hrvStatus = await fetchHrvStatus(client, today) } catch { /* HRV optional */ }
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0]
       const [wellness, activities] = await Promise.all([
@@ -145,6 +148,7 @@ export async function GET(req: NextRequest) {
     tsb,
     readinessLabel: readinessLabel(tsb),
     hrv,
+    hrvStatus,
     recentWorkouts,
     upcomingEvents,
     upcomingWorkouts: (upcomingWorkoutsData ?? []) as BriefingContext['upcomingWorkouts'],

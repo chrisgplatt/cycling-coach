@@ -37,6 +37,51 @@ const basePostRideCtx: BriefingContext = {
   upcomingEvents: [],
 }
 
+const baseMorningCtx: BriefingContext = {
+  today: '2026-05-28',
+  todayWorkout: {
+    id: 'w2', plan_id: 'p1', date: '2026-05-28', type: 'endurance',
+    duration_minutes: 90, description: 'Z2 aerobic base', target_zones: 'Z2',
+    intervals_icu_event_id: null, status: 'planned', icu_activity_id: null,
+    tss: 65, missed_reason: null, steps: null, created_at: '',
+    activity_metrics: null,
+  },
+  todayWorkouts: [],
+  todayEvent: null,
+  workoutCompleted: false,
+  completedRide: null,
+  completedRides: null,
+  ctl: 65, atl: 70, tsb: -5,
+  readinessLabel: 'Moderate',
+  hrv: 41,
+  recentWorkouts: [],
+  upcomingEvents: [],
+}
+
+describe('generateMorningBriefing — HRV awareness', () => {
+  it('includes SUPPRESSED label in the prompt when hrvStatus is suppressed', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text: 'Easy day recommended.' }] })
+    const ctx: BriefingContext = {
+      ...baseMorningCtx,
+      hrvStatus: {
+        label: 'suppressed',
+        sufficient: true,
+        daysOfData: 60,
+        today: 41,
+        sevenDayAvg: 44,
+        baselineMean: 51,
+        lowerBound: 47,
+        upperBound: 55,
+        trend: 'falling',
+        baselineDrift: 'falling',
+      },
+    }
+    await generateBriefing(ctx)
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toMatch(/SUPPRESSED/)
+  })
+})
+
 describe('generatePostRideNote — enriched detail', () => {
   it('includes elevation and execution detail in the post-ride prompt', async () => {
     mockCreate.mockResolvedValue({ content: [{ type: 'text', text: 'Solid work.' }] })

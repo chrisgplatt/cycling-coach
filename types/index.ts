@@ -342,6 +342,7 @@ export interface BriefingContext {
   tsb: number | null
   readinessLabel: 'Ready' | 'Moderate' | 'Fatigued' | 'Unknown'
   hrv: number | null
+  hrvStatus?: import('@/lib/hrv/baseline').HrvStatus | null
   recentWorkouts: Array<{
     date: string
     type: string
