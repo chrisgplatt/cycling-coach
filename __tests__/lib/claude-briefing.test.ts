@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import { generateBriefing } from '@/lib/claude/briefing'
 import type { BriefingContext } from '@/types'
+import { makeWorkout } from '../support/factories'
 
 jest.mock('@/lib/claude/client', () => ({
   MODEL: 'claude-sonnet-4-6',
@@ -19,12 +20,11 @@ beforeEach(() => mockCreate.mockReset())
 
 const basePostRideCtx: BriefingContext = {
   today: '2026-05-28',
-  todayWorkout: {
-    id: 'w1', plan_id: 'p1', date: '2026-05-28', type: 'intervals',
+  todayWorkout: makeWorkout({
+    id: 'w1', date: '2026-05-28', type: 'intervals',
     duration_minutes: 60, description: '4x8', target_zones: 'Z4',
-    intervals_icu_event_id: null, status: 'completed', icu_activity_id: 'a1',
-    tss: 78, missed_reason: null, steps: null, created_at: '',
-  },
+    status: 'completed', icu_activity_id: 'a1', tss: 78,
+  }),
   todayWorkouts: [],
   todayEvent: null,
   workoutCompleted: true,

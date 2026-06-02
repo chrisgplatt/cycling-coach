@@ -1,14 +1,15 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import FeedbackModal from '@/components/FeedbackModal'
-import type { Workout } from '@/types'
+import { makeWorkout } from '../support/factories'
 
-const workout: Workout = {
-  id: 'w1', plan_id: 'p1', date: '2026-05-10',
-  type: 'threshold', duration_minutes: 60, description: '2x20min threshold',
-  target_zones: 'Zone 4', intervals_icu_event_id: null, status: 'completed',
-  icu_activity_id: null, tss: null, missed_reason: null, steps: null,
-  created_at: '',
-}
+const workout = makeWorkout({
+  date: '2026-05-10',
+  type: 'threshold',
+  duration_minutes: 60,
+  description: '2x20min threshold',
+  target_zones: 'Zone 4',
+  status: 'completed',
+})
 
 describe('FeedbackModal', () => {
   it('renders the feedback textarea', () => {

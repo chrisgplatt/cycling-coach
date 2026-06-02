@@ -1,14 +1,15 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import RescheduleConfirmModal from '@/components/RescheduleConfirmModal'
-import type { Workout } from '@/types'
+import { makeWorkout } from '../support/factories'
 
-const workout: Workout = {
-  id: 'w1', plan_id: 'p1', date: '2026-05-20',
-  type: 'threshold', duration_minutes: 60,
-  description: '2x20 at FTP', target_zones: 'Zone 4',
-  intervals_icu_event_id: 'evt1', status: 'planned',
-  icu_activity_id: null, tss: null, missed_reason: null, steps: null, created_at: '',
-}
+const workout = makeWorkout({
+  date: '2026-05-20',
+  type: 'threshold',
+  duration_minutes: 60,
+  description: '2x20 at FTP',
+  target_zones: 'Zone 4',
+  intervals_icu_event_id: 'evt1',
+})
 
 describe('RescheduleConfirmModal', () => {
   afterEach(() => { jest.restoreAllMocks() })

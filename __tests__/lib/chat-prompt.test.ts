@@ -3,6 +3,7 @@ import { buildChatSystemPrompt } from '@/lib/claude/chat'
 import { formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { TrainingPlan, Workout, ICUWellness, TrainingEvent } from '@/types'
+import { makeWorkout } from '../support/factories'
 
 const plan: TrainingPlan = {
   id: 'p1', name: 'Build', status: 'active',
@@ -11,12 +12,10 @@ const plan: TrainingPlan = {
   plan_weeks: 6, created_at: '', updated_at: '',
 }
 
-const upcoming: Workout[] = [{
-  id: 'wk1', plan_id: 'p1', date: '2026-06-02', type: 'endurance',
+const upcoming: Workout[] = [makeWorkout({
+  id: 'wk1', date: '2026-06-02', type: 'endurance',
   duration_minutes: 90, description: 'Zone 2 ride', target_zones: 'Z2',
-  intervals_icu_event_id: null, status: 'planned', icu_activity_id: null,
-  tss: null, missed_reason: null, steps: null, created_at: '',
-}]
+})]
 
 const wellness: ICUWellness = {
   id: '2026-05-30', ctl: 65, atl: 70, form: -5, hrv: 50, resting_hr: 48, sleep_secs: null,

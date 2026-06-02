@@ -5,6 +5,7 @@ jest.mock('@/lib/claude/client', () => ({
 
 import { buildReviewPrompt } from '@/lib/claude/review'
 import type { UserProfile, Workout, ICUWellness } from '@/types'
+import { makeWorkout as baseWorkout } from '../support/factories'
 
 const profile: UserProfile = {
   goals: 'Build base fitness',
@@ -17,15 +18,11 @@ const profile: UserProfile = {
 }
 
 function makeWorkout(overrides: Partial<Workout>): Workout {
-  return {
-    id: 'w1', plan_id: 'p1', date: '2026-05-12',
-    type: 'endurance', duration_minutes: 90,
+  return baseWorkout({
+    date: '2026-05-12', duration_minutes: 90,
     description: 'Zone 2 ride', target_zones: 'Zone 2',
-    intervals_icu_event_id: null, status: 'planned',
-    icu_activity_id: null, tss: null, missed_reason: null, steps: null,
-    created_at: '',
     ...overrides,
-  }
+  })
 }
 
 describe('buildReviewPrompt — formatLastWeekWorkouts', () => {

@@ -1,5 +1,6 @@
 import { analyseFeedback } from '@/lib/claude/feedback'
 import type { Workout, ProposedAdjustment } from '@/types'
+import { makeWorkout } from '../support/factories'
 import { formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 
@@ -18,14 +19,15 @@ import { anthropic } from '@/lib/claude/client'
 const mockCreate = anthropic.messages.create as jest.Mock
 const mockStream = anthropic.messages.stream as jest.Mock
 
-const workout: Workout = {
-  id: 'wk1', plan_id: 'p1', date: '2026-05-10',
-  type: 'threshold', duration_minutes: 60,
-  description: '2x20min at threshold', target_zones: 'Zone 4 (91-105% FTP)',
-  intervals_icu_event_id: null, status: 'completed',
-  icu_activity_id: null, tss: null, missed_reason: null, steps: null,
-  created_at: '',
-}
+const workout = makeWorkout({
+  id: 'wk1',
+  date: '2026-05-10',
+  type: 'threshold',
+  duration_minutes: 60,
+  description: '2x20min at threshold',
+  target_zones: 'Zone 4 (91-105% FTP)',
+  status: 'completed',
+})
 
 const upcomingWorkouts: Workout[] = [
   { ...workout, id: 'wk2', date: '2026-05-12', type: 'endurance',
