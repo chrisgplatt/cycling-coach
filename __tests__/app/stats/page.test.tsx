@@ -2,8 +2,9 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import StatsPage from '@/app/stats/page'
 import type { RidingStats } from '@/types'
+import { makeRidingStats } from '../../support/factories'
 
-const mockStats: RidingStats = {
+const mockStats = makeRidingStats({
   ride_count: 8,
   total_distance_km: 342.5,
   total_elevation_m: 4200,
@@ -48,7 +49,7 @@ const mockStats: RidingStats = {
     },
   ],
   cross_training: [],
-}
+})
 
 global.fetch = jest.fn()
 
