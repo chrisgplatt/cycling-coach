@@ -55,14 +55,17 @@ export default function ActivityDetailModal({ activity, onClose }: Props) {
           onSelect={(id) => setTab(id as 'stats' | 'map')}
         />
 
-        <div className="flex-1 overflow-y-auto p-6 pt-4">
-          {tab === 'stats' && <RideStats data={rideStatsFromActivity(activity)} />}
-          {tab === 'map' && (
-            streams
-              ? <RideMapGraph streams={streams} />
-              : <p className="text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>
-          )}
-        </div>
+        {tab === 'map' ? (
+          <div className="flex-1 min-h-0">
+            {streams
+              ? <RideMapGraph streams={streams} fit />
+              : <p className="p-6 text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>}
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-6 pt-4">
+            <RideStats data={rideStatsFromActivity(activity)} />
+          </div>
+        )}
       </div>
     </div>
   )

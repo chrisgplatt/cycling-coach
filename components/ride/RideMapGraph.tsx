@@ -17,7 +17,9 @@ function Chip({ label, value, colour }: { label: string; value: string; colour: 
   )
 }
 
-export default function RideMapGraph({ streams }: { streams: RideStreams }) {
+// `fit`: fill the parent height (flex column, map flexes) instead of using vh heights,
+// so the map + graph + controls sit on one screen with no scrolling (used in the modals).
+export default function RideMapGraph({ streams, fit = false }: { streams: RideStreams; fit?: boolean }) {
   const [cursor, setCursor] = useState(0)
   const [show, setShow] = useState({ power: true, hr: true, elevation: true })
   const [xAxis, setXAxis] = useState<'distance' | 'time'>('distance')
@@ -31,9 +33,9 @@ export default function RideMapGraph({ streams }: { streams: RideStreams }) {
   const t = at(streams.time)
 
   return (
-    <div className="flex flex-col">
+    <div className={`flex flex-col ${fit ? 'h-full' : ''}`}>
       {/* `isolate` contains Leaflet's high z-index panes so the app nav/menu stays on top */}
-      <div className="h-[40vh] min-h-[220px] bg-slate-100 relative isolate">
+      <div className={`bg-slate-100 relative isolate ${fit ? 'flex-1 min-h-0' : 'h-[40vh] min-h-[220px]'}`}>
         {hasGps ? (
           // hasGps guarantees latlng is non-null and non-empty
           <RouteMap latlng={streams.latlng!} cursorIndex={cursor} />
@@ -52,7 +54,7 @@ export default function RideMapGraph({ streams }: { streams: RideStreams }) {
         {streams.altitude && <Chip label="Elev" value={alt != null ? `${Math.round(alt)}m` : '—'} colour="#16a34a" />}
       </div>
 
-      <RideGraph streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis={xAxis} />
+      <RideGraph streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis={xAxis} fit={fit} />
 
       <div className="px-4 pt-3 flex gap-2 items-center">
         <span className="text-[11px] text-gray-400 mr-1">X axis</span>

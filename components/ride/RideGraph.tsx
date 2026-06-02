@@ -15,6 +15,7 @@ interface Props {
   onScrub: (index: number) => void
   show: { power: boolean; hr: boolean; elevation: boolean }
   xAxis: 'distance' | 'time'
+  fit?: boolean   // compact fixed height so the graph + map fit one screen (no vh)
 }
 
 // A value axis gutter: max at top, mid, min at bottom — aligned to the plot height.
@@ -36,7 +37,7 @@ function YAxis({ domain, colour, side, unit }: {
   )
 }
 
-export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis }: Props) {
+export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis, fit = false }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const axis = xAxis === 'distance' ? streams.distance : streams.time
   const fractions = useMemo(() => axisFractions(axis), [axis])
@@ -88,7 +89,7 @@ export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis }
 
   return (
     <div className="select-none px-1">
-      <div className="flex" style={{ height: '22vh', maxHeight: 190, minHeight: 130 }}>
+      <div className="flex" style={fit ? { height: 150, minHeight: 120 } : { height: '22vh', maxHeight: 190, minHeight: 130 }}>
         <YAxis domain={show.power ? power?.dom ?? null : null} colour={COL.power} side="left" unit="W" />
         <div className="flex-1 relative">
           <svg

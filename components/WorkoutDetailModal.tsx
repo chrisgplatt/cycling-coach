@@ -363,16 +363,18 @@ export default function WorkoutDetailModal({
           />
         )}
 
+        {hasRide && tab === 'map' ? (
+          <div className="flex-1 min-h-0">
+            {streams
+              ? <RideMapGraph streams={streams} fit />
+              : <p className="p-5 text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>}
+          </div>
+        ) : (
         <div className="p-5 space-y-4 flex-1 overflow-y-auto">
           {hasRide && tab === 'stats' && (
             workout.activity_metrics
               ? <RideStats data={rideStatsFromMetrics(workout.activity_metrics, workout.duration_minutes * 60, workout.tss)} />
               : <p className="text-sm text-slate-400 italic">Ride stats not available yet.</p>
-          )}
-          {hasRide && tab === 'map' && (
-            streams
-              ? <RideMapGraph streams={streams} />
-              : <p className="text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>
           )}
           {(!hasRide || tab === 'overview') && (
             <>
@@ -604,6 +606,7 @@ export default function WorkoutDetailModal({
             </p>
           )}
         </div>
+        )}
 
         <div className="p-4 border-t border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
