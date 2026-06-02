@@ -13,6 +13,7 @@ function makeStreams() {
 
 const mockGetActivityStreams = jest.fn()
 const mockGetActivityMap = jest.fn()
+const mockGetActivityIntervals = jest.fn()
 
 jest.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: jest.fn(),
@@ -21,6 +22,7 @@ jest.mock('@/lib/intervals/client', () => ({
   IntervalsClient: jest.fn().mockImplementation(() => ({
     getActivityStreams: mockGetActivityStreams,
     getActivityMap: mockGetActivityMap,
+    getActivityIntervals: mockGetActivityIntervals,
   })),
 }))
 
@@ -45,6 +47,9 @@ beforeEach(() => {
   jest.clearAllMocks()
   mockGetActivityStreams.mockResolvedValue(makeStreams())
   mockGetActivityMap.mockResolvedValue({ latlngs: null })
+  mockGetActivityIntervals.mockResolvedValue([
+    { label: 'Lap 1', duration_secs: 600, avg_watts: 200, avg_hr: 140 },
+  ])
 })
 
 describe('GET /api/rides/[workoutId]/streams', () => {
@@ -89,5 +94,16 @@ describe('GET /api/rides/[workoutId]/streams', () => {
     )
     const res = await GET({} as Request as never, ctx('w1') as never)
     expect(res.status).toBe(404)
+  })
+
+  it('returns detected laps as intervals', async () => {
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(
+      supabaseStub({ icu_activity_id: 'a1' }, goodProfile),
+    )
+    const res = await GET({} as Request as never, ctx('w1') as never)
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.intervals).toHaveLength(1)
+    expect(body.intervals[0].avg_watts).toBe(200)
   })
 })

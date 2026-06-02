@@ -38,14 +38,17 @@ export async function GET(
   try {
     // Streams carry the graph channels; the real route comes from /map (the streams
     // latlng channel is latitude-only). latlngs is index-aligned with the streams.
-    const [streams, map] = await Promise.all([
+    // intervals (detected laps) drive the planned-vs-actual overlay; they degrade to
+    // [] so a lap-detection hiccup never breaks the graph.
+    const [streams, map, intervals] = await Promise.all([
       client.getActivityStreams(workout.icu_activity_id),
       client.getActivityMap(workout.icu_activity_id).catch(() => ({ latlngs: null })),
+      client.getActivityIntervals(workout.icu_activity_id).catch(() => []),
     ])
     if (map.latlngs && map.latlngs.length === streams.time.length) {
       streams.latlng = map.latlngs
     }
-    return NextResponse.json({ streams: downsampleStreams(streams, 600) })
+    return NextResponse.json({ streams: downsampleStreams(streams, 600), intervals })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 502 })
