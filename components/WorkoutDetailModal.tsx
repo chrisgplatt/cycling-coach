@@ -400,39 +400,46 @@ export default function WorkoutDetailModal({
           </div>
 
           {(workout.status === 'completed' || workout.status === 'needs_review') && (
-            <div className="border border-slate-200 rounded-xl p-4 space-y-2 bg-slate-50">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Session feedback</p>
-              {existingFeedback === 'loading' && (
-                <p className="text-sm text-slate-400">Loading…</p>
-              )}
-              {existingFeedback === null && (
-                <p className="text-sm text-slate-400 italic">No feedback logged yet.</p>
-              )}
-              {existingFeedback && existingFeedback !== 'loading' && (
-                <>
-                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                    {existingFeedback.feedback_text}
-                  </p>
-                  {existingFeedback.proposed_adjustment && existingFeedback.approved === true && (
-                    <p className="text-xs text-emerald-600 font-medium">Adaptations applied</p>
-                  )}
-                  {existingFeedback.proposed_adjustment && existingFeedback.approved === false && (
-                    <p className="text-xs text-slate-400">Adaptations suggested but not applied</p>
-                  )}
-                  {!existingFeedback.proposed_adjustment && (
-                    <p className="text-xs text-slate-400">Logged without adaptation analysis</p>
-                  )}
-                  {onFeedback && (
-                    <button
-                      onClick={() => onFeedback(existingFeedback)}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                    >
-                      Edit feedback
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+            <details className="group border border-slate-200 rounded-xl p-4 bg-slate-50">
+              <summary className="cursor-pointer list-none text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 select-none">
+                <svg width="10" height="10" viewBox="0 0 12 12" className="transition-transform group-open:rotate-90" fill="currentColor" aria-hidden="true">
+                  <path d="M4 2l4 4-4 4z" />
+                </svg>
+                Session feedback
+              </summary>
+              <div className="mt-2 space-y-2">
+                {existingFeedback === 'loading' && (
+                  <p className="text-sm text-slate-400">Loading…</p>
+                )}
+                {existingFeedback === null && (
+                  <p className="text-sm text-slate-400 italic">No feedback logged yet.</p>
+                )}
+                {existingFeedback && existingFeedback !== 'loading' && (
+                  <>
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                      {existingFeedback.feedback_text}
+                    </p>
+                    {existingFeedback.proposed_adjustment && existingFeedback.approved === true && (
+                      <p className="text-xs text-emerald-600 font-medium">Adaptations applied</p>
+                    )}
+                    {existingFeedback.proposed_adjustment && existingFeedback.approved === false && (
+                      <p className="text-xs text-slate-400">Adaptations suggested but not applied</p>
+                    )}
+                    {!existingFeedback.proposed_adjustment && (
+                      <p className="text-xs text-slate-400">Logged without adaptation analysis</p>
+                    )}
+                    {onFeedback && (
+                      <button
+                        onClick={() => onFeedback(existingFeedback)}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        Edit feedback
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </details>
           )}
 
           {workout.status === 'needs_review' && (
