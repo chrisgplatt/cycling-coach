@@ -35,6 +35,13 @@ const STATUS_LABEL: Partial<Record<string, string>> = {
 
 const MISSED_REASONS = ['Too tired', 'No time', 'Illness', 'Weather', 'Other']
 
+const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+// "2026-06-01" → "Mon " (parsed as local midnight so the weekday matches the date).
+function dayPrefix(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00`)
+  return Number.isNaN(d.getTime()) ? '' : `${DAY_ABBR[d.getDay()]} `
+}
+
 interface Props {
   workout: Workout
   athleteId: string
@@ -328,7 +335,7 @@ export default function WorkoutDetailModal({
                 className="text-xs font-medium text-slate-400 shrink-0 bg-transparent border-0 cursor-pointer hover:text-blue-500 focus:outline-none focus:text-blue-500 p-0"
               />
             ) : (
-              <span className="text-xs font-medium text-slate-400 shrink-0">{workout.date}</span>
+              <span className="text-xs font-medium text-slate-400 shrink-0">{dayPrefix(workout.date)}{workout.date}</span>
             )}
           </div>
           {pendingDate && (
