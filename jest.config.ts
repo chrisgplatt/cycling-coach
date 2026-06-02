@@ -9,6 +9,7 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/__tests__/support/'],
 }
 
 export default createJestConfig(config)
