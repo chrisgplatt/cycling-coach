@@ -1,12 +1,9 @@
 'use client'
-import Link from 'next/link'
-import type { ICUActivity } from '@/types'
-
-function fmtDuration(seconds: number): string {
-  const mins = Math.round(seconds / 60)
-  if (mins >= 60) return `${Math.floor(mins / 60)}h ${mins % 60}m`
-  return `${mins}m`
-}
+import { useEffect, useState } from 'react'
+import type { ICUActivity, RideStreams } from '@/types'
+import RideStats, { rideStatsFromActivity } from './RideStats'
+import RideMapGraph from './ride/RideMapGraph'
+import TabBar from './TabBar'
 
 interface Props {
   activity: ICUActivity
@@ -19,20 +16,26 @@ export default function ActivityDetailModal({ activity, onClose }: Props) {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   })
 
-  const stats: Array<{ label: string; value: string }> = [
-    { label: 'Duration', value: fmtDuration(activity.moving_time) },
-  ]
-  if (activity.distance != null) stats.push({ label: 'Distance', value: `${(activity.distance / 1000).toFixed(1)} km` })
-  if (activity.total_elevation_gain != null) stats.push({ label: 'Elevation', value: `${Math.round(activity.total_elevation_gain)} m` })
-  if (activity.training_load != null) stats.push({ label: 'TSS', value: String(Math.round(activity.training_load)) })
-  if (activity.weighted_average_watts != null) stats.push({ label: 'NP', value: `${Math.round(activity.weighted_average_watts)} W` })
-  if (activity.average_heartrate != null) stats.push({ label: 'Avg HR', value: `${Math.round(activity.average_heartrate)} bpm` })
+  const [tab, setTab] = useState<'stats' | 'map'>('stats')
+  const [streams, setStreams] = useState<RideStreams | null>(null)
+  const [streamsError, setStreamsError] = useState(false)
+
+  // Lazy-load streams the first time the Map tab is opened.
+  useEffect(() => {
+    if (tab !== 'map' || streams || streamsError) return
+    let cancelled = false
+    fetch(`/api/rides/activity/${activity.id}/streams`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled) { if (d?.streams) setStreams(d.streams); else setStreamsError(true) } })
+      .catch(() => { if (!cancelled) setStreamsError(true) })
+    return () => { cancelled = true }
+  }, [tab, streams, streamsError, activity.id])
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[92vh] overflow-y-auto">
-        <div className="flex items-start justify-between gap-3">
+      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[92vh]">
+        <div className="flex items-start justify-between gap-3 p-6 pb-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-sky-500 uppercase tracking-wide">Activity</p>
             <h2 className="text-lg font-bold text-slate-900 truncate">{activity.name || 'Ride'}</h2>
@@ -46,21 +49,20 @@ export default function ActivityDetailModal({ activity, onClose }: Props) {
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5">
-          {stats.map(s => (
-            <div key={s.label} className="bg-slate-50 rounded-lg px-2 py-2 text-center">
-              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{s.label}</div>
-              <div className="text-sm font-bold text-slate-800 mt-0.5">{s.value}</div>
-            </div>
-          ))}
-        </div>
+        <TabBar
+          tabs={[{ id: 'stats', label: 'Stats' }, { id: 'map', label: 'Map' }]}
+          activeId={tab}
+          onSelect={(id) => setTab(id as 'stats' | 'map')}
+        />
 
-        <Link
-          href={`/ride/activity/${activity.id}`}
-          className="flex items-center justify-center w-full bg-blue-600 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-blue-700 transition-colors min-h-[44px]"
-        >
-          View ride map →
-        </Link>
+        <div className="flex-1 overflow-y-auto p-6 pt-4">
+          {tab === 'stats' && <RideStats data={rideStatsFromActivity(activity)} />}
+          {tab === 'map' && (
+            streams
+              ? <RideMapGraph streams={streams} />
+              : <p className="text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>
+          )}
+        </div>
       </div>
     </div>
   )
