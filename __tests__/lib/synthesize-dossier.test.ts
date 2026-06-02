@@ -72,13 +72,13 @@ describe('synthesizeDossier', () => {
 
   it('defaults explicit_notes to [] when no dossier exists yet', async () => {
     (generateDossier as jest.Mock).mockResolvedValue(fakeContent)
-    const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
+    const upsertSpy = jest.fn((_row?: Record<string, unknown>) => Promise.resolve({ error: null }))
     const supabase = makeSupabase({ existing: null, upsertSpy })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await synthesizeDossier(supabase as any, profile as any)
 
-    expect(upsertSpy.mock.calls[0][0].explicit_notes).toEqual([])
+    expect(upsertSpy.mock.calls[0]?.[0]?.explicit_notes).toEqual([])
   })
 
   it('throws and never upserts when generateDossier rejects', async () => {
