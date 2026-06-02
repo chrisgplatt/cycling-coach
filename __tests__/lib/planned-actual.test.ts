@@ -73,4 +73,9 @@ describe('buildPlannedActual', () => {
     const out = buildPlannedActual(steps, { time, power: sprintPower }, null, 250)!
     expect(out.yMaxPct).toBe(170) // 150*1.08=162 -> ceil/10 -> 170
   })
+
+  it('returns null when the time stream has zero span', () => {
+    const flat = { time: [0, 0, 0], power: [150, 200, 250] }
+    expect(buildPlannedActual(steps, flat, null, 250)).toBeNull()
+  })
 })
