@@ -32,9 +32,9 @@ export default function ActivityDetailModal({ activity, onClose }: Props) {
   }, [tab, streams, streamsError, activity.id])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-50 flex sm:items-center sm:justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[92vh]">
+      <div className="relative bg-white shadow-xl w-full h-full flex flex-col sm:max-w-md sm:h-auto sm:max-h-[92vh] sm:rounded-2xl">
         <div className="flex items-start justify-between gap-3 p-6 pb-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-sky-500 uppercase tracking-wide">Activity</p>

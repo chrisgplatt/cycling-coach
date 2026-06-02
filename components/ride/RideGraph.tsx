@@ -88,7 +88,7 @@ export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis }
 
   return (
     <div className="select-none px-1">
-      <div className="flex" style={{ height: '38vh', maxHeight: 300, minHeight: 200 }}>
+      <div className="flex" style={{ height: '22vh', maxHeight: 190, minHeight: 130 }}>
         <YAxis domain={show.power ? power?.dom ?? null : null} colour={COL.power} side="left" unit="W" />
         <div className="flex-1 relative">
           <svg
