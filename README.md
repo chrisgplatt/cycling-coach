@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/chrisgplatt/cycling-coach/actions/workflows/ci.yml/badge.svg)](https://github.com/chrisgplatt/cycling-coach/actions/workflows/ci.yml)
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+**Cycling Coach** is an AI-powered personal cycling coach — a mobile-first PWA that designs and continuously adapts a structured training plan around your goals, events, and day-to-day readiness. It syncs with [intervals.icu](https://intervals.icu) for fitness and wellness data (CTL/ATL/Form, HRV, resting HR, FTP), uses Anthropic's Claude to generate workouts, weekly reviews, and a daily briefing, and tracks rides, HRV trends, and progress toward your target events.
+
+Built with [Next.js](https://nextjs.org) (App Router), React, TypeScript, Tailwind CSS, Supabase, and the Anthropic API.
 
 ## Getting Started
 
