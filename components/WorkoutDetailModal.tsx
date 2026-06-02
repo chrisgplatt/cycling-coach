@@ -1,9 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent } from '@/types'
+import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent, RideStreams } from '@/types'
 import { getWeekBounds } from '@/lib/week-bounds'
 import WorkoutProfileChart, { WorkoutStepList } from './WorkoutProfileChart'
+import RideStats, { rideStatsFromMetrics } from './RideStats'
+import RideMapGraph from './ride/RideMapGraph'
+import TabBar from './TabBar'
 import PlannedVsActualChart from './PlannedVsActualChart'
 import PlannedVsActualList from './PlannedVsActualList'
 import { buildPlannedActual, type PlannedActual } from '@/lib/ride/planned-actual'
@@ -71,6 +73,9 @@ export default function WorkoutDetailModal({
   const [linkError, setLinkError] = useState<string | null>(null)
   const [actual, setActual] = useState<PlannedActual | null>(null)
   const [actualUnavailable, setActualUnavailable] = useState(false)
+  const [streams, setStreams] = useState<RideStreams | null>(null)
+  const [tab, setTab] = useState<'overview' | 'stats' | 'map'>('overview')
+  const hasRide = (workout.status === 'completed' || workout.status === 'needs_review') && !!workout.icu_activity_id
 
   useEffect(() => {
     if (workout.status !== 'completed' && workout.status !== 'needs_review') {
@@ -89,16 +94,21 @@ export default function WorkoutDetailModal({
   useEffect(() => {
     setActual(null)
     setActualUnavailable(false)
+    setStreams(null)
     const isDone = workout.status === 'completed' || workout.status === 'needs_review'
-    if (!isDone || !workout.icu_activity_id || !ftp || !workout.steps?.length) return
+    if (!isDone || !workout.icu_activity_id) return
     let cancelled = false
     fetch(`/api/rides/${workout.id}/streams`)
       .then(r => (r.ok ? r.json() : null))
       .then(d => {
         if (cancelled) return
-        const pa = d?.streams ? buildPlannedActual(workout.steps, d.streams, d.intervals ?? null, ftp) : null
-        if (pa) setActual(pa)
-        else setActualUnavailable(true)
+        if (d?.streams) setStreams(d.streams)
+        // The planned-vs-actual overlay also needs FTP + planned steps + a power stream.
+        if (ftp && workout.steps?.length) {
+          const pa = d?.streams ? buildPlannedActual(workout.steps, d.streams, d.intervals ?? null, ftp) : null
+          if (pa) setActual(pa)
+          else setActualUnavailable(true)
+        }
       })
       .catch(() => { if (!cancelled) setActualUnavailable(true) })
     return () => { cancelled = true }
@@ -277,8 +287,8 @@ export default function WorkoutDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh]">
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
@@ -342,7 +352,25 @@ export default function WorkoutDetailModal({
           )}
         </div>
 
+        {hasRide && (
+          <TabBar
+            tabs={[{ id: 'overview', label: 'Overview' }, { id: 'stats', label: 'Stats' }, { id: 'map', label: 'Map' }]}
+            activeId={tab}
+            onSelect={(id) => setTab(id as 'overview' | 'stats' | 'map')}
+          />
+        )}
+
         <div className="p-5 space-y-4 flex-1 overflow-y-auto">
+          {hasRide && tab === 'stats' && (
+            workout.activity_metrics
+              ? <RideStats data={rideStatsFromMetrics(workout.activity_metrics, workout.duration_minutes * 60, workout.tss)} />
+              : <p className="text-sm text-slate-400 italic">Ride stats not available yet.</p>
+          )}
+          {hasRide && tab === 'map' && (
+            streams ? <RideMapGraph streams={streams} /> : <p className="text-sm text-slate-400">Loading ride…</p>
+          )}
+          {(!hasRide || tab === 'overview') && (
+            <>
           <div>
             <p className="text-sm text-slate-700 leading-relaxed">{workout.description}</p>
             <p className="text-xs text-slate-400 mt-1.5">{workout.target_zones}</p>
@@ -388,14 +416,6 @@ export default function WorkoutDetailModal({
               >
                 View completed activity in intervals.icu →
               </a>
-            )}
-            {workout.icu_activity_id && (workout.status === 'completed' || workout.status === 'needs_review') && (
-              <Link
-                href={`/ride/${workout.id}`}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium block transition-colors"
-              >
-                View ride map →
-              </Link>
             )}
           </div>
 
@@ -566,6 +586,8 @@ export default function WorkoutDetailModal({
                 Cancel
               </button>
             </div>
+          )}
+            </>
           )}
 
           {error && (

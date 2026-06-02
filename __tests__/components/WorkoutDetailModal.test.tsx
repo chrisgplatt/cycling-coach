@@ -266,3 +266,27 @@ describe('WorkoutDetailModal', () => {
     })
   })
 })
+
+describe('WorkoutDetailModal tabs', () => {
+  const completedLinked = {
+    ...plannedWorkout, status: 'completed' as const, icu_activity_id: 'a1', activity_metrics: null,
+  }
+
+  it('shows no tab bar for a planned, unlinked workout', () => {
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({}) })) as never
+    render(<WorkoutDetailModal workout={plannedWorkout} athleteId="i1" ftp={250} onClose={() => {}} />)
+    expect(screen.queryByRole('button', { name: 'Stats' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Map' })).toBeNull()
+  })
+
+  it('shows Overview/Stats/Map tabs and a stats-unavailable note for a completed linked ride without metrics', async () => {
+    global.fetch = jest.fn((url: string) =>
+      String(url).includes('/streams')
+        ? Promise.resolve({ ok: true, json: async () => ({ streams: { time: [0, 60], power: [100, 110] }, intervals: [] }) })
+        : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
+    ) as never
+    render(<WorkoutDetailModal workout={completedLinked} athleteId="i1" ftp={250} onClose={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Stats' }))
+    expect(screen.getByText(/ride stats not available yet/i)).toBeInTheDocument()
+  })
+})
