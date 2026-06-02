@@ -1,156 +1,13 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { RidingStats, ICUActivity, CrossTrainingGroup } from '@/types'
-
-function StatCell({
-  label, value, unit, valueClass = 'text-gray-900',
-}: {
-  label: string; value: string; unit?: string; valueClass?: string
-}) {
-  return (
-    <div className="flex-1 text-center px-2 py-3 sm:px-3 sm:py-4">
-      <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${valueClass}`}>
-        {value}
-        {unit && <span className="text-xs font-medium text-gray-400 ml-0.5">{unit}</span>}
-      </div>
-      <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">{label}</div>
-    </div>
-  )
-}
-
-function SectionCard({ title, children, accent }: { title: string; children: React.ReactNode; accent?: string }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className={`px-4 py-2.5 border-b border-gray-200 flex items-center gap-2 ${accent ? 'bg-white' : 'bg-gray-50'}`}>
-        {accent && <span className={`w-2 h-2 rounded-full ${accent}`} />}
-        <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">{title}</h2>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function formatDuration(secs: number): string {
-  const h = Math.floor(secs / 3600)
-  const m = Math.floor((secs % 3600) / 60)
-  return `${h}h ${m}m`
-}
+import type { RidingStats, CrossTrainingGroup } from '@/types'
+import RideStats, { rideStatsFromActivity, StatCell, SectionCard, formatDuration } from '@/components/RideStats'
 
 function formatRideTabLabel(dateStr: string): string {
   const d = new Date(dateStr)
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`
-}
-
-function RideView({ ride }: { ride: ICUActivity }) {
-  const leftPct = ride.left_right_balance
-  const balance = leftPct !== null
-    ? `${leftPct.toFixed(1)}% L / ${(100 - leftPct).toFixed(1)}% R`
-    : null
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500 font-medium truncate">{ride.name}</p>
-
-      <SectionCard title="Power" accent="bg-orange-400">
-        <div className="flex divide-x divide-gray-100">
-          <StatCell
-            label="Avg W"
-            value={ride.average_watts !== null ? String(Math.round(ride.average_watts)) : '—'}
-            unit={ride.average_watts !== null ? 'w' : undefined}
-            valueClass="text-orange-500"
-          />
-          <StatCell
-            label="NP"
-            value={ride.weighted_average_watts !== null ? String(Math.round(ride.weighted_average_watts)) : '—'}
-            unit={ride.weighted_average_watts !== null ? 'w' : undefined}
-            valueClass="text-orange-500"
-          />
-          <StatCell
-            label="TSS"
-            value={ride.training_load !== null ? String(Math.round(ride.training_load)) : '—'}
-            valueClass="text-orange-500"
-          />
-        </div>
-      </SectionCard>
-
-      {(ride.power_1min != null || ride.power_5min != null || ride.power_10min != null || ride.power_20min != null) && (
-        <SectionCard title="Best Power" accent="bg-orange-400">
-          <div className="flex divide-x divide-gray-100">
-            <StatCell
-              label="1 min"
-              value={ride.power_1min != null ? String(Math.round(ride.power_1min)) : '—'}
-              unit={ride.power_1min != null ? 'w' : undefined}
-              valueClass="text-orange-500"
-            />
-            <StatCell
-              label="5 min"
-              value={ride.power_5min != null ? String(Math.round(ride.power_5min)) : '—'}
-              unit={ride.power_5min != null ? 'w' : undefined}
-              valueClass="text-orange-500"
-            />
-            <StatCell
-              label="10 min"
-              value={ride.power_10min != null ? String(Math.round(ride.power_10min)) : '—'}
-              unit={ride.power_10min != null ? 'w' : undefined}
-              valueClass="text-orange-500"
-            />
-            <StatCell
-              label="20 min"
-              value={ride.power_20min != null ? String(Math.round(ride.power_20min)) : '—'}
-              unit={ride.power_20min != null ? 'w' : undefined}
-              valueClass="text-orange-500"
-            />
-          </div>
-        </SectionCard>
-      )}
-
-      <SectionCard title="Ride Totals" accent="bg-blue-500">
-        <div className="flex divide-x divide-gray-100">
-          <StatCell
-            label="Distance"
-            value={ride.distance !== null ? (Math.round(ride.distance / 100) / 10).toFixed(1) : '—'}
-            unit={ride.distance !== null ? 'km' : undefined}
-            valueClass="text-blue-600"
-          />
-          <StatCell
-            label="Elevation"
-            value={ride.total_elevation_gain !== null ? String(Math.round(ride.total_elevation_gain)) : '—'}
-            unit={ride.total_elevation_gain !== null ? 'm' : undefined}
-            valueClass="text-emerald-600"
-          />
-          <StatCell
-            label="Duration"
-            value={formatDuration(ride.moving_time)}
-            valueClass="text-violet-600"
-          />
-        </div>
-      </SectionCard>
-
-      {ride.average_heartrate !== null && (
-        <SectionCard title="Heart Rate" accent="bg-red-400">
-          <div className="flex justify-center">
-            <StatCell
-              label="Avg HR"
-              value={String(Math.round(ride.average_heartrate))}
-              unit="bpm"
-              valueClass="text-red-500"
-            />
-          </div>
-        </SectionCard>
-      )}
-
-      {balance !== null && (
-        <SectionCard title="L/R Balance" accent="bg-rose-400">
-          <div className="text-center px-2 py-3 sm:px-3 sm:py-4">
-            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-rose-500">{balance}</div>
-            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">Left / Right</div>
-          </div>
-        </SectionCard>
-      )}
-    </div>
-  )
 }
 
 function AggregateView({ stats }: { stats: RidingStats }) {
@@ -355,7 +212,10 @@ export default function StatsPage() {
           <CrossTrainingSummary groups={stats.cross_training} />
         </>
       ) : (
-        <RideView ride={rides[activeTab - 1]} />
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500 font-medium truncate">{rides[activeTab - 1].name}</p>
+          <RideStats data={rideStatsFromActivity(rides[activeTab - 1])} />
+        </div>
       )}
     </main>
   )
