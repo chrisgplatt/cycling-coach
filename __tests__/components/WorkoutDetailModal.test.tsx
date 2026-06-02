@@ -268,6 +268,26 @@ describe('WorkoutDetailModal', () => {
   })
 })
 
+describe('WorkoutDetailModal coach notes', () => {
+  it('renders the coach notes card when present', () => {
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({}) })) as never
+    const withNotes = {
+      ...plannedWorkout,
+      coaching_notes: { summary: 'Build your aerobic base.', focus: [{ label: 'Cadence', detail: 'Hold 90 rpm' }] },
+    }
+    render(<WorkoutDetailModal workout={withNotes} athleteId="i1" ftp={250} onClose={() => {}} />)
+    expect(screen.getByText("Coach's notes")).toBeInTheDocument()
+    expect(screen.getByText('Build your aerobic base.')).toBeInTheDocument()
+    expect(screen.getByText('Cadence')).toBeInTheDocument()
+  })
+
+  it('renders no coach notes card when absent', () => {
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({}) })) as never
+    render(<WorkoutDetailModal workout={plannedWorkout} athleteId="i1" ftp={250} onClose={() => {}} />)
+    expect(screen.queryByText("Coach's notes")).toBeNull()
+  })
+})
+
 describe('WorkoutDetailModal tabs', () => {
   const completedLinked = {
     ...plannedWorkout, status: 'completed' as const, icu_activity_id: 'a1', activity_metrics: null,

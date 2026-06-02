@@ -399,6 +399,22 @@ export default function WorkoutDetailModal({
             <p className="text-xs text-slate-400 mt-1.5">{workout.target_zones}</p>
           </div>
 
+          {workout.coaching_notes && (
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-2">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Coach&apos;s notes</p>
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{workout.coaching_notes.summary}</p>
+              {workout.coaching_notes.focus.length > 0 && (
+                <ul className="space-y-1">
+                  {workout.coaching_notes.focus.map((f, i) => (
+                    <li key={i} className="text-sm text-slate-600 leading-relaxed">
+                      <span className="font-semibold text-slate-700">{f.label}</span> — {f.detail}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           {workout.steps && workout.steps.length > 0 && (
             <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/60 space-y-2">
               {actual ? (
