@@ -74,6 +74,7 @@ export default function WorkoutDetailModal({
   const [actual, setActual] = useState<PlannedActual | null>(null)
   const [actualUnavailable, setActualUnavailable] = useState(false)
   const [streams, setStreams] = useState<RideStreams | null>(null)
+  const [streamsError, setStreamsError] = useState(false)
   const [tab, setTab] = useState<'overview' | 'stats' | 'map'>('overview')
   const hasRide = (workout.status === 'completed' || workout.status === 'needs_review') && !!workout.icu_activity_id
 
@@ -95,6 +96,7 @@ export default function WorkoutDetailModal({
     setActual(null)
     setActualUnavailable(false)
     setStreams(null)
+    setStreamsError(false)
     const isDone = workout.status === 'completed' || workout.status === 'needs_review'
     if (!isDone || !workout.icu_activity_id) return
     let cancelled = false
@@ -103,6 +105,7 @@ export default function WorkoutDetailModal({
       .then(d => {
         if (cancelled) return
         if (d?.streams) setStreams(d.streams)
+        else setStreamsError(true)
         // The planned-vs-actual overlay also needs FTP + planned steps + a power stream.
         if (ftp && workout.steps?.length) {
           const pa = d?.streams ? buildPlannedActual(workout.steps, d.streams, d.intervals ?? null, ftp) : null
@@ -110,7 +113,7 @@ export default function WorkoutDetailModal({
           else setActualUnavailable(true)
         }
       })
-      .catch(() => { if (!cancelled) setActualUnavailable(true) })
+      .catch(() => { if (!cancelled) { setActualUnavailable(true); setStreamsError(true) } })
     return () => { cancelled = true }
   }, [workout.id, workout.status, workout.icu_activity_id, ftp, workout.steps])
 
@@ -367,7 +370,9 @@ export default function WorkoutDetailModal({
               : <p className="text-sm text-slate-400 italic">Ride stats not available yet.</p>
           )}
           {hasRide && tab === 'map' && (
-            streams ? <RideMapGraph streams={streams} /> : <p className="text-sm text-slate-400">Loading ride…</p>
+            streams
+              ? <RideMapGraph streams={streams} />
+              : <p className="text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>
           )}
           {(!hasRide || tab === 'overview') && (
             <>
