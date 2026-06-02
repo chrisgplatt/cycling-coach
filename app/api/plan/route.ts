@@ -258,6 +258,7 @@ export async function PATCH(req: NextRequest) {
     user_id: user.id,
     tss: w.steps?.length ? estimateTss(w.steps) : null,
     steps: w.steps ?? null,
+    coaching_notes: w.coaching_notes ?? null,
   }))
 
   const { error: workoutsError } = await supabase.from('workouts').insert(workoutsToInsert)

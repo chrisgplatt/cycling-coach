@@ -1,6 +1,7 @@
 import { anthropic, MODEL } from './client'
 import { formatZones } from './zones'
 import { formatSchedule } from './schedule'
+import { coachingNotesGuidance } from './coaching-notes'
 import type { UserProfile, ICUSyncData, GeneratedPlan, ICUActivity, ICUWellness } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
@@ -153,6 +154,8 @@ STEP RULES:
 - Sessions >45min must include a warm-up (10-15min at Z1-Z2) and cool-down (10min at Z1)
 - For interval sessions, list each rep and each recovery period as a separate step (do not group)
 
+${coachingNotesGuidance()}
+
 Return ONLY this JSON:
 {
   "rationale": "2-3 paragraph explanation of the plan approach and reasoning. Separate paragraphs with \\n\\n.",
@@ -170,7 +173,8 @@ Return ONLY this JSON:
         {"label": "Warm Up", "duration_minutes": 15, "power_pct_ftp": 60},
         {"label": "Zone 2", "duration_minutes": 65, "power_pct_ftp": 70},
         {"label": "Cool Down", "duration_minutes": 10, "power_pct_ftp": 55}
-      ]
+      ],
+      "coaching_notes": { "summary": "why this session matters today", "focus": [ {"label": "Cadence", "detail": "hold 90-95 rpm"} ] }
     }
   ]
 }`
