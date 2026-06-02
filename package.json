@@ -7,7 +7,9 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "jest"
+    "test": "jest",
+    "typecheck": "tsc --noEmit",
+    "test:ci": "npm run typecheck && npm test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
