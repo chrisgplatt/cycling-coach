@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import { extractActivityMetrics, formatActivityMetrics, formatRideExecution } from '@/lib/claude/activity-metrics'
 import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, WorkoutStep, ActivityMetrics } from '@/types'
+import { makeActivityMetrics } from '../support/factories'
 
 const act: ICUActivity = {
   id: 'a1', start_date_local: '2026-05-28T08:00:00', type: 'Ride',
@@ -57,12 +58,12 @@ describe('extractActivityMetrics', () => {
 })
 
 describe('formatActivityMetrics', () => {
-  const base = {
+  const base = makeActivityMetrics({
     np: 248, avg_power: 231, max_power: 612, avg_hr: 152,
     distance_m: 32500, elevation_m: 84, lr_balance: 51,
     best_efforts: [{ secs: 300, watts: 312 }, { secs: 1200, watts: 264 }],
-    intervals: null, synced_at: '2026-05-28T09:00:00Z',
-  }
+    synced_at: '2026-05-28T09:00:00Z',
+  })
 
   it('formats a compact summary line with present fields', () => {
     const s = formatActivityMetrics(base)
@@ -85,11 +86,10 @@ describe('formatActivityMetrics', () => {
   })
 
   it('returns a fallback when nothing is present', () => {
-    const s = formatActivityMetrics({
+    const s = formatActivityMetrics(makeActivityMetrics({
       np: null, avg_power: null, max_power: null, avg_hr: null, distance_m: null,
       elevation_m: null, lr_balance: null, best_efforts: null, intervals: null,
-      synced_at: '2026-05-28T09:00:00Z',
-    })
+    }))
     expect(s).toBe('no power data')
   })
 })
@@ -100,7 +100,7 @@ describe('formatRideExecution', () => {
     { label: 'Work', duration_minutes: 8, power_pct_ftp: 95 },
     { label: 'Recovery', duration_minutes: 4, power_pct_ftp: 55 },
   ]
-  const metricsWithIntervals: ActivityMetrics = {
+  const metricsWithIntervals = makeActivityMetrics({
     np: 248, avg_power: 231, max_power: 612, avg_hr: 152, distance_m: 32500,
     elevation_m: 84, lr_balance: 51, best_efforts: null,
     intervals: [
@@ -108,7 +108,7 @@ describe('formatRideExecution', () => {
       { label: 'Work', duration_secs: 480, avg_watts: 244, avg_hr: 161 },
     ],
     synced_at: '2026-05-28T09:00:00Z',
-  }
+  })
 
   it('lays planned steps and actual intervals side by side', () => {
     const s = formatRideExecution(steps, metricsWithIntervals)
