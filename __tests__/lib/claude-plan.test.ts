@@ -1,5 +1,6 @@
 import { generatePlan, createPlanStream } from '@/lib/claude/plan'
 import type { UserProfile, ICUSyncData, GeneratedPlan } from '@/types'
+import { makeGeneratedWorkout } from '../support/factories'
 
 const mockFinalMessage = jest.fn()
 jest.mock('@/lib/claude/client', () => ({
@@ -36,13 +37,13 @@ const validPlan: GeneratedPlan = {
   target_event_date: '2026-06-21',
   phase: 'base',
   workouts: [
-    {
+    makeGeneratedWorkout({
       date: '2026-05-13',
       type: 'endurance',
       duration_minutes: 90,
       description: 'Easy Zone 2 ride',
       target_zones: 'Zone 2 (55-75% FTP)',
-    },
+    }),
   ],
 }
 
