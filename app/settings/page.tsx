@@ -33,6 +33,8 @@ export default function SettingsPage() {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [cronTesting, setCronTesting] = useState(false)
   const [cronTestLogs, setCronTestLogs] = useState<Array<{ event: string; status: string; details: unknown }> | null>(null)
+  const [repushing, setRepushing] = useState(false)
+  const [repushResult, setRepushResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
 
@@ -159,6 +161,31 @@ export default function SettingsPage() {
       setCronTestLogs([{ event: 'network_error', status: 'error', details: null }])
     } finally {
       setCronTesting(false)
+    }
+  }
+
+  async function runRepushPlanned() {
+    setRepushing(true)
+    setRepushResult(null)
+    try {
+      const res = await fetch('/api/workouts/repush-planned', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setRepushResult({
+          ok: data.failed === 0,
+          message: `${data.updated} updated, ${data.created} created, ${data.skipped} skipped (no steps), ${data.failed} failed.`,
+        })
+      } else {
+        setRepushResult({ ok: false, message: data.error ?? 'Re-push failed.' })
+      }
+    } catch {
+      setRepushResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setRepushing(false)
     }
   }
 
@@ -320,6 +347,20 @@ export default function SettingsPage() {
                     ))}
                   </div>
                 )}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={runRepushPlanned}
+                    disabled={repushing}
+                    className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+                  >
+                    {repushing ? 'Re-pushing…' : 'Re-push planned workouts to intervals.icu'}
+                  </button>
+                  {repushResult && (
+                    <p className={`text-xs ${repushResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {repushResult.message}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>

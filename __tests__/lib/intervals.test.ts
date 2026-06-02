@@ -1,4 +1,5 @@
-import { IntervalsClient } from '@/lib/intervals/client'
+import { IntervalsClient, buildWorkoutNotation } from '@/lib/intervals/client'
+import type { WorkoutStep } from '@/types'
 
 const mockFetch = jest.fn()
 global.fetch = mockFetch
@@ -181,6 +182,32 @@ describe('IntervalsClient', () => {
     expect(ivs).toEqual([])
   })
 
+  it('createEvent tags warm-up and interval recoveries with press lap', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'evt789' }) })
+
+    await client.createEvent({
+      date: '2026-05-15',
+      name: 'VO2 Session',
+      description: '5x3min VO2',
+      duration_minutes: 60,
+      steps: [
+        { label: 'Warm Up', duration_minutes: 12, power_pct_ftp: 60 },
+        { label: 'Work', duration_minutes: 3, power_pct_ftp: 115 },
+        { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
+        { label: 'Work', duration_minutes: 3, power_pct_ftp: 115 },
+        { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
+        { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 55 },
+      ],
+    })
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    expect(body.description).toContain('Warm Up\n- 12m 60% press lap')
+    expect(body.description).toContain('Main Set 2x\n- 3m 115%\n- 3m 50% press lap')
+    // Cool down stays timed
+    expect(body.description).toContain('Cool Down\n- 10m 55%')
+    expect(body.description).not.toContain('Cool Down\n- 10m 55% press lap')
+  })
+
   it('getActivityStreams calls the streams endpoint and normalises channels', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -196,5 +223,34 @@ describe('IntervalsClient', () => {
     expect(mockFetch.mock.calls[0][0]).toBe(
       'https://intervals.icu/api/v1/activity/act9/streams?types=time,latlng,watts,heartrate,altitude,distance,cadence,velocity_smooth'
     )
+  })
+})
+
+describe('buildWorkoutNotation press-lap tagging', () => {
+  it('does not tag any step of a steady endurance ride', () => {
+    const steps: WorkoutStep[] = [
+      { label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 55 },
+      { label: 'Endurance', duration_minutes: 60, power_pct_ftp: 68 },
+      { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 50 },
+    ]
+    const out = buildWorkoutNotation(steps)
+    // Only the warm-up is open-ended; the easy main block is not a work/recovery set
+    expect(out).toContain('Warm Up\n- 10m 55% press lap')
+    expect(out).not.toContain('68% press lap')
+  })
+
+  it('does not tag the second leg of an over/under set (recovery leg is harder)', () => {
+    const steps: WorkoutStep[] = [
+      { label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 },
+      { label: 'Under', duration_minutes: 2, power_pct_ftp: 95 },
+      { label: 'Over', duration_minutes: 1, power_pct_ftp: 110 },
+      { label: 'Under', duration_minutes: 2, power_pct_ftp: 95 },
+      { label: 'Over', duration_minutes: 1, power_pct_ftp: 110 },
+      { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 50 },
+    ]
+    const out = buildWorkoutNotation(steps)
+    // The "over" leg is harder than the "under" leg, so it is not treated as recovery
+    expect(out).not.toContain('110% press lap')
+    expect(out).toContain('Main Set 2x\n- 2m 95%\n- 1m 110%')
   })
 })

@@ -13,7 +13,14 @@ interface CreateEventParams {
 
 // Converts flat WorkoutStep array to intervals.icu description text format.
 // Format reference: https://forum.intervals.icu/t/workout-builder-syntax-quick-guide/123701
-function buildWorkoutNotation(steps: WorkoutStep[]): string {
+//
+// Warm-up and interval recovery steps are tagged with intervals.icu's `press lap`
+// keyword, which makes the device treat them as open-ended: the step ends when the
+// rider presses the lap button rather than when the planned duration elapses. The
+// duration is kept on the line so it still shows as a guide. Recoveries are only
+// tagged inside a repeated work/recovery set (the canonical interval structure) so
+// that steady or easy rides — where every step is low power — are left as timed.
+export function buildWorkoutNotation(steps: WorkoutStep[]): string {
   const sections: string[] = []
   let i = 0
 
@@ -23,9 +30,9 @@ function buildWorkoutNotation(steps: WorkoutStep[]): string {
     const isFirst = i === 0
     const isLast = i === steps.length - 1
 
-    // Warmup section
+    // Warmup section — open-ended (ends on lap button press)
     if (isFirst || label.includes('warm')) {
-      sections.push(`Warm Up\n- ${s.duration_minutes}m ${s.power_pct_ftp}%`)
+      sections.push(`Warm Up\n- ${s.duration_minutes}m ${s.power_pct_ftp}% press lap`)
       i++; continue
     }
 
@@ -47,7 +54,10 @@ function buildWorkoutNotation(steps: WorkoutStep[]): string {
         steps[j + 1].power_pct_ftp === b.power_pct_ftp
       ) { reps++; j += 2 }
       if (reps > 1) {
-        sections.push(`Main Set ${reps}x\n- ${a.duration_minutes}m ${a.power_pct_ftp}%\n- ${b.duration_minutes}m ${b.power_pct_ftp}%`)
+        // The recovery leg (lower power than the work leg) is open-ended so the
+        // rider controls when each rep starts via the lap button.
+        const recoveryTag = b.power_pct_ftp < a.power_pct_ftp ? ' press lap' : ''
+        sections.push(`Main Set ${reps}x\n- ${a.duration_minutes}m ${a.power_pct_ftp}%\n- ${b.duration_minutes}m ${b.power_pct_ftp}%${recoveryTag}`)
         i = j; continue
       }
     }
