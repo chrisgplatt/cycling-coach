@@ -443,7 +443,7 @@ export default function WorkoutDetailModal({
           </div>
 
           {(workout.status === 'completed' || workout.status === 'needs_review') && (
-            <details className="group border border-slate-200 rounded-xl p-4 bg-slate-50">
+            <details open className="group border border-slate-200 rounded-xl p-4 bg-slate-50">
               <summary className="cursor-pointer list-none text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 select-none">
                 <svg width="10" height="10" viewBox="0 0 12 12" className="transition-transform group-open:rotate-90" fill="currentColor" aria-hidden="true">
                   <path d="M4 2l4 4-4 4z" />
