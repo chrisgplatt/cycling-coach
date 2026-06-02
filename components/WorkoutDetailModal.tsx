@@ -322,18 +322,27 @@ export default function WorkoutDetailModal({
               ) : null}
             </div>
             {workout.status === 'planned' ? (
-              <input
-                type="date"
-                min={weekStart}
-                max={weekEnd}
-                value={pendingDate ?? workout.date}
-                onChange={e => {
-                  const v = e.target.value
-                  setPendingDate(v !== workout.date ? v : null)
-                  setRescheduleError(null)
-                }}
-                className="text-xs font-medium text-slate-400 shrink-0 bg-transparent border-0 cursor-pointer hover:text-blue-500 focus:outline-none focus:text-blue-500 p-0"
-              />
+              // A styled label (so we can show the weekday) with a transparent native
+              // date input overlaid on top to keep the platform date picker.
+              <div className="relative shrink-0">
+                <span className="text-xs font-medium text-slate-400 hover:text-blue-500">
+                  {dayPrefix(pendingDate ?? workout.date)}{pendingDate ?? workout.date}
+                </span>
+                <input
+                  type="date"
+                  min={weekStart}
+                  max={weekEnd}
+                  value={pendingDate ?? workout.date}
+                  onChange={e => {
+                    const v = e.target.value
+                    setPendingDate(v !== workout.date ? v : null)
+                    setRescheduleError(null)
+                  }}
+                  onClick={e => e.currentTarget.showPicker?.()}
+                  aria-label="Reschedule date"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+              </div>
             ) : (
               <span className="text-xs font-medium text-slate-400 shrink-0">{dayPrefix(workout.date)}{workout.date}</span>
             )}
