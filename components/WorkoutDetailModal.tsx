@@ -610,7 +610,7 @@ export default function WorkoutDetailModal({
 
         <div
           className="px-4 pt-4 border-t border-slate-100 flex items-center justify-between"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.25rem)' }}
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
         >
           <div className="flex items-center gap-3">
             {onChat && (
