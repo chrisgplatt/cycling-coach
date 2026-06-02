@@ -3,6 +3,27 @@ import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { Workout, ICUActivity } from '@/types'
 import { makeWorkout } from '../support/factories'
 
+const plannedWorkout: Workout = {
+  id: 'w1', plan_id: 'p1', date: '2026-06-01', type: 'threshold',
+  duration_minutes: 60, description: 'Test session', target_zones: 'Zone 4',
+  status: 'planned', intervals_icu_event_id: null, icu_activity_id: null,
+  tss: null, missed_reason: null,
+  steps: [{ label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 }],
+  activity_metrics: null,
+  created_at: '',
+}
+
+describe('WorkoutDetailModal planned-vs-actual', () => {
+  it('shows the target-only chart and never fetches streams when not completed/linked', () => {
+    const fetchMock = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({}) }))
+    global.fetch = fetchMock as never
+    render(<WorkoutDetailModal workout={plannedWorkout} athleteId="i1" ftp={250} onClose={() => {}} />)
+    expect(screen.getByLabelText('Workout power profile')).toBeInTheDocument()
+    const hitStreams = fetchMock.mock.calls.some(c => String((c as unknown[])[0]).includes('/streams'))
+    expect(hitStreams).toBe(false)
+  })
+})
+
 const workout = makeWorkout({
   date: '2026-05-15',
   type: 'threshold',

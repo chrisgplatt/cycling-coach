@@ -4,6 +4,9 @@ import Link from 'next/link'
 import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent } from '@/types'
 import { getWeekBounds } from '@/lib/week-bounds'
 import WorkoutProfileChart, { WorkoutStepList } from './WorkoutProfileChart'
+import PlannedVsActualChart from './PlannedVsActualChart'
+import PlannedVsActualList from './PlannedVsActualList'
+import { buildPlannedActual, type PlannedActual } from '@/lib/ride/planned-actual'
 
 const TYPE_COLOURS: Record<WorkoutType, string> = {
   endurance: 'bg-blue-100 text-blue-700',
@@ -66,6 +69,7 @@ export default function WorkoutDetailModal({
   const [linkEventOpen, setLinkEventOpen] = useState(false)
   const [linkingEvent, setLinkingEvent] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
+  const [actual, setActual] = useState<PlannedActual | null>(null)
 
   useEffect(() => {
     if (workout.status !== 'completed' && workout.status !== 'needs_review') {
@@ -77,6 +81,24 @@ export default function WorkoutDetailModal({
       .then(d => setExistingFeedback(d.feedback ?? null))
       .catch(() => setExistingFeedback(null))
   }, [workout.id, workout.status])
+
+  // For a completed, linked workout, fetch the actual ride streams + laps and build
+  // the planned-vs-actual overlay. Any miss (not linked, no FTP, no power, fetch
+  // error) leaves `actual` null and the target-only chart shows instead.
+  useEffect(() => {
+    setActual(null)
+    const isDone = workout.status === 'completed' || workout.status === 'needs_review'
+    if (!isDone || !workout.icu_activity_id || !ftp || !workout.steps?.length) return
+    let cancelled = false
+    fetch(`/api/rides/${workout.id}/streams`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (cancelled || !d?.streams) return
+        setActual(buildPlannedActual(workout.steps, d.streams, d.intervals ?? null, ftp))
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [workout.id, workout.status, workout.icu_activity_id, ftp, workout.steps])
 
   async function handleDelete() {
     setDeleting(true)
@@ -334,7 +356,14 @@ export default function WorkoutDetailModal({
 
           {workout.steps && workout.steps.length > 0 && (
             <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/60 space-y-2">
-              <WorkoutProfileChart steps={workout.steps} ftp={ftp} />
+              {actual ? (
+                <>
+                  <PlannedVsActualChart data={actual} ftp={ftp ?? 0} />
+                  <PlannedVsActualList segments={actual.segments} />
+                </>
+              ) : (
+                <WorkoutProfileChart steps={workout.steps} ftp={ftp} />
+              )}
               <details className="group">
                 <summary className="cursor-pointer list-none text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 select-none">
                   <svg width="10" height="10" viewBox="0 0 12 12" className="transition-transform group-open:rotate-90" fill="currentColor" aria-hidden="true">
