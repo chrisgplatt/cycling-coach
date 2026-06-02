@@ -1,5 +1,17 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import RescheduleConfirmModal from '@/components/RescheduleConfirmModal'
 import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import SessionChatModal from '@/components/SessionChatModal'
@@ -54,6 +66,34 @@ function WorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => vo
         {workout.tss != null && <span>TSS {Math.round(workout.tss)}</span>}
       </div>
     </button>
+  )
+}
+
+// Planned workouts are draggable so they can be rescheduled to another day. The
+// dnd-kit listeners sit on the wrapper; the inner button still fires its onClick on a
+// tap because the PointerSensor only activates a drag after an 8px move.
+function DraggableWorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: workout.id })
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, touchAction: 'none' as const }
+    : { touchAction: 'none' as const }
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <WorkoutCard workout={workout} onClick={onClick} />
+    </div>
+  )
+}
+
+// One day's sessions column, droppable so a dragged workout can land on this date.
+function DroppableDay({ date, children }: { date: string; children: ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: date })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-1 flex flex-col gap-1.5 min-w-0 py-0.5 rounded-lg transition-colors ${isOver ? 'ring-2 ring-blue-300 bg-blue-50/40' : ''}`}
+    >
+      {children}
+    </div>
   )
 }
 
@@ -259,14 +299,16 @@ function WeekDetail({
                 {dayNum}
               </button>
             </div>
-            {/* Sessions column */}
-            <div className="flex-1 flex flex-col gap-1.5 min-w-0 py-0.5">
+            {/* Sessions column — droppable target for rescheduling */}
+            <DroppableDay date={dateStr}>
               {isEmpty && <p className="text-sm text-slate-300 italic py-1.5">Rest day</p>}
               {dayWorkouts.map(w => {
                 const linkedEvent = linkedEventByWorkoutId.get(w.id)
                 return (
                   <div key={w.id}>
-                    <WorkoutCard workout={w} onClick={() => onWorkoutClick(w)} />
+                    {w.status === 'planned'
+                      ? <DraggableWorkoutCard workout={w} onClick={() => onWorkoutClick(w)} />
+                      : <WorkoutCard workout={w} onClick={() => onWorkoutClick(w)} />}
                     {linkedEvent && (
                       <div className="relative ml-4 mt-1">
                         <div className="absolute -top-2 -left-3 h-6 w-3 border-l-2 border-b-2 border-gray-200 rounded-bl-md" />
@@ -282,7 +324,7 @@ function WeekDetail({
               {dayActivities.map(a => (
                 <ActivityCard key={a.id} activity={a} onClick={() => onActivityClick(a)} />
               ))}
-            </div>
+            </DroppableDay>
           </div>
         )
       })}
@@ -316,6 +358,28 @@ export default function CalendarPage() {
   const [unavailability, setUnavailability] = useState<UnavailabilityPeriod[]>([])
   const [addUnavailDate, setAddUnavailDate] = useState<string | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
+
+  // Drag-to-reschedule: a planned workout can be dragged onto another day.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+  const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null)
+  const [pendingReschedule, setPendingReschedule] = useState<{ workout: Workout; toDate: string } | null>(null)
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveWorkout(workouts.find(w => w.id === String(event.active.id)) ?? null)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveWorkout(null)
+    const { active, over } = event
+    if (!over) return
+    const workout = workouts.find(w => w.id === String(active.id))
+    if (!workout || workout.status !== 'planned') return
+    const toDate = String(over.id)
+    if (toDate === workout.date) return
+    setPendingReschedule({ workout, toDate })
+  }
 
   const reviewAbortRef = useRef<AbortController | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -491,19 +555,33 @@ export default function CalendarPage() {
         onNextMonth={nextMonth}
       />
 
-      {/* Week detail */}
-      <WeekDetail
-        selectedDateStr={selectedDateStr}
-        workouts={workouts}
-        events={events}
-        unlinkedActivities={unlinkedActivities}
-        todayStr={todayStr}
-        onWorkoutClick={(w) => setSelectedWorkout(w)}
-        onEventClick={openEvent}
-        onActivityClick={(a) => setSelectedActivity(a)}
-        unavailability={unavailability}
-        onAddUnavailability={date => setAddUnavailDate(date)}
-      />
+      {/* Week detail — wrapped in a DnD context so planned workouts can be dragged to another day */}
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <WeekDetail
+          selectedDateStr={selectedDateStr}
+          workouts={workouts}
+          events={events}
+          unlinkedActivities={unlinkedActivities}
+          todayStr={todayStr}
+          onWorkoutClick={(w) => setSelectedWorkout(w)}
+          onEventClick={openEvent}
+          onActivityClick={(a) => setSelectedActivity(a)}
+          unavailability={unavailability}
+          onAddUnavailability={date => setAddUnavailDate(date)}
+        />
+        <DragOverlay>
+          {activeWorkout ? <WorkoutCard workout={activeWorkout} onClick={() => {}} /> : null}
+        </DragOverlay>
+      </DndContext>
+
+      {pendingReschedule && (
+        <RescheduleConfirmModal
+          workout={pendingReschedule.workout}
+          toDate={pendingReschedule.toDate}
+          onConfirm={() => { setPendingReschedule(null); loadPlan() }}
+          onCancel={() => setPendingReschedule(null)}
+        />
+      )}
 
       {addUnavailDate && (
         <AddUnavailabilityModal
