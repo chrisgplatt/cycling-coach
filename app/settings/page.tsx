@@ -232,6 +232,30 @@ export default function SettingsPage() {
             className={inputClass}
           />
         </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-2">
+          <p className="text-sm font-semibold text-slate-700">Ride these workouts in Zwift</p>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Your planned workouts can sync straight to Zwift through intervals.icu — no
+            extra setup here. In intervals.icu open{' '}
+            <a
+              href="https://intervals.icu/settings"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-blue-600 hover:text-blue-700 underline underline-offset-2"
+            >
+              Settings → Zwift
+            </a>{' '}
+            and click <span className="font-medium text-slate-600">Connect</span>. The next
+            week of sessions then appears in Zwift under{' '}
+            <span className="font-medium text-slate-600">Custom Workouts → Intervals.icu</span>.
+          </p>
+          <p className="text-xs text-amber-600 leading-relaxed">
+            Targets are percentages of FTP, so set the <span className="font-medium">same FTP
+            in Zwift as in intervals.icu</span> or the watts will be wrong. Open-ended
+            (press-lap) warm-ups and recoveries become fixed-duration steps in Zwift.
+          </p>
+        </div>
       </section>
 
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
