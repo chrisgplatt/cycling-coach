@@ -324,8 +324,8 @@ export default function WorkoutDetailModal({
             {workout.status === 'planned' ? (
               // A styled label (so we can show the weekday) with a transparent native
               // date input overlaid on top to keep the platform date picker.
-              <div className="relative shrink-0">
-                <span className="text-xs font-medium text-slate-400 hover:text-blue-500">
+              <div className="relative shrink-0 self-start pt-0.5">
+                <span className="text-sm font-medium text-slate-400 hover:text-blue-500">
                   {dayPrefix(pendingDate ?? workout.date)}{pendingDate ?? workout.date}
                 </span>
                 <input
@@ -344,7 +344,7 @@ export default function WorkoutDetailModal({
                 />
               </div>
             ) : (
-              <span className="text-xs font-medium text-slate-400 shrink-0">{dayPrefix(workout.date)}{workout.date}</span>
+              <span className="text-sm font-medium text-slate-400 shrink-0 self-start pt-0.5">{dayPrefix(workout.date)}{workout.date}</span>
             )}
           </div>
           {pendingDate && (
