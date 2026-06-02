@@ -201,8 +201,12 @@ describe('IntervalsClient', () => {
     })
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body)
-    expect(body.description).toContain('Warm Up\n- 12m 60% press lap')
-    expect(body.description).toContain('Main Set 2x\n- 3m 115%\n- 3m 50% press lap')
+    // Warm-up runs its time, then a lap gate holds until the rider presses lap
+    expect(body.description).toContain('Warm Up\n- 12m 60%\n- 10s 60% press lap')
+    // Each recovery runs its time, then a lap gate before the next rep
+    expect(body.description).toContain('Main Set 2x\n- 3m 115%\n- 3m 50%\n- 10s 50% press lap')
+    // The work leg never gets a lap gate
+    expect(body.description).not.toContain('115% press lap')
     // Cool down stays timed
     expect(body.description).toContain('Cool Down\n- 10m 55%')
     expect(body.description).not.toContain('Cool Down\n- 10m 55% press lap')
@@ -234,8 +238,8 @@ describe('buildWorkoutNotation press-lap tagging', () => {
       { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 50 },
     ]
     const out = buildWorkoutNotation(steps)
-    // Only the warm-up is open-ended; the easy main block is not a work/recovery set
-    expect(out).toContain('Warm Up\n- 10m 55% press lap')
+    // Only the warm-up gets a lap gate; the easy main block is not a work/recovery set
+    expect(out).toContain('Warm Up\n- 10m 55%\n- 10s 55% press lap')
     expect(out).not.toContain('68% press lap')
   })
 
