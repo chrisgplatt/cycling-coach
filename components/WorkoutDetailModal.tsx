@@ -361,10 +361,7 @@ export default function WorkoutDetailModal({
           {workout.steps && workout.steps.length > 0 && (
             <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/60 space-y-2">
               {actual ? (
-                <>
-                  <PlannedVsActualChart data={actual} ftp={ftp ?? 0} />
-                  <PlannedVsActualList segments={actual.segments} />
-                </>
+                <PlannedVsActualChart data={actual} ftp={ftp ?? 0} />
               ) : (
                 <>
                   <WorkoutProfileChart steps={workout.steps} ftp={ftp} />
@@ -378,10 +375,14 @@ export default function WorkoutDetailModal({
                   <svg width="10" height="10" viewBox="0 0 12 12" className="transition-transform group-open:rotate-90" fill="currentColor" aria-hidden="true">
                     <path d="M4 2l4 4-4 4z" />
                   </svg>
-                  Steps
+                  {actual ? 'Planned vs actual' : 'Steps'}
                 </summary>
                 <div className="mt-1">
-                  <WorkoutStepList steps={workout.steps} ftp={ftp} />
+                  {actual ? (
+                    <PlannedVsActualList segments={actual.segments} />
+                  ) : (
+                    <WorkoutStepList steps={workout.steps} ftp={ftp} />
+                  )}
                 </div>
               </details>
             </div>
