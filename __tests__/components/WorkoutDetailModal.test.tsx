@@ -22,6 +22,19 @@ describe('WorkoutDetailModal planned-vs-actual', () => {
     const hitStreams = fetchMock.mock.calls.some(c => String((c as unknown[])[0]).includes('/streams'))
     expect(hitStreams).toBe(false)
   })
+  it('shows an unavailable note when a completed linked ride has no usable power data', async () => {
+    const completed = {
+      ...plannedWorkout, status: 'completed' as const, icu_activity_id: 'a1',
+    }
+    const fetchMock = jest.fn((url: string) =>
+      String(url).includes('/streams')
+        ? Promise.resolve({ ok: true, json: async () => ({ streams: { time: [0, 60], power: null }, intervals: [] }) })
+        : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
+    )
+    global.fetch = fetchMock as never
+    render(<WorkoutDetailModal workout={completed} athleteId="i1" ftp={250} onClose={() => {}} />)
+    expect(await screen.findByText(/actual power unavailable/i)).toBeInTheDocument()
+  })
 })
 
 const workout = makeWorkout({

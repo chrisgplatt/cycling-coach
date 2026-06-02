@@ -70,6 +70,7 @@ export default function WorkoutDetailModal({
   const [linkingEvent, setLinkingEvent] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
   const [actual, setActual] = useState<PlannedActual | null>(null)
+  const [actualUnavailable, setActualUnavailable] = useState(false)
 
   useEffect(() => {
     if (workout.status !== 'completed' && workout.status !== 'needs_review') {
@@ -87,16 +88,19 @@ export default function WorkoutDetailModal({
   // error) leaves `actual` null and the target-only chart shows instead.
   useEffect(() => {
     setActual(null)
+    setActualUnavailable(false)
     const isDone = workout.status === 'completed' || workout.status === 'needs_review'
     if (!isDone || !workout.icu_activity_id || !ftp || !workout.steps?.length) return
     let cancelled = false
     fetch(`/api/rides/${workout.id}/streams`)
       .then(r => (r.ok ? r.json() : null))
       .then(d => {
-        if (cancelled || !d?.streams) return
-        setActual(buildPlannedActual(workout.steps, d.streams, d.intervals ?? null, ftp))
+        if (cancelled) return
+        const pa = d?.streams ? buildPlannedActual(workout.steps, d.streams, d.intervals ?? null, ftp) : null
+        if (pa) setActual(pa)
+        else setActualUnavailable(true)
       })
-      .catch(() => {})
+      .catch(() => { if (!cancelled) setActualUnavailable(true) })
     return () => { cancelled = true }
   }, [workout.id, workout.status, workout.icu_activity_id, ftp, workout.steps])
 
@@ -362,7 +366,12 @@ export default function WorkoutDetailModal({
                   <PlannedVsActualList segments={actual.segments} />
                 </>
               ) : (
-                <WorkoutProfileChart steps={workout.steps} ftp={ftp} />
+                <>
+                  <WorkoutProfileChart steps={workout.steps} ftp={ftp} />
+                  {actualUnavailable && (
+                    <p className="text-[10px] text-slate-400 mt-1">Actual power unavailable for this ride.</p>
+                  )}
+                </>
               )}
               <details className="group">
                 <summary className="cursor-pointer list-none text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 select-none">
