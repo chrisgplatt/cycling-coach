@@ -2,40 +2,26 @@ import { buildSessionSystemPrompt } from '@/lib/claude/session-chat'
 import { formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { Workout, TrainingPlan, ICUWellness } from '@/types'
+import { makeWorkout, makeTrainingPlan } from '../support/factories'
 
-const workout: Workout = {
+const workout = makeWorkout({
   id: 'wk-today',
-  plan_id: 'plan1',
   date: '2026-05-24',
   type: 'threshold',
-  duration_minutes: 60,
   description: '2x20min at threshold',
   target_zones: 'Zone 4 (91-105% FTP)',
-  intervals_icu_event_id: null,
-  status: 'planned',
-  icu_activity_id: null,
-  tss: null,
-  missed_reason: null,
-  steps: null,
-  created_at: '',
-}
+})
 
-const plan: TrainingPlan = {
-  id: 'plan1',
+const plan = makeTrainingPlan({
   name: 'Gran Fondo Build',
-  status: 'active',
   target_event_name: 'Etape du Tour',
   target_event_date: '2026-07-10',
-  phase: 'build',
   rationale: 'Progressive build towards A event',
-  last_reviewed_week: null,
-  created_at: '',
-  updated_at: '',
-}
+})
 
-const upcoming: Workout[] = [
-  { ...workout, id: 'wk-thu', date: '2026-05-27', type: 'endurance', duration_minutes: 90,
-    description: 'Zone 2 ride', status: 'planned' },
+const upcoming = [
+  makeWorkout({ id: 'wk-thu', date: '2026-05-27', type: 'endurance', duration_minutes: 90,
+    description: 'Zone 2 ride' }),
 ]
 
 const wellness: ICUWellness = {
