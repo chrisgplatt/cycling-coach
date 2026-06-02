@@ -124,16 +124,6 @@ export default function WorkoutDetailModal({
     }
   }
 
-  function weekMonday(date: string): string {
-    const d = new Date(date)
-    const day = d.getUTCDay()
-    d.setUTCDate(d.getUTCDate() - (day === 0 ? 6 : day - 1))
-    return d.toISOString().split('T')[0]
-  }
-
-  const eventUrl = workout.intervals_icu_event_id
-    ? `https://intervals.icu/?w=${weekMonday(workout.date)}`
-    : null
   const activityUrl = workout.icu_activity_id
     ? `https://intervals.icu/activities/${workout.icu_activity_id}`
     : null
@@ -389,16 +379,6 @@ export default function WorkoutDetailModal({
           )}
 
           <div className="space-y-1.5">
-            {eventUrl && (
-              <a
-                href={eventUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium block transition-colors"
-              >
-                View week in intervals.icu →
-              </a>
-            )}
             {activityUrl && (
               <a
                 href={activityUrl}

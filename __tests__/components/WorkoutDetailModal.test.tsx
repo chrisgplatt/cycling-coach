@@ -75,23 +75,11 @@ describe('WorkoutDetailModal', () => {
     expect(screen.getByText('Zone 4 (91-105% FTP)')).toBeInTheDocument()
   })
 
-  it('shows intervals.icu week link for the workout date when event id is present', () => {
+  it('does not show an intervals.icu week link, even when an event id is present', () => {
+    // The "View week in intervals.icu" link was removed; the workout fixture has an
+    // intervals_icu_event_id, so this confirms it no longer renders.
     render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
-    // workout date is 2026-05-15 (Friday) → Monday of that week is 2026-05-11
-    const link = screen.getByRole('link', { name: /view week in intervals\.icu/i })
-    expect(link).toHaveAttribute('href', 'https://intervals.icu/?w=2026-05-11')
-    expect(link).toHaveAttribute('target', '_blank')
-  })
-
-  it('does not show event link when intervals_icu_event_id is null', () => {
-    render(
-      <WorkoutDetailModal
-        workout={{ ...workout, intervals_icu_event_id: null }}
-        athleteId="i12345"
-        onClose={jest.fn()}
-      />
-    )
-    expect(screen.queryByRole('link', { name: /view planned workout/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /view week in intervals\.icu/i })).not.toBeInTheDocument()
   })
 
   it('shows completed badge, planned → actual TSS, and activity link for a matched workout', async () => {

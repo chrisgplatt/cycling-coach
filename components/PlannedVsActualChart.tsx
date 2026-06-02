@@ -9,7 +9,7 @@ const SMOOTH = 5
 // power trace overlaid on a shared %FTP axis. Geometry mirrors WorkoutProfileChart so
 // the two charts read identically.
 export default function PlannedVsActualChart({ data, ftp }: { data: PlannedActual; ftp: number }) {
-  const svgLeft = 34, svgRight = 336, svgTop = 8, svgBottom = 96
+  const svgLeft = 34, svgRight = 336, svgTop = 8, svgBottom = 78
   const plotW = svgRight - svgLeft
   const plotH = svgBottom - svgTop
   const yOf = (pct: number) => Math.min(Math.max(svgBottom - (pct / data.yMaxPct) * plotH, svgTop), svgBottom)
@@ -29,7 +29,7 @@ export default function PlannedVsActualChart({ data, ftp }: { data: PlannedActua
 
   return (
     <div>
-      <svg viewBox="0 0 340 116" className="w-full select-none" role="img" aria-label="Planned vs actual power">
+      <svg viewBox="0 0 340 96" className="w-full select-none" role="img" aria-label="Planned vs actual power">
         {/* FTP reference line */}
         <line x1={svgLeft} y1={ftpY} x2={svgRight} y2={ftpY} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3 3" />
         <text x={svgLeft - 4} y={ftpY + 3} fontSize="8" fill="#94a3b8" textAnchor="end">{ftp}w</text>
