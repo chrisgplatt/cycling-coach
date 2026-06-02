@@ -73,6 +73,11 @@ export interface TrainingPlan {
   updated_at: string
 }
 
+export interface CoachingNotes {
+  summary: string                              // coach's voice — the session's "why" / principles
+  focus: { label: string; detail: string }[]   // adaptive cues (Cadence, Terrain, Execution, …)
+}
+
 export interface Workout {
   id: string
   plan_id: string | null  // null for unplanned rides imported from intervals.icu
@@ -88,6 +93,7 @@ export interface Workout {
   missed_reason: string | null
   steps: WorkoutStep[] | null
   activity_metrics: ActivityMetrics | null  // enriched ride detail captured at sync; null until backfilled
+  coaching_notes: CoachingNotes | null
   created_at: string
 }
 
@@ -316,6 +322,7 @@ export interface GeneratedPlan {
     description: string
     target_zones: string
     steps: WorkoutStep[]
+    coaching_notes?: CoachingNotes
   }>
 }
 

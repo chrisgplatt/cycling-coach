@@ -22,6 +22,7 @@ export function makeWorkout(overrides: Partial<Workout> = {}): Workout {
     missed_reason: null,
     steps: null,
     activity_metrics: null,
+    coaching_notes: null,
     created_at: '2026-05-01T00:00:00Z',
     ...overrides,
   }

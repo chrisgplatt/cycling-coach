@@ -10,6 +10,7 @@ const plannedWorkout: Workout = {
   tss: null, missed_reason: null,
   steps: [{ label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 }],
   activity_metrics: null,
+  coaching_notes: null,
   created_at: '',
 }
 

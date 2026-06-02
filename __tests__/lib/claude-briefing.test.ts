@@ -44,7 +44,7 @@ const baseMorningCtx: BriefingContext = {
     duration_minutes: 90, description: 'Z2 aerobic base', target_zones: 'Z2',
     intervals_icu_event_id: null, status: 'planned', icu_activity_id: null,
     tss: 65, missed_reason: null, steps: null, created_at: '',
-    activity_metrics: null,
+    activity_metrics: null, coaching_notes: null,
   },
   todayWorkouts: [],
   todayEvent: null,

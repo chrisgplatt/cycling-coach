@@ -16,7 +16,8 @@ beforeEach(() => {
             type: 'threshold', duration_minutes: 60,
             description: 'Test', target_zones: 'Zone 4',
             status: 'planned', intervals_icu_event_id: null,
-            icu_activity_id: null, tss: null, missed_reason: null, steps: null, created_at: '',
+            icu_activity_id: null, tss: null, missed_reason: null, steps: null,
+            activity_metrics: null, coaching_notes: null, created_at: '',
           }],
         }),
       })
