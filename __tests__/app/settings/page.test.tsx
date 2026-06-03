@@ -46,4 +46,9 @@ describe('Account page', () => {
     render(<SettingsPage />)
     expect(screen.getByPlaceholderText(/e\.g\. chris smith/i)).toBeInTheDocument()
   })
+
+  it('shows the location search input', () => {
+    render(<SettingsPage />)
+    expect(screen.getByPlaceholderText(/town or city/i)).toBeInTheDocument()
+  })
 })

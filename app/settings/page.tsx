@@ -39,11 +39,18 @@ export default function SettingsPage() {
   const [backfillResult, setBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [locationLabel, setLocationLabel] = useState('')
+  const [latitude, setLatitude] = useState<number | null>(null)
+  const [longitude, setLongitude] = useState<number | null>(null)
+  const [savedLocationLabel, setSavedLocationLabel] = useState('')
+  const [locationQuery, setLocationQuery] = useState('')
+  const [geoMatches, setGeoMatches] = useState<Array<{ label: string; latitude: number; longitude: number }> | null>(null)
+  const [geoSearching, setGeoSearching] = useState(false)
 
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
 
-  const isDirty = fullName !== savedFullName || athleteId !== savedAthleteId || apiKey !== savedApiKey || notifTime !== savedNotifTime || timezone !== savedTimezone
+  const isDirty = fullName !== savedFullName || athleteId !== savedAthleteId || apiKey !== savedApiKey || notifTime !== savedNotifTime || timezone !== savedTimezone || locationLabel !== savedLocationLabel
 
   useEffect(() => {
     fetch('/api/profile')
@@ -63,6 +70,10 @@ export default function SettingsPage() {
         setTimezone(tz); setSavedTimezone(tz)
         setNotificationsEnabled(data.notifications_enabled ?? false)
         setIsAdmin(data.is_admin ?? false)
+        const loc = data.location_label ?? ''
+        setLocationLabel(loc); setSavedLocationLabel(loc)
+        setLatitude(typeof data.latitude === 'number' ? data.latitude : null)
+        setLongitude(typeof data.longitude === 'number' ? data.longitude : null)
       })
       .catch(() => {})
   }, [])
@@ -71,9 +82,10 @@ export default function SettingsPage() {
     setSaving(true)
     setSaveError(null)
     try {
+      const locationFields = { location_label: locationLabel || null, latitude, longitude }
       const body = profileId
-        ? { id: profileId, full_name: fullName, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone }
-        : { full_name: fullName, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone }
+        ? { id: profileId, full_name: fullName, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone, ...locationFields }
+        : { full_name: fullName, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone, ...locationFields }
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -88,6 +100,7 @@ export default function SettingsPage() {
         setSavedApiKey(apiKey)
         setSavedNotifTime(notifTime)
         setSavedTimezone(timezone)
+        setSavedLocationLabel(locationLabel)
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
       }
@@ -96,6 +109,37 @@ export default function SettingsPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function searchLocation() {
+    if (!locationQuery.trim()) return
+    setGeoSearching(true)
+    setGeoMatches(null)
+    try {
+      const res = await fetch(`/api/profile/geocode?q=${encodeURIComponent(locationQuery.trim())}`)
+      const data = await res.json()
+      setGeoMatches(data.matches ?? [])
+    } catch {
+      setGeoMatches([])
+    } finally {
+      setGeoSearching(false)
+    }
+  }
+
+  function selectLocation(m: { label: string; latitude: number; longitude: number }) {
+    setLocationLabel(m.label)
+    setLatitude(m.latitude)
+    setLongitude(m.longitude)
+    setGeoMatches(null)
+    setLocationQuery('')
+  }
+
+  function clearLocation() {
+    setLocationLabel('')
+    setLatitude(null)
+    setLongitude(null)
+    setGeoMatches(null)
+    setLocationQuery('')
   }
 
   async function toggleNotifications() {
@@ -425,6 +469,61 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+        )}
+      </section>
+
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-3">
+        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Location for weather</h2>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Used to forecast today&apos;s conditions and advise indoor vs outdoor riding.
+          Search for your town or city.
+        </p>
+        {savedLocationLabel && !geoMatches && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <span className="text-sm text-slate-700">{locationLabel}</span>
+            <button
+              onClick={clearLocation}
+              className="text-xs font-medium text-slate-400 hover:text-red-500 transition-colors shrink-0"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={locationQuery}
+            onChange={e => setLocationQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchLocation() } }}
+            placeholder="Town or city (e.g. Bristol)"
+            className={inputClass}
+          />
+          <button
+            onClick={searchLocation}
+            disabled={geoSearching || !locationQuery.trim()}
+            className="shrink-0 text-sm font-medium bg-slate-800 text-white px-4 py-2.5 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors"
+          >
+            {geoSearching ? '…' : 'Find'}
+          </button>
+        </div>
+        {geoMatches && geoMatches.length === 0 && (
+          <p className="text-xs text-amber-600">No matches — try a nearby town or city name.</p>
+        )}
+        {geoMatches && geoMatches.length > 0 && (
+          <div className="space-y-1.5">
+            {geoMatches.map((m, i) => (
+              <button
+                key={i}
+                onClick={() => selectLocation(m)}
+                className="w-full text-left text-sm text-slate-700 rounded-lg border border-slate-200 px-3 py-2.5 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {locationLabel && locationLabel !== savedLocationLabel && (
+          <p className="text-xs text-emerald-600">Selected: {locationLabel} — press Save to apply.</p>
         )}
       </section>
 
