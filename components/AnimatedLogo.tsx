@@ -6,12 +6,21 @@
  * `size` — large on the startup splash, small in place of page/modal spinners.
  */
 interface AnimatedLogoProps {
-  /** Rendered width/height in px. Default 28 (the NavBar badge size). */
+  /** Rendered size in px. The badge is square; `bare` keeps this as the width. */
   size?: number
   /** Whether the wheels spin. Default true. */
   spin?: boolean
+  /**
+   * Drop the blue rounded-square background and frame the bike tightly. Use on
+   * dark/coloured surfaces (e.g. the startup splash) where the square would be
+   * invisible and its padding would push the bike off-centre.
+   */
+  bare?: boolean
   className?: string
 }
+
+// Tight viewBox around the bike art (the badge art lives low in the 28×28 box).
+const ART = { x: 0, y: 9, w: 28, h: 17.5 }
 
 /** A spinning wheel: three diameter spokes that rotate around the hub. */
 function Spokes({ cx, cy, spin }: { cx: number; cy: number; spin: boolean }) {
@@ -32,19 +41,19 @@ function Spokes({ cx, cy, spin }: { cx: number; cy: number; spin: boolean }) {
   )
 }
 
-export default function AnimatedLogo({ size = 28, spin = true, className }: AnimatedLogoProps) {
+export default function AnimatedLogo({ size = 28, spin = true, bare = false, className }: AnimatedLogoProps) {
   return (
     <svg
       width={size}
-      height={size}
-      viewBox="0 0 28 28"
+      height={bare ? (size * ART.h) / ART.w : size}
+      viewBox={bare ? `${ART.x} ${ART.y} ${ART.w} ${ART.h}` : '0 0 28 28'}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       role="img"
       aria-label="My Cycling Coach"
     >
-      <rect width="28" height="28" rx="6" fill="#2563EB" />
+      {!bare && <rect width="28" height="28" rx="6" fill="#2563EB" />}
 
       {/* Wheels — rim, spinning spokes, hub */}
       <circle cx="6.5" cy="20" r="5.5" stroke="white" strokeWidth="1.5" fill="none" />

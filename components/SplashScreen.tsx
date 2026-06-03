@@ -49,11 +49,11 @@ export default function SplashScreen() {
       className={`fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#2563EB] transition-opacity ease-out ${
         leaving ? 'opacity-0' : 'opacity-100'
       }`}
-      style={{ transitionDuration: `${FADE_MS}ms`, paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ transitionDuration: `${FADE_MS}ms` }}
     >
-      <div className="flex flex-col items-center gap-5">
+      <div className="flex flex-col items-center gap-5 text-center">
         <div className="animate-[ride-in_0.7s_cubic-bezier(0.22,1,0.36,1)_both] motion-reduce:animate-none">
-          <AnimatedLogo size={120} />
+          <AnimatedLogo size={150} bare />
         </div>
         <span className="text-lg font-bold tracking-tight text-white animate-[splash-fade-up_0.4s_ease-out_0.55s_both] motion-reduce:animate-none">
           My Cycling Coach
