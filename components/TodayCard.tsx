@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'react'
 import WorkoutCard from '@/components/WorkoutCard'
 import ReadinessBadge from '@/components/ReadinessBadge'
-import type { Workout, ICUWellness, TrainingEvent } from '@/types'
+import WeatherStrip from '@/components/WeatherStrip'
+import type { Workout, ICUWellness, TrainingEvent, WeatherSummary } from '@/types'
 import type { ReadinessVerdict } from '@/lib/claude/briefing'
 
 interface Props {
@@ -34,6 +35,7 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
   const [coachNote, setCoachNote] = useState<string | null>(null)
   const [verdict, setVerdict] = useState<ReadinessVerdict | null>(null)
   const [headline, setHeadline] = useState<string | null>(null)
+  const [weather, setWeather] = useState<WeatherSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   // workoutCompleted state recorded when the cached note was last generated
@@ -54,6 +56,7 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
             setCoachNote(cached.coach_note)
             setVerdict(cached.verdict ?? null)
             setHeadline(cached.headline ?? null)
+            setWeather(cached.weather ?? null)
             setCacheWorkoutCompleted(cached.workoutCompleted ?? false)
             setLoading(false)
             return
@@ -70,6 +73,7 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
         setCoachNote(data.coach_note)
         setVerdict(data.verdict ?? null)
         setHeadline(data.headline ?? null)
+        setWeather(data.weather ?? null)
         setCacheWorkoutCompleted(isCompleted)
         try {
           localStorage.setItem(BRIEFING_CACHE_KEY, JSON.stringify({
@@ -77,6 +81,7 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
             coach_note: data.coach_note,
             verdict: data.verdict ?? null,
             headline: data.headline ?? null,
+            weather: data.weather ?? null,
             workoutCompleted: isCompleted,
           }))
         } catch { /* ignore storage errors */ }
@@ -197,6 +202,7 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
         {!loading && verdict && headline && (
           <ReadinessBadge verdict={verdict} headline={headline} />
         )}
+        {!loading && weather && <WeatherStrip weather={weather} />}
         {loading ? (
           <p className="text-sm text-slate-400">Getting your briefing…</p>
         ) : coachNote ? (
