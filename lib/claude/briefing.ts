@@ -2,7 +2,35 @@ import { anthropic, MODEL } from './client'
 import type { BriefingContext } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 
-const SYSTEM_MORNING = "You are a personal cycling coach. Write a short, direct, personalised morning briefing — 2–3 sentences maximum. Be specific about the numbers. Sound like a real coach texting an athlete, not a generic wellness app. No markdown, no bullet points, plain text only. If there is a pattern or trend from the athlete's profile that is specifically relevant to today — an upcoming A-race taper, a fatigue warning, a known compliance issue on this type of session — include one brief sentence about it. Surface it only when genuinely relevant; do not force a pattern observation into every briefing. When HRV is SUPPRESSED, steer the athlete toward easing or rescheduling today's planned session; when ELEVATED or well-recovered before a hard day, green-light it; when BALANCED, proceed as planned. Only raise HRV when it genuinely changes today's advice."
+export type ReadinessVerdict = 'green' | 'amber' | 'red'
+
+export interface BriefingResult {
+  coach_note: string
+  verdict: ReadinessVerdict | null
+  headline: string | null
+}
+
+function parseVerdict(raw: string, fallbackNote: string): BriefingResult {
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/, '')
+    .trim()
+  try {
+    const obj = JSON.parse(cleaned) as { verdict?: unknown; headline?: unknown; note?: unknown }
+    const verdict = obj.verdict === 'green' || obj.verdict === 'amber' || obj.verdict === 'red'
+      ? obj.verdict
+      : null
+    const note = typeof obj.note === 'string' && obj.note.trim() ? obj.note.trim() : fallbackNote
+    const headline = verdict && typeof obj.headline === 'string' && obj.headline.trim()
+      ? obj.headline.trim()
+      : null
+    return { coach_note: note, verdict, headline }
+  } catch {
+    return { coach_note: raw.trim() || fallbackNote, verdict: null, headline: null }
+  }
+}
+
+const SYSTEM_MORNING = "You are a personal cycling coach. Write a short, direct, personalised morning briefing — 2–3 sentences maximum. Be specific about the numbers. Sound like a real coach texting an athlete, not a generic wellness app. The note text must be plain prose — no markdown, no bullet points. If there is a pattern or trend from the athlete's profile that is specifically relevant to today — an upcoming A-race taper, a fatigue warning, a known compliance issue on this type of session — include one brief sentence about it. Surface it only when genuinely relevant; do not force a pattern observation into every briefing. When HRV is SUPPRESSED, steer the athlete toward easing or rescheduling today's planned session; when ELEVATED or well-recovered before a hard day, green-light it; when BALANCED, proceed as planned. Only raise HRV when it genuinely changes today's advice. Also decide a readiness verdict for today combining HRV trend and today's planned intensity: 'green' = recovered/balanced and any hard session is on, go for it; 'amber' = mixed signals (e.g. suppressed HRV but a key session) — proceed with caution and judge by feel; 'red' = clearly suppressed or fatigued, or a pre-rest day — ease or reschedule. On a rest or easy day, the verdict reflects recovery state (green when fresh). Provide a headline of at most 4 words (e.g. 'Go hard', 'Ease if flat', 'Hold back today')."
 
 const SYSTEM_POST_RIDE = 'You are a personal cycling coach. Write a short post-ride note — 2–3 sentences maximum. The athlete has just completed their session. Reflect briefly on how the numbers look, how the session fits their current training load, and what to prioritise now (recovery, nutrition, what is coming next). If there are planned sessions in the next few days, factor them into your advice — do not tell the athlete to rest if they already have sessions scheduled; instead advise how to approach those sessions given their current fatigue. Be direct and specific, like a real coach. No markdown, no bullet points, plain text only.'
 
@@ -62,17 +90,17 @@ async function callClaude(system: string, prompt: string): Promise<string> {
   return block?.type === 'text' ? block.text.trim() : ''
 }
 
-export async function generateBriefing(ctx: BriefingContext): Promise<string> {
+export async function generateBriefing(ctx: BriefingContext): Promise<BriefingResult> {
   if (ctx.todayEvent?.result_tss != null) {
-    return generatePostRaceNote(ctx)
+    return { coach_note: await generatePostRaceNote(ctx), verdict: null, headline: null }
   }
   if (ctx.workoutCompleted) {
-    return generatePostRideNote(ctx)
+    return { coach_note: await generatePostRideNote(ctx), verdict: null, headline: null }
   }
   return generateMorningBriefing(ctx)
 }
 
-async function generateMorningBriefing(ctx: BriefingContext): Promise<string> {
+async function generateMorningBriefing(ctx: BriefingContext): Promise<BriefingResult> {
   const allSessions = ctx.todayWorkouts?.length
     ? ctx.todayWorkouts
         .map(w => `${w.type} ${w.duration_minutes}min — ${w.description}`)
@@ -117,9 +145,10 @@ Recent sessions: ${recent}
 Upcoming events: ${buildEventsString(ctx)}
 ${unavailLine ? `Current unavailability: ${unavailLine}` : ''}
 ${dossierLines.length ? '\nAthlete context:\n' + dossierLines.join('\n') : ''}
-Write the morning briefing.`
+Write the morning briefing. Respond ONLY with a JSON object: {"verdict":"green|amber|red","headline":"<=4 words","note":"<the briefing prose>"}`
 
-  return await callClaude(SYSTEM_MORNING, prompt) || 'Have a great session today.'
+  const raw = await callClaude(SYSTEM_MORNING, prompt)
+  return parseVerdict(raw, 'Have a great session today.')
 }
 
 function rideDataString(ride: { name: string; moving_time: number; avg_power: number | null; weighted_avg_power: number | null; tss: number | null; elevation_m: number | null }): string {

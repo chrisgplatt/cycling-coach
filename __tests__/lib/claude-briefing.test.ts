@@ -99,3 +99,51 @@ describe('generatePostRideNote — enriched detail', () => {
     expect(prompt).toContain('Actual intervals:')
   })
 })
+
+describe('generateMorningBriefing — structured verdict', () => {
+  it('parses verdict, headline and note from a JSON response', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text:
+      '{"verdict":"green","headline":"Go hard","note":"HRV balanced — hit the intervals."}' }] })
+    const result = await generateBriefing(baseMorningCtx)
+    expect(result).toEqual({
+      coach_note: 'HRV balanced — hit the intervals.',
+      verdict: 'green',
+      headline: 'Go hard',
+    })
+  })
+
+  it('falls back to a null verdict when the response is not JSON', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text: 'Just ride easy today.' }] })
+    const result = await generateBriefing(baseMorningCtx)
+    expect(result.verdict).toBeNull()
+    expect(result.headline).toBeNull()
+    expect(result.coach_note).toBe('Just ride easy today.')
+  })
+
+  it('ignores an invalid verdict value', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text:
+      '{"verdict":"blue","headline":"x","note":"hello"}' }] })
+    const result = await generateBriefing(baseMorningCtx)
+    expect(result.verdict).toBeNull()
+    expect(result.coach_note).toBe('hello')
+  })
+
+  it('parses JSON wrapped in a ```json code fence (with trailing newline)', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text:
+      '```json\n{"verdict":"amber","headline":"Judge by feel","note":"Mixed signals today."}\n```\n' }] })
+    const result = await generateBriefing(baseMorningCtx)
+    expect(result.verdict).toBe('amber')
+    expect(result.headline).toBe('Judge by feel')
+    expect(result.coach_note).toBe('Mixed signals today.')
+  })
+})
+
+describe('post-ride / post-race verdict', () => {
+  it('returns a null verdict for the post-ride path', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text: 'Solid work.' }] })
+    const result = await generateBriefing(basePostRideCtx)
+    expect(result.coach_note).toBe('Solid work.')
+    expect(result.verdict).toBeNull()
+    expect(result.headline).toBeNull()
+  })
+})
