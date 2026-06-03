@@ -13,7 +13,31 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const workoutId = searchParams.get('workoutId')
-  if (!workoutId) return NextResponse.json({ error: 'workoutId required' }, { status: 400 })
+
+  // No workoutId → return the user's recent feedback as coaching-log entries.
+  if (!workoutId) {
+    const { toCoachingLogEntries } = await import('@/lib/plan/coaching-log')
+    const { data: rows } = await supabase
+      .from('session_feedback')
+      .select('id, created_at, workout_id, feedback_text, proposed_adjustment, approved')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(8)
+
+    const feedbackRows = (rows ?? []) as import('@/lib/plan/coaching-log').FeedbackRow[]
+    const ids = feedbackRows.map(r => r.workout_id).filter((v): v is string => !!v)
+    const workouts = new Map<string, import('@/lib/plan/coaching-log').WorkoutRef>()
+    if (ids.length) {
+      const { data: ws } = await supabase
+        .from('workouts')
+        .select('id, date, type')
+        .in('id', ids)
+      for (const w of (ws ?? []) as Array<{ id: string; date: string; type: import('@/types').WorkoutType }>) {
+        workouts.set(w.id, { date: w.date, type: w.type })
+      }
+    }
+    return NextResponse.json({ entries: toCoachingLogEntries(feedbackRows, workouts) })
+  }
 
   const { data: feedback } = await supabase
     .from('session_feedback')
