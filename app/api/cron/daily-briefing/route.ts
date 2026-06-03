@@ -174,9 +174,12 @@ export async function GET(req: NextRequest) {
       .filter(u => u.start_date <= today && u.end_date >= today)
       .map(u => ({ type: u.type, end_date: u.end_date, notes: u.notes }))
 
+    // Open-Meteo interprets `today` against the `tz` parameter (local midnight-to-midnight).
     let weather: BriefingContext['weather'] = null
     if (typeof profile.latitude === 'number' && typeof profile.longitude === 'number') {
       weather = await fetchDailyForecast(profile.latitude, profile.longitude, today, tz)
+      console.log(`[cron] user ${profile.user_id}: weather ${weather ? weather.description : 'unavailable'}`)
+      await log(profile.user_id, 'weather_fetch', weather ? 'ok' : 'skipped', { description: weather?.description ?? null })
     }
 
     const ctx: BriefingContext = {
