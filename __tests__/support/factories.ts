@@ -59,6 +59,7 @@ export function makeTrainingPlan(overrides: Partial<TrainingPlan> = {}): Trainin
     rationale: 'Progressive build towards the A event.',
     last_reviewed_week: null,
     plan_weeks: 8,
+    week_phases: null,
     created_at: '2026-05-01T00:00:00Z',
     updated_at: '2026-05-01T00:00:00Z',
     ...overrides,

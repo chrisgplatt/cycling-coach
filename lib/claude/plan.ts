@@ -156,12 +156,15 @@ STEP RULES:
 
 ${coachingNotesGuidance()}
 
+WEEK PHASES: also return "week_phases" — an array with exactly ${weeks} entries, one phase per plan week in chronological order (base|build|peak|taper), consistent with the periodization you applied.
+
 Return ONLY this JSON:
 {
   "rationale": "2-3 paragraph explanation of the plan approach and reasoning. Separate paragraphs with \\n\\n.",
   "target_event_name": "event name",
   "target_event_date": "YYYY-MM-DD",
   "phase": "base|build|peak|taper",
+  "week_phases": ["base|build|peak|taper for week 1", "… week 2 …", "… one entry per plan week, in order …"],
   "workouts": [
     {
       "date": "YYYY-MM-DD",

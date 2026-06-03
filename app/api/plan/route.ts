@@ -203,6 +203,7 @@ export async function PATCH(req: NextRequest) {
       target_event_name: plan.target_event_name,
       target_event_date: plan.target_event_date,
       phase: plan.phase,
+      week_phases: plan.week_phases ?? null,
       rationale: plan.rationale,
       plan_weeks: planWeeks,
       user_id: user.id,

@@ -69,6 +69,7 @@ export interface TrainingPlan {
   rationale: string
   last_reviewed_week: string | null
   plan_weeks: number | null
+  week_phases: PlanPhase[] | null
   created_at: string
   updated_at: string
 }
@@ -315,6 +316,7 @@ export interface GeneratedPlan {
   target_event_name: string
   target_event_date: string
   phase: PlanPhase
+  week_phases?: PlanPhase[]
   workouts: Array<{
     date: string
     type: WorkoutType
