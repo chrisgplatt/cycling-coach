@@ -31,3 +31,15 @@ main {
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   }
 }
+
+/* Startup splash: the logo rides in from the left, then settles centre. */
+@keyframes ride-in {
+  0% { transform: translateX(-120%); opacity: 0; }
+  70% { opacity: 1; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes splash-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import type { GeneratedPlan } from '@/types'
+import AnimatedLogo from './AnimatedLogo'
 
 interface Props {
   plan: GeneratedPlan | null
@@ -56,7 +57,7 @@ export default function PlanApprovalModal({ plan, loading = false, weeks = 6, wo
     return (
       <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-10 flex flex-col items-center gap-6">
-          <div className="w-10 h-10 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" />
+          <AnimatedLogo size={64} />
           <div className="text-center w-full space-y-3">
             <p className="text-base font-semibold text-slate-800">Building your training plan…</p>
             {workoutsFound > 0 ? (

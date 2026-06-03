@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { RidingStats, CrossTrainingGroup } from '@/types'
 import RideStats, { rideStatsFromActivity, StatCell, SectionCard, formatDuration } from '@/components/RideStats'
+import AnimatedLogo from '@/components/AnimatedLogo'
 
 function formatRideTabLabel(dateStr: string): string {
   const d = new Date(dateStr)
@@ -156,7 +157,7 @@ export default function StatsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+        <AnimatedLogo size={56} />
       </div>
     )
   }

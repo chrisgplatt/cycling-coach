@@ -4,6 +4,7 @@ import { normalizeY, isoWeekStart } from '@/lib/chart-helpers'
 import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss } from '@/types'
 import type { HrvImprovement } from '@/lib/hrv/improvement'
 import { computeHrvBaseline, type HrvStatus } from '@/lib/hrv/baseline'
+import AnimatedLogo from '@/components/AnimatedLogo'
 
 const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -638,7 +639,7 @@ export default function FitnessPage() {
 
       {chartsLoading && (
         <div className="flex items-center justify-center py-10">
-          <div className="w-6 h-6 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+          <AnimatedLogo size={56} />
         </div>
       )}
 

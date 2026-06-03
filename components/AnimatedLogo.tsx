@@ -1,0 +1,73 @@
+/**
+ * The app logo (white road bike on the brand-blue rounded square) with wheels
+ * that spin. Each wheel's spokes live in a group that rotates around its own hub
+ * via Tailwind's `animate-spin`; the rim and frame stay put so only the wheels
+ * turn. Honours `prefers-reduced-motion` (wheels hold still). Reusable at any
+ * `size` — large on the startup splash, small in place of page/modal spinners.
+ */
+interface AnimatedLogoProps {
+  /** Rendered width/height in px. Default 28 (the NavBar badge size). */
+  size?: number
+  /** Whether the wheels spin. Default true. */
+  spin?: boolean
+  className?: string
+}
+
+/** A spinning wheel: three diameter spokes that rotate around the hub. */
+function Spokes({ cx, cy, spin }: { cx: number; cy: number; spin: boolean }) {
+  // Endpoints are hub ± (dx, dy) at r≈4.6, every 60°, so the group's bounding-box
+  // centre is the hub — `transform-origin: center` then spins about the axle.
+  const r = 4.6
+  const sin60 = r * 0.866
+  const cos60 = r * 0.5
+  return (
+    <g
+      style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      className={spin ? 'animate-spin motion-reduce:animate-none' : ''}
+    >
+      <line x1={cx - r} y1={cy} x2={cx + r} y2={cy} stroke="white" strokeWidth="0.5" strokeLinecap="round" opacity="0.9" />
+      <line x1={cx - cos60} y1={cy - sin60} x2={cx + cos60} y2={cy + sin60} stroke="white" strokeWidth="0.5" strokeLinecap="round" opacity="0.9" />
+      <line x1={cx + cos60} y1={cy - sin60} x2={cx - cos60} y2={cy + sin60} stroke="white" strokeWidth="0.5" strokeLinecap="round" opacity="0.9" />
+    </g>
+  )
+}
+
+export default function AnimatedLogo({ size = 28, spin = true, className }: AnimatedLogoProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      role="img"
+      aria-label="My Cycling Coach"
+    >
+      <rect width="28" height="28" rx="6" fill="#2563EB" />
+
+      {/* Wheels — rim, spinning spokes, hub */}
+      <circle cx="6.5" cy="20" r="5.5" stroke="white" strokeWidth="1.5" fill="none" />
+      <Spokes cx={6.5} cy={20} spin={spin} />
+      <circle cx="6.5" cy="20" r="1.1" fill="white" />
+
+      <circle cx="22" cy="20" r="5.5" stroke="white" strokeWidth="1.5" fill="none" />
+      <Spokes cx={22} cy={20} spin={spin} />
+      <circle cx="22" cy="20" r="1.1" fill="white" />
+
+      {/* Frame */}
+      <line x1="6.5" y1="20" x2="14.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="14.5" y1="20" x2="12" y2="11.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="12" y1="11.5" x2="6.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="12" y1="11.5" x2="12" y2="10" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="10.5" y1="10" x2="13.5" y2="10" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="12" y1="11.5" x2="20.5" y2="13" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="20.5" y1="13" x2="21.5" y2="15.5" stroke="white" strokeWidth="2" strokeLinecap="round" />
+      <line x1="21.5" y1="15.5" x2="14.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="21.5" y1="15.5" x2="22" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="20.5" y1="13" x2="21" y2="11" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="19" y1="11" x2="23" y2="11" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M23 11 Q23.5 11.3 23.5 13" stroke="white" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+    </svg>
+  )
+}

@@ -4,6 +4,7 @@ import './globals.css'
 import NavBar from '@/components/NavBar'
 import IOSInstallBanner from '@/components/IOSInstallBanner'
 import SessionSync from '@/components/SessionSync'
+import SplashScreen from '@/components/SplashScreen'
 
 const figtree = Figtree({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700', '800'] })
 
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         <IOSInstallBanner />
         <SessionSync />
+        <SplashScreen />
       </body>
     </html>
   )
