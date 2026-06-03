@@ -483,7 +483,7 @@ export default function SettingsPage() {
             <span className="text-sm text-slate-700">{locationLabel}</span>
             <button
               onClick={clearLocation}
-              className="text-xs font-medium text-slate-400 hover:text-red-500 transition-colors shrink-0"
+              className="text-xs font-medium text-slate-400 hover:text-red-500 transition-colors shrink-0 -my-1.5 px-2 py-2.5"
             >
               Clear
             </button>
