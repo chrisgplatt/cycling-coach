@@ -1,6 +1,7 @@
 import { anthropic, MODEL } from './client'
 import type { BriefingContext } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
+import { formatWeatherForPrompt } from '@/lib/weather/format'
 
 export type ReadinessVerdict = 'green' | 'amber' | 'red'
 
@@ -30,7 +31,7 @@ function parseVerdict(raw: string, fallbackNote: string): BriefingResult {
   }
 }
 
-const SYSTEM_MORNING = "You are a personal cycling coach. Write a short, direct, personalised morning briefing — 2–3 sentences maximum. Be specific about the numbers. Sound like a real coach texting an athlete, not a generic wellness app. The note text must be plain prose — no markdown, no bullet points. If there is a pattern or trend from the athlete's profile that is specifically relevant to today — an upcoming A-race taper, a fatigue warning, a known compliance issue on this type of session — include one brief sentence about it. Surface it only when genuinely relevant; do not force a pattern observation into every briefing. When HRV is SUPPRESSED, steer the athlete toward easing or rescheduling today's planned session; when ELEVATED or well-recovered before a hard day, green-light it; when BALANCED, proceed as planned. Only raise HRV when it genuinely changes today's advice. Also decide a readiness verdict for today combining HRV trend and today's planned intensity: 'green' = recovered/balanced and any hard session is on, go for it; 'amber' = mixed signals (e.g. suppressed HRV but a key session) — proceed with caution and judge by feel; 'red' = clearly suppressed or fatigued, or a pre-rest day — ease or reschedule. On a rest or easy day, the verdict reflects recovery state (green when fresh). Provide a headline of at most 4 words (e.g. 'Go hard', 'Ease if flat', 'Hold back today')."
+const SYSTEM_MORNING = "You are a personal cycling coach. Write a short, direct, personalised morning briefing — 2–3 sentences maximum. Be specific about the numbers. Sound like a real coach texting an athlete, not a generic wellness app. The note text must be plain prose — no markdown, no bullet points. If there is a pattern or trend from the athlete's profile that is specifically relevant to today — an upcoming A-race taper, a fatigue warning, a known compliance issue on this type of session — include one brief sentence about it. Surface it only when genuinely relevant; do not force a pattern observation into every briefing. When HRV is SUPPRESSED, steer the athlete toward easing or rescheduling today's planned session; when ELEVATED or well-recovered before a hard day, green-light it; when BALANCED, proceed as planned. Only raise HRV when it genuinely changes today's advice. Also decide a readiness verdict for today combining HRV trend and today's planned intensity: 'green' = recovered/balanced and any hard session is on, go for it; 'amber' = mixed signals (e.g. suppressed HRV but a key session) — proceed with caution and judge by feel; 'red' = clearly suppressed or fatigued, or a pre-rest day — ease or reschedule. On a rest or easy day, the verdict reflects recovery state (green when fresh). Provide a headline of at most 4 words (e.g. 'Go hard', 'Ease if flat', 'Hold back today'). When weather information is provided, weigh today's conditions against the planned session type and give a clear indoor (trainer) vs outdoor steer: precise threshold or VO2 intervals in strong wind or heavy rain favour the trainer for execution quality; easy Z2 in light rain is fine outdoors; genuinely dangerous conditions (storm, ice, heavy snow) mean trainer or reschedule. Keep this to one sentence and only raise it when conditions actually change the advice — say nothing about benign weather. Weather must NOT change the readiness verdict; the verdict reflects physiological readiness only."
 
 const SYSTEM_POST_RIDE = 'You are a personal cycling coach. Write a short post-ride note — 2–3 sentences maximum. The athlete has just completed their session. Reflect briefly on how the numbers look, how the session fits their current training load, and what to prioritise now (recovery, nutrition, what is coming next). If there are planned sessions in the next few days, factor them into your advice — do not tell the athlete to rest if they already have sessions scheduled; instead advise how to approach those sessions given their current fatigue. Be direct and specific, like a real coach. No markdown, no bullet points, plain text only.'
 
@@ -138,12 +139,14 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<BriefingRe
       }).join('; ')
     : null
 
+  const weatherLine = ctx.weather ? formatWeatherForPrompt(ctx.weather) : null
+
   const prompt = `Today's date: ${ctx.today}
 Today's plan: ${sessionLine}
 Training load: ${buildLoadString(ctx)}
 Recent sessions: ${recent}
 Upcoming events: ${buildEventsString(ctx)}
-${unavailLine ? `Current unavailability: ${unavailLine}` : ''}
+${weatherLine ? weatherLine + '\n' : ''}${unavailLine ? `Current unavailability: ${unavailLine}` : ''}
 ${dossierLines.length ? '\nAthlete context:\n' + dossierLines.join('\n') : ''}
 Write the morning briefing. Respond ONLY with a JSON object: {"verdict":"green|amber|red","headline":"<=4 words","note":"<the briefing prose>"}`
 

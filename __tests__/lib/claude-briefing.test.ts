@@ -147,3 +147,34 @@ describe('post-ride / post-race verdict', () => {
     expect(result.headline).toBeNull()
   })
 })
+
+describe('generateMorningBriefing — weather steer', () => {
+  const weather = {
+    temp_min_c: 8, temp_max_c: 14, precip_prob_pct: 80,
+    wind_max_kph: 30, gust_max_kph: 50, weather_code: 65, description: 'Heavy rain',
+  }
+
+  it('includes the weather line in the prompt when weather is present', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text:
+      '{"verdict":"green","headline":"Go hard","note":"Take it to the trainer."}' }] })
+    await generateBriefing({ ...baseMorningCtx, weather })
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toContain('Weather today:')
+    expect(prompt).toContain('Heavy rain')
+  })
+
+  it('omits the weather line when weather is null', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text:
+      '{"verdict":"green","headline":"Go hard","note":"Good to go."}' }] })
+    await generateBriefing({ ...baseMorningCtx, weather: null })
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).not.toContain('Weather today:')
+  })
+
+  it('does not let weather change the parsed verdict', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text:
+      '{"verdict":"green","headline":"Go hard","note":"Dry and calm."}' }] })
+    const result = await generateBriefing({ ...baseMorningCtx, weather })
+    expect(result.verdict).toBe('green')
+  })
+})
