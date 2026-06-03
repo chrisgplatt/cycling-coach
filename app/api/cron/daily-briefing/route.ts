@@ -4,6 +4,7 @@ import { generateBriefing } from '@/lib/claude/briefing'
 import { sendPush } from '@/lib/push'
 import { sendBriefingEmail } from '@/lib/email'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { fetchHrvStatus } from '@/lib/hrv/server'
 import type { Workout, TrainingEvent, BriefingContext } from '@/types'
 
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest) {
 
   const { data: profiles, error: profilesError } = await supabase
     .from('user_profile')
-    .select('user_id, intervals_icu_athlete_id, intervals_icu_api_key, events, unavailability, notification_time, timezone')
+    .select('user_id, intervals_icu_athlete_id, intervals_icu_api_key, events, unavailability, notification_time, timezone, latitude, longitude')
     .eq('notifications_enabled', true)
 
   if (profilesError) {
@@ -173,6 +174,11 @@ export async function GET(req: NextRequest) {
       .filter(u => u.start_date <= today && u.end_date >= today)
       .map(u => ({ type: u.type, end_date: u.end_date, notes: u.notes }))
 
+    let weather: BriefingContext['weather'] = null
+    if (typeof profile.latitude === 'number' && typeof profile.longitude === 'number') {
+      weather = await fetchDailyForecast(profile.latitude, profile.longitude, today, tz)
+    }
+
     const ctx: BriefingContext = {
       today,
       todayWorkout,
@@ -182,6 +188,7 @@ export async function GET(req: NextRequest) {
       readinessLabel: readinessLabel(tsb),
       hrv, hrvStatus, recentWorkouts, upcomingEvents,
       activeUnavailability,
+      weather,
     }
 
     let coach_note = existing?.coach_note ?? null
@@ -209,7 +216,7 @@ export async function GET(req: NextRequest) {
     await supabase
       .from('daily_briefings')
       .upsert(
-        { user_id: profile.user_id, date: today, coach_note, verdict, headline, notification_sent_at: nowISO, generated_at: nowISO },
+        { user_id: profile.user_id, date: today, coach_note, verdict, headline, weather, notification_sent_at: nowISO, generated_at: nowISO },
         { onConflict: 'user_id,date' }
       )
 
