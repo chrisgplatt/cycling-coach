@@ -61,3 +61,35 @@ export async function fetchDailyForecast(
     return null
   }
 }
+
+interface GeocodeApiResult {
+  name?: string
+  admin1?: string
+  country?: string
+  latitude?: number
+  longitude?: number
+}
+
+export async function geocodeLocation(query: string): Promise<GeocodeMatch[]> {
+  const params = new URLSearchParams({
+    name: query,
+    count: '5',
+    language: 'en',
+    format: 'json',
+  })
+  try {
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`)
+    if (!res.ok) return []
+    const data = await res.json() as { results?: GeocodeApiResult[] }
+    if (!Array.isArray(data.results)) return []
+    return data.results
+      .filter(r => typeof r.latitude === 'number' && typeof r.longitude === 'number')
+      .map(r => ({
+        label: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
+        latitude: r.latitude as number,
+        longitude: r.longitude as number,
+      }))
+  } catch {
+    return []
+  }
+}

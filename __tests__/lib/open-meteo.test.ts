@@ -74,3 +74,39 @@ describe('fetchDailyForecast', () => {
     expect(await fetchDailyForecast(51, -2, '2026-06-03', 'Europe/London')).toBeNull()
   })
 })
+
+import { geocodeLocation } from '@/lib/weather/open-meteo'
+
+describe('geocodeLocation', () => {
+  it('maps results to GeocodeMatch with a composed label', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        results: [
+          { name: 'Bristol', admin1: 'England', country: 'United Kingdom', latitude: 51.45, longitude: -2.58 },
+          { name: 'Bath', admin1: '', country: 'United Kingdom', latitude: 51.38, longitude: -2.36 },
+        ],
+      }),
+    })
+    const matches = await geocodeLocation('bristol')
+    expect(matches).toEqual([
+      { label: 'Bristol, England, United Kingdom', latitude: 51.45, longitude: -2.58 },
+      { label: 'Bath, United Kingdom', latitude: 51.38, longitude: -2.36 },
+    ])
+  })
+
+  it('returns [] when there are no results', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+    expect(await geocodeLocation('zzzzzz')).toEqual([])
+  })
+
+  it('returns [] on a non-ok response', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) })
+    expect(await geocodeLocation('bristol')).toEqual([])
+  })
+
+  it('returns [] when fetch throws', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('network'))
+    expect(await geocodeLocation('bristol')).toEqual([])
+  })
+})
