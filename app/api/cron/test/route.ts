@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { generateBriefing } from '@/lib/claude/briefing'
 import { sendPush } from '@/lib/push'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import type { Workout, TrainingEvent, BriefingContext } from '@/types'
 
 function readinessLabel(tsb: number | null): BriefingContext['readinessLabel'] {
@@ -24,7 +25,7 @@ export async function POST() {
 
   const { data: profile } = await supabase
     .from('user_profile')
-    .select('is_admin, intervals_icu_athlete_id, intervals_icu_api_key, events, timezone')
+    .select('is_admin, intervals_icu_athlete_id, intervals_icu_api_key, events, timezone, latitude, longitude')
     .eq('user_id', user.id)
     .single()
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -94,9 +95,15 @@ export async function POST() {
     }
   }
 
+  let weather: BriefingContext['weather'] = null
+  if (typeof profile.latitude === 'number' && typeof profile.longitude === 'number') {
+    weather = await fetchDailyForecast(profile.latitude, profile.longitude, today, tz)
+  }
+
   const ctx: BriefingContext = {
     today, todayWorkout, workoutCompleted: false, completedRide: null,
     ctl, atl, tsb, readinessLabel: readinessLabel(tsb), hrv, recentWorkouts, upcomingEvents,
+    weather,
   }
 
   let coach_note: string
