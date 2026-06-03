@@ -47,6 +47,13 @@ beforeEach(() => {
     if (url === '/api/profile') return Promise.resolve({ ok: true, json: async () => profileData } as Response)
     if (url === '/api/plan') return Promise.resolve({ ok: true, json: async () => planResponse } as Response)
     if (url === '/api/sync') return Promise.resolve({ ok: true, json: async () => syncResponse } as Response)
+    if (url === '/api/feedback') return Promise.resolve({ ok: true, json: async () => ({
+      entries: [{
+        id: 'f1', created_at: '2026-05-03T18:00:00Z', session_date: '2026-05-02',
+        session_type: 'endurance', feedback_text: 'felt strong',
+        summary: 'added 15 min', approved: true, had_proposal: true,
+      }],
+    }) } as Response)
     return Promise.resolve({ ok: true, json: async () => ({}) } as Response)
   })
 })
@@ -58,4 +65,6 @@ it('renders the progress modules for an active plan', async () => {
   expect(await screen.findByTestId('consistency-strip')).toBeInTheDocument()
   expect(await screen.findByTestId('load-chart')).toBeInTheDocument()
   expect(await screen.findByTestId('fitness-trend')).toBeInTheDocument()
+  expect(await screen.findByTestId('coaching-log')).toBeInTheDocument()
+  expect(await screen.findByText('felt strong')).toBeInTheDocument()
 })

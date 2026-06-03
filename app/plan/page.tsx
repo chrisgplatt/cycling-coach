@@ -12,9 +12,10 @@ import PlanJourney from '@/components/plan/PlanJourney'
 import ConsistencyStrip from '@/components/plan/ConsistencyStrip'
 import LoadComparisonChart from '@/components/plan/LoadComparisonChart'
 import FitnessTrendChart from '@/components/plan/FitnessTrendChart'
+import CoachingLog from '@/components/plan/CoachingLog'
 import { resolvePhases } from '@/lib/plan/phases'
 import { buildWeekBuckets, weekState, consistency, planHours } from '@/lib/plan/progress'
-import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase } from '@/types'
+import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase, CoachingLogEntry } from '@/types'
 import { periodDurationDays } from '@/lib/utils/unavailability'
 
 type Tab = 'plan' | 'profile' | 'events'
@@ -80,6 +81,7 @@ export default function PlanPage() {
   const [planCreatedAt, setPlanCreatedAt] = useState('')
   const [planTotalWeeks, setPlanTotalWeeks] = useState<number | null>(null)
   const [planWeekPhases, setPlanWeekPhases] = useState<PlanPhase[] | null>(null)
+  const [coachingLog, setCoachingLog] = useState<CoachingLogEntry[]>([])
   const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
   const [planChatOpen, setPlanChatOpen] = useState(false)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
@@ -223,6 +225,11 @@ export default function PlanPage() {
       .catch(() => setLoadError('Failed to load profile'))
 
     loadPlan()
+
+    fetch('/api/feedback')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setCoachingLog(data?.entries ?? []))
+      .catch(() => {})
 
     fetch('/api/sync', { method: 'POST' })
       .then(r => r.ok ? r.json() : null)
@@ -529,6 +536,7 @@ export default function PlanPage() {
                 <LoadComparisonChart weeks={buckets} currentWeek={currentWeek} />
               )}
               <FitnessTrendChart points={fitPoints} />
+              <CoachingLog entries={coachingLog} />
 
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50">
