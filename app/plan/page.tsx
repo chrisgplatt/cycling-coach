@@ -8,7 +8,13 @@ import PlanReviewModal from '@/components/PlanReviewModal'
 import ClearWorkoutsModal from '@/components/ClearWorkoutsModal'
 import PlanChatModal from '@/components/PlanChatModal'
 import InterviewModal from '@/components/InterviewModal'
-import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod } from '@/types'
+import PlanJourney from '@/components/plan/PlanJourney'
+import ConsistencyStrip from '@/components/plan/ConsistencyStrip'
+import LoadComparisonChart from '@/components/plan/LoadComparisonChart'
+import FitnessTrendChart from '@/components/plan/FitnessTrendChart'
+import { resolvePhases } from '@/lib/plan/phases'
+import { buildWeekBuckets, weekState, consistency, planHours } from '@/lib/plan/progress'
+import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase } from '@/types'
 import { periodDurationDays } from '@/lib/utils/unavailability'
 
 type Tab = 'plan' | 'profile' | 'events'
@@ -73,6 +79,7 @@ export default function PlanPage() {
   const [planTargetDate, setPlanTargetDate] = useState('')
   const [planCreatedAt, setPlanCreatedAt] = useState('')
   const [planTotalWeeks, setPlanTotalWeeks] = useState<number | null>(null)
+  const [planWeekPhases, setPlanWeekPhases] = useState<PlanPhase[] | null>(null)
   const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
   const [planChatOpen, setPlanChatOpen] = useState(false)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
@@ -115,6 +122,7 @@ export default function PlanPage() {
         if (data?.target_event_date) setPlanTargetDate(data.target_event_date)
         if (data?.created_at) setPlanCreatedAt(data.created_at)
         if (data?.plan_weeks) setPlanTotalWeeks(data.plan_weeks)
+        setPlanWeekPhases(data?.week_phases ?? null)
         const today = new Date().toISOString().split('T')[0]
         setFuturePlanWorkouts((data?.workouts ?? []).filter((w: Workout) => w.date >= today && w.status === 'planned'))
       })
@@ -470,6 +478,22 @@ export default function PlanPage() {
         {planName ? (() => {
           const wk = weekNumber()
           const next = nextEvent()
+          const planStart = planCreatedAt ? planCreatedAt.split('T')[0] : ''
+          const totalWeeks = wk?.total ?? 0
+          const currentWeek = wk ? wk.current - 1 : 0
+          const buckets = planStart && totalWeeks > 0
+            ? buildWeekBuckets(planWorkouts, syncData?.activities ?? [], planStart, totalWeeks)
+            : []
+          const phases = resolvePhases(planWeekPhases, buckets.map(b => b.plannedTss), totalWeeks)
+          const states = buckets.map(b => weekState(b, currentWeek))
+          const cons = consistency(buckets, currentWeek)
+          const hours = planHours(planWorkouts, syncData?.activities ?? [])
+          const totalPlanned = buckets.reduce((sum, b) => sum + b.plannedSessions, 0)
+          const currentPhase = phases[currentWeek] ?? 'base'
+          const phaseLabel = currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1)
+          const fitPoints = (syncData?.wellness ?? [])
+            .filter(w => planStart && w.id >= planStart && w.ctl != null)
+            .map(w => ({ date: w.id, ctl: w.ctl as number, form: w.form ?? 0 }))
           return (
             <div className="space-y-4">
               <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl p-5 text-white shadow-md">
@@ -486,20 +510,25 @@ export default function PlanPage() {
                     Chat with coach
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                  {wk && <span>Week <strong>{wk.current}</strong> of <strong>{wk.total}</strong></span>}
-                  {next !== null && <span>🏁 {next.name} in <strong>{next.days} day{next.days !== 1 ? 's' : ''}</strong></span>}
-                  <span>Phase: <strong>Base</strong></span>
-                </div>
                 {wk && (
-                  <div className="mt-4 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-white/80 rounded-full transition-all"
-                      style={{ width: `${(wk.current / wk.total) * 100}%` }}
-                    />
-                  </div>
+                  <PlanJourney
+                    states={states}
+                    phases={phases}
+                    weekLabel={`Wk ${wk.current} of ${wk.total}`}
+                    phaseLabel={phaseLabel}
+                    eventName={next?.name ?? null}
+                    daysToEvent={next?.days ?? null}
+                  />
                 )}
               </div>
+
+              {totalPlanned > 0 && (
+                <ConsistencyStrip hitPct={cons.hitPct} streak={cons.streak} hours={hours} />
+              )}
+              {buckets.length > 0 && (
+                <LoadComparisonChart weeks={buckets} currentWeek={currentWeek} />
+              )}
+              <FitnessTrendChart points={fitPoints} />
 
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50">
