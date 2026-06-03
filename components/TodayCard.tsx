@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import WorkoutCard from '@/components/WorkoutCard'
+import ReadinessBadge from '@/components/ReadinessBadge'
 import type { Workout, ICUWellness, TrainingEvent } from '@/types'
+import type { ReadinessVerdict } from '@/lib/claude/briefing'
 
 interface Props {
   workout: Workout | null
@@ -30,6 +32,8 @@ const BRIEFING_CACHE_KEY = 'cycling_coach_briefing'
 
 export default function TodayCard({ workout, wellness, todayEvent, extraSessionCount, onWorkoutClick, onChatWithCoach }: Props) {
   const [coachNote, setCoachNote] = useState<string | null>(null)
+  const [verdict, setVerdict] = useState<ReadinessVerdict | null>(null)
+  const [headline, setHeadline] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   // workoutCompleted state recorded when the cached note was last generated
@@ -48,6 +52,8 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
           const cached = JSON.parse(raw)
           if (cached.date === today && cached.coach_note) {
             setCoachNote(cached.coach_note)
+            setVerdict(cached.verdict ?? null)
+            setHeadline(cached.headline ?? null)
             setCacheWorkoutCompleted(cached.workoutCompleted ?? false)
             setLoading(false)
             return
@@ -62,11 +68,15 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
       if (res.ok) {
         const data = await res.json()
         setCoachNote(data.coach_note)
+        setVerdict(data.verdict ?? null)
+        setHeadline(data.headline ?? null)
         setCacheWorkoutCompleted(isCompleted)
         try {
           localStorage.setItem(BRIEFING_CACHE_KEY, JSON.stringify({
             date: today,
             coach_note: data.coach_note,
+            verdict: data.verdict ?? null,
+            headline: data.headline ?? null,
             workoutCompleted: isCompleted,
           }))
         } catch { /* ignore storage errors */ }
@@ -184,6 +194,9 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
 
       {/* Coach note */}
       <div className="border-t border-slate-100 pt-3 space-y-2">
+        {!loading && verdict && headline && (
+          <ReadinessBadge verdict={verdict} headline={headline} />
+        )}
         {loading ? (
           <p className="text-sm text-slate-400">Getting your briefing…</p>
         ) : coachNote ? (
