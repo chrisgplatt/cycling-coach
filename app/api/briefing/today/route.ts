@@ -4,6 +4,7 @@ import { generateBriefing } from '@/lib/claude/briefing'
 import { fetchDossier } from '@/lib/claude/dossier'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatus } from '@/lib/hrv/server'
+import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch profile first so we can compute the user's local date from their stored timezone
   const { data: profile } = await supabase.from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key, events, timezone')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, events, timezone, latitude, longitude')
     .maybeSingle()
 
   const tz = (profile as { timezone?: string } | null)?.timezone ?? 'Europe/London'
@@ -34,13 +35,13 @@ export async function GET(req: NextRequest) {
   if (!refresh) {
     const { data: cached } = await supabase
       .from('daily_briefings')
-      .select('coach_note, verdict, headline, generated_at')
+      .select('coach_note, verdict, headline, weather, generated_at')
       .eq('user_id', user.id)
       .eq('date', today)
       .maybeSingle()
     if (cached) return NextResponse.json({
       coach_note: cached.coach_note, verdict: cached.verdict ?? null,
-      headline: cached.headline ?? null, cached: true,
+      headline: cached.headline ?? null, weather: cached.weather ?? null, cached: true,
     })
   }
 
@@ -138,6 +139,13 @@ export async function GET(req: NextRequest) {
     } catch { /* if ICU unavailable, proceed without ride data */ }
   }
 
+  const lat = (profile as { latitude?: number } | null)?.latitude
+  const lon = (profile as { longitude?: number } | null)?.longitude
+  let weather: BriefingContext['weather'] = null
+  if (!workoutCompleted && typeof lat === 'number' && typeof lon === 'number') {
+    weather = await fetchDailyForecast(lat, lon, today, tz)
+  }
+
   const ctx: BriefingContext = {
     today,
     todayWorkout,
@@ -156,6 +164,7 @@ export async function GET(req: NextRequest) {
     upcomingEvents,
     upcomingWorkouts: (upcomingWorkoutsData ?? []) as BriefingContext['upcomingWorkouts'],
     dossier,
+    weather,
   }
 
   const { coach_note, verdict, headline } = await generateBriefing(ctx)
@@ -163,9 +172,9 @@ export async function GET(req: NextRequest) {
   await supabase
     .from('daily_briefings')
     .upsert(
-      { user_id: user.id, date: today, coach_note, verdict, headline, generated_at: new Date().toISOString() },
+      { user_id: user.id, date: today, coach_note, verdict, headline, weather, generated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     )
 
-  return NextResponse.json({ coach_note, verdict, headline, cached: false, ctl, atl, tsb, hrv, readiness_label: readinessLabel(tsb) })
+  return NextResponse.json({ coach_note, verdict, headline, weather, cached: false, ctl, atl, tsb, hrv, readiness_label: readinessLabel(tsb) })
 }
