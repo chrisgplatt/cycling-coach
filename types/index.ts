@@ -57,6 +57,9 @@ export interface UserProfile {
   notifications_enabled?: boolean
   notification_time?: string       // HH:MM 24h, e.g. "07:00"
   timezone?: string                // IANA tz, e.g. "Europe/London"
+  location_label?: string
+  latitude?: number
+  longitude?: number
 }
 
 export interface TrainingPlan {
@@ -321,6 +324,22 @@ export interface WorkoutStep {
   cadence?: number
 }
 
+export interface WeatherSummary {
+  temp_min_c: number
+  temp_max_c: number
+  precip_prob_pct: number   // daily max precipitation probability (0–100)
+  wind_max_kph: number      // daily max sustained wind
+  gust_max_kph: number      // daily max wind gust
+  weather_code: number      // WMO weather interpretation code
+  description: string        // human label derived from weather_code
+}
+
+export interface GeocodeMatch {
+  label: string
+  latitude: number
+  longitude: number
+}
+
 // Claude structured output types
 export interface GeneratedPlan {
   rationale: string
@@ -373,6 +392,7 @@ export interface BriefingContext {
   upcomingWorkouts?: Array<{ date: string; type: string; duration_minutes: number; description: string }>
   activeUnavailability?: Array<{ type: string; end_date: string; notes?: string }>
   today: string  // YYYY-MM-DD in user's local timezone
+  weather?: WeatherSummary | null
   dossier?: {
     synthesized_at: string
     content: {
