@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
 
     const { data: existing } = await supabase
       .from('daily_briefings')
-      .select('id, coach_note, notification_sent_at')
+      .select('id, coach_note, verdict, headline, notification_sent_at')
       .eq('user_id', profile.user_id)
       .eq('date', today)
       .maybeSingle()
@@ -185,9 +185,14 @@ export async function GET(req: NextRequest) {
     }
 
     let coach_note = existing?.coach_note ?? null
+    let verdict: string | null = existing?.verdict ?? null
+    let headline: string | null = existing?.headline ?? null
     if (!coach_note) {
       try {
-        coach_note = await generateBriefing(ctx)
+        const briefing = await generateBriefing(ctx)
+        coach_note = briefing.coach_note
+        verdict = briefing.verdict
+        headline = briefing.headline
         console.log(`[cron] user ${profile.user_id}: briefing generated (${coach_note.length} chars)`)
         await log(profile.user_id, 'briefing_generated', 'ok', { chars: coach_note.length, date: today })
       } catch (err) {
@@ -204,7 +209,7 @@ export async function GET(req: NextRequest) {
     await supabase
       .from('daily_briefings')
       .upsert(
-        { user_id: profile.user_id, date: today, coach_note, notification_sent_at: nowISO, generated_at: nowISO },
+        { user_id: profile.user_id, date: today, coach_note, verdict, headline, notification_sent_at: nowISO, generated_at: nowISO },
         { onConflict: 'user_id,date' }
       )
 

@@ -34,11 +34,14 @@ export async function GET(req: NextRequest) {
   if (!refresh) {
     const { data: cached } = await supabase
       .from('daily_briefings')
-      .select('coach_note, generated_at')
+      .select('coach_note, verdict, headline, generated_at')
       .eq('user_id', user.id)
       .eq('date', today)
       .maybeSingle()
-    if (cached) return NextResponse.json({ coach_note: cached.coach_note, cached: true })
+    if (cached) return NextResponse.json({
+      coach_note: cached.coach_note, verdict: cached.verdict ?? null,
+      headline: cached.headline ?? null, cached: true,
+    })
   }
 
   const fiveDaysLater = new Date(Date.now() + 5 * 864e5).toISOString().split('T')[0]
@@ -155,14 +158,14 @@ export async function GET(req: NextRequest) {
     dossier,
   }
 
-  const coach_note = await generateBriefing(ctx)
+  const { coach_note, verdict, headline } = await generateBriefing(ctx)
 
   await supabase
     .from('daily_briefings')
     .upsert(
-      { user_id: user.id, date: today, coach_note, generated_at: new Date().toISOString() },
+      { user_id: user.id, date: today, coach_note, verdict, headline, generated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' }
     )
 
-  return NextResponse.json({ coach_note, cached: false, ctl, atl, tsb, hrv, readiness_label: readinessLabel(tsb) })
+  return NextResponse.json({ coach_note, verdict, headline, cached: false, ctl, atl, tsb, hrv, readiness_label: readinessLabel(tsb) })
 }

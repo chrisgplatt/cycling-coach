@@ -101,7 +101,7 @@ export async function POST() {
 
   let coach_note: string
   try {
-    coach_note = await generateBriefing(ctx)
+    coach_note = (await generateBriefing(ctx)).coach_note
     await log('briefing_generated', 'ok', { chars: coach_note.length })
   } catch (err) {
     await log('briefing_failed', 'error', { error: String(err) })
