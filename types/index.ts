@@ -154,6 +154,17 @@ export interface SessionFeedback {
   created_at: string
 }
 
+export interface CoachingLogEntry {
+  id: string
+  created_at: string             // when feedback was logged (ISO)
+  session_date: string | null    // linked workout date (YYYY-MM-DD), null for manual feedback
+  session_type: string | null    // linked workout type, null for manual feedback
+  feedback_text: string
+  summary: string | null         // proposed_adjustment?.summary ?? null
+  approved: boolean | null        // adaptation outcome
+  had_proposal: boolean          // proposed_adjustment !== null
+}
+
 export interface FTPPrediction {
   id: string
   predicted_ftp: number
