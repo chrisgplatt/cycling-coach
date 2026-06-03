@@ -15,6 +15,7 @@ import FitnessTrendChart from '@/components/plan/FitnessTrendChart'
 import CoachingLog from '@/components/plan/CoachingLog'
 import { resolvePhases } from '@/lib/plan/phases'
 import { buildWeekBuckets, weekState, consistency, planHours } from '@/lib/plan/progress'
+import { buildForecast, daysBetweenUtc, addDaysUtc } from '@/lib/plan/forecast'
 import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase, CoachingLogEntry } from '@/types'
 import { periodDurationDays } from '@/lib/utils/unavailability'
 
@@ -501,6 +502,18 @@ export default function PlanPage() {
           const fitPoints = (syncData?.wellness ?? [])
             .filter(w => planStart && w.id >= planStart && w.ctl != null)
             .map(w => ({ date: w.id, ctl: w.ctl as number, form: w.form ?? 0 }))
+          const today = new Date().toISOString().split('T')[0]
+          const startCtl = fitPoints.length ? fitPoints[fitPoints.length - 1].ctl : null
+          const planEnd = planStart && totalWeeks > 0 ? addDaysUtc(planStart, totalWeeks * 7) : ''
+          const horizonTarget = planTargetDate && planTargetDate > today
+            ? planTargetDate
+            : planEnd
+          const horizonDays = startCtl != null && horizonTarget
+            ? Math.max(0, daysBetweenUtc(today, horizonTarget))
+            : 0
+          const forecast = startCtl != null && buckets.length > 0 && horizonDays > 0
+            ? buildForecast({ startCtl, buckets, planStart, today, horizonDays, hitPct: cons.hitPct })
+            : null
           return (
             <div className="space-y-4">
               <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl p-5 text-white shadow-md">
@@ -535,7 +548,7 @@ export default function PlanPage() {
               {buckets.length > 0 && (
                 <LoadComparisonChart weeks={buckets} currentWeek={currentWeek} />
               )}
-              <FitnessTrendChart points={fitPoints} />
+              <FitnessTrendChart points={fitPoints} forecast={forecast} />
               <CoachingLog entries={coachingLog} />
 
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
