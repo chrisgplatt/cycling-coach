@@ -19,4 +19,11 @@ describe('formatDossierFeedbackSection', () => {
   it('returns the empty-state string when there is no feedback', () => {
     expect(formatDossierFeedbackSection([])).toBe('No session feedback recorded.')
   })
+
+  it('omits the empty quotes when only structured signal is present', () => {
+    const out = formatDossierFeedbackSection([
+      { created_at: '2026-06-01T18:00:00Z', feedback_text: '', rpe: 5 },
+    ])
+    expect(out).toBe('2026-06-01: RPE 5/10')
+  })
 })

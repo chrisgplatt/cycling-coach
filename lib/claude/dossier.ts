@@ -12,7 +12,9 @@ export function formatDossierFeedbackSection(feedbacks: DossierFeedback[]): stri
   return feedbacks
     .map(f => {
       const sig = formatReportedSignals(f)
-      return `${f.created_at.slice(0, 10)}: ${sig ? sig + ' ' : ''}"${f.feedback_text}"`
+      const text = f.feedback_text.trim() ? `"${f.feedback_text}"` : ''
+      const body = [sig, text].filter(Boolean).join(' ')
+      return `${f.created_at.slice(0, 10)}: ${body}`
     })
     .join('\n')
 }
