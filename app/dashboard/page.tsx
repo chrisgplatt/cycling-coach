@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
 import FeedbackModal from '@/components/FeedbackModal'
+import RpeTrendStrip from '@/components/RpeTrendStrip'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback, ICUActivity } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
@@ -434,6 +435,8 @@ export default function DashboardPage() {
           onChatWithCoach={todayWorkout ? () => setChatWorkout(todayWorkout) : undefined}
         />
       </div>
+
+      <RpeTrendStrip />
 
       {latestWellness && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-200">
