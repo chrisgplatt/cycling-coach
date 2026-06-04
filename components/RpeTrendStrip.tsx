@@ -9,9 +9,9 @@ export default function RpeTrendStrip() {
   useEffect(() => {
     let active = true
     fetch('/api/feedback')
-      .then(r => r.json())
-      .then((d: { entries?: Entry[] }) => {
-        if (!active) return
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { entries?: Entry[] } | null) => {
+        if (!active || !d) return
         // entries arrive newest-first; reverse to chronological, keep RPE values only
         const rpes = (d.entries ?? [])
           .slice()
