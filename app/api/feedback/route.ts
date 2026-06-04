@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const { toCoachingLogEntries } = await import('@/lib/plan/coaching-log')
     const { data: rows } = await supabase
       .from('session_feedback')
-      .select('id, created_at, workout_id, feedback_text, proposed_adjustment, approved')
+      .select('id, created_at, workout_id, feedback_text, proposed_adjustment, approved, rpe, feel')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(8)
@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { workoutId, activityId, feedbackText, activityTSS, activityAvgPower, activityAvgHR, adapt } = await req.json()
+  const { workoutId, activityId, feedbackText, activityTSS, activityAvgPower, activityAvgHR, adapt,
+          rpe, feel, completion, tags, mood } = await req.json()
 
   const shouldAdapt = adapt !== false
 
@@ -94,6 +95,7 @@ export async function POST(req: NextRequest) {
       events,
       formatDossier(dossier as AthleteDossier | null),
       rideExecution,
+      { rpe: rpe ?? null, feel: feel ?? null, completion: completion ?? null, tags: tags ?? null },
     )
   }
 
@@ -106,12 +108,31 @@ export async function POST(req: NextRequest) {
       activity_tss: activityTSS ?? null,
       activity_avg_power: activityAvgPower ?? null,
       activity_avg_hr: activityAvgHR ?? null,
+      rpe: rpe ?? null,
+      feel: feel ?? null,
+      completion: completion ?? null,
+      tags: tags ?? null,
+      mood: mood ?? null,
       proposed_adjustment: proposed,
       approved: null,
       user_id: user.id,
     })
     .select()
     .single()
+
+  // Push perceived effort + feel to the linked intervals.icu activity. Best-effort:
+  // skipped for manual entries and silently ignored on any failure.
+  if (activityId && activityId !== 'manual' && (rpe != null || feel != null)) {
+    const { data: icuProfile } = await supabase
+      .from('user_profile')
+      .select('intervals_icu_athlete_id, intervals_icu_api_key')
+      .maybeSingle()
+    if (icuProfile?.intervals_icu_athlete_id && icuProfile?.intervals_icu_api_key) {
+      await new IntervalsClient(icuProfile.intervals_icu_athlete_id, icuProfile.intervals_icu_api_key)
+        .updateActivityFeel(activityId, { rpe: rpe ?? null, feel: feel ?? null })
+        .catch(() => {})
+    }
+  }
 
   return NextResponse.json({ feedback, proposed })
 }
