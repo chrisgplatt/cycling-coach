@@ -32,6 +32,13 @@ describe('FeedbackModal structured capture', () => {
     expect(body).toMatchObject({ workoutId: 'w1', rpe: 8, completion: 'cut_short', adapt: false })
   })
 
+  it('calls onClose when Cancel is clicked', () => {
+    const onClose = jest.fn()
+    render(<FeedbackModal workout={workout} onClose={onClose} />)
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
   it('seeds structured fields from initialFeedback in edit mode', () => {
     render(<FeedbackModal workout={workout} onClose={() => {}} initialFeedback={{
       id: 'f1', workout_id: 'w1', activity_id: 'a1', feedback_text: 'tough',

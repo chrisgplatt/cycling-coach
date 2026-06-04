@@ -114,7 +114,7 @@ export default function FeedbackModal({ workout, onClose, initialFeedback }: Pro
               aria-label={`RPE ${n}`}
               aria-pressed={rpe === n}
               onClick={() => setRpe(rpe === n ? null : n)}
-              className={`py-2.5 rounded-lg text-sm border transition-colors ${rpe === n ? segOn : segOff}`}
+              className={`py-3 rounded-lg text-sm border transition-colors ${rpe === n ? segOn : segOff}`}
             >
               {n}
             </button>
