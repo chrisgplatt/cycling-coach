@@ -1,4 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { ReportedSignals } from '@/types'
+import { formatReportedSignals } from './feedback-signals'
+
+export interface DossierFeedback extends ReportedSignals {
+  created_at: string
+  feedback_text: string
+}
+
+export function formatDossierFeedbackSection(feedbacks: DossierFeedback[]): string {
+  if (!feedbacks.length) return 'No session feedback recorded.'
+  return feedbacks
+    .map(f => {
+      const sig = formatReportedSignals(f)
+      return `${f.created_at.slice(0, 10)}: ${sig ? sig + ' ' : ''}"${f.feedback_text}"`
+    })
+    .join('\n')
+}
 
 export interface DossierContent {
   as_rider: string
@@ -84,7 +101,7 @@ export async function generateDossier(
     missed_reason: string | null
     metrics_summary?: string | null
   }>,
-  feedbacks: Array<{ created_at: string; feedback_text: string }>,
+  feedbacks: DossierFeedback[],
   eventResults: TrainingEvent[],
   chatMessages: Array<{ role: string; content: string }>,
 ): Promise<DossierContent> {
@@ -96,9 +113,7 @@ export async function generateDossier(
         .join('\n')
     : 'No completed sessions recorded.'
 
-  const feedbackSection = feedbacks.length
-    ? feedbacks.map(f => `${f.created_at.slice(0, 10)}: "${f.feedback_text}"`).join('\n')
-    : 'No session feedback recorded.'
+  const feedbackSection = formatDossierFeedbackSection(feedbacks)
 
   const eventsSection = eventResults.length
     ? eventResults

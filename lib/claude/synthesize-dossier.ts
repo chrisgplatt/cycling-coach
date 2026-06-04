@@ -33,7 +33,7 @@ export async function synthesizeDossier(
         .gte('date', ninetyDaysAgoDate)
         .order('date'),
       supabase.from('session_feedback')
-        .select('created_at, feedback_text')
+        .select('created_at, feedback_text, rpe, feel, completion, tags')
         .eq('user_id', profile.user_id)
         .gte('created_at', ninetyDaysAgoTs)
         .order('created_at'),
@@ -67,7 +67,7 @@ export async function synthesizeDossier(
       tss: w.tss, status: w.status, missed_reason: w.missed_reason,
       metrics_summary: w.activity_metrics ? formatActivityMetrics(w.activity_metrics) : null,
     })),
-    (feedbacks ?? []) as Array<{ created_at: string; feedback_text: string }>,
+    (feedbacks ?? []) as import('./dossier').DossierFeedback[],
     eventResults,
     [...((chatMessages ?? []) as Array<{ role: string; content: string }>)].reverse(),
   )
