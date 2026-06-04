@@ -1,5 +1,6 @@
 import { anthropic, MODEL } from './client'
-import type { Workout, ProposedAdjustment, TrainingEvent } from '@/types'
+import type { Workout, ProposedAdjustment, TrainingEvent, FeedbackCompletion, FeedbackTag } from '@/types'
+import { formatReportedSignals } from './feedback-signals'
 
 const SYSTEM_PROMPT = `You are an expert cycling coach analysing post-session feedback to adjust upcoming training.
 Always respond with ONLY valid JSON. No markdown, no text outside the JSON.`
@@ -14,6 +15,12 @@ export async function analyseFeedback(
   events: TrainingEvent[] = [],
   dossierSection = '',
   rideExecution = '',
+  reported: {
+    rpe?: number | null
+    feel?: number | null
+    completion?: FeedbackCompletion | null
+    tags?: FeedbackTag[] | null
+  } = {},
 ): Promise<ProposedAdjustment> {
   const upcoming = upcomingWorkouts
     .map(w => `- ID ${w.id}: ${w.date} ${w.type} ${w.duration_minutes}min — ${w.description}`)
@@ -27,13 +34,15 @@ export async function analyseFeedback(
     ? upcomingEvents.map(e => `- ${e.date}: ${e.name} (${e.type}, priority ${e.priority})`).join('\n')
     : 'None'
 
+  const signalsLine = formatReportedSignals(reported)
+
   const prompt = `Planned workout: ${plannedWorkout.date} ${plannedWorkout.type} ${plannedWorkout.duration_minutes}min
 Description: ${plannedWorkout.description}
 Target: ${plannedWorkout.target_zones}
 
 Actual: TSS ${actualTSS ?? 'unknown'}, Avg power ${actualAvgPower ?? 'unknown'}W, Avg HR ${actualAvgHR ?? 'unknown'}bpm
 ${rideExecution ? `\n${rideExecution}\n` : ''}
-Athlete feedback: "${feedbackText}"
+${signalsLine ? `Athlete-reported: ${signalsLine}\n` : ''}Athlete feedback: "${feedbackText}"
 
 ${dossierSection ? dossierSection + '\n\n' : ''}Upcoming events (races, sportives, holidays — never propose workouts on these dates):
 ${eventsSection}
