@@ -183,19 +183,16 @@ export class IntervalsClient {
 
   // Write the athlete's perceived effort + feel onto a completed activity.
   // intervals.icu activity fields: `icu_rpe` is 1–10 (higher = harder, same
-  // direction as ours). `feel` is 1–5 where 5 = best/strongest; our internal
-  // scale is 1 = freshest/best → 5 = empty/worst (matching the 😀→😵 faces),
-  // so we invert with `6 - feel`.
-  // VERIFY AT BUILD TIME: confirm intervals.icu's `feel` direction against the
-  // live API (GET an activity you have rated in the ICU UI and inspect `feel`).
-  // If their 1 is "best", drop the inversion and send `feel` directly.
+  // direction as ours). `feel` is 1–5 where 1 = Strong, 2 = Good, 3 = Moderate,
+  // 4 = Bad, 5 = Weak — the SAME direction as our internal scale (1 = freshest
+  // 😀 → 5 = empty 😵), so feel is sent through directly with no conversion.
   async updateActivityFeel(
     activityId: string,
     p: { rpe?: number | null; feel?: number | null },
   ): Promise<void> {
     const body: Record<string, unknown> = {}
     if (p.rpe != null) body.icu_rpe = p.rpe
-    if (p.feel != null) body.feel = 6 - p.feel
+    if (p.feel != null) body.feel = p.feel
     if (!Object.keys(body).length) return
     await this.request(`/activity/${activityId}`, {
       method: 'PUT',
