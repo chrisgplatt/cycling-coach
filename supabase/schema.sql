@@ -78,8 +78,16 @@ create table if not exists session_feedback (
   activity_avg_hr numeric,
   proposed_adjustment jsonb,
   approved boolean,
+  rpe smallint,
+  feel smallint,
+  completion text,
+  tags text[],
+  mood smallint,
   created_at timestamptz not null default now()
 );
+
+-- Migration for existing installations (session_feedback structured fields):
+-- see supabase/migrations/20260604_feedback_structured.sql
 
 create table if not exists ftp_predictions (
   id uuid primary key default gen_random_uuid(),

@@ -144,6 +144,9 @@ export interface SessionWeekProposal {
   rationale: string
 }
 
+export type FeedbackCompletion = 'as_planned' | 'cut_short' | 'went_harder' | 'modified'
+export type FeedbackTag = 'niggle' | 'illness' | 'poor_sleep' | 'mechanical' | 'weather' | 'fuelling'
+
 export interface SessionFeedback {
   id: string
   workout_id: string | null
@@ -155,6 +158,11 @@ export interface SessionFeedback {
   proposed_adjustment: ProposedAdjustment | null
   approved: boolean | null
   created_at: string
+  rpe: number | null
+  feel: number | null
+  completion: FeedbackCompletion | null
+  tags: FeedbackTag[] | null
+  mood: number | null
 }
 
 export interface CoachingLogEntry {
