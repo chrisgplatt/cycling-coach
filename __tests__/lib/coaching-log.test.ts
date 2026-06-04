@@ -3,7 +3,8 @@ import type { FeedbackRow, WorkoutRef } from '@/lib/plan/coaching-log'
 
 const row = (over: Partial<FeedbackRow>): FeedbackRow => ({
   id: 'f1', created_at: '2026-06-02T18:00:00Z', workout_id: 'w1',
-  feedback_text: 'legs felt flat', proposed_adjustment: null, approved: null, ...over,
+  feedback_text: 'legs felt flat', proposed_adjustment: null, approved: null,
+  rpe: null, feel: null, ...over,
 })
 
 const workouts = new Map<string, WorkoutRef>([
@@ -14,14 +15,14 @@ describe('toCoachingLogEntries', () => {
   it('joins the workout date/type and derives summary + had_proposal', () => {
     const rows: FeedbackRow[] = [row({
       proposed_adjustment: { summary: 'eased Wed intervals', changes: [] },
-      approved: true,
+      approved: true, rpe: 7, feel: 2,
     })]
     const [entry] = toCoachingLogEntries(rows, workouts)
     expect(entry).toEqual({
       id: 'f1', created_at: '2026-06-02T18:00:00Z',
       session_date: '2026-06-02', session_type: 'threshold',
       feedback_text: 'legs felt flat', summary: 'eased Wed intervals',
-      approved: true, had_proposal: true,
+      approved: true, had_proposal: true, rpe: 7, feel: 2,
     })
   })
 

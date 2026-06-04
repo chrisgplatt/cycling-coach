@@ -7,6 +7,8 @@ export interface FeedbackRow {
   feedback_text: string
   proposed_adjustment: ProposedAdjustment | null
   approved: boolean | null
+  rpe: number | null
+  feel: number | null
 }
 
 export interface WorkoutRef {
@@ -30,6 +32,8 @@ export function toCoachingLogEntries(
       summary: r.proposed_adjustment?.summary ?? null,
       approved: r.approved,
       had_proposal: r.proposed_adjustment !== null,
+      rpe: r.rpe,
+      feel: r.feel,
     }
   })
 }

@@ -6,7 +6,7 @@ const entry = (over: Partial<CoachingLogEntry>): CoachingLogEntry => ({
   id: 'f1', created_at: '2026-06-02T18:00:00Z',
   session_date: '2026-06-02', session_type: 'threshold',
   feedback_text: 'legs felt flat', summary: 'eased Wed intervals',
-  approved: true, had_proposal: true, ...over,
+  approved: true, had_proposal: true, rpe: null, feel: null, ...over,
 })
 
 it('renders the empty state when there are no entries', () => {

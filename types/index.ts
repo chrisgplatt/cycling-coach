@@ -181,6 +181,8 @@ export interface CoachingLogEntry {
   summary: string | null         // proposed_adjustment?.summary ?? null
   approved: boolean | null        // adaptation outcome
   had_proposal: boolean          // proposed_adjustment !== null
+  rpe: number | null
+  feel: number | null
 }
 
 export interface FTPPrediction {
