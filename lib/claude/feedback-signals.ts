@@ -1,4 +1,4 @@
-import type { FeedbackCompletion, FeedbackTag } from '@/types'
+import type { FeedbackCompletion, ReportedSignals } from '@/types'
 
 const COMPLETION_LABEL: Record<FeedbackCompletion, string> = {
   as_planned: 'completed as planned',
@@ -12,12 +12,7 @@ const COMPLETION_LABEL: Record<FeedbackCompletion, string> = {
  * adaptation analyser and the dossier synthesiser. Returns '' when nothing was
  * reported so callers can omit the line entirely.
  */
-export function formatReportedSignals(s: {
-  rpe?: number | null
-  feel?: number | null
-  completion?: FeedbackCompletion | null
-  tags?: FeedbackTag[] | null
-}): string {
+export function formatReportedSignals(s: ReportedSignals): string {
   const parts: string[] = []
   if (s.rpe != null) parts.push(`RPE ${s.rpe}/10`)
   if (s.feel != null) parts.push(`legs ${s.feel}/5`)

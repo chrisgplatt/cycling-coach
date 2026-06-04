@@ -1,5 +1,5 @@
 import { anthropic, MODEL } from './client'
-import type { Workout, ProposedAdjustment, TrainingEvent, FeedbackCompletion, FeedbackTag } from '@/types'
+import type { Workout, ProposedAdjustment, TrainingEvent, ReportedSignals } from '@/types'
 import { formatReportedSignals } from './feedback-signals'
 
 const SYSTEM_PROMPT = `You are an expert cycling coach analysing post-session feedback to adjust upcoming training.
@@ -15,12 +15,7 @@ export async function analyseFeedback(
   events: TrainingEvent[] = [],
   dossierSection = '',
   rideExecution = '',
-  reported: {
-    rpe?: number | null
-    feel?: number | null
-    completion?: FeedbackCompletion | null
-    tags?: FeedbackTag[] | null
-  } = {},
+  reported: ReportedSignals = {},
 ): Promise<ProposedAdjustment> {
   const upcoming = upcomingWorkouts
     .map(w => `- ID ${w.id}: ${w.date} ${w.type} ${w.duration_minutes}min — ${w.description}`)
