@@ -50,6 +50,48 @@ describe('IntervalsClient', () => {
     expect(id).toBe('evt123')
   })
 
+  it('createEvent prepends a coach note above the prose and notation', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'evtN' }) })
+
+    await client.createEvent({
+      date: '2026-05-15',
+      name: 'Threshold',
+      description: 'Target: Zone 4',
+      duration_minutes: 60,
+      note: 'Settle into a strong, smooth rhythm and hold it steady.',
+      steps: [{ label: 'Main Set', duration_minutes: 40, power_pct_ftp: 95 }],
+    })
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    expect(body.description.startsWith('Settle into a strong, smooth rhythm and hold it steady.')).toBe(true)
+    // note sits above both the prose and the step notation
+    expect(body.description.indexOf('Settle')).toBeLessThan(body.description.indexOf('Target: Zone 4'))
+    expect(body.description.indexOf('Target: Zone 4')).toBeLessThan(body.description.indexOf('---'))
+  })
+
+  it('createEvent truncates a coach note longer than 200 chars on a word boundary', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'evtN2' }) })
+
+    const long = ('alpha bravo charlie delta echo foxtrot golf hotel '.repeat(6)).trim() // ~294 chars
+    await client.createEvent({
+      date: '2026-05-15', name: 'X', description: 'Prose body', duration_minutes: 30, note: long,
+    })
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    const firstBlock = body.description.split('\n\n')[0]
+    expect(firstBlock.length).toBeLessThanOrEqual(200)
+    expect(firstBlock.endsWith('…')).toBe(true)
+    // cut fell on a word boundary: the kept text is a whole-word prefix of the note
+    expect(long.startsWith(firstBlock.slice(0, -1))).toBe(true)
+  })
+
+  it('createEvent omits the note block when no note is given', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'evtN3' }) })
+    await client.createEvent({ date: '2026-05-15', name: 'X', description: 'Prose body', duration_minutes: 30 })
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    expect(body.description).toBe('Prose body')
+  })
+
   it('throws on non-ok response', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 403, text: async () => 'Forbidden' })
     await expect(client.getAthlete()).rejects.toThrow('intervals.icu API error 403')
@@ -182,13 +224,13 @@ describe('IntervalsClient', () => {
     expect(ivs).toEqual([])
   })
 
-  it('createEvent tags warm-up and interval recoveries with press lap', async () => {
+  it('createEvent gates the warm-up and every recovery before a hard effort', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'evt789' }) })
 
     await client.createEvent({
       date: '2026-05-15',
       name: 'VO2 Session',
-      description: '5x3min VO2',
+      description: '3x3min VO2',
       duration_minutes: 60,
       steps: [
         { label: 'Warm Up', duration_minutes: 12, power_pct_ftp: 60 },
@@ -196,6 +238,7 @@ describe('IntervalsClient', () => {
         { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
         { label: 'Work', duration_minutes: 3, power_pct_ftp: 115 },
         { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
+        { label: 'Work', duration_minutes: 3, power_pct_ftp: 115 },
         { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 55 },
       ],
     })
@@ -203,16 +246,19 @@ describe('IntervalsClient', () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body)
     // Warm-up runs its time, then a lap gate holds until the rider presses lap
     expect(body.description).toContain('Warm Up\n- 12m 60%\n- 10s 60% press lap')
-    // Reps are unrolled into standalone blocks so each recovery lap gate is honoured
-    // (a gate nested in a "Main Set Nx" repeat advances unreliably on head units)
-    expect(body.description).toContain('Work 1\n- 3m 115%\n- 3m 50%\n- 10s 50% press lap')
-    expect(body.description).toContain('Work 2\n- 3m 115%\n- 3m 50%\n- 10s 50% press lap')
-    expect(body.description).not.toContain('Main Set 2x\n- 3m 115%')
+    // Each recovery before a hard effort is its OWN block ending in a lap gate —
+    // the same proven two-line shape as the warm-up (a gate buried after the work
+    // leg in one multi-step block advances unreliably on head units).
+    expect(body.description).toContain('Work\n- 3m 115%')
+    expect(body.description).toContain('Recovery\n- 3m 50%\n- 10s 50% press lap')
+    expect(body.description).not.toContain('Main Set')
     // The work leg never gets a lap gate
     expect(body.description).not.toContain('115% press lap')
+    // warm-up + both inter-effort recoveries
+    expect((body.description.match(/press lap/g) ?? []).length).toBe(3)
     // Cool down stays timed
     expect(body.description).toContain('Cool Down\n- 10m 55%')
-    expect(body.description).not.toContain('Cool Down\n- 10m 55% press lap')
+    expect(body.description).not.toContain('55% press lap')
   })
 
   it('getActivityStreams calls the streams endpoint and normalises channels', async () => {
@@ -246,7 +292,7 @@ describe('buildWorkoutNotation press-lap tagging', () => {
     expect(out).not.toContain('68% press lap')
   })
 
-  it('unrolls a work/recovery set so every recovery lap gate is standalone', () => {
+  it('gives each recovery before a hard effort its own standalone gated block', () => {
     const steps: WorkoutStep[] = [
       { label: 'Warm Up', duration_minutes: 12, power_pct_ftp: 60 },
       { label: 'Work', duration_minutes: 3, power_pct_ftp: 120 },
@@ -256,17 +302,41 @@ describe('buildWorkoutNotation press-lap tagging', () => {
       { label: 'Work', duration_minutes: 3, power_pct_ftp: 120 },
       { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
       { label: 'Work', duration_minutes: 3, power_pct_ftp: 120 },
-      { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
       { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 55 },
     ]
     const out = buildWorkoutNotation(steps)
-    // No repeat block — four standalone rep blocks, each ending in a lap gate
-    expect(out).not.toContain('Main Set 4x')
-    expect(out).toContain('Work 1\n- 3m 120%\n- 3m 50%\n- 10s 50% press lap')
-    expect(out).toContain('Work 4\n- 3m 120%\n- 3m 50%\n- 10s 50% press lap')
-    expect((out.match(/press lap/g) ?? []).length).toBe(5) // warm-up + 4 recoveries
+    // Effort and recovery are separate blocks; the recovery block matches the
+    // proven warm-up shape (one timed step then the gate), not a 3-line block.
+    expect(out).not.toContain('Main Set')
+    expect(out).toContain('Work\n- 3m 120%')
+    expect(out).toContain('Recovery\n- 3m 50%\n- 10s 50% press lap')
+    // warm-up + 3 recoveries (each of the three recoveries precedes a hard effort)
+    expect((out.match(/press lap/g) ?? []).length).toBe(4)
     // The work leg itself is never gated
     expect(out).not.toContain('120% press lap')
+  })
+
+  it('still gates recoveries when AI-generated reps vary slightly (the bug)', () => {
+    // Reps differ by a watt or a minute — the old exact-repeat detection failed
+    // here and dropped every recovery gate, so the head unit rolled straight from
+    // recovery into the next interval.
+    const steps: WorkoutStep[] = [
+      { label: 'Warm Up', duration_minutes: 12, power_pct_ftp: 60 },
+      { label: 'Work', duration_minutes: 5, power_pct_ftp: 106 },
+      { label: 'Recovery', duration_minutes: 4, power_pct_ftp: 50 },
+      { label: 'Work', duration_minutes: 5, power_pct_ftp: 104 },
+      { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
+      { label: 'Work', duration_minutes: 4, power_pct_ftp: 105 },
+      { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 55 },
+    ]
+    const out = buildWorkoutNotation(steps)
+    expect(out).toContain('Recovery\n- 4m 50%\n- 10s 50% press lap')
+    expect(out).toContain('Recovery\n- 3m 50%\n- 10s 50% press lap')
+    expect(out).toContain('Work\n- 5m 106%')
+    expect(out).toContain('Work\n- 5m 104%')
+    // warm-up + both inter-effort recoveries — not just the warm-up
+    expect((out.match(/press lap/g) ?? []).length).toBe(3)
+    expect(out).not.toContain('106% press lap')
   })
 
   it('does not tag the second leg of an over/under set (recovery leg is harder)', () => {

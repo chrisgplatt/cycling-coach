@@ -233,6 +233,7 @@ export async function PATCH(req: NextRequest) {
         description: `Plan: ${name}\n\n${w.description}\n\nTarget: ${w.target_zones}`,
         duration_minutes: w.duration_minutes,
         steps: w.steps,
+        note: w.coaching_notes?.summary,
       })
     } catch (err) {
       uploadErrors.push(`${w.date}: ${err instanceof Error ? err.message : String(err)}`)

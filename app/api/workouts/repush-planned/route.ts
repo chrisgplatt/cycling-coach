@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
-import type { WorkoutStep } from '@/types'
+import type { WorkoutStep, CoachingNotes } from '@/types'
 
 // Re-pushes every planned workout's structured steps to intervals.icu so they pick
 // up the current workout-notation format (e.g. open-ended `press lap` warm-ups and
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const today = new Date().toISOString().slice(0, 10)
   let query = supabase
     .from('workouts')
-    .select('id, date, type, duration_minutes, description, target_zones, steps, intervals_icu_event_id')
+    .select('id, date, type, duration_minutes, description, target_zones, steps, intervals_icu_event_id, coaching_notes')
     .eq('status', 'planned')
     .order('date', { ascending: true })
   if (!includePast) query = query.gte('date', today)
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
 
     const name = `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`
     const description = `${w.description}\n\nTarget: ${w.target_zones}`
+    const note = (w.coaching_notes as CoachingNotes | null)?.summary
 
     try {
       if (w.intervals_icu_event_id) {
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
           description,
           duration_minutes: w.duration_minutes,
           steps,
+          note,
         })
         results.updated++
       } else {
@@ -69,6 +71,7 @@ export async function POST(req: NextRequest) {
           description,
           duration_minutes: w.duration_minutes,
           steps,
+          note,
         })
         await supabase.from('workouts').update({ intervals_icu_event_id: newEventId }).eq('id', w.id)
         results.created++

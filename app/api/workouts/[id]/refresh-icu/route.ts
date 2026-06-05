@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { generateWorkoutSteps } from '@/lib/claude/steps'
-import type { Workout, WorkoutStep } from '@/types'
+import type { Workout, WorkoutStep, CoachingNotes } from '@/types'
 
 export async function POST(
   _req: NextRequest,
@@ -63,6 +63,7 @@ export async function POST(
       description,
       duration_minutes: workout.duration_minutes,
       steps: steps.length ? steps : undefined,
+      note: (workout.coaching_notes as CoachingNotes | null)?.summary,
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
