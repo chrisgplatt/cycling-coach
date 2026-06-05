@@ -16,19 +16,27 @@ export async function synthesizeBeliefs(
 ): Promise<void> {
   const since = new Date(new Date(now).getTime() - 120 * 864e5).toISOString().slice(0, 10)
 
-  const [{ data: workoutData }, { data: feedbackData }, { data: beliefData }] = await Promise.all([
+  const [
+    { data: workoutData, error: workoutError },
+    { data: feedbackData, error: feedbackError },
+    { data: beliefData, error: beliefError },
+  ] = await Promise.all([
     supabase.from('workouts').select('id, date, type, tss, status')
       .eq('user_id', userId).gte('date', since).order('date'),
-    supabase.from('session_feedback').select('workout_id, rpe, feel, completion')
+    supabase.from('session_feedback').select('workout_id, rpe, feel, completion, created_at')
       .eq('user_id', userId).gte('created_at', since),
     supabase.from('athlete_beliefs').select('*').eq('user_id', userId),
   ])
+
+  const readError = workoutError ?? feedbackError ?? beliefError
+  if (readError) throw new Error(`synthesizeBeliefs read failed: ${readError.message}`)
 
   const workouts = (workoutData ?? []) as WorkoutRow[]
   const feedback = (feedbackData ?? []) as FeedbackRow[]
   const existing = (beliefData ?? []) as AthleteBelief[]
 
   const workoutById = new Map(workouts.map(w => [w.id, w]))
+  // feedback rows with no workout_id can't be linked to a session's intensity/recovery
   const fbByWorkout = new Map(feedback.filter(f => f.workout_id).map(f => [f.workout_id as string, f]))
 
   const candidates = buildGroundedBeliefs({
