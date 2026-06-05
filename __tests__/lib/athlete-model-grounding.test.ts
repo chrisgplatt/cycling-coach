@@ -19,7 +19,7 @@ describe('computeRampTolerance', () => {
     expect(out.pct).toBe(23)
   })
 
-  it('ignores weeks following a zero/blank week', () => {
+  it('treats a zero week as a baseline gap (does not ramp from it)', () => {
     const out = computeRampTolerance([0, 300, 330, 363])!
     expect(out.pct).toBe(10)
   })
@@ -107,5 +107,20 @@ describe('computeRecoveryProfile', () => {
     ]
     const out = computeRecoveryProfile(sessions)!
     expect(out.n).toBe(3)
+  })
+
+  it('reports null average feel when no post-hard day has a feel', () => {
+    const sessions = [
+      { date: day(1), isHard: true, completedWell: true, feel: null },
+      { date: day(2), isHard: false, completedWell: true, feel: null },
+      { date: day(3), isHard: true, completedWell: true, feel: null },
+      { date: day(4), isHard: false, completedWell: false, feel: null },
+      { date: day(5), isHard: true, completedWell: true, feel: null },
+      { date: day(6), isHard: false, completedWell: true, feel: null },
+    ]
+    const out = computeRecoveryProfile(sessions)!
+    expect(out.n).toBe(3)
+    expect(out.nextDayAvgFeel).toBeNull()
+    expect(out.nextDayCompletionRate).toBe(67)
   })
 })

@@ -60,6 +60,7 @@ export function computeRpeCalibration(
   const rated = sessions.filter(s => Number.isFinite(s.rpe) && Number.isFinite(s.targetPct))
   if (rated.length < 5) return null
   const diff = (s: { rpe: number; targetPct: number }) => s.rpe - expectedRpe(s.targetPct)
+  // Z3 tempo (76–90%) counts toward overall but not the easy/hard split intentionally
   const easy = rated.filter(s => s.targetPct <= 75)
   const hard = rated.filter(s => s.targetPct >= 91)
   return {
@@ -89,7 +90,7 @@ export function computeRecoveryProfile(
   const hardDates = new Set(sessions.filter(s => s.isHard).map(s => s.date))
   const postHard = sessions.filter(s => hardDates.has(prevDay(s.date)))
   if (postHard.length < 3) return null
-  const feels = postHard.map(s => s.feel).filter((v): v is number => v != null)
+  const feels = postHard.map(s => s.feel).filter((v): v is number => Number.isFinite(v))
   return {
     nextDayCompletionRate: Math.round(
       (postHard.filter(s => s.completedWell).length / postHard.length) * 100,
