@@ -442,3 +442,38 @@ export interface PushSubscriptionRecord {
   auth: string
   created_at: string
 }
+
+export type BeliefConfidence = 'low' | 'medium' | 'high'
+export type BeliefSource = 'ai' | 'athlete' | 'computed'
+export type BeliefStatus = 'active' | 'confirmed' | 'corrected' | 'dismissed' | 'superseded'
+
+export interface BeliefRevision {
+  value_text: string
+  confidence: BeliefConfidence
+  evidence: string
+  revised_at: string   // ISO timestamp
+  reason: string       // why it changed
+}
+
+export interface BeliefContradiction {
+  observed: string     // what fresh evidence suggests, conflicting with an athlete-set belief
+  noted_at: string     // ISO timestamp
+}
+
+export interface AthleteBelief {
+  id: string
+  user_id: string
+  key: string
+  label: string
+  value_text: string
+  value_data: Record<string, unknown> | null
+  confidence: BeliefConfidence
+  evidence: string
+  source: BeliefSource
+  status: BeliefStatus
+  first_observed: string
+  last_updated: string
+  last_confirmed: string | null
+  revisions: BeliefRevision[]
+  contradiction: BeliefContradiction | null
+}
