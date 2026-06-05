@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AthleteBelief } from '@/types'
 
+const CONFIDENCE_RANK: Record<AthleteBelief['confidence'], number> = { high: 3, medium: 2, low: 1 }
+
 // Active, non-dismissed beliefs for a user (mirrors fetchDossier).
 export async function fetchActiveBeliefs(
   supabase: SupabaseClient,
@@ -11,8 +13,10 @@ export async function fetchActiveBeliefs(
     .select('*')
     .eq('user_id', userId)
     .neq('status', 'dismissed')
-    .order('confidence', { ascending: false })
-  return (data as AthleteBelief[] | null) ?? []
+  // `confidence` is a text column — Postgres would order it alphabetically
+  // ('high' < 'low' < 'medium'), not by severity. Sort high→low here instead.
+  const beliefs = (data as AthleteBelief[] | null) ?? []
+  return beliefs.sort((a, b) => CONFIDENCE_RANK[b.confidence] - CONFIDENCE_RANK[a.confidence])
 }
 
 const CONFIDENCE_LABEL: Record<AthleteBelief['confidence'], string> = {

@@ -1,4 +1,4 @@
-import { formatAthleteModel } from '@/lib/claude/athlete-model'
+import { formatAthleteModel, fetchActiveBeliefs } from '@/lib/claude/athlete-model'
 import type { AthleteBelief } from '@/types'
 
 function belief(over: Partial<AthleteBelief>): AthleteBelief {
@@ -44,5 +44,31 @@ describe('formatAthleteModel', () => {
 
   it('returns empty string when every belief is dismissed', () => {
     expect(formatAthleteModel([belief({ status: 'dismissed' })])).toBe('')
+  })
+})
+
+describe('fetchActiveBeliefs', () => {
+  function fakeSupabase(rows: AthleteBelief[]) {
+    const qb = {
+      select: () => qb,
+      eq: () => qb,
+      neq: () => Promise.resolve({ data: rows }),
+    }
+    return { from: () => qb } as unknown as Parameters<typeof fetchActiveBeliefs>[0]
+  }
+
+  it('returns beliefs ordered high → low confidence', async () => {
+    const rows = [
+      belief({ key: 'a', confidence: 'low' }),
+      belief({ key: 'b', confidence: 'high' }),
+      belief({ key: 'c', confidence: 'medium' }),
+    ]
+    const out = await fetchActiveBeliefs(fakeSupabase(rows), 'u1')
+    expect(out.map(b => b.confidence)).toEqual(['high', 'medium', 'low'])
+  })
+
+  it('returns [] when the query yields no data', async () => {
+    const out = await fetchActiveBeliefs(fakeSupabase([] as AthleteBelief[]), 'u1')
+    expect(out).toEqual([])
   })
 })
