@@ -1,17 +1,10 @@
 'use client'
 import { useState } from 'react'
 import type { WorkoutStep } from '@/types'
-
-// Power-zone colour ramp (ascending intensity). Boundaries match the zone
-// definitions in CLAUDE.md / lib/claude/zones.ts.
-export function zoneFor(pct: number): { label: string; fill: string } {
-  if (pct < 56) return { label: 'Z1 Recovery', fill: '#94a3b8' }   // slate-400
-  if (pct <= 75) return { label: 'Z2 Endurance', fill: '#3b82f6' } // blue-500
-  if (pct <= 90) return { label: 'Z3 Tempo', fill: '#22c55e' }     // green-500
-  if (pct <= 105) return { label: 'Z4 Threshold', fill: '#eab308' }// yellow-500
-  if (pct <= 120) return { label: 'Z5 VO2max', fill: '#f97316' }   // orange-500
-  return { label: 'Z6 Anaerobic', fill: '#ef4444' }                // red-500
-}
+// Canonical zone definitions live in the pure lib; re-exported here so existing
+// chart importers (PlannedVsActualChart/List) keep their `from './WorkoutProfileChart'` path.
+import { zoneFor } from '@/lib/claude/zones'
+export { zoneFor }
 
 export function fmtTime(minutes: number): string {
   const m = Math.round(minutes)

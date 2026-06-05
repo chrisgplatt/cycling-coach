@@ -64,14 +64,14 @@ function getReadinessSummary(wellness: ICUWellness): string {
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
 
-function DraggableWorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => void }) {
+function DraggableWorkoutCard({ workout, onClick, ftp }: { workout: Workout; onClick: () => void; ftp?: number }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: workout.id })
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <WorkoutCard workout={workout} onClick={onClick} />
+      <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} />
     </div>
   )
 }
@@ -431,6 +431,7 @@ export default function DashboardPage() {
           wellness={latestWellness}
           todayEvent={events.find(e => e.date === todayStr) ?? null}
           extraSessionCount={todaySessionCount - 1}
+          ftp={currentFTP}
           onWorkoutClick={w => setSelectedWorkout(w)}
           onChatWithCoach={todayWorkout ? () => setChatWorkout(todayWorkout) : undefined}
         />
@@ -533,9 +534,9 @@ export default function DashboardPage() {
                       return (
                         <div key={w.id}>
                           {w.status === 'planned' ? (
-                            <DraggableWorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} />
+                            <DraggableWorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} ftp={currentFTP} />
                           ) : (
-                            <WorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} />
+                            <WorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} ftp={currentFTP} />
                           )}
                           {linkedEvent && (
                             <div className="relative ml-4 mt-1.5">
@@ -590,7 +591,7 @@ export default function DashboardPage() {
             })}
           </div>
           <DragOverlay>
-            {activeWorkout ? <WorkoutCard workout={activeWorkout} /> : null}
+            {activeWorkout ? <WorkoutCard workout={activeWorkout} ftp={currentFTP} /> : null}
           </DragOverlay>
         </DndContext>
       </div>

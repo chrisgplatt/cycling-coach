@@ -9,6 +9,7 @@ import TabBar from './TabBar'
 import PlannedVsActualChart from './PlannedVsActualChart'
 import PlannedVsActualList from './PlannedVsActualList'
 import { buildPlannedActual, type PlannedActual } from '@/lib/ride/planned-actual'
+import { deriveTargetZones } from '@/lib/claude/zones'
 
 const TYPE_COLOURS: Record<WorkoutType, string> = {
   endurance: 'bg-blue-100 text-blue-700',
@@ -396,7 +397,7 @@ export default function WorkoutDetailModal({
             <>
           <div>
             <p className="text-sm text-slate-700 leading-relaxed">{workout.description}</p>
-            <p className="text-xs text-slate-400 mt-1.5">{workout.target_zones}</p>
+            <p className="text-xs text-slate-400 mt-1.5">{deriveTargetZones(workout.steps, ftp) ?? workout.target_zones}</p>
           </div>
 
           {workout.coaching_notes && (

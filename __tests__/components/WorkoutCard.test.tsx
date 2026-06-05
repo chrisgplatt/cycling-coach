@@ -65,4 +65,25 @@ describe('WorkoutCard', () => {
     const { container } = render(<WorkoutCard workout={workout} />)
     expect(container.firstChild).not.toHaveClass('cursor-pointer')
   })
+
+  it('falls back to the stored target_zones string when no ftp/steps are given', () => {
+    render(<WorkoutCard workout={workout} />)
+    expect(screen.getByText('Zone 4 (91-105% FTP)')).toBeInTheDocument()
+  })
+
+  it('renders live target zones from steps × current FTP, not the stored watt text', () => {
+    const stepped = {
+      ...workout,
+      target_zones: 'Zone 4 (240-265W)', // stale watts baked at an old FTP
+      steps: [
+        { label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 },
+        { label: 'Effort', duration_minutes: 20, power_pct_ftp: 100 },
+        { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 55 },
+      ],
+    }
+    render(<WorkoutCard workout={stepped} ftp={300} />)
+    // 100% of 300W = 300W, recomputed live — the stale 240-265W string is not shown
+    expect(screen.getByText('Z4 Threshold · 300W')).toBeInTheDocument()
+    expect(screen.queryByText(/240-265W/)).not.toBeInTheDocument()
+  })
 })

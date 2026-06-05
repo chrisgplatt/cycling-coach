@@ -1,4 +1,5 @@
 import type { Workout, WorkoutType } from '@/types'
+import { deriveTargetZones } from '@/lib/claude/zones'
 
 const IF_BY_TYPE: Record<WorkoutType, number> = {
   recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90,
@@ -37,9 +38,10 @@ const STATUS_LABELS = {
 interface Props {
   workout: Workout
   onClick?: () => void
+  ftp?: number
 }
 
-export default function WorkoutCard({ workout, onClick }: Props) {
+export default function WorkoutCard({ workout, onClick, ftp }: Props) {
   return (
     <div
       onClick={onClick}
@@ -71,7 +73,7 @@ export default function WorkoutCard({ workout, onClick }: Props) {
       </div>
       <div className="px-4 py-3">
         <p className="text-sm text-gray-700 leading-snug mb-1">{workout.description}</p>
-        <p className="text-xs text-gray-400 font-medium">{workout.target_zones}</p>
+        <p className="text-xs text-gray-400 font-medium">{deriveTargetZones(workout.steps, ftp) ?? workout.target_zones}</p>
       </div>
     </div>
   )

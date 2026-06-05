@@ -63,7 +63,7 @@ ATHLETE PROFILE:
 - Goals: ${profile.goals}
 - FTP: ${profile.current_ftp}W | Weight: ${profile.weight_kg}kg | Power-to-weight: ${wPerKg} W/kg
 
-TRAINING ZONES (use these exact watt ranges in descriptions and target_zones):
+TRAINING ZONES (watt ranges shown for your context only — write target_zones and descriptions using zone names and %FTP, NOT absolute watts, because the app renders live watts from the athlete's current FTP and baked-in watts go stale when FTP changes):
 ${formatZones(profile.current_ftp)}
 
 ${formatSchedule(profile.weekly_availability)}

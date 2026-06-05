@@ -11,6 +11,7 @@ interface Props {
   wellness: ICUWellness | null
   todayEvent?: TrainingEvent | null
   extraSessionCount?: number
+  ftp?: number
   onWorkoutClick?: (workout: Workout) => void
   onChatWithCoach?: () => void
 }
@@ -31,7 +32,7 @@ function tsbColour(tsb: number | null): string {
 
 const BRIEFING_CACHE_KEY = 'cycling_coach_briefing'
 
-export default function TodayCard({ workout, wellness, todayEvent, extraSessionCount, onWorkoutClick, onChatWithCoach }: Props) {
+export default function TodayCard({ workout, wellness, todayEvent, extraSessionCount, ftp, onWorkoutClick, onChatWithCoach }: Props) {
   const [coachNote, setCoachNote] = useState<string | null>(null)
   const [verdict, setVerdict] = useState<ReadinessVerdict | null>(null)
   const [headline, setHeadline] = useState<string | null>(null)
@@ -140,7 +141,7 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
       {/* Today's workout or event */}
       {workout ? (
         <>
-          <WorkoutCard workout={workout} onClick={() => onWorkoutClick?.(workout)} />
+          <WorkoutCard workout={workout} onClick={() => onWorkoutClick?.(workout)} ftp={ftp} />
           {extraSessionCount != null && extraSessionCount > 0 && (
             <p className="text-xs text-slate-400 pl-1">+{extraSessionCount} more session{extraSessionCount > 1 ? 's' : ''} today — see weekly strip below</p>
           )}
