@@ -85,4 +85,27 @@ describe('reconcileBeliefs', () => {
     const fresh = stored({ key: 'recovery', confidence: 'high', last_confirmed: '2026-06-01T00:00:00Z' })
     expect(reconcileBeliefs([fresh], [], NOW)).toEqual([])
   })
+
+  it('does not vault confidence to high on a low-data consistent re-observation', () => {
+    const [row] = reconcileBeliefs([stored({ confidence: 'medium' })],
+      [candidate({ value_data: { pct: 9, weeks: 5 }, confidence: 'low' })], NOW)
+    expect(row.confidence).toBe('medium')
+  })
+
+  it('appends to existing revisions on a fresh contradiction (capped history)', () => {
+    const ex = stored({
+      value_data: { pct: 8, weeks: 8 },
+      revisions: [{ value_text: 'older', confidence: 'low', evidence: 'e', revised_at: '2026-03-01T00:00:00Z', reason: 'r' }],
+    })
+    const [row] = reconcileBeliefs([ex], [candidate({ value_data: { pct: 15, weeks: 10 }, value_text: 'new' })], NOW)
+    expect(row.revisions).toHaveLength(2)
+    expect(row.revisions![1].value_text).toBe('old')
+  })
+
+  it('treats an active belief with null value_data as new data, not a contradiction', () => {
+    const ex = stored({ value_data: null, value_text: 'stale' })
+    const [row] = reconcileBeliefs([ex], [candidate({ value_data: { pct: 8, weeks: 10 } })], NOW)
+    expect(row.revisions).toEqual([])
+    expect(row.value_data).toMatchObject({ pct: 8 })
+  })
 })

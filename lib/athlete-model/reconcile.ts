@@ -62,19 +62,24 @@ export function reconcileBeliefs(
     }
 
     // Active AI/computed belief.
-    if (beliefsAgree(cand.key, ex.value_data, cand.value_data)) {
+    if (ex.value_data == null || beliefsAgree(cand.key, ex.value_data, cand.value_data)) {
+      // Consistent (or no prior data to compare against) → update value, reaffirm,
+      // nudge confidence. Using stepUp(cand) — not stepUp(ex) — means a low-data
+      // re-observation can't vault a belief to high; confidence stays bounded by the
+      // evidence supporting it, while never dropping below the stored level.
       out.push({
         ...ex, value_text: cand.value_text, value_data: cand.value_data, evidence: cand.evidence,
-        confidence: higher(stepUp(ex.confidence), cand.confidence), last_updated: now, last_confirmed: now,
+        confidence: higher(ex.confidence, stepUp(cand.confidence)),
+        last_updated: now, last_confirmed: now, contradiction: null,
       })
     } else {
       out.push({
         ...ex, value_text: cand.value_text, value_data: cand.value_data, evidence: cand.evidence,
-        confidence: cand.confidence, last_updated: now, last_confirmed: now,
+        confidence: cand.confidence, last_updated: now, last_confirmed: now, contradiction: null,
         revisions: [
           ...ex.revisions,
           { value_text: ex.value_text, confidence: ex.confidence, evidence: ex.evidence, revised_at: now, reason: 'new evidence contradicted the prior value' },
-        ],
+        ].slice(-20),
       })
     }
   }
