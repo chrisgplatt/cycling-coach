@@ -54,6 +54,31 @@ describe('extractStreamInsights', () => {
     ])
   })
 
+  it('shapes from detected laps when present, immune to warm-up/recovery drift', () => {
+    // Warm-up overran (stream-window slicing would shove every later window late and
+    // drag the efforts into the recovery beside them). The laps carry true power, so
+    // the effort must still read at its real ~240W, not collapse toward recovery.
+    const time = Array.from({ length: 61 }, (_, i) => i * 60) // 60 min, 1/min
+    const power = time.map(() => 150)                          // stream irrelevant when laps win
+    const steps: WorkoutStep[] = [
+      { label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 }, // 120W
+      { label: 'Effort', duration_minutes: 3, power_pct_ftp: 120 },  // 240W
+      { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 }, // 100W
+    ]
+    const laps = [
+      { label: 'wu1', duration_secs: 360, avg_watts: 110, avg_hr: null },
+      { label: 'wu2', duration_secs: 240, avg_watts: 128, avg_hr: null }, // warm-up overran into 2 laps
+      { label: 'eff', duration_secs: 180, avg_watts: 240, avg_hr: null },
+      { label: 'rec', duration_secs: 180, avg_watts: 118, avg_hr: null },
+    ]
+    const m = extractStreamInsights({ ...base(), time, power }, 200, steps, laps)
+    expect(m.shape).toEqual([
+      { label: 'Warm Up', planned_w: 120, actual_w: 117 }, // (360·110+240·128)/600
+      { label: 'Effort', planned_w: 240, actual_w: 240 },  // the effort, read true
+      { label: 'Recovery', planned_w: 100, actual_w: 118 },
+    ])
+  })
+
   it('returns null zones/shape when ftp is null', () => {
     const m = extractStreamInsights({ ...base(), time: [0, 60], power: [200, 200] }, null, null)
     expect(m.time_in_zone).toBeNull()

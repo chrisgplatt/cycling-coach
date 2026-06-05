@@ -20,7 +20,7 @@ export async function enrichActivity(
   ])
   const base = extractActivityMetrics(activity, curve, intervals)
   if (!streams) return base
-  return { ...base, ...extractStreamInsights(streams, ftp, plannedSteps) }
+  return { ...base, ...extractStreamInsights(streams, ftp, plannedSteps, intervals) }
 }
 
 export async function enrichActivityById(

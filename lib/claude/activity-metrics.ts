@@ -2,6 +2,7 @@
 // Kept free of the intervals.icu and Anthropic clients so prompt builders can
 // import it without dragging in network/SDK code (mirrors lib/claude/zones.ts).
 import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment } from '@/types'
+import { alignPlannedToLaps } from '@/lib/ride/planned-actual'
 
 // Best-effort durations we sample the power curve down to (seconds).
 const CANONICAL_SECS = [5, 15, 60, 300, 1200, 3600]
@@ -210,10 +211,51 @@ function detectClimbs(
   return out.length ? out : null
 }
 
+// Resolve each lap to a single representative power. Detected laps usually carry
+// their own average; when one doesn't, fall back to the stream over the lap's
+// positional window (cumulative lap durations from the start).
+function resolveLapWatts(
+  laps: ActivityInterval[], power: number[] | null, time: number[],
+): Array<{ watts: number; duration_secs: number }> {
+  let cursor = 0
+  return laps.map(iv => {
+    const startSec = cursor
+    const endSec = cursor + iv.duration_secs
+    cursor = endSec
+    let watts = iv.avg_watts
+    if ((watts == null || !Number.isFinite(watts)) && power) {
+      let ps = 0, n = 0
+      for (let i = 0; i < time.length; i++) {
+        if (time[i] >= startSec && time[i] < endSec && Number.isFinite(power[i])) { ps += power[i]; n++ }
+      }
+      watts = n ? ps / n : 0
+    }
+    return { watts: watts ?? 0, duration_secs: iv.duration_secs }
+  })
+}
+
 function computeShape(
-  plannedSteps: WorkoutStep[] | null, power: number[] | null, time: number[], ftp: number | null,
+  plannedSteps: WorkoutStep[] | null, laps: ActivityInterval[] | null,
+  power: number[] | null, time: number[], ftp: number | null,
 ): ActivityMetrics['shape'] {
-  if (!plannedSteps?.length || !power || !ftp) return null
+  if (!plannedSteps?.length || !ftp) return null
+
+  // Preferred path: align planned steps to the detected laps by power. Each lap is
+  // read at its OWN average, so a long warm-up, an over-run recovery or a missed
+  // lap press no longer drags the back-half intervals down into the recovery valley
+  // beside them (the bug where on-target efforts were reported below prescribed).
+  if (laps?.length) {
+    const aligned = alignPlannedToLaps(plannedSteps, resolveLapWatts(laps, power, time), ftp)
+    if (aligned) {
+      return aligned.map((a, i) => ({
+        label: plannedSteps[i].label, planned_w: a.planned_w, actual_w: a.actual_w,
+      }))
+    }
+  }
+
+  // Fallback (no laps available): slice the stream by planned durations. This drifts
+  // when the ride doesn't tile the plan, but it's the only option without lap data.
+  if (!power) return null
   const out: NonNullable<ActivityMetrics['shape']> = []
   let cursor = 0
   for (const step of plannedSteps) {
@@ -235,12 +277,13 @@ function computeShape(
 
 export function extractStreamInsights(
   s: RideStreams, ftp: number | null, plannedSteps: WorkoutStep[] | null,
+  laps: ActivityInterval[] | null = null,
 ): Pick<ActivityMetrics, 'decoupling_pct' | 'climbs' | 'time_in_zone' | 'shape'> {
   return {
     decoupling_pct: computeDecoupling(s.power, s.hr, s.time),
     time_in_zone: computeTimeInZone(s.power, s.time, ftp),
     climbs: detectClimbs(s.altitude, s.distance, s.power, s.time),
-    shape: computeShape(plannedSteps, s.power, s.time, ftp),
+    shape: computeShape(plannedSteps, laps, s.power, s.time, ftp),
   }
 }
 
