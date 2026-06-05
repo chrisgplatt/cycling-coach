@@ -24,6 +24,9 @@ export interface GroundingInputs {
   recovery: Array<{ date: string; isHard: boolean; completedWell: boolean; feel: number | null }>
 }
 
+// Suppress RPE biases smaller than this (points) as noise rather than signal.
+const MIN_RPE_BIAS = 0.5
+
 const feelWord = (f: number): string => (f <= 2 ? 'fresh' : f <= 3 ? 'okay' : 'flat')
 
 export function buildGroundedBeliefs(inputs: GroundingInputs): CandidateBelief[] {
@@ -35,7 +38,7 @@ export function buildGroundedBeliefs(inputs: GroundingInputs): CandidateBelief[]
     out.push({
       key: 'ramp_tolerance',
       label: 'Weekly ramp tolerance',
-      value_text: `Absorbs roughly +${ramp.pct}% TSS per week before backing off — ${where} the textbook 10%.`,
+      value_text: `Has sustained roughly +${ramp.pct}% TSS week-over-week in build periods — ${where} the textbook 10%.`,
       value_data: { pct: ramp.pct, weeks: ramp.weeks },
       confidence: confidenceFromCount(ramp.weeks, 6, 10),
       evidence: `${ramp.weeks} weeks of load history`,
@@ -46,10 +49,10 @@ export function buildGroundedBeliefs(inputs: GroundingInputs): CandidateBelief[]
   const rpe = computeRpeCalibration(inputs.rpeSessions)
   if (rpe) {
     const parts: string[] = []
-    if (rpe.easyBias != null && Math.abs(rpe.easyBias) >= 0.5) {
+    if (rpe.easyBias != null && Math.abs(rpe.easyBias) >= MIN_RPE_BIAS) {
       parts.push(`${rpe.easyBias > 0 ? 'over' : 'under'}-rates easy rides by ~${Math.abs(rpe.easyBias)}`)
     }
-    if (rpe.hardBias != null && Math.abs(rpe.hardBias) >= 0.5) {
+    if (rpe.hardBias != null && Math.abs(rpe.hardBias) >= MIN_RPE_BIAS) {
       parts.push(`${rpe.hardBias > 0 ? 'over' : 'under'}-rates hard efforts by ~${Math.abs(rpe.hardBias)}`)
     }
     const body = parts.length

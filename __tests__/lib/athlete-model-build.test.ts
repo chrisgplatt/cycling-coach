@@ -34,4 +34,16 @@ describe('buildGroundedBeliefs', () => {
     })
     expect(beliefs).toEqual([])
   })
+
+  it('uses the "tracks closely" wording when biases are within the dead-zone', () => {
+    const beliefs = buildGroundedBeliefs({
+      weeklyTss: [],
+      // targetPct 76 → tempo, expectedRpe 5; rpe 5 → zero bias, and 76 is neither
+      // easy (<=75) nor hard (>=91), so both splits are null → fallback wording.
+      rpeSessions: Array.from({ length: 8 }, () => ({ rpe: 5, targetPct: 76 })),
+      recovery: [],
+    })
+    const rpe = beliefs.find(b => b.key === 'rpe_calibration')!
+    expect(rpe.value_text).toContain('tracks prescribed intensity closely')
+  })
 })
