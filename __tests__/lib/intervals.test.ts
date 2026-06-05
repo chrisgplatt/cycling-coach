@@ -203,8 +203,11 @@ describe('IntervalsClient', () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body)
     // Warm-up runs its time, then a lap gate holds until the rider presses lap
     expect(body.description).toContain('Warm Up\n- 12m 60%\n- 10s 60% press lap')
-    // Each recovery runs its time, then a lap gate before the next rep
-    expect(body.description).toContain('Main Set 2x\n- 3m 115%\n- 3m 50%\n- 10s 50% press lap')
+    // Reps are unrolled into standalone blocks so each recovery lap gate is honoured
+    // (a gate nested in a "Main Set Nx" repeat advances unreliably on head units)
+    expect(body.description).toContain('Work 1\n- 3m 115%\n- 3m 50%\n- 10s 50% press lap')
+    expect(body.description).toContain('Work 2\n- 3m 115%\n- 3m 50%\n- 10s 50% press lap')
+    expect(body.description).not.toContain('Main Set 2x\n- 3m 115%')
     // The work leg never gets a lap gate
     expect(body.description).not.toContain('115% press lap')
     // Cool down stays timed
@@ -241,6 +244,29 @@ describe('buildWorkoutNotation press-lap tagging', () => {
     // Only the warm-up gets a lap gate; the easy main block is not a work/recovery set
     expect(out).toContain('Warm Up\n- 10m 55%\n- 10s 55% press lap')
     expect(out).not.toContain('68% press lap')
+  })
+
+  it('unrolls a work/recovery set so every recovery lap gate is standalone', () => {
+    const steps: WorkoutStep[] = [
+      { label: 'Warm Up', duration_minutes: 12, power_pct_ftp: 60 },
+      { label: 'Work', duration_minutes: 3, power_pct_ftp: 120 },
+      { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
+      { label: 'Work', duration_minutes: 3, power_pct_ftp: 120 },
+      { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
+      { label: 'Work', duration_minutes: 3, power_pct_ftp: 120 },
+      { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
+      { label: 'Work', duration_minutes: 3, power_pct_ftp: 120 },
+      { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 },
+      { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 55 },
+    ]
+    const out = buildWorkoutNotation(steps)
+    // No repeat block — four standalone rep blocks, each ending in a lap gate
+    expect(out).not.toContain('Main Set 4x')
+    expect(out).toContain('Work 1\n- 3m 120%\n- 3m 50%\n- 10s 50% press lap')
+    expect(out).toContain('Work 4\n- 3m 120%\n- 3m 50%\n- 10s 50% press lap')
+    expect((out.match(/press lap/g) ?? []).length).toBe(5) // warm-up + 4 recoveries
+    // The work leg itself is never gated
+    expect(out).not.toContain('120% press lap')
   })
 
   it('does not tag the second leg of an over/under set (recovery leg is harder)', () => {

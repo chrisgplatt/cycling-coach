@@ -66,10 +66,20 @@ export function buildWorkoutNotation(steps: WorkoutStep[]): string {
         steps[j + 1].power_pct_ftp === b.power_pct_ftp
       ) { reps++; j += 2 }
       if (reps > 1) {
-        // The recovery leg (lower power than the work leg) runs its time, then a lap
-        // gate holds until the rider presses lap to start the next rep.
-        const recoveryGate = b.power_pct_ftp < a.power_pct_ftp ? `\n${lapGate(b.power_pct_ftp)}` : ''
-        sections.push(`Main Set ${reps}x\n- ${a.duration_minutes}m ${a.power_pct_ftp}%\n- ${b.duration_minutes}m ${b.power_pct_ftp}%${recoveryGate}`)
+        // When the recovery leg is easier than the work leg it gets a lap gate so the
+        // rider presses lap to start the next rep. That gate is only honoured as a
+        // STANDALONE step — nested inside a "Main Set Nx" repeat the lap press advances
+        // unreliably on head units (it worked for the warm-up but not in-set recoveries).
+        // So unroll gated sets into one block per rep, each ending in its own gate,
+        // identical in form to the warm-up. Un-gated sets (over/unders) stay compact.
+        if (b.power_pct_ftp < a.power_pct_ftp) {
+          const workLabel = a.label || 'Work'
+          for (let r = 1; r <= reps; r++) {
+            sections.push(`${workLabel} ${r}\n- ${a.duration_minutes}m ${a.power_pct_ftp}%\n- ${b.duration_minutes}m ${b.power_pct_ftp}%\n${lapGate(b.power_pct_ftp)}`)
+          }
+        } else {
+          sections.push(`Main Set ${reps}x\n- ${a.duration_minutes}m ${a.power_pct_ftp}%\n- ${b.duration_minutes}m ${b.power_pct_ftp}%`)
+        }
         i = j; continue
       }
     }
