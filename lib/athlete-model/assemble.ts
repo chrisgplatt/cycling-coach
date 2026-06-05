@@ -19,3 +19,21 @@ export function weeklyTssSeries(workouts: Array<{ date: string; tss: number | nu
   }
   return [...byWeek.keys()].sort().map(k => byWeek.get(k)!)
 }
+
+// Representative prescribed intensity (%FTP) per workout type — the midpoint of the
+// type's working zone, used to judge whether a reported RPE was high or low for the
+// session that was set.
+export const TYPE_TARGET_PCT: Record<WorkoutType, number> = {
+  recovery: 52,
+  endurance: 68,
+  threshold: 98,
+  intervals: 112,
+}
+
+export function rpeSessionsFromFeedback(
+  rows: Array<{ rpe: number | null; type: WorkoutType | null }>,
+): Array<{ rpe: number; targetPct: number }> {
+  return rows
+    .filter((r): r is { rpe: number; type: WorkoutType } => r.rpe != null && r.type != null)
+    .map(r => ({ rpe: r.rpe, targetPct: TYPE_TARGET_PCT[r.type] }))
+}
