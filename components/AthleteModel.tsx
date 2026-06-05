@@ -27,6 +27,7 @@ export default function AthleteModel() {
   const [beliefs, setBeliefs] = useState<AthleteBelief[] | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
+  const [busy, setBusy] = useState(false)
 
   async function load() {
     const res = await fetch('/api/athlete-model')
@@ -37,12 +38,17 @@ export default function AthleteModel() {
   useEffect(() => { load().catch(() => setBeliefs([])) }, [])
 
   async function act(key: string, action: 'confirm' | 'correct' | 'dismiss', value_text?: string) {
+    if (busy) return
+    setBusy(true)
     setEditing(null)
-    await fetch('/api/athlete-model', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, action, value_text }),
-    }).catch(() => {})
-    load().catch(() => {})
+    try {
+      await fetch('/api/athlete-model', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, action, value_text }),
+      })
+      await load()
+    } catch { /* best-effort; the card simply won't refresh */ }
+    setBusy(false)
   }
 
   if (!beliefs) return null
@@ -57,7 +63,7 @@ export default function AthleteModel() {
           <li key={b.key} className="border-b border-gray-100 last:border-0 pb-3 last:pb-0 space-y-1.5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-semibold text-gray-800">{b.label}</span>
-              <span className={`text-[10px] font-bold uppercase rounded-full px-2 py-0.5 ${CONF_STYLE[b.confidence]}`}>{b.confidence}</span>
+              <span aria-label={`${b.confidence} confidence`} className={`text-[10px] font-bold uppercase rounded-full px-2 py-0.5 ${CONF_STYLE[b.confidence]}`}>{b.confidence}</span>
             </div>
             <p className="text-sm text-gray-700 leading-relaxed">{b.value_text}</p>
             <p className="text-xs text-gray-400">
@@ -74,18 +80,18 @@ export default function AthleteModel() {
                 />
                 <div className="flex justify-end gap-2">
                   <button onClick={() => setEditing(null)} className="text-sm text-gray-500 py-3 px-3">Cancel</button>
-                  <button onClick={() => act(b.key, 'correct', draft)} disabled={!draft.trim()}
+                  <button onClick={() => act(b.key, 'correct', draft)} disabled={busy || !draft.trim()}
                     className="text-sm font-medium text-blue-600 py-3 px-3 disabled:opacity-40">Save</button>
                 </div>
               </div>
             ) : (
               <div className="flex flex-wrap gap-1.5 pt-0.5">
-                <button onClick={() => act(b.key, 'confirm')}
-                  className="text-xs font-medium text-emerald-700 bg-emerald-50 rounded-lg px-3 py-3">Confirm</button>
+                <button onClick={() => act(b.key, 'confirm')} disabled={busy}
+                  className="text-sm font-medium text-emerald-700 bg-emerald-50 rounded-lg px-3 py-3">Confirm</button>
                 <button onClick={() => { setEditing(b.key); setDraft(b.value_text) }}
-                  className="text-xs font-medium text-blue-700 bg-blue-50 rounded-lg px-3 py-3">Correct</button>
-                <button onClick={() => act(b.key, 'dismiss')}
-                  className="text-xs font-medium text-gray-500 bg-gray-100 rounded-lg px-3 py-3">Dismiss</button>
+                  className="text-sm font-medium text-blue-700 bg-blue-50 rounded-lg px-3 py-3">Correct</button>
+                <button onClick={() => act(b.key, 'dismiss')} disabled={busy}
+                  className="text-sm font-medium text-gray-500 bg-gray-100 rounded-lg px-3 py-3">Dismiss</button>
               </div>
             )}
           </li>
