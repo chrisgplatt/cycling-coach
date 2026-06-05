@@ -37,6 +37,9 @@ export default function SettingsPage() {
   const [repushResult, setRepushResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [backfilling, setBackfilling] = useState(false)
   const [backfillResult, setBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [zonesFixing, setZonesFixing] = useState(false)
+  const [zonesPreview, setZonesPreview] = useState<{ changeCount: number; total: number } | null>(null)
+  const [zonesResult, setZonesResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [locationLabel, setLocationLabel] = useState('')
@@ -256,6 +259,46 @@ export default function SettingsPage() {
     }
   }
 
+  async function previewZonesFix() {
+    setZonesFixing(true)
+    setZonesResult(null)
+    setZonesPreview(null)
+    try {
+      const res = await fetch('/api/workouts/backfill-zones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+      const data = await res.json()
+      if (res.ok) setZonesPreview({ changeCount: data.changeCount, total: data.total })
+      else setZonesResult({ ok: false, message: data.error ?? 'Preview failed.' })
+    } catch {
+      setZonesResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setZonesFixing(false)
+    }
+  }
+
+  async function applyZonesFix() {
+    setZonesFixing(true)
+    setZonesResult(null)
+    try {
+      const res = await fetch('/api/workouts/backfill-zones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apply: true }),
+      })
+      const data = await res.json()
+      if (res.ok) setZonesResult({ ok: data.failed === 0, message: `${data.updated} corrected, ${data.failed} failed. Re-push to intervals.icu to propagate.` })
+      else setZonesResult({ ok: false, message: data.error ?? 'Apply failed.' })
+      setZonesPreview(null)
+    } catch {
+      setZonesResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setZonesFixing(false)
+    }
+  }
+
   async function sendTestNotification() {
     setTestSending(true)
     setTestResult(null)
@@ -464,6 +507,40 @@ export default function SettingsPage() {
                     <p className={`text-xs ${backfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                       {backfillResult.message}
                     </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      onClick={previewZonesFix}
+                      disabled={zonesFixing}
+                      className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+                    >
+                      {zonesFixing ? 'Checking…' : 'Fix stale FTP watts in planned workouts'}
+                    </button>
+                    {zonesResult && (
+                      <p className={`text-xs ${zonesResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {zonesResult.message}
+                      </p>
+                    )}
+                  </div>
+                  {zonesPreview && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+                      <p className="text-xs text-slate-600">
+                        {zonesPreview.changeCount === 0
+                          ? 'No planned workouts have stale watts — nothing to correct.'
+                          : `${zonesPreview.changeCount} of ${zonesPreview.total} planned workouts have stale watts in their target zones or description.`}
+                      </p>
+                      {zonesPreview.changeCount > 0 && (
+                        <button
+                          onClick={applyZonesFix}
+                          disabled={zonesFixing}
+                          className="text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg px-3 py-2.5 transition-colors"
+                        >
+                          {zonesFixing ? 'Applying…' : `Apply correction to ${zonesPreview.changeCount} workout${zonesPreview.changeCount === 1 ? '' : 's'}`}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

@@ -39,6 +39,44 @@ export function deriveTargetZones(
   return lo === hi ? `${zone.label} · ${lo}W` : `${zone.label} · ${lo}–${hi}W`
 }
 
+// FTP-INDEPENDENT version of the zone summary, for STORING in target_zones (and
+// the intervals.icu description) so the value never goes stale. Same headline-zone
+// logic as deriveTargetZones, but expressed in %FTP, e.g. "Z4 Threshold (91–105% FTP)".
+export function deriveTargetZonesPct(steps: WorkoutStep[] | null | undefined): string | null {
+  if (!steps || steps.length === 0) return null
+  const headlinePct = Math.max(...steps.map(s => s.power_pct_ftp))
+  const zone = zoneFor(headlinePct)
+  const pcts = steps
+    .filter(s => zoneFor(s.power_pct_ftp).label === zone.label)
+    .map(s => s.power_pct_ftp)
+  const lo = Math.min(...pcts)
+  const hi = Math.max(...pcts)
+  return lo === hi ? `${zone.label} (${lo}% FTP)` : `${zone.label} (${lo}–${hi}% FTP)`
+}
+
+// Remove absolute-watt tokens (e.g. "240–265W", "at 250w", "(140-190W)", "130 watts")
+// from a free-text description. Watt numbers baked in at plan-generation time go stale
+// when FTP changes; the live step list already shows current watts, so the prose only
+// needs its qualitative content. Leaves %FTP, cadence (rpm), durations, and other text
+// untouched. Returns the tidied string (unchanged if no watt tokens were present).
+export function stripBakedWatts(text: string | null | undefined): string {
+  if (!text) return text ?? ''
+  const WATTS = '~?\\d{2,4}(?:\\s*[–-]\\s*\\d{2,4})?\\s*[wW](?:atts?)?'
+  let out = text
+    // " (140-190W)" / "(~250 W)" — a parenthetical that is only a watt figure
+    .replace(new RegExp(`\\s*\\(\\s*${WATTS}\\s*\\)`, 'g'), '')
+    // " at 240-265W" / " @ 250w" — an "at/@ <watts>" phrase
+    .replace(new RegExp(`\\s*(?:\\bat\\b|@)\\s*${WATTS}\\b`, 'gi'), '')
+    // leftover standalone watt tokens anywhere else
+    .replace(new RegExp(`\\s*\\b${WATTS}\\b`, 'g'), '')
+  out = out
+    .replace(/\(\s*\)/g, '')       // empty parens left behind
+    .replace(/\s+([.,;:])/g, '$1') // space before punctuation
+    .replace(/\s{2,}/g, ' ')       // collapsed whitespace
+    .trim()
+  return out
+}
+
 export function formatZones(ftp: number): string {
   const z = (lo: number, hi: number) => `${Math.round(ftp * lo)}–${Math.round(ftp * hi)}W`
   return [

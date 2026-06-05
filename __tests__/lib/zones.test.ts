@@ -1,4 +1,4 @@
-import { zoneFor, deriveTargetZones } from '@/lib/claude/zones'
+import { zoneFor, deriveTargetZones, deriveTargetZonesPct, stripBakedWatts } from '@/lib/claude/zones'
 import type { WorkoutStep } from '@/types'
 
 const step = (power_pct_ftp: number, duration_minutes = 10): WorkoutStep => ({
@@ -52,5 +52,52 @@ describe('deriveTargetZones', () => {
     const steps = [step(60), step(100), step(50)]
     expect(deriveTargetZones(steps, 250)).toBe('Z4 Threshold · 250W')
     expect(deriveTargetZones(steps, 270)).toBe('Z4 Threshold · 270W')
+  })
+})
+
+describe('deriveTargetZonesPct (FTP-independent, for storage)', () => {
+  it('returns null when there are no steps', () => {
+    expect(deriveTargetZonesPct(null)).toBeNull()
+    expect(deriveTargetZonesPct([])).toBeNull()
+  })
+
+  it('renders the headline zone as a single %FTP figure for a steady effort', () => {
+    expect(deriveTargetZonesPct([step(60), step(100), step(50)])).toBe('Z4 Threshold (100% FTP)')
+  })
+
+  it('renders a %FTP span for over/unders', () => {
+    expect(deriveTargetZonesPct([step(60), step(95), step(105), step(50)])).toBe('Z4 Threshold (95–105% FTP)')
+  })
+
+  it('summarises an endurance ride from its Z2 steps', () => {
+    expect(deriveTargetZonesPct([step(60), step(70), step(55)])).toBe('Z2 Endurance (60–70% FTP)')
+  })
+})
+
+describe('stripBakedWatts', () => {
+  it('returns empty string for nullish input', () => {
+    expect(stripBakedWatts(null)).toBe('')
+    expect(stripBakedWatts(undefined)).toBe('')
+  })
+
+  it('removes a parenthetical watt range', () => {
+    expect(stripBakedWatts('Zone 2 endurance ride (140-190W)')).toBe('Zone 2 endurance ride')
+  })
+
+  it('removes an "at <watts>" phrase mid-sentence', () => {
+    expect(stripBakedWatts('2x20min at 240-265W with 5min recovery')).toBe('2x20min with 5min recovery')
+  })
+
+  it('removes an "@ <watts>" phrase but keeps cadence parentheticals', () => {
+    expect(stripBakedWatts('4×8min @ 250–265w (90rpm)')).toBe('4×8min (90rpm)')
+  })
+
+  it('removes a "<n> watts" token', () => {
+    expect(stripBakedWatts('Easy spin around 130 watts')).toBe('Easy spin around')
+  })
+
+  it('leaves %FTP, durations and prose without watts untouched', () => {
+    expect(stripBakedWatts('Over/unders at 95-105% FTP, hold 90rpm')).toBe('Over/unders at 95-105% FTP, hold 90rpm')
+    expect(stripBakedWatts('Ride to feel, no power target')).toBe('Ride to feel, no power target')
   })
 })
