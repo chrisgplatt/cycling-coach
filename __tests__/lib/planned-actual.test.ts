@@ -44,7 +44,29 @@ describe('buildPlannedActual', () => {
     expect(out.segments[1].actual_w).toBe(250)
   })
 
-  it('falls back to scaled when lap count differs from step count', () => {
+  it('aligns by power when there are more laps than steps (drifted interval ride)', () => {
+    // Warm-up split into two laps + an effort + a recovery = 4 laps for 3 steps.
+    // The old count==steps gate fell to scaled stream-slicing and dragged the effort
+    // down; aligning to laps reads the effort at its true power.
+    const s: WorkoutStep[] = [
+      { label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 }, // 150W @250
+      { label: 'Effort', duration_minutes: 3, power_pct_ftp: 100 },  // 250W
+      { label: 'Recovery', duration_minutes: 3, power_pct_ftp: 50 }, // 125W
+    ]
+    const laps: ActivityInterval[] = [
+      { label: 'wu1', duration_secs: 360, avg_watts: 140, avg_hr: null },
+      { label: 'wu2', duration_secs: 300, avg_watts: 160, avg_hr: null },
+      { label: 'eff', duration_secs: 180, avg_watts: 250, avg_hr: null },
+      { label: 'rec', duration_secs: 180, avg_watts: 120, avg_hr: null },
+    ]
+    const out = buildPlannedActual(s, streams, laps, 250)!
+    expect(out.aligned).toBe('laps')
+    expect(out.segments[1].actual_w).toBe(250) // effort read true, not stream-dragged
+    expect(out.segments[2].actual_w).toBe(120)
+    expect(out.segments[0].actual_w).toBe(149) // (360·140+300·160)/660
+  })
+
+  it('falls back to scaled when there are fewer laps than steps', () => {
     const laps: ActivityInterval[] = [
       { label: 'only one', duration_secs: 1200, avg_watts: 200, avg_hr: null },
     ]

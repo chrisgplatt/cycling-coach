@@ -131,21 +131,36 @@ export function buildPlannedActual(
 
   const plannedW = (pct: number) => Math.round((ftp * pct) / 100)
 
+  // Resolve laps -> per-step groups by power once, so we can decide the mode. We
+  // can lap-anchor whenever there are at least as many laps as steps (each step
+  // gets ≥1 lap); with fewer laps than steps a lap spans several steps, so the
+  // proportional 'scaled' path is the better fallback.
+  const sumSecs = intervals?.length ? intervals.reduce((s, iv) => s + iv.duration_secs, 0) || 1 : 1
+  let groups: ReturnType<typeof alignPlannedToLaps> = null
+  if (intervals && intervals.length >= steps.length) {
+    let frac = 0
+    const resolved = intervals.map(iv => {
+      const wf = iv.duration_secs / sumSecs
+      const f0 = frac
+      frac += wf
+      const watts = iv.avg_watts != null && Number.isFinite(iv.avg_watts)
+        ? iv.avg_watts
+        : meanPowerInFrac(f0, f0 + wf)
+      return { watts, duration_secs: iv.duration_secs }
+    })
+    groups = alignPlannedToLaps(steps, resolved, ftp)
+  }
+
   let segments: AlignedSegment[]
   let aligned: 'laps' | 'scaled'
-  if (intervals && intervals.length === steps.length) {
+  if (groups) {
     aligned = 'laps'
-    const sumSecs = intervals.reduce((s, iv) => s + iv.duration_secs, 0) || 1
     let cursor = 0
     segments = steps.map((step, i) => {
-      const iv = intervals[i]
-      const width_frac = iv.duration_secs / sumSecs
+      const width_frac = groups![i].lap_secs / sumSecs
       const start_frac = cursor
       cursor += width_frac
-      const actual_w = iv.avg_watts != null && Number.isFinite(iv.avg_watts)
-        ? Math.round(iv.avg_watts)
-        : meanPowerInFrac(start_frac, start_frac + width_frac)
-      return { label: step.label, planned_pct: step.power_pct_ftp, planned_w: plannedW(step.power_pct_ftp), actual_w, start_frac, width_frac }
+      return { label: step.label, planned_pct: step.power_pct_ftp, planned_w: plannedW(step.power_pct_ftp), actual_w: groups![i].actual_w, start_frac, width_frac }
     })
   } else {
     aligned = 'scaled'
