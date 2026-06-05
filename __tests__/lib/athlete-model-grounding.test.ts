@@ -1,4 +1,4 @@
-import { computeRampTolerance } from '@/lib/athlete-model/grounding'
+import { computeRampTolerance, computeRpeCalibration, expectedRpe } from '@/lib/athlete-model/grounding'
 
 describe('computeRampTolerance', () => {
   it('returns null below four weeks of data', () => {
@@ -22,5 +22,48 @@ describe('computeRampTolerance', () => {
   it('ignores weeks following a zero/blank week', () => {
     const out = computeRampTolerance([0, 300, 330, 363])!
     expect(out.pct).toBe(10)
+  })
+})
+
+describe('expectedRpe', () => {
+  it('maps prescribed %FTP to a normal RPE', () => {
+    expect(expectedRpe(50)).toBe(2)
+    expect(expectedRpe(70)).toBe(4)
+    expect(expectedRpe(85)).toBe(5)
+    expect(expectedRpe(100)).toBe(7)
+    expect(expectedRpe(115)).toBe(8.5)
+    expect(expectedRpe(130)).toBe(9.5)
+  })
+})
+
+describe('computeRpeCalibration', () => {
+  it('returns null below five rated sessions', () => {
+    const s = [
+      { rpe: 7, targetPct: 100 }, { rpe: 7, targetPct: 100 },
+      { rpe: 7, targetPct: 100 }, { rpe: 7, targetPct: 100 },
+    ]
+    expect(computeRpeCalibration(s)).toBeNull()
+  })
+
+  it('reports an overall bias and splits easy vs hard when each has enough', () => {
+    const s = [
+      { rpe: 5, targetPct: 70 }, { rpe: 5, targetPct: 70 }, { rpe: 5, targetPct: 70 },
+      { rpe: 6, targetPct: 100 }, { rpe: 6, targetPct: 100 }, { rpe: 6, targetPct: 100 },
+    ]
+    const out = computeRpeCalibration(s)!
+    expect(out.n).toBe(6)
+    expect(out.easyBias).toBe(1)
+    expect(out.hardBias).toBe(-1)
+    expect(out.overall).toBe(0)
+  })
+
+  it('omits a split with fewer than three sessions', () => {
+    const s = [
+      { rpe: 5, targetPct: 70 }, { rpe: 5, targetPct: 70 }, { rpe: 5, targetPct: 70 },
+      { rpe: 5, targetPct: 70 }, { rpe: 6, targetPct: 100 },
+    ]
+    const out = computeRpeCalibration(s)!
+    expect(out.easyBias).toBe(1)
+    expect(out.hardBias).toBeNull()
   })
 })

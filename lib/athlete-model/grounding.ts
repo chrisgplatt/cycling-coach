@@ -32,3 +32,40 @@ export function computeRampTolerance(weeklyTss: number[]): RampTolerance | null 
   const pool = sustained.length ? sustained : ramps.map(r => r.pct)
   return { pct: Math.round(median(pool)), weeks: weeklyTss.length }
 }
+
+// The RPE a session's prescribed intensity would normally warrant (1–10), using the
+// CLAUDE.md zone boundaries on %FTP.
+export function expectedRpe(targetPct: number): number {
+  if (targetPct < 55) return 2
+  if (targetPct <= 75) return 4
+  if (targetPct <= 90) return 5
+  if (targetPct <= 105) return 7
+  if (targetPct <= 120) return 8.5
+  return 9.5
+}
+
+export interface RpeCalibration {
+  overall: number
+  easyBias: number | null
+  hardBias: number | null
+  n: number
+}
+
+const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length
+const round1 = (x: number): number => Math.round(x * 10) / 10
+
+export function computeRpeCalibration(
+  sessions: Array<{ rpe: number; targetPct: number }>,
+): RpeCalibration | null {
+  const rated = sessions.filter(s => Number.isFinite(s.rpe) && Number.isFinite(s.targetPct))
+  if (rated.length < 5) return null
+  const diff = (s: { rpe: number; targetPct: number }) => s.rpe - expectedRpe(s.targetPct)
+  const easy = rated.filter(s => s.targetPct <= 75)
+  const hard = rated.filter(s => s.targetPct >= 91)
+  return {
+    overall: round1(mean(rated.map(diff))),
+    easyBias: easy.length >= 3 ? round1(mean(easy.map(diff))) : null,
+    hardBias: hard.length >= 3 ? round1(mean(hard.map(diff))) : null,
+    n: rated.length,
+  }
+}
