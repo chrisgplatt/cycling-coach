@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { synthesizeDossier } from '@/lib/claude/synthesize-dossier'
+import { synthesizeBeliefs } from '@/lib/claude/synthesize-beliefs'
 import type { TrainingEvent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -101,6 +102,13 @@ export async function GET(req: NextRequest) {
         weight_kg: (profile.weight_kg as number | null) ?? null,
         events: (profile.events as TrainingEvent[] | null) ?? null,
       })
+      try {
+        await synthesizeBeliefs(supabase, profile.user_id, runAt.toISOString())
+      } catch (beliefErr) {
+        // Best-effort: a belief-synthesis failure must not abort the dossier run.
+        console.error(`[cron/dossier] beliefs failed for user ${profile.user_id}:`, beliefErr)
+        await log(profile.user_id, 'beliefs_failed', 'error', { error: String(beliefErr) })
+      }
       updated++
       console.log(`[cron/dossier] user ${profile.user_id}: synthesis complete`)
       await log(profile.user_id, 'synthesized', 'ok')
