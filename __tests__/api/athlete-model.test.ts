@@ -12,7 +12,18 @@ jest.mock('@/lib/supabase-server', () => ({
       select: () => ({ eq: () => ({ neq: () => ({ neq: () => Promise.resolve({ data: state.beliefs }) }) }) }),
       update: (patch: Record<string, unknown>) => {
         state.updated = patch
-        return { eq: () => ({ eq: (_col: string, key: string) => { state.matchedKey = key; return Promise.resolve({ error: null }) } }) }
+        return {
+          eq: (col: string, val: string) => {
+            if (col !== 'user_id' || val !== 'u1') throw new Error(`first filter must be user_id=u1, got ${col}=${val}`)
+            return {
+              eq: (col2: string, key: string) => {
+                if (col2 !== 'key') throw new Error(`second filter must be key, got ${col2}`)
+                state.matchedKey = key
+                return Promise.resolve({ error: null })
+              },
+            }
+          },
+        }
       },
     }),
   }),
