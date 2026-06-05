@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { createPlanStream, parsePlanText, countPlannedWorkouts } from '@/lib/claude/plan'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
+import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { fetchHrvStatus } from '@/lib/hrv/server'
 import type { GeneratedPlan } from '@/types'
@@ -51,9 +52,10 @@ export async function POST(req: NextRequest) {
   const safeStartDate = typeof startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(startDate)
     ? startDate
     : new Date().toISOString().split('T')[0]
-  const [{ data: profileData }, dossier] = await Promise.all([
+  const [{ data: profileData }, dossier, beliefs] = await Promise.all([
     supabase.from('user_profile').select('*').maybeSingle(),
     fetchDossier(supabase, user.id),
+    fetchActiveBeliefs(supabase, user.id),
   ])
   if (!profileData) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
   if (!profileData.events?.length) return NextResponse.json({ error: 'Add and save at least one event in Settings before generating a plan' }, { status: 400 })
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
       safeWeeks,
       safeStartDate,
       typeof notes === 'string' ? notes.trim() : '',
-      formatDossier(dossier as AthleteDossier | null),
+      [formatDossier(dossier as AthleteDossier | null), formatAthleteModel(beliefs)].filter(Boolean).join('\n\n'),
       hrvStatus,
     )
   } catch (err) {
