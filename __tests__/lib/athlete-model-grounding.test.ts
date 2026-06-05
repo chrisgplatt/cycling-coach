@@ -23,6 +23,10 @@ describe('computeRampTolerance', () => {
     const out = computeRampTolerance([0, 300, 330, 363])!
     expect(out.pct).toBe(10)
   })
+
+  it('returns null when weekly TSS is flat (no positive ramps)', () => {
+    expect(computeRampTolerance([300, 300, 300, 300])).toBeNull()
+  })
 })
 
 describe('expectedRpe', () => {

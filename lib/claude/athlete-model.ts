@@ -13,6 +13,7 @@ export async function fetchActiveBeliefs(
     .select('*')
     .eq('user_id', userId)
     .neq('status', 'dismissed')
+    .neq('status', 'superseded')
   // `confidence` is a text column — Postgres would order it alphabetically
   // ('high' < 'low' < 'medium'), not by severity. Sort high→low here instead.
   const beliefs = (data as AthleteBelief[] | null) ?? []
@@ -28,7 +29,7 @@ const CONFIDENCE_LABEL: Record<AthleteBelief['confidence'], string> = {
 // an empty or all-dismissed set yields '' so prompts are unchanged when the model is
 // empty.
 export function formatAthleteModel(beliefs: AthleteBelief[]): string {
-  const shown = beliefs.filter(b => b.status !== 'dismissed')
+  const shown = beliefs.filter(b => b.status !== 'dismissed' && b.status !== 'superseded')
   if (!shown.length) return ''
   const lines = shown.map(b => {
     let prefix = ''

@@ -45,16 +45,27 @@ describe('formatAthleteModel', () => {
   it('returns empty string when every belief is dismissed', () => {
     expect(formatAthleteModel([belief({ status: 'dismissed' })])).toBe('')
   })
+
+  it('excludes superseded beliefs', () => {
+    const out = formatAthleteModel([
+      belief({}),
+      belief({ key: 'old', label: 'Old', status: 'superseded', value_text: 'RETIRED CLAIM' }),
+    ])
+    expect(out).not.toContain('RETIRED CLAIM')
+    expect(out).toContain('Weekly ramp tolerance')
+  })
 })
 
 describe('fetchActiveBeliefs', () => {
   function fakeSupabase(rows: AthleteBelief[]) {
-    const qb = {
-      select: () => qb,
-      eq: () => qb,
-      neq: () => Promise.resolve({ data: rows }),
-    }
-    return { from: () => qb } as unknown as Parameters<typeof fetchActiveBeliefs>[0]
+    const createChain = (): any => ({
+      select: createChain,
+      eq: createChain,
+      neq: createChain,
+      then: (f: any) => Promise.resolve({ data: rows }).then(f),
+      catch: (f: any) => Promise.resolve({ data: rows }).catch(f),
+    })
+    return { from: createChain } as unknown as Parameters<typeof fetchActiveBeliefs>[0]
   }
 
   it('returns beliefs ordered high → low confidence', async () => {
