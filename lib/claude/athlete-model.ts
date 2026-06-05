@@ -1,0 +1,36 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AthleteBelief } from '@/types'
+
+// Active, non-dismissed beliefs for a user (mirrors fetchDossier).
+export async function fetchActiveBeliefs(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<AthleteBelief[]> {
+  const { data } = await supabase
+    .from('athlete_beliefs')
+    .select('*')
+    .eq('user_id', userId)
+    .neq('status', 'dismissed')
+    .order('confidence', { ascending: false })
+  return (data as AthleteBelief[] | null) ?? []
+}
+
+const CONFIDENCE_LABEL: Record<AthleteBelief['confidence'], string> = {
+  high: 'high confidence', medium: 'medium confidence', low: 'low confidence',
+}
+
+// Render active beliefs into a prompt block. Athlete-set beliefs (confirmed/corrected)
+// are framed as ground truth that outranks inference. Dismissed beliefs are dropped;
+// an empty or all-dismissed set yields '' so prompts are unchanged when the model is
+// empty.
+export function formatAthleteModel(beliefs: AthleteBelief[]): string {
+  const shown = beliefs.filter(b => b.status !== 'dismissed')
+  if (!shown.length) return ''
+  const lines = shown.map(b => {
+    let prefix = ''
+    if (b.status === 'confirmed') prefix = '[athlete confirms] '
+    else if (b.status === 'corrected') prefix = '[athlete states] '
+    return `- ${b.label}: ${prefix}${b.value_text} (${CONFIDENCE_LABEL[b.confidence]})`
+  })
+  return ['WHAT THE COACH HAS LEARNED ABOUT THIS ATHLETE:', ...lines].join('\n')
+}
