@@ -148,6 +148,7 @@ Recent sessions: ${recent}
 Upcoming events: ${buildEventsString(ctx)}
 ${weatherLine ? weatherLine + '\n' : ''}${unavailLine ? `Current unavailability: ${unavailLine}` : ''}
 ${dossierLines.length ? '\nAthlete context:\n' + dossierLines.join('\n') : ''}
+${ctx.athleteModel ? '\n' + ctx.athleteModel : ''}
 Write the morning briefing. Respond ONLY with a JSON object: {"verdict":"green|amber|red","headline":"<=4 words","note":"<the briefing prose>"}`
 
   const raw = await callClaude(SYSTEM_MORNING, prompt)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateBriefing } from '@/lib/claude/briefing'
+import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import { sendPush } from '@/lib/push'
 import { sendBriefingEmail } from '@/lib/email'
 import { IntervalsClient } from '@/lib/intervals/client'
@@ -182,6 +183,8 @@ export async function GET(req: NextRequest) {
       await log(profile.user_id, 'weather_fetch', weather ? 'ok' : 'skipped', { description: weather?.description ?? null })
     }
 
+    const beliefs = await fetchActiveBeliefs(supabase, profile.user_id).catch(() => [])
+
     const ctx: BriefingContext = {
       today,
       todayWorkout,
@@ -191,6 +194,7 @@ export async function GET(req: NextRequest) {
       readinessLabel: readinessLabel(tsb),
       hrv, hrvStatus, recentWorkouts, upcomingEvents,
       activeUnavailability,
+      athleteModel: formatAthleteModel(beliefs),
       weather,
     }
 

@@ -423,6 +423,7 @@ export interface BriefingContext {
     }
     explicit_notes: Array<{ note: string; added_at: string }>
   } | null
+  athleteModel?: string  // pre-formatted formatAthleteModel() output; '' or undefined when empty
 }
 
 export interface DailyBriefing {

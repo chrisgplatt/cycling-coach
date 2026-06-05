@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { generateBriefing } from '@/lib/claude/briefing'
 import { fetchDossier } from '@/lib/claude/dossier'
+import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatus } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
 
   const fiveDaysLater = new Date(Date.now() + 5 * 864e5).toISOString().split('T')[0]
 
-  const [{ data: workouts }, { data: upcomingWorkoutsData }, dossier] = await Promise.all([
+  const [{ data: workouts }, { data: upcomingWorkoutsData }, dossier, beliefs] = await Promise.all([
     supabase.from('workouts')
       .select('*')
       .eq('date', today)
@@ -60,6 +61,7 @@ export async function GET(req: NextRequest) {
       .lte('date', fiveDaysLater)
       .order('date'),
     fetchDossier(supabase, user.id),
+    fetchActiveBeliefs(supabase, user.id),
   ])
 
   const todayWorkouts = (workouts ?? []) as Workout[]
@@ -164,6 +166,7 @@ export async function GET(req: NextRequest) {
     upcomingEvents,
     upcomingWorkouts: (upcomingWorkoutsData ?? []) as BriefingContext['upcomingWorkouts'],
     dossier,
+    athleteModel: formatAthleteModel(beliefs),
     weather,
   }
 
