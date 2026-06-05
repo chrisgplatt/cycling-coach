@@ -37,3 +37,21 @@ export function rpeSessionsFromFeedback(
     .filter((r): r is { rpe: number; type: WorkoutType } => r.rpe != null && r.type != null)
     .map(r => ({ rpe: r.rpe, targetPct: TYPE_TARGET_PCT[r.type] }))
 }
+
+export const HARD_TYPES = new Set<WorkoutType>(['threshold', 'intervals'])
+
+export function recoverySessions(
+  rows: Array<{
+    date: string; type: WorkoutType; status: string
+    completion: FeedbackCompletion | null; feel: number | null
+  }>,
+): Array<{ date: string; isHard: boolean; completedWell: boolean; feel: number | null }> {
+  return rows.map(r => ({
+    date: r.date,
+    isHard: HARD_TYPES.has(r.type),
+    completedWell: r.completion != null
+      ? r.completion === 'as_planned' || r.completion === 'went_harder'
+      : r.status === 'completed',
+    feel: r.feel,
+  }))
+}

@@ -1,5 +1,6 @@
 import { weeklyTssSeries } from '@/lib/athlete-model/assemble'
 import { rpeSessionsFromFeedback, TYPE_TARGET_PCT } from '@/lib/athlete-model/assemble'
+import { recoverySessions, HARD_TYPES } from '@/lib/athlete-model/assemble'
 
 describe('weeklyTssSeries', () => {
   it('buckets workouts into Monday-started weeks and sums TSS chronologically', () => {
@@ -46,5 +47,38 @@ describe('rpeSessionsFromFeedback', () => {
       { rpe: 6, type: 'threshold' },
     ])
     expect(out).toEqual([{ rpe: 6, targetPct: TYPE_TARGET_PCT.threshold }])
+  })
+})
+
+describe('HARD_TYPES', () => {
+  it('treats threshold and intervals as hard', () => {
+    expect(HARD_TYPES.has('threshold')).toBe(true)
+    expect(HARD_TYPES.has('intervals')).toBe(true)
+    expect(HARD_TYPES.has('endurance')).toBe(false)
+    expect(HARD_TYPES.has('recovery')).toBe(false)
+  })
+})
+
+describe('recoverySessions', () => {
+  it('flags hard sessions and derives completed-well from completion then status', () => {
+    const out = recoverySessions([
+      { date: '2026-05-04', type: 'intervals', status: 'completed', completion: 'as_planned', feel: 3 },
+      { date: '2026-05-05', type: 'endurance', status: 'completed', completion: 'cut_short', feel: 4 },
+      { date: '2026-05-06', type: 'recovery', status: 'completed', completion: null, feel: null },
+      { date: '2026-05-07', type: 'threshold', status: 'skipped', completion: null, feel: null },
+    ])
+    expect(out).toEqual([
+      { date: '2026-05-04', isHard: true, completedWell: true, feel: 3 },
+      { date: '2026-05-05', isHard: false, completedWell: false, feel: 4 },
+      { date: '2026-05-06', isHard: false, completedWell: true, feel: null },
+      { date: '2026-05-07', isHard: true, completedWell: false, feel: null },
+    ])
+  })
+
+  it('treats went_harder as completed well', () => {
+    const out = recoverySessions([
+      { date: '2026-05-04', type: 'intervals', status: 'needs_review', completion: 'went_harder', feel: 2 },
+    ])
+    expect(out[0].completedWell).toBe(true)
   })
 })
