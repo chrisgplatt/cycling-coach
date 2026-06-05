@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import CoachChat from '@/components/CoachChat'
+import AthleteModel from '@/components/AthleteModel'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 
 function ageLabel(iso: string): string {
@@ -133,6 +134,8 @@ export default function CoachPage() {
           <Prose label="Trajectory" value={content?.trajectory} />
         </div>
       )}
+
+      <AthleteModel />
 
       {notes.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
