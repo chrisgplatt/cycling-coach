@@ -1,4 +1,4 @@
-import { computeRampTolerance, computeRpeCalibration, expectedRpe } from '@/lib/athlete-model/grounding'
+import { computeRampTolerance, computeRpeCalibration, expectedRpe, computeRecoveryProfile } from '@/lib/athlete-model/grounding'
 
 describe('computeRampTolerance', () => {
   it('returns null below four weeks of data', () => {
@@ -65,5 +65,47 @@ describe('computeRpeCalibration', () => {
     const out = computeRpeCalibration(s)!
     expect(out.easyBias).toBe(1)
     expect(out.hardBias).toBeNull()
+  })
+})
+
+describe('computeRecoveryProfile', () => {
+  const day = (n: number) => `2026-05-${String(n).padStart(2, '0')}`
+
+  it('returns null with fewer than three post-hard days', () => {
+    const sessions = [
+      { date: day(1), isHard: true, completedWell: true, feel: 2 },
+      { date: day(2), isHard: false, completedWell: true, feel: 2 },
+    ]
+    expect(computeRecoveryProfile(sessions)).toBeNull()
+  })
+
+  it('measures completion and feel on days immediately after a hard day', () => {
+    const sessions = [
+      { date: day(1), isHard: true, completedWell: true, feel: 3 },
+      { date: day(2), isHard: false, completedWell: true, feel: 2 },
+      { date: day(3), isHard: true, completedWell: true, feel: 3 },
+      { date: day(4), isHard: false, completedWell: false, feel: 4 },
+      { date: day(5), isHard: true, completedWell: true, feel: 3 },
+      { date: day(6), isHard: false, completedWell: true, feel: 3 },
+    ]
+    const out = computeRecoveryProfile(sessions)!
+    expect(out.n).toBe(3)
+    expect(out.nextDayCompletionRate).toBe(67)
+    expect(out.nextDayAvgFeel).toBe(3)
+  })
+
+  it('only counts the immediately-following calendar day', () => {
+    const sessions = [
+      { date: day(1), isHard: true, completedWell: true, feel: 3 },
+      { date: day(3), isHard: false, completedWell: true, feel: 2 },
+      { date: day(10), isHard: true, completedWell: true, feel: 3 },
+      { date: day(11), isHard: false, completedWell: false, feel: 4 },
+      { date: day(12), isHard: true, completedWell: true, feel: 3 },
+      { date: day(13), isHard: false, completedWell: true, feel: 2 },
+      { date: day(20), isHard: true, completedWell: true, feel: 3 },
+      { date: day(21), isHard: false, completedWell: true, feel: 2 },
+    ]
+    const out = computeRecoveryProfile(sessions)!
+    expect(out.n).toBe(3)
   })
 })

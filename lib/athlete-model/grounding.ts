@@ -69,3 +69,32 @@ export function computeRpeCalibration(
     n: rated.length,
   }
 }
+
+export interface RecoveryProfile {
+  nextDayCompletionRate: number
+  nextDayAvgFeel: number | null
+  n: number
+}
+
+// Sessions in chronological order. A "post-hard day" is one whose date is exactly the
+// calendar day after a hard session. Dates are 'YYYY-MM-DD'.
+export function computeRecoveryProfile(
+  sessions: Array<{ date: string; isHard: boolean; completedWell: boolean; feel: number | null }>,
+): RecoveryProfile | null {
+  const prevDay = (d: string): string => {
+    const t = new Date(d + 'T00:00:00Z')
+    t.setUTCDate(t.getUTCDate() - 1)
+    return t.toISOString().slice(0, 10)
+  }
+  const hardDates = new Set(sessions.filter(s => s.isHard).map(s => s.date))
+  const postHard = sessions.filter(s => hardDates.has(prevDay(s.date)))
+  if (postHard.length < 3) return null
+  const feels = postHard.map(s => s.feel).filter((v): v is number => v != null)
+  return {
+    nextDayCompletionRate: Math.round(
+      (postHard.filter(s => s.completedWell).length / postHard.length) * 100,
+    ),
+    nextDayAvgFeel: feels.length ? Math.round((feels.reduce((a, b) => a + b, 0) / feels.length) * 10) / 10 : null,
+    n: postHard.length,
+  }
+}
