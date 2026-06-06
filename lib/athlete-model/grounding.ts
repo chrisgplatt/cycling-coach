@@ -71,6 +71,23 @@ export function computeRpeCalibration(
   }
 }
 
+export interface CoachingResonance {
+  helpful: number
+  total: number
+  pct: number
+}
+
+// Share of rated coach notes the athlete marked helpful. A coaching-quality signal:
+// low resonance means the post-ride notes aren't landing, so the coaching voice and
+// content should adapt. Needs at least 3 ratings to mean anything.
+export function computeCoachingResonance(
+  ratings: Array<'helpful' | 'not_helpful'>,
+): CoachingResonance | null {
+  if (ratings.length < 3) return null
+  const helpful = ratings.filter(r => r === 'helpful').length
+  return { helpful, total: ratings.length, pct: Math.round((helpful / ratings.length) * 100) }
+}
+
 export interface RecoveryProfile {
   nextDayCompletionRate: number
   nextDayAvgFeel: number | null

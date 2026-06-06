@@ -23,6 +23,7 @@ export async function synthesizeDossier(
     { data: workouts, error: workoutsError },
     { data: feedbacks, error: feedbacksError },
     { data: chatMessages, error: chatError },
+    { data: discussions, error: discussionError },
     { data: existing },
   ] =
     await Promise.all([
@@ -42,13 +43,19 @@ export async function synthesizeDossier(
         .eq('user_id', profile.user_id)
         .order('created_at', { ascending: false })
         .limit(100),
+      supabase.from('feedback_messages')
+        .select('role, content')
+        .eq('user_id', profile.user_id)
+        .gte('created_at', ninetyDaysAgoTs)
+        .order('created_at', { ascending: true })
+        .limit(100),
       supabase.from('athlete_dossier')
         .select('explicit_notes')
         .eq('user_id', profile.user_id)
         .maybeSingle(),
     ])
 
-  const readError = workoutsError ?? feedbacksError ?? chatError
+  const readError = workoutsError ?? feedbacksError ?? chatError ?? discussionError
   if (readError) throw new Error(`synthesizeDossier read failed: ${readError.message}`)
 
   const eventResults = ((profile.events ?? []) as TrainingEvent[]).filter(e => e.icu_activity_id)
@@ -70,6 +77,7 @@ export async function synthesizeDossier(
     (feedbacks ?? []) as import('./dossier').DossierFeedback[],
     eventResults,
     [...((chatMessages ?? []) as Array<{ role: string; content: string }>)].reverse(),
+    (discussions ?? []) as Array<{ role: string; content: string }>,
   )
 
   const explicitNotes = (existing?.explicit_notes ?? []) as Array<{ note: string; added_at: string }>

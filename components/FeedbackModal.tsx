@@ -1,8 +1,9 @@
 'use client'
 import { useState } from 'react'
 import type {
-  Workout, ProposedAdjustment, SessionFeedback, FeedbackCompletion, FeedbackTag,
+  Workout, ProposedAdjustment, SessionFeedback, FeedbackCompletion, FeedbackTag, CoachNoteRating,
 } from '@/types'
+import CoachNotePanel from './CoachNotePanel'
 
 type Phase = 'input' | 'proposed' | 'saved'
 
@@ -49,6 +50,9 @@ export default function FeedbackModal({ workout, onClose, initialFeedback }: Pro
   const [adapt, setAdapt] = useState(
     initialFeedback ? initialFeedback.proposed_adjustment !== null : false
   )
+  const [coachNote, setCoachNote] = useState<string | null>(initialFeedback?.coach_note ?? null)
+  const [savedFeedbackId, setSavedFeedbackId] = useState<string | null>(initialFeedback?.id ?? null)
+  const [coachNoteRating] = useState<CoachNoteRating | null>(initialFeedback?.coach_note_rating ?? null)
   const [loading, setLoading] = useState(false)
 
   const hasSignal =
@@ -74,6 +78,8 @@ export default function FeedbackModal({ workout, onClose, initialFeedback }: Pro
     })
     if (res.ok) {
       const data = await res.json()
+      setCoachNote(data.feedback?.coach_note ?? null)
+      setSavedFeedbackId(data.feedback?.id ?? null)
       if (adapt && data.proposed) {
         setProposed({ feedbackId: data.feedback.id, adjustment: data.proposed })
         setPhase('proposed')
@@ -292,6 +298,13 @@ export default function FeedbackModal({ workout, onClose, initialFeedback }: Pro
               )}
             </div>
             <p className="text-xs text-green-600 font-medium">Feedback saved.</p>
+            {coachNote && savedFeedbackId && (
+              <CoachNotePanel
+                feedbackId={savedFeedbackId}
+                coachNote={coachNote}
+                initialRating={coachNoteRating}
+              />
+            )}
             {adaptToggle}
             <div className="flex justify-end gap-2">
               <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700 px-2 py-2.5">

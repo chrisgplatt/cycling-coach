@@ -170,6 +170,19 @@ export interface SessionFeedback {
   completion: FeedbackCompletion | null
   tags: FeedbackTag[] | null
   mood: number | null
+  coach_note: string | null
+  coach_note_rating: CoachNoteRating | null
+}
+
+export type CoachNoteRating = 'helpful' | 'not_helpful'
+
+export interface FeedbackMessage {
+  id: string
+  feedback_id: string
+  user_id: string
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
 }
 
 export interface CoachingLogEntry {

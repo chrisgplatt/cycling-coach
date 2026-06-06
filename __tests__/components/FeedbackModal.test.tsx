@@ -45,6 +45,7 @@ describe('FeedbackModal structured capture', () => {
       activity_tss: null, activity_avg_power: null, activity_avg_hr: null,
       proposed_adjustment: null, approved: null, created_at: '2026-06-01T18:00:00Z',
       rpe: 6, feel: 3, completion: 'as_planned', tags: ['weather'], mood: 2,
+      coach_note: null, coach_note_rating: null,
     }} />)
     expect(screen.getByRole('button', { name: 'RPE 6' })).toHaveAttribute('aria-pressed', 'true')
   })

@@ -1,5 +1,5 @@
 import type { BeliefConfidence } from '@/types'
-import { computeRampTolerance, computeRpeCalibration, computeRecoveryProfile } from './grounding'
+import { computeRampTolerance, computeRpeCalibration, computeRecoveryProfile, computeCoachingResonance } from './grounding'
 
 // A belief the synthesis proposes this run, before reconciliation against stored state.
 export interface CandidateBelief {
@@ -22,6 +22,7 @@ export interface GroundingInputs {
   weeklyTss: number[]
   rpeSessions: Array<{ rpe: number; targetPct: number }>
   recovery: Array<{ date: string; isHard: boolean; completedWell: boolean; feel: number | null }>
+  coachingRatings?: Array<'helpful' | 'not_helpful'>
 }
 
 // Suppress RPE biases smaller than this (points) as noise rather than signal.
@@ -81,6 +82,22 @@ export function buildGroundedBeliefs(inputs: GroundingInputs): CandidateBelief[]
       value_data: { nextDayCompletionRate: rec.nextDayCompletionRate, nextDayAvgFeel: rec.nextDayAvgFeel, n: rec.n },
       confidence: confidenceFromCount(rec.n, 4, 8),
       evidence: `${rec.n} post-hard days`,
+      source: 'computed',
+    })
+  }
+
+  const resonance = computeCoachingResonance(inputs.coachingRatings ?? [])
+  if (resonance) {
+    const landing = resonance.pct >= 70 ? 'landing well'
+      : resonance.pct >= 40 ? 'landing unevenly'
+      : 'often missing the mark'
+    out.push({
+      key: 'coaching_resonance',
+      label: 'Coaching resonance',
+      value_text: `Marked ${resonance.helpful}/${resonance.total} post-ride coach notes helpful — feedback is ${landing}.`,
+      value_data: { helpful: resonance.helpful, total: resonance.total, pct: resonance.pct },
+      confidence: confidenceFromCount(resonance.total, 5, 10),
+      evidence: `${resonance.total} rated coach notes`,
       source: 'computed',
     })
   }

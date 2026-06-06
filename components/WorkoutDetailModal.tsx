@@ -8,6 +8,7 @@ import RideMapGraph from './ride/RideMapGraph'
 import TabBar from './TabBar'
 import PlannedVsActualChart from './PlannedVsActualChart'
 import PlannedVsActualList from './PlannedVsActualList'
+import CoachNotePanel from './CoachNotePanel'
 import { buildPlannedActual, type PlannedActual } from '@/lib/ride/planned-actual'
 import { deriveTargetZones } from '@/lib/claude/zones'
 
@@ -476,9 +477,16 @@ export default function WorkoutDetailModal({
                 )}
                 {existingFeedback && existingFeedback !== 'loading' && (
                   <>
-                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                      {existingFeedback.feedback_text}
-                    </p>
+                    <CoachNotePanel
+                      feedbackId={existingFeedback.id}
+                      coachNote={existingFeedback.coach_note}
+                      initialRating={existingFeedback.coach_note_rating}
+                    />
+                    {existingFeedback.feedback_text && (
+                      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                        {existingFeedback.feedback_text}
+                      </p>
+                    )}
                     {existingFeedback.proposed_adjustment && existingFeedback.approved === true && (
                       <p className="text-xs text-emerald-600 font-medium">Adaptations applied</p>
                     )}

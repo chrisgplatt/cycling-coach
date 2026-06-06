@@ -106,6 +106,7 @@ export async function generateDossier(
   feedbacks: DossierFeedback[],
   eventResults: TrainingEvent[],
   chatMessages: Array<{ role: string; content: string }>,
+  feedbackDiscussions: Array<{ role: string; content: string }> = [],
 ): Promise<DossierContent> {
   const workoutsSection = completedWorkouts.length
     ? completedWorkouts
@@ -140,6 +141,15 @@ export async function generateDossier(
         .join('\n')
     : 'No recent chat history.'
 
+  // Post-ride conversations: the athlete reacting to the coach's session notes. Rich
+  // signal on how sessions felt and whether the coaching is landing — 'assistant' is
+  // the coach's voice, 'user' is the athlete.
+  const discussionSection = feedbackDiscussions.length
+    ? feedbackDiscussions
+        .map(m => `${m.role}: ${m.content.slice(0, 200)}`)
+        .join('\n')
+    : 'No post-ride discussions.'
+
   const prompt = `You are a cycling coach writing a structured profile of your athlete based on 90 days of training data.
 
 ATHLETE DATA:
@@ -158,6 +168,9 @@ ${eventsSection}
 
 RECENT CHAT TOPICS (last 100 messages):
 ${chatSection}
+
+POST-RIDE DISCUSSIONS (athlete responding to the coach's session notes):
+${discussionSection}
 
 Write a structured athlete profile. Be specific and evidence-based — reference actual sessions and results, not generalities. Keep each section to 2–4 sentences. Do not invent patterns not supported by the data.
 

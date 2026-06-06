@@ -5,7 +5,7 @@ import { buildGroundedBeliefs } from '@/lib/athlete-model/build-beliefs'
 import { reconcileBeliefs } from '@/lib/athlete-model/reconcile'
 
 type WorkoutRow = { id: string; date: string; type: WorkoutType; tss: number | null; status: string }
-type FeedbackRow = { workout_id: string | null; rpe: number | null; feel: number | null; completion: FeedbackCompletion | null }
+type FeedbackRow = { workout_id: string | null; rpe: number | null; feel: number | null; completion: FeedbackCompletion | null; coach_note_rating: 'helpful' | 'not_helpful' | null }
 
 // Build/refresh the athlete's grounded beliefs from the last 120 days of training.
 // `now` is injected for deterministic timestamps. Pure pipeline + a single upsert.
@@ -23,7 +23,7 @@ export async function synthesizeBeliefs(
   ] = await Promise.all([
     supabase.from('workouts').select('id, date, type, tss, status')
       .eq('user_id', userId).gte('date', since).order('date'),
-    supabase.from('session_feedback').select('workout_id, rpe, feel, completion, created_at')
+    supabase.from('session_feedback').select('workout_id, rpe, feel, completion, coach_note_rating, created_at')
       .eq('user_id', userId).gte('created_at', since),
     supabase.from('athlete_beliefs').select('*').eq('user_id', userId),
   ])
@@ -50,6 +50,9 @@ export async function synthesizeBeliefs(
         return { date: w.date, type: w.type, status: w.status, completion: f?.completion ?? null, feel: f?.feel ?? null }
       }),
     ),
+    coachingRatings: feedback
+      .map(f => f.coach_note_rating)
+      .filter((r): r is 'helpful' | 'not_helpful' => r === 'helpful' || r === 'not_helpful'),
   })
 
   const upserts = reconcileBeliefs(existing, candidates, now)

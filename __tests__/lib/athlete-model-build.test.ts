@@ -35,6 +35,27 @@ describe('buildGroundedBeliefs', () => {
     expect(beliefs).toEqual([])
   })
 
+  it('adds a coaching_resonance belief from coach-note ratings', () => {
+    const beliefs = buildGroundedBeliefs({
+      weeklyTss: [],
+      rpeSessions: [],
+      recovery: [],
+      coachingRatings: ['helpful', 'helpful', 'not_helpful', 'helpful'],
+    })
+    const r = beliefs.find(b => b.key === 'coaching_resonance')!
+    expect(r).toBeDefined()
+    expect(r.value_data).toMatchObject({ helpful: 3, total: 4, pct: 75 })
+    expect(r.value_text).toContain('landing well')
+  })
+
+  it('omits coaching_resonance below 3 ratings', () => {
+    const beliefs = buildGroundedBeliefs({
+      weeklyTss: [], rpeSessions: [], recovery: [],
+      coachingRatings: ['helpful', 'not_helpful'],
+    })
+    expect(beliefs.find(b => b.key === 'coaching_resonance')).toBeUndefined()
+  })
+
   it('uses the "tracks closely" wording when biases are within the dead-zone', () => {
     const beliefs = buildGroundedBeliefs({
       weeklyTss: [],

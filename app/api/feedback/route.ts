@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { analyseFeedback } from '@/lib/claude/feedback'
+import { assessSession } from '@/lib/claude/session-note'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { Workout, ProposedAdjustment } from '@/types'
@@ -67,6 +68,22 @@ export async function POST(req: NextRequest) {
 
   if (!workout) return NextResponse.json({ error: 'Workout not found' }, { status: 404 })
 
+  const w = workout as Workout
+
+  // Built once and shared: the coach note always wants it, and adaptation reuses it.
+  const { formatRideExecution, formatRideShape } = await import('@/lib/claude/activity-metrics')
+  const rideExecution = [
+    formatRideExecution(w.steps, w.activity_metrics),
+    formatRideShape(w.activity_metrics?.shape ?? null),
+  ].filter(Boolean).join('\n\n')
+
+  const signals = { rpe: rpe ?? null, feel: feel ?? null, completion: completion ?? null, tags: tags ?? null }
+
+  // The coach's post-ride note runs on EVERY submit, independent of the adapt toggle —
+  // best-effort, so a generation failure never blocks saving the feedback.
+  const coachNotePromise = assessSession(w, feedbackText, { ...signals, mood: mood ?? null }, rideExecution)
+    .catch(() => null)
+
   let proposed: ProposedAdjustment | null = null
   if (shouldAdapt) {
     const today = new Date().toISOString().split('T')[0]
@@ -78,15 +95,8 @@ export async function POST(req: NextRequest) {
     ])
     const events = ((profileData as { events?: import('@/types').TrainingEvent[] } | null)?.events ?? [])
 
-    const { formatRideExecution, formatRideShape } = await import('@/lib/claude/activity-metrics')
-    const w = workout as Workout
-    const rideExecution = [
-      formatRideExecution(w.steps, w.activity_metrics),
-      formatRideShape(w.activity_metrics?.shape ?? null),
-    ].filter(Boolean).join('\n\n')
-
     proposed = await analyseFeedback(
-      workout as Workout,
+      w,
       feedbackText,
       activityTSS ?? null,
       activityAvgPower ?? null,
@@ -95,9 +105,11 @@ export async function POST(req: NextRequest) {
       events,
       formatDossier(dossier as AthleteDossier | null),
       rideExecution,
-      { rpe: rpe ?? null, feel: feel ?? null, completion: completion ?? null, tags: tags ?? null },
+      signals,
     )
   }
+
+  const coachNote = await coachNotePromise
 
   const { data: feedback } = await supabase
     .from('session_feedback')
@@ -113,6 +125,7 @@ export async function POST(req: NextRequest) {
       completion: completion ?? null,
       tags: tags ?? null,
       mood: mood ?? null,
+      coach_note: coachNote,
       proposed_adjustment: proposed,
       approved: null,
       user_id: user.id,
@@ -141,7 +154,22 @@ export async function PATCH(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { feedbackId, approved } = await req.json()
+  const { feedbackId, approved, coachNoteRating } = await req.json()
+
+  // Rating path — record how useful the athlete found the coach's note. Distinct
+  // from the adaptation approve/reject path below.
+  if (coachNoteRating !== undefined) {
+    if (coachNoteRating !== 'helpful' && coachNoteRating !== 'not_helpful' && coachNoteRating !== null) {
+      return NextResponse.json({ error: 'Invalid rating' }, { status: 400 })
+    }
+    const { error } = await supabase
+      .from('session_feedback')
+      .update({ coach_note_rating: coachNoteRating })
+      .eq('id', feedbackId)
+      .eq('user_id', user.id)
+    if (error) return NextResponse.json({ error: 'Failed to save rating' }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
 
   const { data: feedback } = await supabase
     .from('session_feedback')
