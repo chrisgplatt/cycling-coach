@@ -1,6 +1,6 @@
 import { anthropic, MODEL } from './client'
 import { formatZones } from './zones'
-import { formatSchedule } from './schedule'
+import { formatSchedule, formatPlanCalendar } from './schedule'
 import { coachingNotesGuidance } from './coaching-notes'
 import type { UserProfile, ICUSyncData, GeneratedPlan, ICUActivity, ICUWellness } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
@@ -39,7 +39,7 @@ function weeklyTssSummary(activities: ICUActivity[]): string {
   return `${lines.join('\n')}\n  → Average: ${avg} TSS/week`
 }
 
-export { formatZones, formatSchedule }
+export { formatZones, formatSchedule, formatPlanCalendar }
 
 const SYSTEM_PROMPT = `You are an expert road cycling coach. Generate periodized training plans based on athlete data.
 Always respond with ONLY valid JSON matching the exact schema requested. No markdown, no explanation outside the JSON.`
@@ -56,6 +56,11 @@ function buildPrompt(
   const allEvents = [...profile.events].sort((a, b) => a.date.localeCompare(b.date))
   if (!allEvents.length) throw new Error('Cannot generate a plan: no events configured.')
   const wPerKg = (profile.current_ftp / profile.weight_kg).toFixed(2)
+  const endDate = (() => {
+    const d = new Date(startDate)
+    d.setUTCDate(d.getUTCDate() + weeks * 7 - 1)
+    return d.toISOString().split('T')[0]
+  })()
 
   return `Generate a training plan for this athlete.
 
@@ -71,8 +76,10 @@ ${profile.min_sessions_per_week != null && profile.max_sessions_per_week != null
   ? `SESSION FREQUENCY TARGET: Aim for ${profile.min_sessions_per_week}–${profile.max_sessions_per_week} sessions per week. This is a target, not a hard rule — prioritise quality and recovery over hitting a specific number.`
   : ''}
 
+${formatPlanCalendar(startDate, endDate, profile.weekly_availability, allEvents)}
+
 HARD SCHEDULING CONSTRAINTS — absolute rules, never break these:
-1. Only schedule workouts on days listed in the weekly schedule. Never place a workout on a rest day.
+1. Only schedule workouts on days marked "train" in the EXACT PLANNING CALENDAR above. Never place a workout on a REST or BLOCKED day. Use each date's weekday from that calendar verbatim — do not work the day of week out yourself.
 2. Each workout's duration_minutes must not exceed the maximum available minutes for that day. Choose the duration that best suits the session type and training phase — do not pad sessions just to fill available time.
 3. Steps within each workout must sum to exactly duration_minutes.
 4. All workout dates must fall on or after ${startDate}.
@@ -144,7 +151,7 @@ When an event week contains an event with a TSS estimate, treat that estimated T
 RECENT ACTIVITIES (last 10 — use these to understand training history, discipline mix, and current intensity):
 ${summariseActivities(syncData.activities)}
 
-PLAN LENGTH: Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts. The plan window is ${startDate} to ${(() => { const d = new Date(startDate); d.setDate(d.getDate() + weeks * 7 - 1); return d.toISOString().split('T')[0] })()} inclusive. Do not place any workouts before ${startDate} or after this end date. The final week of workouts must fall within the last 7 days of this window.
+PLAN LENGTH: Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts. The plan window is ${startDate} to ${endDate} inclusive. Do not place any workouts before ${startDate} or after this end date. The final week of workouts must fall within the last 7 days of this window.
 ${notes ? `
 ADDITIONAL COACHING NOTES (take these into account when designing the plan):
 ${notes}

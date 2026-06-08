@@ -3,6 +3,7 @@
 
 import { formatZones } from './zones'
 import { formatSchedule } from './schedule'
+import { weekdayName } from '@/lib/calendar-helpers'
 import type { UserProfile, ICUWellness, TrainingEvent } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
@@ -56,7 +57,7 @@ export function buildInterviewSystemPrompt(
   hrvStatus?: HrvStatus | null,
 ): string {
   const today = new Date().toISOString().split('T')[0]
-  const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' })
+  const weekday = weekdayName(today)
   const wPerKg = (currentFTP / (profile.weight_kg || 70)).toFixed(2)
 
   const tsb = wellness?.form ?? (

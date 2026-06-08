@@ -1,3 +1,5 @@
+import { weekdayName } from '@/lib/calendar-helpers'
+
 // Pure weekly-schedule formatter. Dependency-free (no Claude client import) so
 // prompt builders can describe availability without pulling in the Anthropic SDK.
 export function formatSchedule(availability: Array<{ day: string; duration_minutes: number }> | undefined): string {
@@ -20,4 +22,41 @@ export function formatSchedule(availability: Array<{ day: string; duration_minut
     lines.push(`  ${restDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}: REST — do not schedule any workout on these days`)
   }
   return `Weekly training schedule:\n${lines.join('\n')}`
+}
+
+// Explicit day-by-day calendar for a planning window, with each real weekday
+// resolved in code. The coach must never derive a weekday from a date itself
+// (the off-by-one that mislabels e.g. Sunday as Saturday) — it reads these lines
+// verbatim. Each day is marked trainable (with its cap), REST, or BLOCKED (event).
+export function formatPlanCalendar(
+  startDate: string,
+  endDate: string,
+  availability: Array<{ day: string; duration_minutes: number }> | undefined,
+  events: Array<{ date: string; name: string }> = [],
+): string {
+  const capByDay = new Map<string, number>()
+  for (const a of availability ?? []) capByDay.set(a.day.toLowerCase(), a.duration_minutes)
+  const eventByDate = new Map<string, string>()
+  for (const e of events) eventByDate.set(e.date, e.name)
+
+  const [sy, sm, sd] = startDate.split('-').map(Number)
+  const start = Date.UTC(sy, sm - 1, sd)
+  const [ey, em, ed] = endDate.split('-').map(Number)
+  const end = Date.UTC(ey, em - 1, ed)
+
+  const lines: string[] = []
+  // UTC has no DST, so adding one day (86_400_000 ms) is always exactly one date.
+  for (let t = start; t <= end; t += 864e5) {
+    const dateStr = new Date(t).toISOString().split('T')[0]
+    const dayName = weekdayName(dateStr)
+    let status: string
+    if (eventByDate.has(dateStr)) {
+      status = `BLOCKED — event: ${eventByDate.get(dateStr)} (no workout)`
+    } else {
+      const cap = capByDay.get(dayName.toLowerCase()) ?? 0
+      status = cap > 0 ? `train — up to ${cap} min` : 'REST — no workout'
+    }
+    lines.push(`  ${dateStr} ${dayName}: ${status}`)
+  }
+  return `EXACT PLANNING CALENDAR (authoritative — every date's weekday is given here; use these labels verbatim and NEVER compute the day of week yourself):\n${lines.join('\n')}`
 }

@@ -28,6 +28,22 @@ export function weekDates(dateStr: string): string[] {
   })
 }
 
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+// Deterministic, timezone-safe weekday name for a YYYY-MM-DD date. The date is
+// read as a UTC calendar date so the result never drifts with the server's
+// timezone — the canonical source of truth when a prompt must state the day.
+export function weekdayName(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return WEEKDAY_NAMES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+}
+
+// "2026-06-08 (Monday)" — the canonical way to show a date to the coach so it
+// never has to compute the day of week itself (a frequent off-by-one source).
+export function labelDate(dateStr: string): string {
+  return `${dateStr} (${weekdayName(dateStr)})`
+}
+
 // Formats a duration in minutes: "45m", "1h", "1h 30m"
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes}m`

@@ -2,6 +2,7 @@ import { anthropic, MODEL } from './client'
 import type { BriefingContext } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import { formatWeatherForPrompt } from '@/lib/weather/format'
+import { labelDate } from '@/lib/calendar-helpers'
 
 export type ReadinessVerdict = 'green' | 'amber' | 'red'
 
@@ -141,7 +142,7 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<BriefingRe
 
   const weatherLine = ctx.weather ? formatWeatherForPrompt(ctx.weather) : null
 
-  const prompt = `Today's date: ${ctx.today}
+  const prompt = `Today's date: ${labelDate(ctx.today)}
 Today's plan: ${sessionLine}
 Training load: ${buildLoadString(ctx)}
 Recent sessions: ${recent}
@@ -194,7 +195,7 @@ async function generatePostRideNote(ctx: BriefingContext): Promise<string> {
     .filter((e): e is string => !!e)
     .join('\n')
 
-  const prompt = `Today's date: ${ctx.today}
+  const prompt = `Today's date: ${labelDate(ctx.today)}
 Sessions today: ${sessionSummary}
 Ride data: ${rideStats}
 ${execution ? `Planned vs actual:\n${execution}\n` : ''}Training load after ride: ${buildLoadString(ctx)}
@@ -221,7 +222,7 @@ async function generatePostRaceNote(ctx: BriefingContext): Promise<string> {
     ? rides.map(r => rideDataString(r)).join(' | ')
     : 'No power data synced yet'
 
-  const prompt = `Today's date: ${ctx.today}
+  const prompt = `Today's date: ${labelDate(ctx.today)}
 Race/event: ${eventDetail}
 Ride data from today: ${rideStats}
 Training load: ${buildLoadString(ctx)}

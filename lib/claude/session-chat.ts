@@ -1,6 +1,7 @@
 import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
+import { weekdayName, labelDate } from '@/lib/calendar-helpers'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -33,11 +34,11 @@ export function buildSessionSystemPrompt(
     + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   const weekSection = upcomingWorkouts.length
-    ? upcomingWorkouts.map(w => `- ${w.id} | ${w.date}: ${w.type} ${w.duration_minutes}min — ${w.description}`).join('\n')
+    ? upcomingWorkouts.map(w => `- ${w.id} | ${labelDate(w.date)}: ${w.type} ${w.duration_minutes}min — ${w.description}`).join('\n')
     : 'No other upcoming workouts this week.'
 
   const today = workout.date
-  const weekday = new Date(today + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' })
+  const weekday = weekdayName(today)
   const upcomingEvents = events
     .filter(e => e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))

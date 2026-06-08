@@ -1,5 +1,5 @@
 import { anthropic } from './client'
-import { formatZones, formatSchedule } from './plan'
+import { formatZones, formatSchedule, formatPlanCalendar } from './plan'
 import { coachingNotesGuidance } from './coaching-notes'
 import type { UserProfile, ICUActivity, ICUWellness, Workout, TrainingEvent } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
@@ -148,9 +148,11 @@ ${formatLastWeekWorkouts(lastWeekWorkouts, recentActivities)}${formatUnplannedAc
 REMAINING PLANNED WORKOUTS (to be replaced):
 ${formatRemainingWorkouts(remainingWorkouts)}
 ${note ? `\nATHLETE NOTE: ${note}\n` : ''}
+${formatPlanCalendar(today, lastDate, profile.weekly_availability, allEvents.map(e => ({ date: e.date, name: e.name })))}
+
 Review last week's execution and adapt the remaining plan. Replace the remaining planned workouts with an adjusted schedule covering the same date range (${today} to ${lastDate}).
 
-Apply the same constraints as initial plan generation: respect the weekly schedule, never schedule on rest days or event dates, use exact duration_minutes for each day of the week.
+Apply the same constraints as initial plan generation: only schedule on days marked "train" in the EXACT PLANNING CALENDAR above, never on a REST or BLOCKED day, and use exact duration_minutes for each day. Take every date's weekday from that calendar verbatim — never compute the day of week yourself.
 
 Use the athlete's current CTL, ATL, form, and actual weekly TSS to calibrate the adapted load:
 - If form (TSB) is below -15 or the athlete missed multiple sessions: reduce next week's load 10–20%

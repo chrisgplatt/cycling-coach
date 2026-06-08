@@ -3,6 +3,7 @@ import { formatZones } from './zones'
 import { formatActivityMetrics, formatRideExecution } from './activity-metrics'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
+import { weekdayName, labelDate } from '@/lib/calendar-helpers'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -34,14 +35,14 @@ export function buildChatSystemPrompt(
   hrvStatus?: HrvStatus | null,
 ): string {
   const today = new Date().toISOString().split('T')[0]
-  const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' })
+  const weekday = weekdayName(today)
 
   const planSection = plan
     ? `Active plan: ${plan.target_event_name} on ${plan.target_event_date} (${plan.phase} phase)\nRationale: ${plan.rationale}`
     : 'No active training plan.'
 
   const workoutSection = upcomingWorkouts.length
-    ? upcomingWorkouts.map(w => `- ${w.date}: ${w.type} ${w.duration_minutes}min — ${w.description}`).join('\n')
+    ? upcomingWorkouts.map(w => `- ${labelDate(w.date)}: ${w.type} ${w.duration_minutes}min — ${w.description}`).join('\n')
     : 'No upcoming workouts.'
 
   const recentRidesSection = recentRides.length

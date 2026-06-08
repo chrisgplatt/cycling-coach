@@ -4,6 +4,8 @@ import {
   formatDuration,
   formatMovingTime,
   toLocalDateStr,
+  weekdayName,
+  labelDate,
 } from '@/lib/calendar-helpers'
 
 describe('calendarMonthDays', () => {
@@ -71,6 +73,26 @@ describe('formatMovingTime', () => {
     expect(formatMovingTime(3600)).toBe('1h')
     expect(formatMovingTime(5400)).toBe('1h 30m')
     expect(formatMovingTime(2700)).toBe('45m')
+  })
+})
+
+describe('weekdayName', () => {
+  it('names the day correctly (2026-06-01 is a Monday)', () => {
+    expect(weekdayName('2026-06-01')).toBe('Monday')
+    expect(weekdayName('2026-06-07')).toBe('Sunday')
+    expect(weekdayName('2026-06-08')).toBe('Monday')
+  })
+
+  it('is timezone-stable regardless of the machine offset', () => {
+    // A pure UTC-calendar read — same answer no matter the server timezone.
+    expect(weekdayName('2026-01-01')).toBe('Thursday')
+    expect(weekdayName('2026-12-25')).toBe('Friday')
+  })
+})
+
+describe('labelDate', () => {
+  it('renders "YYYY-MM-DD (Weekday)"', () => {
+    expect(labelDate('2026-06-07')).toBe('2026-06-07 (Sunday)')
   })
 })
 
