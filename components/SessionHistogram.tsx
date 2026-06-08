@@ -27,21 +27,47 @@ const HR_ZONES: Array<{ to: number; cls: string }> = [
 const hrBand = (edge: number, lthr: number): string =>
   (HR_ZONES.find(z => edge / lthr < z.to) ?? HR_ZONES[HR_ZONES.length - 1]).cls
 
-function Bars({ bins, width, barClass, bandFor }: {
+function fmtTime(secs: number): string {
+  if (secs >= 3600) return `${(secs / 3600).toFixed(1)}h`
+  if (secs >= 60) return `${Math.round(secs / 60)}m`
+  return `${secs}s`
+}
+
+function Bars({ bins, width, barClass, bandFor, xUnit }: {
   bins: DistributionBin[]
   width: number
   barClass: string
   bandFor?: (edge: number) => string | null
+  xUnit: string
 }) {
   const max = Math.max(...bins.map(b => b.secs), 1)
+  const lo = bins[0].edge
+  const hi = bins[bins.length - 1].edge + width
   return (
-    <div className="flex items-end gap-px h-32 px-1" role="img" aria-label="distribution histogram">
-      {bins.map(b => (
-        <div key={b.edge} className="flex-1 flex flex-col justify-end relative h-full" title={`${b.edge}–${b.edge + width}: ${Math.round(b.secs / 60)}min`}>
-          {bandFor && <div className={`absolute inset-0 ${bandFor(b.edge) ?? ''}`} />}
-          <div className={`relative ${barClass} rounded-t`} style={{ height: `${(b.secs / max) * 100}%` }} />
+    <div>
+      <div className="flex">
+        {/* y-axis: peak time at top, 0 at the baseline */}
+        <div className="flex flex-col justify-between items-end h-32 w-9 shrink-0 pr-1.5 text-[10px] font-medium text-gray-400 tabular-nums">
+          <span>{fmtTime(max)}</span>
+          <span>0</span>
         </div>
-      ))}
+        <div className="flex items-end gap-px h-32 px-1 flex-1 border-l border-b border-gray-200" role="img" aria-label="distribution histogram">
+          {bins.map(b => (
+            <div key={b.edge} className="flex-1 flex flex-col justify-end relative h-full" title={`${b.edge}–${b.edge + width}: ${Math.round(b.secs / 60)}min`}>
+              {bandFor && <div className={`absolute inset-0 ${bandFor(b.edge) ?? ''}`} />}
+              <div className={`relative ${barClass} rounded-t`} style={{ height: `${(b.secs / max) * 100}%` }} />
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* x-axis: data range, aligned under the bars (spacer matches the y-axis gutter) */}
+      <div className="flex">
+        <div className="w-9 shrink-0" />
+        <div className="flex justify-between flex-1 px-1 mt-0.5 text-[10px] font-medium text-gray-400 tabular-nums">
+          <span>{lo}{xUnit}</span>
+          <span>{hi}{xUnit}</span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -91,10 +117,10 @@ export default function SessionHistogram({ distributions }: { distributions: Ses
         </div>
 
         {active === 'power' && distributions.power && (
-          <Bars bins={distributions.power} width={5} barClass="bg-orange-400" bandFor={powerBand} />
+          <Bars bins={distributions.power} width={5} barClass="bg-orange-400" bandFor={powerBand} xUnit="%" />
         )}
         {active === 'cadence' && distributions.cadence && (
-          <Bars bins={distributions.cadence} width={10} barClass="bg-violet-400" />
+          <Bars bins={distributions.cadence} width={10} barClass="bg-violet-400" xUnit="" />
         )}
         {active === 'hr' && distributions.hr && (
           <Bars
@@ -102,6 +128,7 @@ export default function SessionHistogram({ distributions }: { distributions: Ses
             width={5}
             barClass="bg-red-400"
             bandFor={distributions.hr_lthr !== null ? (edge) => hrBand(edge, distributions.hr_lthr!) : undefined}
+            xUnit=""
           />
         )}
 
