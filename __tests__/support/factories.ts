@@ -43,6 +43,7 @@ export function makeActivityMetrics(overrides: Partial<ActivityMetrics> = {}): A
     climbs: null,
     time_in_zone: null,
     shape: null,
+    distributions: null,
     synced_at: '2026-05-01T10:00:00Z',
     ...overrides,
   }

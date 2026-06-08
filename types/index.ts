@@ -307,6 +307,21 @@ export interface ActivityInterval {
   avg_hr: number | null
 }
 
+export interface DistributionBin {
+  edge: number   // lower edge of the bin; unit implied by context (%FTP, rpm, or bpm)
+  secs: number   // seconds spent in this bin
+}
+
+export interface SessionDistributions {
+  power: DistributionBin[] | null          // 5%-FTP bins, edge 0..150 (150 = "150%+" catch-all)
+  power_vi: number | null                  // variability index = NP/avg, 2dp
+  power_steady_pct: number | null          // % of moving time within ±5% of NP
+  cadence: DistributionBin[] | null        // 10-rpm bins, edge 0..120 (120 = "120+"); coasting excluded
+  coasting_secs: number | null             // time pedalling-stopped (<30 rpm)
+  hr: DistributionBin[] | null             // 5-bpm bins
+  hr_lthr: number | null                   // LTHR used for zone overlay; null = raw bpm
+}
+
 export interface ActivityMetrics {
   // Tier 1 — already in the sync payload
   np: number | null            // weighted_average_watts
@@ -325,6 +340,7 @@ export interface ActivityMetrics {
   climbs: ClimbSegment[] | null
   time_in_zone: { z1: number; z2: number; z3: number; z4: number; z5: number; z6: number } | null  // seconds per zone
   shape: Array<{ label: string; planned_w: number; actual_w: number }> | null  // structured rides only
+  distributions: SessionDistributions | null  // Tier-4 within-session histograms
   synced_at: string
 }
 

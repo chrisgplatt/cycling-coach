@@ -41,6 +41,7 @@ export function extractActivityMetrics(
     climbs: null,
     time_in_zone: null,
     shape: null,
+    distributions: null,
     synced_at: new Date().toISOString(),
   }
 }
