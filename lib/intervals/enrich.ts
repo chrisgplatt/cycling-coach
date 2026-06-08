@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ICUActivity, ActivityMetrics, WorkoutStep } from '@/types'
 import type { IntervalsClient } from './client'
-import { extractActivityMetrics, extractStreamInsights } from '@/lib/claude/activity-metrics'
+import { extractActivityMetrics, extractStreamInsights, extractDistributions } from '@/lib/claude/activity-metrics'
 
 // Build the full metrics blob for an activity already in hand. Each extra call
 // degrades gracefully — a failure leaves that tier null. Streams (full
@@ -10,6 +10,7 @@ export async function enrichActivity(
   client: IntervalsClient,
   activity: ICUActivity,
   ftp: number | null,
+  lthr: number | null,
   plannedSteps: WorkoutStep[] | null,
 ): Promise<ActivityMetrics> {
   const date = activity.start_date_local.split('T')[0]
@@ -20,17 +21,22 @@ export async function enrichActivity(
   ])
   const base = extractActivityMetrics(activity, curve, intervals)
   if (!streams) return base
-  return { ...base, ...extractStreamInsights(streams, ftp, plannedSteps, intervals) }
+  return {
+    ...base,
+    ...extractStreamInsights(streams, ftp, plannedSteps, intervals),
+    distributions: extractDistributions(streams, ftp, lthr, base.np, base.avg_power),
+  }
 }
 
 export async function enrichActivityById(
   client: IntervalsClient,
   activityId: string,
   ftp: number | null,
+  lthr: number | null,
   plannedSteps: WorkoutStep[] | null,
 ): Promise<ActivityMetrics> {
   const activity = await client.getActivity(activityId)
-  return enrichActivity(client, activity, ftp, plannedSteps)
+  return enrichActivity(client, activity, ftp, lthr, plannedSteps)
 }
 
 const BACKFILL_LIMIT = 25
@@ -51,6 +57,7 @@ export async function backfillActivityMetrics(
     .select('current_ftp')
     .maybeSingle()
   const ftp = (profile as { current_ftp?: number | null } | null)?.current_ftp ?? null
+  const lthr = await client.getRideLthr().catch(() => null)
 
   const { data: rows, error } = await supabase
     .from('workouts')
@@ -59,7 +66,7 @@ export async function backfillActivityMetrics(
     .in('status', ['completed', 'needs_review'])
     .gte('date', ninetyDaysAgo)
     .not('icu_activity_id', 'is', null)
-    .is('activity_metrics', null)
+    .is('activity_metrics->distributions', null)
     .order('date', { ascending: false })
     .limit(BACKFILL_LIMIT)
 
@@ -71,7 +78,7 @@ export async function backfillActivityMetrics(
   let count = 0
   for (const row of (rows ?? []) as Array<{ id: string; icu_activity_id: string; steps: WorkoutStep[] | null }>) {
     try {
-      const metrics = await enrichActivityById(client, row.icu_activity_id, ftp, row.steps)
+      const metrics = await enrichActivityById(client, row.icu_activity_id, ftp, lthr, row.steps)
       const { error: updateError } = await supabase
         .from('workouts')
         .update({ activity_metrics: metrics })

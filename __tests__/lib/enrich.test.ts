@@ -22,17 +22,22 @@ function makeClient(opts: { throwOn?: string } = {}) {
       latlng: null,
       power: Array.from({ length: 11 }, () => 200),
       hr: [150, 150, 150, 150, 150, 165, 165, 165, 165, 165, 165],
-      altitude: null, cadence: null, velocity: null,
+      altitude: null,
+      cadence: [90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90],
+      velocity: null,
     })),
+    getRideLthr: jest.fn(async () => 160),
   }
 }
 
 // Minimal chainable Supabase stub: select/eq/in/gte/not/is/order/limit resolve to { data }.
-function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown }>, updateSpy: jest.Mock) {
+function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown }>, updateSpy: jest.Mock, isSpy?: jest.Mock) {
   const query: Record<string, unknown> = {}
   const self = () => query
   Object.assign(query, {
-    select: self, eq: self, in: self, gte: self, not: self, is: self, order: self,
+    select: self, eq: self, in: self, gte: self, not: self,
+    is: (col: string, val: unknown) => { isSpy?.(col, val); return query },
+    order: self,
     limit: () => Promise.resolve({ data: rows, error: null }),
     maybeSingle: () => Promise.resolve({ data: { current_ftp: 200 }, error: null }),
   })
@@ -92,5 +97,33 @@ describe('backfillActivityMetrics', () => {
     expect(count).toBe(1)
     expect(updateSpy).toHaveBeenCalledTimes(1)
     expect(updateSpy.mock.calls[0][0]).toBe('w2')
+  })
+
+  it('computes distributions and threads the fetched LTHR', async () => {
+    const updateSpy = jest.fn()
+    const supabase = makeSupabase([{ id: 'w1', icu_activity_id: 'a1', steps: null }], updateSpy)
+    const client = makeClient()
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, client as any, 'u1')
+
+    const [, patch] = updateSpy.mock.calls[0]
+    const dist = patch.activity_metrics.distributions
+    expect(dist.power).toEqual([{ edge: 100, secs: 600 }]) // 200W @ FTP 200
+    expect(dist.cadence).toEqual([{ edge: 90, secs: 600 }])
+    expect(dist.hr_lthr).toBe(160)
+    expect(client.getRideLthr).toHaveBeenCalledTimes(1)
+  })
+
+  it('queries for rows whose distributions are missing', async () => {
+    const isSpy = jest.fn()
+    const updateSpy = jest.fn()
+    const supabase = makeSupabase([], updateSpy, isSpy)
+    const client = makeClient()
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, client as any, 'u1')
+
+    expect(isSpy).toHaveBeenCalledWith('activity_metrics->distributions', null)
   })
 })
