@@ -31,12 +31,17 @@ describe('SessionHistogram', () => {
     expect(screen.getByText(/40% within ±5% NP/)).toBeInTheDocument()
   })
 
-  it('labels the y-axis (peak time) and x-axis (data range) for the power chart', () => {
+  it('labels both axes at quarter-step granularity for the power chart', () => {
     render(<SessionHistogram distributions={full} />)
-    expect(screen.getByText('15m')).toBeInTheDocument()   // peak bin: 900s
-    expect(screen.getByText('0')).toBeInTheDocument()      // y baseline
-    expect(screen.getByText('50%')).toBeInTheDocument()    // first edge
-    expect(screen.getByText('105%')).toBeInTheDocument()   // last edge + 5% width
+    // y-axis: peak (900s) → 0 in quarter steps
+    expect(screen.getByText('15m')).toBeInTheDocument()   // peak
+    expect(screen.getByText('11m')).toBeInTheDocument()   // 0.75 × 900s = 675s
+    expect(screen.getByText('8m')).toBeInTheDocument()    // 0.5 × 900s = 450s
+    expect(screen.getByText('0')).toBeInTheDocument()     // baseline
+    // x-axis: 50% → 105% in quarter steps
+    expect(screen.getByText('50%')).toBeInTheDocument()   // first edge
+    expect(screen.getByText('78%')).toBeInTheDocument()   // midpoint
+    expect(screen.getByText('105%')).toBeInTheDocument()  // last edge + 5% width
   })
 
   it('switches to cadence when its tab is pressed', async () => {

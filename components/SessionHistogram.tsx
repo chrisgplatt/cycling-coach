@@ -46,10 +46,11 @@ function Bars({ bins, width, barClass, bandFor, xUnit }: {
   return (
     <div>
       <div className="flex">
-        {/* y-axis: peak time at top, 0 at the baseline */}
+        {/* y-axis: time, in quarter steps from the peak down to 0 */}
         <div className="flex flex-col justify-between items-end h-32 w-9 shrink-0 pr-1.5 text-[10px] font-medium text-gray-400 tabular-nums">
-          <span>{fmtTime(max)}</span>
-          <span>0</span>
+          {[1, 0.75, 0.5, 0.25, 0].map((f, i) => (
+            <span key={i}>{f === 0 ? '0' : fmtTime(Math.round(max * f))}</span>
+          ))}
         </div>
         <div className="flex items-end gap-px h-32 px-1 flex-1 border-l border-b border-gray-200" role="img" aria-label="distribution histogram">
           {bins.map(b => (
@@ -60,12 +61,13 @@ function Bars({ bins, width, barClass, bandFor, xUnit }: {
           ))}
         </div>
       </div>
-      {/* x-axis: data range, aligned under the bars (spacer matches the y-axis gutter) */}
+      {/* x-axis: data range in quarter steps, aligned under the bars (spacer matches the y-axis gutter) */}
       <div className="flex">
         <div className="w-9 shrink-0" />
         <div className="flex justify-between flex-1 px-1 mt-0.5 text-[10px] font-medium text-gray-400 tabular-nums">
-          <span>{lo}{xUnit}</span>
-          <span>{hi}{xUnit}</span>
+          {Array.from({ length: 5 }, (_, i) => Math.round(lo + ((hi - lo) * i) / 4)).map((v, i) => (
+            <span key={i}>{v}{xUnit}</span>
+          ))}
         </div>
       </div>
     </div>
