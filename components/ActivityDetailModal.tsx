@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { ICUActivity, RideStreams } from '@/types'
+import type { ICUActivity, RideStreams, SessionDistributions } from '@/types'
 import RideStats, { rideStatsFromActivity } from './RideStats'
 import RideMapGraph from './ride/RideMapGraph'
+import SessionHistogram from './SessionHistogram'
 import TabBar from './TabBar'
 
 interface Props {
@@ -19,6 +20,18 @@ export default function ActivityDetailModal({ activity, onClose }: Props) {
   const [tab, setTab] = useState<'stats' | 'map'>('stats')
   const [streams, setStreams] = useState<RideStreams | null>(null)
   const [streamsError, setStreamsError] = useState(false)
+  const [distributions, setDistributions] = useState<SessionDistributions | null>(null)
+
+  // Distributions live on the linked workout row (keyed by activity id); fetch them
+  // so the Stats tab can show the histogram. Null when the ride has no enriched row.
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/rides/activity/${activity.id}/distributions`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled && d) setDistributions(d.distributions ?? null) })
+      .catch(() => { /* no histogram if it can't be loaded */ })
+    return () => { cancelled = true }
+  }, [activity.id])
 
   // Lazy-load streams the first time the Map tab is opened.
   useEffect(() => {
@@ -62,8 +75,9 @@ export default function ActivityDetailModal({ activity, onClose }: Props) {
               : <p className="p-6 text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>}
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-6 pt-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-6 pt-4 space-y-4">
             <RideStats data={rideStatsFromActivity(activity)} />
+            <SessionHistogram distributions={distributions} />
           </div>
         )}
       </div>
