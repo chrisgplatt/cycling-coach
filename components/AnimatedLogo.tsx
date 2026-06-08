@@ -20,7 +20,10 @@ interface AnimatedLogoProps {
 }
 
 // Tight viewBox around the bike art (the badge art lives low in the 28×28 box).
-const ART = { x: 0, y: 9, w: 28, h: 17.5 }
+// The right wheel's tyre reaches x≈28.25 (cx 22 + r 5.5 + half its 1.5 stroke) and
+// the left's to x≈0.25, so the box is widened a touch past 0–28 on both sides —
+// otherwise the SVG root's default overflow clip shears the right tyre flat.
+const ART = { x: -0.5, y: 9, w: 29, h: 17.5 }
 
 /** A spinning wheel: three diameter spokes that rotate around the hub. */
 function Spokes({ cx, cy, spin }: { cx: number; cy: number; spin: boolean }) {
@@ -55,28 +58,32 @@ export default function AnimatedLogo({ size = 28, spin = true, bare = false, cla
     >
       {!bare && <rect width="28" height="28" rx="6" fill="#2563EB" />}
 
-      {/* Wheels — rim, spinning spokes, hub */}
-      <circle cx="6.5" cy="20" r="5.5" stroke="white" strokeWidth="1.5" fill="none" />
-      <Spokes cx={6.5} cy={20} spin={spin} />
-      <circle cx="6.5" cy="20" r="1.1" fill="white" />
+      {/* In the badge the bike is scaled in slightly (about the square's centre) so
+          both wheels clear the edges; bare mode crops tight and needs no inset. */}
+      <g transform={bare ? undefined : 'translate(1.12 1.12) scale(0.92)'}>
+        {/* Wheels — rim, spinning spokes, hub */}
+        <circle cx="6.5" cy="20" r="5.5" stroke="white" strokeWidth="1.5" fill="none" />
+        <Spokes cx={6.5} cy={20} spin={spin} />
+        <circle cx="6.5" cy="20" r="1.1" fill="white" />
 
-      <circle cx="22" cy="20" r="5.5" stroke="white" strokeWidth="1.5" fill="none" />
-      <Spokes cx={22} cy={20} spin={spin} />
-      <circle cx="22" cy="20" r="1.1" fill="white" />
+        <circle cx="22" cy="20" r="5.5" stroke="white" strokeWidth="1.5" fill="none" />
+        <Spokes cx={22} cy={20} spin={spin} />
+        <circle cx="22" cy="20" r="1.1" fill="white" />
 
-      {/* Frame */}
-      <line x1="6.5" y1="20" x2="14.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="14.5" y1="20" x2="12" y2="11.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="12" y1="11.5" x2="6.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="12" y1="11.5" x2="12" y2="10" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="10.5" y1="10" x2="13.5" y2="10" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-      <line x1="12" y1="11.5" x2="20.5" y2="13" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="20.5" y1="13" x2="21.5" y2="15.5" stroke="white" strokeWidth="2" strokeLinecap="round" />
-      <line x1="21.5" y1="15.5" x2="14.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="21.5" y1="15.5" x2="22" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="20.5" y1="13" x2="21" y2="11" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="19" y1="11" x2="23" y2="11" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
-      <path d="M23 11 Q23.5 11.3 23.5 13" stroke="white" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+        {/* Frame */}
+        <line x1="6.5" y1="20" x2="14.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="14.5" y1="20" x2="12" y2="11.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="12" y1="11.5" x2="6.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="12" y1="11.5" x2="12" y2="10" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="10.5" y1="10" x2="13.5" y2="10" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="12" y1="11.5" x2="20.5" y2="13" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="20.5" y1="13" x2="21.5" y2="15.5" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        <line x1="21.5" y1="15.5" x2="14.5" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="21.5" y1="15.5" x2="22" y2="20" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="20.5" y1="13" x2="21" y2="11" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="19" y1="11" x2="23" y2="11" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+        <path d="M23 11 Q23.5 11.3 23.5 13" stroke="white" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+      </g>
     </svg>
   )
 }

@@ -19,6 +19,6 @@ describe('AnimatedLogo', () => {
   it('drops the badge box and frames the bike tightly in bare mode', () => {
     const { container } = render(<AnimatedLogo bare />)
     expect(container.querySelector('rect')).toBeNull()
-    expect(screen.getByRole('img', { name: 'My Cycling Coach' })).toHaveAttribute('viewBox', '0 9 28 17.5')
+    expect(screen.getByRole('img', { name: 'My Cycling Coach' })).toHaveAttribute('viewBox', '-0.5 9 29 17.5')
   })
 })
