@@ -65,9 +65,9 @@ describe('backfillActivityMetrics', () => {
     const client = makeClient()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const count = await backfillActivityMetrics(supabase as any, client as any, 'u1')
+    const result = await backfillActivityMetrics(supabase as any, client as any, 'u1')
 
-    expect(count).toBe(2)
+    expect(result.enriched).toBe(2)
     expect(client.getActivity).toHaveBeenCalledTimes(2)
     expect(updateSpy).toHaveBeenCalledTimes(2)
     const [, patch] = updateSpy.mock.calls[0]
@@ -91,9 +91,9 @@ describe('backfillActivityMetrics', () => {
     const client = makeClient({ throwOn: 'a1' })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const count = await backfillActivityMetrics(supabase as any, client as any, 'u1')
+    const result = await backfillActivityMetrics(supabase as any, client as any, 'u1')
 
-    expect(count).toBe(1)
+    expect(result.enriched).toBe(1)
     expect(updateSpy).toHaveBeenCalledTimes(1)
     expect(updateSpy.mock.calls[0][0]).toBe('w2')
   })
@@ -127,11 +127,11 @@ describe('backfillActivityMetrics', () => {
     const client = makeClient()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const count = await backfillActivityMetrics(supabase as any, client as any, 'u1')
+    const result = await backfillActivityMetrics(supabase as any, client as any, 'u1')
 
     // 'done' has a distributions object → skipped; 'needs' (null metrics) and 'old'
     // (metrics without the key) both still lack distributions → enriched.
-    expect(count).toBe(2)
+    expect(result.enriched).toBe(2)
     const enrichedIds = updateSpy.mock.calls.map(c => c[0])
     expect(enrichedIds).toEqual(['needs', 'old'])
   })

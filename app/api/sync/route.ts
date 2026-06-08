@@ -65,13 +65,17 @@ export async function POST() {
 
     // Self-healing: enrich completed rides (incl. those just imported/matched) with
     // power/terrain/interval detail. Capped per run; newest first. Non-fatal.
+    // The result is surfaced in the response so backfill progress is observable.
+    let backfill: import('@/lib/intervals/enrich').BackfillResult | { error: string } | null = null
     try {
-      await backfillActivityMetrics(supabase, client, user.id)
+      backfill = await backfillActivityMetrics(supabase, client, user.id)
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
       console.error('[sync] activity-metrics backfill failed:', err)
+      backfill = { error: message }
     }
 
-    return NextResponse.json({ ...syncData, athlete_id: profile.intervals_icu_athlete_id })
+    return NextResponse.json({ ...syncData, athlete_id: profile.intervals_icu_athlete_id, backfill })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Sync failed'
     return NextResponse.json({ error: message }, { status: 502 })

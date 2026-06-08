@@ -50,15 +50,26 @@ export async function enrichActivityById(
 
 const BACKFILL_LIMIT = 25
 
+// Diagnostics surfaced in the sync response so backfill behaviour is observable
+// without server-log access.
+export interface BackfillResult {
+  candidates: number    // in-scope rows scanned (last 90d, completed, has activity)
+  totalNeeding: number  // candidates whose activity_metrics lacks distributions
+  processed: number     // how many of those we attempted this run (≤ BACKFILL_LIMIT)
+  enriched: number      // successfully written
+  failed: number        // threw during enrich/update
+  firstError: string | null
+}
+
 // Self-healing pass: enrich up to BACKFILL_LIMIT completed rides in the last 90
 // days that have an icu_activity_id but no distributions yet. Newest first.
-// Per-ride failures are logged and skipped. Returns the number enriched.
+// Per-ride failures are logged and skipped. Returns diagnostics (see BackfillResult).
 // Note: zones bucket against the athlete's CURRENT FTP at sync time.
 export async function backfillActivityMetrics(
   supabase: SupabaseClient,
   client: IntervalsClient,
   userId: string,
-): Promise<number> {
+): Promise<BackfillResult> {
   const ninetyDaysAgo = new Date(Date.now() - 90 * 864e5).toISOString().split('T')[0]
 
   const { data: profile } = await supabase
@@ -84,17 +95,19 @@ export async function backfillActivityMetrics(
 
   if (error) {
     console.error('[backfill] query failed:', error.message)
-    return 0
+    return { candidates: 0, totalNeeding: 0, processed: 0, enriched: 0, failed: 0, firstError: `query: ${error.message}` }
   }
 
-  const needing = ((rows ?? []) as Array<{
+  const candidates = (rows ?? []) as Array<{
     id: string; icu_activity_id: string; steps: WorkoutStep[] | null
     activity_metrics: { distributions?: unknown } | null
-  }>)
-    .filter(row => !row.activity_metrics?.distributions)
-    .slice(0, BACKFILL_LIMIT)
+  }>
+  const allNeeding = candidates.filter(row => !row.activity_metrics?.distributions)
+  const needing = allNeeding.slice(0, BACKFILL_LIMIT)
 
-  let count = 0
+  let enriched = 0
+  let failed = 0
+  let firstError: string | null = null
   for (const row of needing) {
     try {
       const metrics = await enrichActivityById(client, row.icu_activity_id, ftp, lthr, row.steps)
@@ -103,10 +116,12 @@ export async function backfillActivityMetrics(
         .update({ activity_metrics: metrics })
         .eq('id', row.id)
       if (updateError) throw new Error(updateError.message)
-      count++
+      enriched++
     } catch (err) {
+      failed++
+      if (!firstError) firstError = err instanceof Error ? err.message : String(err)
       console.error(`[backfill] failed to enrich workout ${row.id}:`, err)
     }
   }
-  return count
+  return { candidates: candidates.length, totalNeeding: allNeeding.length, processed: needing.length, enriched, failed, firstError }
 }
