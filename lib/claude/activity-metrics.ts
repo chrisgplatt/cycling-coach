@@ -1,7 +1,7 @@
 // Pure, dependency-free formatters for enriched completed-ride detail.
 // Kept free of the intervals.icu and Anthropic clients so prompt builders can
 // import it without dragging in network/SDK code (mirrors lib/claude/zones.ts).
-import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment } from '@/types'
+import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment, DistributionBin, SessionDistributions } from '@/types'
 import { alignPlannedToLaps } from '@/lib/ride/planned-actual'
 
 // Best-effort durations we sample the power curve down to (seconds).
@@ -294,4 +294,85 @@ export function formatRideShape(shape: ActivityMetrics['shape']): string {
   if (!shape?.length) return ''
   const lines = shape.map(s => `${s.label}: planned ${s.planned_w}W, actual ${s.actual_w}W`)
   return `Planned vs actual by step:\n${lines.join('\n')}`
+}
+
+// ── Within-session distributions (histograms) ─────────────────────────────
+// Pure, computed from the same streams as extractStreamInsights. Each channel
+// degrades to null independently. Bin `edge` is the lower edge; widths are fixed
+// by convention (power 5% FTP, cadence 10 rpm, HR 5 bpm). Trapezoidal dt, matching
+// computeTimeInZone: a sample's duration is the gap to the next sample.
+
+function binByTime(
+  values: number[] | null, time: number[], binOf: (v: number) => number | null,
+): DistributionBin[] | null {
+  if (!values) return null
+  const acc = new Map<number, number>()
+  for (let i = 0; i < values.length - 1; i++) {
+    const dt = time[i + 1] - time[i]
+    const v = values[i]
+    if (dt <= 0 || !Number.isFinite(v)) continue
+    const edge = binOf(v)
+    if (edge === null) continue
+    acc.set(edge, (acc.get(edge) ?? 0) + dt)
+  }
+  if (acc.size === 0) return null
+  return [...acc.entries()]
+    .map(([edge, secs]) => ({ edge, secs: Math.round(secs) }))
+    .sort((a, b) => a.edge - b.edge)
+}
+
+// Cadence is special: coasting (<30 rpm) is excluded from the distribution and
+// summed separately so descents/freewheeling don't skew the pedalling shape.
+function cadenceDistribution(
+  cadence: number[] | null, time: number[],
+): { bins: DistributionBin[] | null; coasting_secs: number | null } {
+  if (!cadence) return { bins: null, coasting_secs: null }
+  const acc = new Map<number, number>()
+  let coasting = 0
+  for (let i = 0; i < cadence.length - 1; i++) {
+    const dt = time[i + 1] - time[i]
+    const c = cadence[i]
+    if (dt <= 0 || !Number.isFinite(c)) continue
+    if (c < 30) { coasting += dt; continue }
+    const edge = Math.min(Math.floor(c / 10) * 10, 120)
+    acc.set(edge, (acc.get(edge) ?? 0) + dt)
+  }
+  const bins = acc.size
+    ? [...acc.entries()].map(([edge, secs]) => ({ edge, secs: Math.round(secs) })).sort((a, b) => a.edge - b.edge)
+    : null
+  return { bins, coasting_secs: Math.round(coasting) }
+}
+
+function steadyPct(power: number[] | null, time: number[], np: number | null): number | null {
+  if (!power || np === null || np <= 0) return null
+  const lo = np * 0.95, hi = np * 1.05
+  let inBand = 0, total = 0
+  for (let i = 0; i < power.length - 1; i++) {
+    const dt = time[i + 1] - time[i]
+    const p = power[i]
+    if (dt <= 0 || !Number.isFinite(p)) continue
+    total += dt
+    if (p >= lo && p <= hi) inBand += dt
+  }
+  return total > 0 ? Math.round((inBand / total) * 100) : null
+}
+
+export function extractDistributions(
+  s: RideStreams, ftp: number | null, lthr: number | null,
+  np: number | null, avgPower: number | null,
+): SessionDistributions {
+  const power = (ftp && ftp > 0)
+    ? binByTime(s.power, s.time, v => Math.min(Math.floor((v / ftp * 100) / 5) * 5, 150))
+    : null
+  const { bins: cadence, coasting_secs } = cadenceDistribution(s.cadence, s.time)
+  const hr = binByTime(s.hr, s.time, v => Math.floor(v / 5) * 5)
+  return {
+    power,
+    power_vi: (np !== null && avgPower !== null && avgPower > 0) ? Math.round((np / avgPower) * 100) / 100 : null,
+    power_steady_pct: power ? steadyPct(s.power, s.time, np) : null,
+    cadence,
+    coasting_secs,
+    hr,
+    hr_lthr: hr ? lthr : null,
+  }
 }
