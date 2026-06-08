@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
     try {
       const todayActivities = await client2.getActivities(today, today)
       const rides = todayActivities.filter((a: ICUActivity) => /ride/i.test(a.type))
-      const { formatRideExecution, formatRideShape } = await import('@/lib/claude/activity-metrics')
+      const { formatRideExecution, formatRideShape, formatDistributions } = await import('@/lib/claude/activity-metrics')
       completedRides = rides.map((ride: ICUActivity) => {
         const match = todayWorkouts.find(w => w.icu_activity_id === ride.id)
         const metrics = match?.activity_metrics ?? null
@@ -134,6 +134,7 @@ export async function GET(req: NextRequest) {
           execution: [
             formatRideExecution(steps, metrics),
             formatRideShape(metrics?.shape ?? null),
+            formatDistributions(metrics?.distributions ?? null),
           ].filter(Boolean).join('\n\n') || null,
         }
       })

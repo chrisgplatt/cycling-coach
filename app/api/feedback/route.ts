@@ -71,10 +71,11 @@ export async function POST(req: NextRequest) {
   const w = workout as Workout
 
   // Built once and shared: the coach note always wants it, and adaptation reuses it.
-  const { formatRideExecution, formatRideShape } = await import('@/lib/claude/activity-metrics')
+  const { formatRideExecution, formatRideShape, formatDistributions } = await import('@/lib/claude/activity-metrics')
   const rideExecution = [
     formatRideExecution(w.steps, w.activity_metrics),
     formatRideShape(w.activity_metrics?.shape ?? null),
+    formatDistributions(w.activity_metrics?.distributions ?? null),
   ].filter(Boolean).join('\n\n')
 
   const signals = { rpe: rpe ?? null, feel: feel ?? null, completion: completion ?? null, tags: tags ?? null }

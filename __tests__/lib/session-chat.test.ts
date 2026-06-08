@@ -103,3 +103,25 @@ describe('buildSessionSystemPrompt — dossier injection', () => {
     expect(prompt).not.toContain("COACH'S NOTES ON THIS ATHLETE")
   })
 })
+
+describe('buildSessionSystemPrompt — distribution injection', () => {
+  it('includes the session distribution summary when the completed workout has one', () => {
+    const workout = {
+      id: 'w1', date: '2026-06-07', type: 'threshold', duration_minutes: 60,
+      description: '2x20 threshold', steps: null, status: 'completed', target_zones: 'Z4',
+      activity_metrics: {
+        np: 240, avg_power: 230, max_power: 600, avg_hr: 150, distance_m: 30000,
+        elevation_m: 200, lr_balance: 50, best_efforts: null, intervals: null,
+        decoupling_pct: null, climbs: null, time_in_zone: null, shape: null,
+        synced_at: '2026-06-07T10:00:00Z',
+        distributions: {
+          power: [{ edge: 100, secs: 1200 }], power_vi: 1.04, power_steady_pct: 61,
+          cadence: null, coasting_secs: null, hr: null, hr_lthr: null,
+        },
+      },
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prompt = buildSessionSystemPrompt(workout as any, null, [], null, 250, [])
+    expect(prompt).toContain('Power shape: VI 1.04')
+  })
+})

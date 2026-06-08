@@ -2,6 +2,7 @@ import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { weekdayName, labelDate } from '@/lib/calendar-helpers'
+import { formatDistributions } from '@/lib/claude/activity-metrics'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -65,6 +66,8 @@ export function buildSessionSystemPrompt(
       }).join('\n')
     : 'None'
 
+  const distributionSection = formatDistributions(workout.activity_metrics?.distributions ?? null)
+
   return `You are an expert road cycling coach messaging your athlete directly. Be direct, brief, and conversational — like a coach texting between sessions. No markdown, no bullet points, no headers, no bold text. Plain prose only. 2–4 sentences per response unless the athlete asks for detail.
 
 TODAY: ${today} (${weekday})
@@ -74,7 +77,7 @@ ID: ${workout.id}
 Type: ${workout.type} | Duration: ${workout.duration_minutes} min
 Description: ${workout.description}
 Target zones: ${workout.target_zones}
-
+${distributionSection ? '\n' + distributionSection + '\n' : ''}
 ATHLETE STATE:
 ${fitnessSection}
 FTP: ${currentFTP}W
