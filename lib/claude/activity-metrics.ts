@@ -380,3 +380,55 @@ export function extractDistributions(
     hr_lthr: hr ? lthr : null,
   }
 }
+
+const pct = (part: number, total: number): number => (total > 0 ? Math.round((part / total) * 100) : 0)
+
+function binMedian(bins: DistributionBin[], width: number): number {
+  const total = bins.reduce((s, b) => s + b.secs, 0)
+  let cum = 0
+  for (const b of bins) {
+    cum += b.secs
+    if (cum >= total / 2) return b.edge + Math.round(width / 2)
+  }
+  return bins[bins.length - 1].edge + Math.round(width / 2)
+}
+
+// Distilled distribution summary for single-ride coach surfaces. Emits metrics
+// only — interpretation ("surgey for a tempo ride") is the coach's job. Each line
+// is omitted when its distribution is absent.
+export function formatDistributions(d: SessionDistributions | null): string {
+  if (!d) return ''
+  const lines: string[] = []
+
+  if (d.power?.length && d.power_vi !== null) {
+    const steady = d.power_steady_pct !== null ? `, ${d.power_steady_pct}% of time within ±5% of NP` : ''
+    lines.push(`Power shape: VI ${d.power_vi.toFixed(2)}${steady}.`)
+  }
+
+  if (d.cadence?.length) {
+    const total = d.cadence.reduce((s, b) => s + b.secs, 0)
+    const median = binMedian(d.cadence, 10)
+    const inBand = d.cadence.filter(b => b.edge >= 80 && b.edge < 100).reduce((s, b) => s + b.secs, 0)
+    const grind = d.cadence.filter(b => b.edge < 70).reduce((s, b) => s + b.secs, 0)
+    const parts = [`median ${median} rpm`, `${pct(inBand, total)}% in 80–100`]
+    if (grind > 0) parts.push(`${pct(grind, total)}% grinding <70`)
+    let line = `Cadence: ${parts.join(', ')}.`
+    if (d.coasting_secs && d.coasting_secs >= 60) line += ` Coasted ${Math.round(d.coasting_secs / 60)} min.`
+    lines.push(line)
+  }
+
+  if (d.hr?.length) {
+    const total = d.hr.reduce((s, b) => s + b.secs, 0)
+    if (d.hr_lthr !== null) {
+      const below = d.hr.filter(b => b.edge < d.hr_lthr!).reduce((s, b) => s + b.secs, 0)
+      const belowPct = pct(below, total)
+      lines.push(`HR: ${belowPct}% below LTHR, ${100 - belowPct}% above (LTHR ${d.hr_lthr}).`)
+    } else {
+      const median = binMedian(d.hr, 5)
+      const peak = d.hr[d.hr.length - 1].edge + 5
+      lines.push(`HR: median ${median} bpm, peak ~${peak} bpm.`)
+    }
+  }
+
+  return lines.length ? `Session distributions:\n${lines.join('\n')}` : ''
+}
