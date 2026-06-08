@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
 import { buildFeedbackChatSystemPrompt } from '@/lib/claude/feedback-chat'
-import { formatRideExecution, formatRideShape } from '@/lib/claude/activity-metrics'
+import { formatRideExecution, formatRideShape, formatDistributions } from '@/lib/claude/activity-metrics'
 import type { Workout, SessionFeedback } from '@/types'
 
 // GET ?feedbackId= → the ordered conversation thread (owner-scoped via RLS + user_id).
@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
   const rideExecution = [
     formatRideExecution(workout.steps, workout.activity_metrics),
     formatRideShape(workout.activity_metrics?.shape ?? null),
+    formatDistributions(workout.activity_metrics?.distributions ?? null),
   ].filter(Boolean).join('\n\n')
 
   const systemPrompt = buildFeedbackChatSystemPrompt(
