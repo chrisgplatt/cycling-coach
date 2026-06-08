@@ -1,7 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { ICUActivity, ActivityMetrics, WorkoutStep } from '@/types'
+import type { ICUActivity, ActivityMetrics, WorkoutStep, RideStreams } from '@/types'
 import type { IntervalsClient } from './client'
 import { extractActivityMetrics, extractStreamInsights, extractDistributions } from '@/lib/claude/activity-metrics'
+
+// An empty streams object: lets a stream-less ride still produce a (fully-null)
+// distributions object instead of a bare null, so the backfill predicate
+// (activity_metrics->distributions IS NULL) treats it as processed.
+const EMPTY_STREAMS: RideStreams = {
+  time: [], distance: [], latlng: null, power: null, hr: null, altitude: null, cadence: null, velocity: null,
+}
 
 // Build the full metrics blob for an activity already in hand. Each extra call
 // degrades gracefully — a failure leaves that tier null. Streams (full
@@ -20,7 +27,9 @@ export async function enrichActivity(
     client.getActivityStreams(activity.id).catch(() => null),
   ])
   const base = extractActivityMetrics(activity, curve, intervals)
-  if (!streams) return base
+  if (!streams) {
+    return { ...base, distributions: extractDistributions(EMPTY_STREAMS, ftp, lthr, base.np, base.avg_power) }
+  }
   return {
     ...base,
     ...extractStreamInsights(streams, ftp, plannedSteps, intervals),

@@ -126,4 +126,21 @@ describe('backfillActivityMetrics', () => {
 
     expect(isSpy).toHaveBeenCalledWith('activity_metrics->distributions', null)
   })
+
+  it('writes an empty distributions object (not null) when the ride has no streams', async () => {
+    const updateSpy = jest.fn()
+    const supabase = makeSupabase([{ id: 'w1', icu_activity_id: 'a1', steps: null }], updateSpy)
+    const client = makeClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    client.getActivityStreams = jest.fn(async () => null) as any // ride with no stream data
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, client as any, 'u1')
+
+    const [, patch] = updateSpy.mock.calls[0]
+    expect(patch.activity_metrics.distributions).not.toBeNull()
+    expect(patch.activity_metrics.distributions).toMatchObject({
+      power: null, cadence: null, coasting_secs: null, hr: null, hr_lthr: null,
+    })
+  })
 })
