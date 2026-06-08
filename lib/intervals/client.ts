@@ -205,6 +205,14 @@ export class IntervalsClient {
     })
   }
 
+  async getRideLthr(): Promise<number | null> {
+    const settings = await this.request<Array<{ types: string[]; lthr?: number | null }>>(
+      `/athlete/${this.athleteId}/sport-settings`
+    )
+    const ride = settings.find(s => s.types.includes('Ride'))
+    return ride?.lthr ?? null
+  }
+
   private mapActivity(a: Record<string, unknown>): ICUActivity {
     return {
       id: a.id as string,

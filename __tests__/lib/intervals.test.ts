@@ -277,6 +277,28 @@ describe('IntervalsClient', () => {
       'https://intervals.icu/api/v1/activity/act9/streams?types=time,latlng,watts,heartrate,altitude,distance,cadence,velocity_smooth'
     )
   })
+
+  it('getRideLthr returns the Ride sport-settings LTHR', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        { id: 1, types: ['Run'], lthr: 170 },
+        { id: 2, types: ['Ride'], lthr: 158 },
+      ],
+    })
+    const lthr = await client.getRideLthr()
+    expect(lthr).toBe(158)
+    const [url] = mockFetch.mock.calls[0]
+    expect(url).toBe('https://intervals.icu/api/v1/athlete/i12345/sport-settings')
+  })
+
+  it('getRideLthr returns null when the Ride entry has no LTHR', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [{ id: 2, types: ['Ride'] }],
+    })
+    expect(await client.getRideLthr()).toBeNull()
+  })
 })
 
 describe('buildWorkoutNotation press-lap tagging', () => {
