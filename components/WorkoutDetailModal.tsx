@@ -389,7 +389,7 @@ export default function WorkoutDetailModal({
               : <p className="p-5 text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>}
           </div>
         ) : (
-        <div className="p-5 space-y-4 flex-1 overflow-y-auto">
+        <div className="p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
           {hasRide && tab === 'stats' && (
             workout.activity_metrics
               ? <>
