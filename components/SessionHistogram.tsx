@@ -37,7 +37,7 @@ function Bars({ bins, width, barClass, bandFor }: {
   return (
     <div className="flex items-end gap-px h-32 px-1" role="img" aria-label="distribution histogram">
       {bins.map(b => (
-        <div key={b.edge} className="flex-1 flex flex-col justify-end relative" title={`${b.edge}–${b.edge + width}: ${Math.round(b.secs / 60)}min`}>
+        <div key={b.edge} className="flex-1 flex flex-col justify-end relative h-full" title={`${b.edge}–${b.edge + width}: ${Math.round(b.secs / 60)}min`}>
           {bandFor && <div className={`absolute inset-0 ${bandFor(b.edge) ?? ''}`} />}
           <div className={`relative ${barClass} rounded-t`} style={{ height: `${(b.secs / max) * 100}%` }} />
         </div>
