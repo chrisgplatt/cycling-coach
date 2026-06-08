@@ -5,7 +5,11 @@ import { importUnplannedRides } from '@/lib/intervals/import-rides'
 import { backfillActivityMetrics } from '@/lib/intervals/enrich'
 import type { ICUActivity } from '@/types'
 
-export async function POST() {
+export async function POST(req: Request) {
+  // ?deep=1 runs a one-time backfill over ALL completed history (not just 90 days),
+  // so older rides get distributions too. Routine syncs stay scoped to 90 days.
+  const deep = new URL(req.url).searchParams.get('deep') === '1'
+
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -68,7 +72,7 @@ export async function POST() {
     // The result is surfaced in the response so backfill progress is observable.
     let backfill: import('@/lib/intervals/enrich').BackfillResult | { error: string } | null = null
     try {
-      backfill = await backfillActivityMetrics(supabase, client, user.id)
+      backfill = await backfillActivityMetrics(supabase, client, user.id, { allTime: deep })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error('[sync] activity-metrics backfill failed:', err)

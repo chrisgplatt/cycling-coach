@@ -61,17 +61,17 @@ export interface BackfillResult {
   firstError: string | null
 }
 
-// Self-healing pass: enrich up to BACKFILL_LIMIT completed rides in the last 90
-// days that have an icu_activity_id but no distributions yet. Newest first.
+// Self-healing pass: enrich up to BACKFILL_LIMIT completed rides that have an
+// icu_activity_id but no distributions yet. Newest first. Scoped to the last 90
+// days by default; pass { allTime: true } for a one-time sweep over all history.
 // Per-ride failures are logged and skipped. Returns diagnostics (see BackfillResult).
 // Note: zones bucket against the athlete's CURRENT FTP at sync time.
 export async function backfillActivityMetrics(
   supabase: SupabaseClient,
   client: IntervalsClient,
   userId: string,
+  opts: { allTime?: boolean } = {},
 ): Promise<BackfillResult> {
-  const ninetyDaysAgo = new Date(Date.now() - 90 * 864e5).toISOString().split('T')[0]
-
   const { data: profile } = await supabase
     .from('user_profile')
     .select('current_ftp')
@@ -84,14 +84,18 @@ export async function backfillActivityMetrics(
   // PostgREST `->distributions IS NULL` predicate AND a `->distributions` projection
   // alias — neither filtered reliably, leaving already-enriched rows matching, so the
   // backfill reprocessed the same newest rows forever instead of advancing.
-  const { data: rows, error } = await supabase
+  // Routine syncs scope to the last 90 days (light); a deep run (opts.allTime) drops
+  // the date window for a one-time sweep over all completed history.
+  const base = supabase
     .from('workouts')
     .select('id, icu_activity_id, steps, activity_metrics')
     .eq('user_id', userId)
     .in('status', ['completed', 'needs_review'])
-    .gte('date', ninetyDaysAgo)
     .not('icu_activity_id', 'is', null)
-    .order('date', { ascending: false })
+  const scoped = opts.allTime
+    ? base
+    : base.gte('date', new Date(Date.now() - 90 * 864e5).toISOString().split('T')[0])
+  const { data: rows, error } = await scoped.order('date', { ascending: false })
 
   if (error) {
     console.error('[backfill] query failed:', error.message)

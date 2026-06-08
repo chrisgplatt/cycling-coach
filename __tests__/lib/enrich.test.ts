@@ -32,11 +32,12 @@ function makeClient(opts: { throwOn?: string } = {}) {
 
 // Minimal chainable Supabase stub. The workouts read terminates on .order() (it
 // resolves the candidate rows); the user_profile read terminates on .maybeSingle().
-function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown; activity_metrics?: unknown }>, updateSpy: jest.Mock) {
+function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown; activity_metrics?: unknown }>, updateSpy: jest.Mock, gteSpy?: jest.Mock) {
   const query: Record<string, unknown> = {}
   const self = () => query
   Object.assign(query, {
-    select: self, eq: self, in: self, gte: self, not: self,
+    select: self, eq: self, in: self, not: self,
+    gte: (col: string, val: unknown) => { gteSpy?.(col, val); return query },
     order: () => Promise.resolve({ data: rows, error: null }),
     maybeSingle: () => Promise.resolve({ data: { current_ftp: 200 }, error: null }),
   })
@@ -134,6 +135,22 @@ describe('backfillActivityMetrics', () => {
     expect(result.enriched).toBe(2)
     const enrichedIds = updateSpy.mock.calls.map(c => c[0])
     expect(enrichedIds).toEqual(['needs', 'old'])
+  })
+
+  it('scopes to the last 90 days on a routine run', async () => {
+    const gteSpy = jest.fn()
+    const supabase = makeSupabase([], jest.fn(), gteSpy)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, makeClient() as any, 'u1')
+    expect(gteSpy).toHaveBeenCalledWith('date', expect.any(String))
+  })
+
+  it('drops the date filter on a deep (allTime) run', async () => {
+    const gteSpy = jest.fn()
+    const supabase = makeSupabase([], jest.fn(), gteSpy)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, makeClient() as any, 'u1', { allTime: true })
+    expect(gteSpy).not.toHaveBeenCalled()
   })
 
   it('writes an empty distributions object (not null) when the ride has no streams', async () => {
