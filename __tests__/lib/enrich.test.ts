@@ -30,15 +30,14 @@ function makeClient(opts: { throwOn?: string } = {}) {
   }
 }
 
-// Minimal chainable Supabase stub: select/eq/in/gte/not/is/order/limit resolve to { data }.
-function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown }>, updateSpy: jest.Mock, isSpy?: jest.Mock) {
+// Minimal chainable Supabase stub. The workouts read terminates on .order() (it
+// resolves the candidate rows); the user_profile read terminates on .maybeSingle().
+function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown; dist?: unknown }>, updateSpy: jest.Mock) {
   const query: Record<string, unknown> = {}
   const self = () => query
   Object.assign(query, {
     select: self, eq: self, in: self, gte: self, not: self,
-    is: (col: string, val: unknown) => { isSpy?.(col, val); return query },
-    order: self,
-    limit: () => Promise.resolve({ data: rows, error: null }),
+    order: () => Promise.resolve({ data: rows, error: null }),
     maybeSingle: () => Promise.resolve({ data: { current_ftp: 200 }, error: null }),
   })
   return {
@@ -115,16 +114,24 @@ describe('backfillActivityMetrics', () => {
     expect(client.getRideLthr).toHaveBeenCalledTimes(1)
   })
 
-  it('queries for rows whose distributions are missing', async () => {
-    const isSpy = jest.fn()
+  it('enriches only rows whose projected distributions are null, skipping done ones', async () => {
     const updateSpy = jest.fn()
-    const supabase = makeSupabase([], updateSpy, isSpy)
+    const supabase = makeSupabase(
+      [
+        { id: 'done', icu_activity_id: 'a1', steps: null, dist: { power: [{ edge: 100, secs: 600 }] } },
+        { id: 'needs', icu_activity_id: 'a2', steps: null, dist: null },
+      ],
+      updateSpy,
+    )
     const client = makeClient()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await backfillActivityMetrics(supabase as any, client as any, 'u1')
+    const count = await backfillActivityMetrics(supabase as any, client as any, 'u1')
 
-    expect(isSpy).toHaveBeenCalledWith('activity_metrics->distributions', null)
+    // 'done' already has a distributions object → filtered out; only 'needs' enriched.
+    expect(count).toBe(1)
+    expect(updateSpy).toHaveBeenCalledTimes(1)
+    expect(updateSpy.mock.calls[0][0]).toBe('needs')
   })
 
   it('writes an empty distributions object (not null) when the ride has no streams', async () => {

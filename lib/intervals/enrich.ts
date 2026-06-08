@@ -51,7 +51,7 @@ export async function enrichActivityById(
 const BACKFILL_LIMIT = 25
 
 // Self-healing pass: enrich up to BACKFILL_LIMIT completed rides in the last 90
-// days that have an icu_activity_id but no activity_metrics yet. Newest first.
+// days that have an icu_activity_id but no distributions yet. Newest first.
 // Per-ride failures are logged and skipped. Returns the number enriched.
 // Note: zones bucket against the athlete's CURRENT FTP at sync time.
 export async function backfillActivityMetrics(
@@ -68,24 +68,30 @@ export async function backfillActivityMetrics(
   const ftp = (profile as { current_ftp?: number | null } | null)?.current_ftp ?? null
   const lthr = await client.getRideLthr().catch(() => null)
 
+  // Project the distributions sub-value (null when the key is absent or JSON-null)
+  // and filter in code. A PostgREST `activity_metrics->distributions IS NULL`
+  // predicate does NOT filter as expected — it left already-enriched rows matching,
+  // so the backfill kept reprocessing the same newest rows and never advanced.
   const { data: rows, error } = await supabase
     .from('workouts')
-    .select('id, icu_activity_id, steps')
+    .select('id, icu_activity_id, steps, dist:activity_metrics->distributions')
     .eq('user_id', userId)
     .in('status', ['completed', 'needs_review'])
     .gte('date', ninetyDaysAgo)
     .not('icu_activity_id', 'is', null)
-    .is('activity_metrics->distributions', null)
     .order('date', { ascending: false })
-    .limit(BACKFILL_LIMIT)
 
   if (error) {
     console.error('[backfill] query failed:', error.message)
     return 0
   }
 
+  const needing = ((rows ?? []) as Array<{ id: string; icu_activity_id: string; steps: WorkoutStep[] | null; dist: unknown }>)
+    .filter(row => row.dist == null)
+    .slice(0, BACKFILL_LIMIT)
+
   let count = 0
-  for (const row of (rows ?? []) as Array<{ id: string; icu_activity_id: string; steps: WorkoutStep[] | null }>) {
+  for (const row of needing) {
     try {
       const metrics = await enrichActivityById(client, row.icu_activity_id, ftp, lthr, row.steps)
       const { error: updateError } = await supabase
