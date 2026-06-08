@@ -78,6 +78,8 @@ export default function SessionHistogram({ distributions }: { distributions: Ses
           {available.map(c => (
             <button
               key={c}
+              type="button"
+              aria-pressed={active === c}
               onClick={() => setChannel(c)}
               className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors ${
                 active === c ? 'bg-violet-500 text-white' : 'bg-gray-100 text-gray-500'
