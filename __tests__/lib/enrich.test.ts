@@ -32,7 +32,7 @@ function makeClient(opts: { throwOn?: string } = {}) {
 
 // Minimal chainable Supabase stub. The workouts read terminates on .order() (it
 // resolves the candidate rows); the user_profile read terminates on .maybeSingle().
-function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown; dist?: unknown }>, updateSpy: jest.Mock) {
+function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown; activity_metrics?: unknown }>, updateSpy: jest.Mock) {
   const query: Record<string, unknown> = {}
   const self = () => query
   Object.assign(query, {
@@ -114,12 +114,13 @@ describe('backfillActivityMetrics', () => {
     expect(client.getRideLthr).toHaveBeenCalledTimes(1)
   })
 
-  it('enriches only rows whose projected distributions are null, skipping done ones', async () => {
+  it('enriches only rows still lacking distributions, skipping done ones', async () => {
     const updateSpy = jest.fn()
     const supabase = makeSupabase(
       [
-        { id: 'done', icu_activity_id: 'a1', steps: null, dist: { power: [{ edge: 100, secs: 600 }] } },
-        { id: 'needs', icu_activity_id: 'a2', steps: null, dist: null },
+        { id: 'done', icu_activity_id: 'a1', steps: null, activity_metrics: { distributions: { power: [{ edge: 100, secs: 600 }] } } },
+        { id: 'needs', icu_activity_id: 'a2', steps: null, activity_metrics: null },
+        { id: 'old', icu_activity_id: 'a3', steps: null, activity_metrics: { np: 200 } }, // enriched pre-feature: no distributions key
       ],
       updateSpy,
     )
@@ -128,10 +129,11 @@ describe('backfillActivityMetrics', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const count = await backfillActivityMetrics(supabase as any, client as any, 'u1')
 
-    // 'done' already has a distributions object → filtered out; only 'needs' enriched.
-    expect(count).toBe(1)
-    expect(updateSpy).toHaveBeenCalledTimes(1)
-    expect(updateSpy.mock.calls[0][0]).toBe('needs')
+    // 'done' has a distributions object → skipped; 'needs' (null metrics) and 'old'
+    // (metrics without the key) both still lack distributions → enriched.
+    expect(count).toBe(2)
+    const enrichedIds = updateSpy.mock.calls.map(c => c[0])
+    expect(enrichedIds).toEqual(['needs', 'old'])
   })
 
   it('writes an empty distributions object (not null) when the ride has no streams', async () => {

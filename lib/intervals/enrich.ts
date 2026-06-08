@@ -68,13 +68,14 @@ export async function backfillActivityMetrics(
   const ftp = (profile as { current_ftp?: number | null } | null)?.current_ftp ?? null
   const lthr = await client.getRideLthr().catch(() => null)
 
-  // Project the distributions sub-value (null when the key is absent or JSON-null)
-  // and filter in code. A PostgREST `activity_metrics->distributions IS NULL`
-  // predicate does NOT filter as expected — it left already-enriched rows matching,
-  // so the backfill kept reprocessing the same newest rows and never advanced.
+  // Fetch the candidates' full activity_metrics and decide in code which still lack
+  // distributions. Reading the real JSON and checking the key in JS avoids BOTH a
+  // PostgREST `->distributions IS NULL` predicate AND a `->distributions` projection
+  // alias — neither filtered reliably, leaving already-enriched rows matching, so the
+  // backfill reprocessed the same newest rows forever instead of advancing.
   const { data: rows, error } = await supabase
     .from('workouts')
-    .select('id, icu_activity_id, steps, dist:activity_metrics->distributions')
+    .select('id, icu_activity_id, steps, activity_metrics')
     .eq('user_id', userId)
     .in('status', ['completed', 'needs_review'])
     .gte('date', ninetyDaysAgo)
@@ -86,8 +87,11 @@ export async function backfillActivityMetrics(
     return 0
   }
 
-  const needing = ((rows ?? []) as Array<{ id: string; icu_activity_id: string; steps: WorkoutStep[] | null; dist: unknown }>)
-    .filter(row => row.dist == null)
+  const needing = ((rows ?? []) as Array<{
+    id: string; icu_activity_id: string; steps: WorkoutStep[] | null
+    activity_metrics: { distributions?: unknown } | null
+  }>)
+    .filter(row => !row.activity_metrics?.distributions)
     .slice(0, BACKFILL_LIMIT)
 
   let count = 0
