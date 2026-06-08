@@ -4,6 +4,7 @@ import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent,
 import { getWeekBounds } from '@/lib/week-bounds'
 import WorkoutProfileChart, { WorkoutStepList } from './WorkoutProfileChart'
 import RideStats, { rideStatsFromMetrics } from './RideStats'
+import SessionHistogram from './SessionHistogram'
 import RideMapGraph from './ride/RideMapGraph'
 import TabBar from './TabBar'
 import PlannedVsActualChart from './PlannedVsActualChart'
@@ -391,7 +392,10 @@ export default function WorkoutDetailModal({
         <div className="p-5 space-y-4 flex-1 overflow-y-auto">
           {hasRide && tab === 'stats' && (
             workout.activity_metrics
-              ? <RideStats data={rideStatsFromMetrics(workout.activity_metrics, workout.duration_minutes * 60, workout.tss)} />
+              ? <>
+                  <RideStats data={rideStatsFromMetrics(workout.activity_metrics, workout.duration_minutes * 60, workout.tss)} />
+                  <SessionHistogram distributions={workout.activity_metrics.distributions} />
+                </>
               : <p className="text-sm text-slate-400 italic">Ride stats not available yet.</p>
           )}
           {(!hasRide || tab === 'overview') && (
