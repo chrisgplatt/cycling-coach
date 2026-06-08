@@ -338,7 +338,9 @@ function cadenceDistribution(
     acc.set(edge, (acc.get(edge) ?? 0) + dt)
   }
   const bins = acc.size
-    ? [...acc.entries()].map(([edge, secs]) => ({ edge, secs: Math.round(secs) })).sort((a, b) => a.edge - b.edge)
+    ? [...acc.entries()]
+        .map(([edge, secs]) => ({ edge, secs: Math.round(secs) }))
+        .sort((a, b) => a.edge - b.edge)
     : null
   return { bins, coasting_secs: Math.round(coasting) }
 }
@@ -362,12 +364,14 @@ export function extractDistributions(
   np: number | null, avgPower: number | null,
 ): SessionDistributions {
   const power = (ftp && ftp > 0)
-    ? binByTime(s.power, s.time, v => Math.min(Math.floor((v / ftp * 100) / 5) * 5, 150))
+    ? binByTime(s.power, s.time, v => (v < 0 ? null : Math.min(Math.floor((v / ftp * 100) / 5) * 5, 150)))
     : null
   const { bins: cadence, coasting_secs } = cadenceDistribution(s.cadence, s.time)
   const hr = binByTime(s.hr, s.time, v => Math.floor(v / 5) * 5)
   return {
     power,
+    // VI is a ride-level metric (NP/avg from the activity payload), so it is kept
+    // even when the histogram is absent; power_steady_pct gates on the histogram.
     power_vi: (np !== null && avgPower !== null && avgPower > 0) ? Math.round((np / avgPower) * 100) / 100 : null,
     power_steady_pct: power ? steadyPct(s.power, s.time, np) : null,
     cadence,

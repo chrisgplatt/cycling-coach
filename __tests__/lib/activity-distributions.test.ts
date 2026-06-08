@@ -29,6 +29,13 @@ describe('extractDistributions — power', () => {
     const d = extractDistributions({ ...base, power }, 200, null, 400, 400)
     expect(d.power).toEqual([{ edge: 150, secs: 600 }])
   })
+
+  it('excludes negative-power samples from the histogram', () => {
+    // 5 gaps at 200W (100% FTP), 5 gaps at -10W (braking, excluded)
+    const power = [200, 200, 200, 200, 200, -10, -10, -10, -10, -10, -10]
+    const d = extractDistributions({ ...base, power }, 200, null, 200, 200)
+    expect(d.power).toEqual([{ edge: 100, secs: 300 }])
+  })
 })
 
 describe('extractDistributions — cadence', () => {
