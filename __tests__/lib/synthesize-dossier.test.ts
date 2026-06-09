@@ -21,8 +21,7 @@ function chain(result: Result, upsertSpy?: jest.Mock) {
 function makeSupabase(opts: {
   workouts?: unknown[]
   feedbacks?: unknown[]
-  chat?: unknown[]
-  discussions?: unknown[]
+  coachMessages?: unknown[]
   existing?: unknown
   upsertSpy?: jest.Mock
 }) {
@@ -31,8 +30,7 @@ function makeSupabase(opts: {
       switch (table) {
         case 'workouts': return chain({ data: opts.workouts ?? [] })
         case 'session_feedback': return chain({ data: opts.feedbacks ?? [] })
-        case 'chat_messages': return chain({ data: opts.chat ?? [] })
-        case 'feedback_messages': return chain({ data: opts.discussions ?? [] })
+        case 'coach_messages': return chain({ data: opts.coachMessages ?? [] })
         case 'athlete_dossier': return chain({ data: opts.existing ?? null }, opts.upsertSpy)
         default: return chain({ data: null })
       }
@@ -125,20 +123,33 @@ describe('synthesizeDossier', () => {
     expect(passedWorkouts[0].metrics_summary).toContain('84m climb')
   })
 
-  it('passes post-ride feedback discussions into generateDossier', async () => {
+  it('passes coach_messages into generateDossier as chatMessages', async () => {
     (generateDossier as jest.Mock).mockResolvedValue(fakeContent)
     const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
-    const discussions = [
-      { role: 'assistant', content: 'Strong threshold work today.' },
-      { role: 'user', content: 'Felt harder than that — legs were flat.' },
+    const coachMessages = [
+      { role: 'assistant', content: 'Strong threshold work today.', surface: 'workout' },
+      { role: 'user', content: 'Felt harder than that — legs were flat.', surface: 'workout' },
     ]
-    const supabase = makeSupabase({ discussions, upsertSpy })
+    const supabase = makeSupabase({ coachMessages, upsertSpy })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await synthesizeDossier(supabase as any, profile as any)
 
-    const passedDiscussions = (generateDossier as jest.Mock).mock.calls[0][8] as Array<{ content: string }>
-    expect(passedDiscussions).toHaveLength(2)
-    expect(passedDiscussions[1].content).toContain('legs were flat')
+    const passedChatMessages = (generateDossier as jest.Mock).mock.calls[0][7] as Array<{ content: string }>
+    expect(passedChatMessages).toHaveLength(2)
+    expect(passedChatMessages[1].content).toContain('legs were flat')
+  })
+
+  it('reads from coach_messages and passes content to generateDossier', async () => {
+    (generateDossier as jest.Mock).mockResolvedValue(fakeContent)
+    const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
+    const supabase = makeSupabase({
+      coachMessages: [{ role: 'user', content: 'discussed knee pain', surface: 'workout' }],
+      upsertSpy,
+    })
+    await synthesizeDossier(supabase as never, profile as never)
+    const promptArg = (generateDossier as jest.Mock).mock.calls[0]
+    // chatMessages arg (index 7) should contain the coach_messages row
+    expect(JSON.stringify(promptArg[7])).toContain('discussed knee pain')
   })
 })
