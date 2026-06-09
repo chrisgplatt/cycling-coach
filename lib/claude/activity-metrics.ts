@@ -4,8 +4,15 @@
 import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment, DistributionBin, SessionDistributions } from '@/types'
 import { alignPlannedToLaps } from '@/lib/ride/planned-actual'
 
-// Best-effort durations we sample the power curve down to (seconds).
-const CANONICAL_SECS = [5, 15, 60, 300, 1200, 3600]
+// Best-effort durations we sample the power curve down to (seconds): 5s, 15s,
+// 1m, 5m, 10m, 20m, 60m — the durations RideStats surfaces.
+const CANONICAL_SECS = [5, 15, 60, 300, 600, 1200, 3600]
+
+// Bumped whenever the metrics computation changes (new best-effort durations,
+// new derived fields, etc.). The backfill re-enriches rows below this version so
+// existing rides pick up the change once — without churning rows that can't
+// produce a given field (the version stamp lands regardless).
+export const METRICS_VERSION = 2
 
 function sampleBest(curve: ICUPowerCurvePoint[], target: number): { secs: number; watts: number } | null {
   if (!curve.length) return null
@@ -42,6 +49,7 @@ export function extractActivityMetrics(
     time_in_zone: null,
     shape: null,
     distributions: null,
+    metrics_version: METRICS_VERSION,
     synced_at: new Date().toISOString(),
   }
 }

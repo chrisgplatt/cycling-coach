@@ -1,5 +1,6 @@
 /** @jest-environment node */
 import { backfillActivityMetrics } from '@/lib/intervals/enrich'
+import { METRICS_VERSION } from '@/lib/claude/activity-metrics'
 
 function makeClient(opts: { throwOn?: string } = {}) {
   return {
@@ -115,13 +116,14 @@ describe('backfillActivityMetrics', () => {
     expect(client.getRideLthr).toHaveBeenCalledTimes(1)
   })
 
-  it('enriches only rows still lacking distributions, skipping done ones', async () => {
+  it('enriches rows lacking distributions or below the current metrics version', async () => {
     const updateSpy = jest.fn()
     const supabase = makeSupabase(
       [
-        { id: 'done', icu_activity_id: 'a1', steps: null, activity_metrics: { distributions: { power: [{ edge: 100, secs: 600 }] } } },
+        { id: 'done', icu_activity_id: 'a1', steps: null, activity_metrics: { distributions: { power: [{ edge: 100, secs: 600 }] }, metrics_version: METRICS_VERSION } },
         { id: 'needs', icu_activity_id: 'a2', steps: null, activity_metrics: null },
-        { id: 'old', icu_activity_id: 'a3', steps: null, activity_metrics: { np: 200 } }, // enriched pre-feature: no distributions key
+        { id: 'old', icu_activity_id: 'a3', steps: null, activity_metrics: { np: 200 } }, // pre-feature: no distributions key
+        { id: 'stale', icu_activity_id: 'a4', steps: null, activity_metrics: { distributions: { power: null }, metrics_version: 1 } }, // older version → refresh
       ],
       updateSpy,
     )
@@ -130,11 +132,10 @@ describe('backfillActivityMetrics', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await backfillActivityMetrics(supabase as any, client as any, 'u1')
 
-    // 'done' has a distributions object → skipped; 'needs' (null metrics) and 'old'
-    // (metrics without the key) both still lack distributions → enriched.
-    expect(result.enriched).toBe(2)
-    const enrichedIds = updateSpy.mock.calls.map(c => c[0])
-    expect(enrichedIds).toEqual(['needs', 'old'])
+    // 'done' is current → skipped; 'needs'/'old' lack distributions; 'stale' is an
+    // older metrics version → all three (re)enriched.
+    expect(result.enriched).toBe(3)
+    expect(updateSpy.mock.calls.map(c => c[0])).toEqual(['needs', 'old', 'stale'])
   })
 
   it('scopes to the last 90 days on a routine run', async () => {

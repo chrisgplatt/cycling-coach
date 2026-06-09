@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { extractActivityMetrics, formatActivityMetrics, formatRideExecution } from '@/lib/claude/activity-metrics'
+import { extractActivityMetrics, formatActivityMetrics, formatRideExecution, METRICS_VERSION } from '@/lib/claude/activity-metrics'
 import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, WorkoutStep, ActivityMetrics } from '@/types'
 import { makeActivityMetrics } from '../support/factories'
 
@@ -43,6 +43,16 @@ describe('extractActivityMetrics', () => {
   it('omits canonical durations with no nearby curve point (no fabricated 60min best)', () => {
     const m = extractActivityMetrics(act, curve, intervals)
     expect(m.best_efforts?.some(e => e.secs === 3600)).toBe(false)
+  })
+
+  it('samples a 10-minute (600s) best when the curve has a nearby point', () => {
+    const m = extractActivityMetrics(act, [...curve, { secs: 600, watts: 290 }], intervals)
+    expect(m.best_efforts?.find(e => e.secs === 600)?.watts).toBe(290)
+  })
+
+  it('stamps the current metrics version', () => {
+    const m = extractActivityMetrics(act, curve, intervals)
+    expect(m.metrics_version).toBe(METRICS_VERSION)
   })
 
   it('sets best_efforts and intervals to null when not provided', () => {

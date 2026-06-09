@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ICUActivity, ActivityMetrics, WorkoutStep, RideStreams } from '@/types'
 import type { IntervalsClient } from './client'
-import { extractActivityMetrics, extractStreamInsights, extractDistributions } from '@/lib/claude/activity-metrics'
+import { extractActivityMetrics, extractStreamInsights, extractDistributions, METRICS_VERSION } from '@/lib/claude/activity-metrics'
 
 // An empty streams object: lets a stream-less ride still produce a (fully-null)
 // distributions object instead of a bare null, so the backfill predicate
@@ -104,9 +104,14 @@ export async function backfillActivityMetrics(
 
   const candidates = (rows ?? []) as Array<{
     id: string; icu_activity_id: string; steps: WorkoutStep[] | null
-    activity_metrics: { distributions?: unknown } | null
+    activity_metrics: { distributions?: unknown; metrics_version?: number } | null
   }>
-  const allNeeding = candidates.filter(row => !row.activity_metrics?.distributions)
+  // A row needs (re)enriching when it has no distributions yet, or its metrics were
+  // computed by an older version (so it picks up new fields like the 10-min best).
+  const allNeeding = candidates.filter(row => {
+    const m = row.activity_metrics
+    return !m?.distributions || (m?.metrics_version ?? 0) < METRICS_VERSION
+  })
   const needing = allNeeding.slice(0, BACKFILL_LIMIT)
 
   let enriched = 0

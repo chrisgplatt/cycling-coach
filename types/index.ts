@@ -341,6 +341,7 @@ export interface ActivityMetrics {
   time_in_zone: { z1: number; z2: number; z3: number; z4: number; z5: number; z6: number } | null  // seconds per zone
   shape: Array<{ label: string; planned_w: number; actual_w: number }> | null  // structured rides only
   distributions: SessionDistributions | null  // Tier-4 within-session histograms
+  metrics_version?: number  // computation version; drives one-time backfill refresh
   synced_at: string
 }
 
