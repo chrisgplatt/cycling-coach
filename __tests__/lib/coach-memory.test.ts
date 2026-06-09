@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import { buildCoachContext, loadCoachMemory, COACH_PERSONA } from '@/lib/claude/coach-memory'
-import type { CoachMessage } from '@/types'
+import type { CoachMessage, CoachConversationMemory } from '@/types'
 
 // ── buildCoachContext ─────────────────────────────────────────────────────────
 
@@ -32,18 +32,27 @@ describe('buildCoachContext', () => {
 
 function makeSupabase(rows: Partial<CoachMessage>[], shouldError = false) {
   return {
-    from: () => ({
-      select: function () { return this },
-      eq: function () { return this },
-      gte: function () { return this },
-      order: function () { return this },
-      limit: () =>
-        Promise.resolve(
-          shouldError
-            ? { data: null, error: { message: 'db error' } }
-            : { data: rows, error: null },
-        ),
-    }),
+    from: (table: string) => {
+      if (table === 'coach_conversation_memory') {
+        return {
+          select: function () { return this },
+          eq: function () { return this },
+          maybeSingle: () => Promise.resolve({ data: null, error: null }),
+        }
+      }
+      return {
+        select: function () { return this },
+        eq: function () { return this },
+        gte: function () { return this },
+        order: function () { return this },
+        limit: () =>
+          Promise.resolve(
+            shouldError
+              ? { data: null, error: { message: 'db error' } }
+              : { data: rows, error: null },
+          ),
+      }
+    },
   }
 }
 
@@ -87,5 +96,53 @@ describe('loadCoachMemory', () => {
     const result = await loadCoachMemory(makeSupabase([rows[0]]) as never, 'u1', {}, NOW)
     expect(result).toContain('[workout,')
     expect(result).toContain('yesterday')
+  })
+})
+
+// ── loadCoachMemory Phase 2 — digest ──────────────────────────────────────────
+
+function makeSupabaseWithDigest(
+  rows: CoachMessage[],
+  digest: { digest: string; open_threads: unknown[]; commitments: unknown[] } | null,
+) {
+  return {
+    from: (table: string) => {
+      if (table === 'coach_messages') {
+        return {
+          select: function () { return this },
+          eq: function () { return this },
+          gte: function () { return this },
+          order: function () { return this },
+          limit: () => Promise.resolve({ data: rows, error: null }),
+        }
+      }
+      // coach_conversation_memory
+      return {
+        select: function () { return this },
+        eq: function () { return this },
+        maybeSingle: () => Promise.resolve({ data: digest, error: null }),
+      }
+    },
+  }
+}
+
+describe('loadCoachMemory Phase 2 — digest', () => {
+  it('appends CONVERSATION MEMORY block when digest exists', async () => {
+    const supabase = makeSupabaseWithDigest([], {
+      digest: 'Athlete discussed knee pain.',
+      open_threads: [{ topic: 'knee pain', last_mentioned: '2026-06-08' }],
+      commitments: ['Try easier gear on climbs'],
+    })
+    const result = await loadCoachMemory(supabase as never, 'u1', {}, NOW)
+    expect(result).toContain('CONVERSATION MEMORY')
+    expect(result).toContain('Athlete discussed knee pain.')
+    expect(result).toContain('knee pain')
+    expect(result).toContain('Try easier gear on climbs')
+  })
+
+  it('omits CONVERSATION MEMORY block when no digest row exists', async () => {
+    const supabase = makeSupabaseWithDigest([], null)
+    const result = await loadCoachMemory(supabase as never, 'u1', {}, NOW)
+    expect(result).not.toContain('CONVERSATION MEMORY')
   })
 })

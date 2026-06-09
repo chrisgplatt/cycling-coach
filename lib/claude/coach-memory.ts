@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { CoachMessage } from '@/types'
+import type { CoachMessage, CoachConversationMemory } from '@/types'
 
 export const COACH_PERSONA =
   `You are an expert road cycling coach messaging your athlete directly. Be direct and conversational — like a coach texting between sessions. No markdown, no bullet points, no headers, no bold text. Plain prose only. Keep responses concise unless the athlete asks for detail.`
@@ -34,15 +34,22 @@ export async function loadCoachMemory(
   try {
     const sevenDaysAgo = new Date(new Date(now).getTime() - 7 * 864e5).toISOString()
 
-    const { data } = await supabase
-      .from('coach_messages')
-      .select('id, surface, role, content, context, created_at')
-      .eq('user_id', userId)
-      .gte('created_at', sevenDaysAgo)
-      .order('created_at', { ascending: false })
-      .limit(50)
+    const [{ data: rawMessages }, { data: digestRow }] = await Promise.all([
+      supabase
+        .from('coach_messages')
+        .select('id, surface, role, content, context, created_at')
+        .eq('user_id', userId)
+        .gte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('coach_conversation_memory')
+        .select('digest, open_threads, commitments')
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ])
 
-    const messages = (data ?? []) as CoachMessage[]
+    const messages = (rawMessages ?? []) as CoachMessage[]
 
     const filtered = messages
       .filter(m => {
@@ -56,15 +63,32 @@ export async function loadCoachMemory(
       .slice(0, 25)
       .reverse()
 
-    if (!filtered.length) return ''
+    const parts: string[] = []
 
-    const lines = filtered.map(m => {
-      const day = relativeDay(m.created_at, now)
-      const who = m.role === 'user' ? 'Athlete' : 'Coach'
-      return `[${m.surface}, ${day}] ${who}: ${m.content}`
-    })
+    if (filtered.length) {
+      const lines = filtered.map(m => {
+        const day = relativeDay(m.created_at, now)
+        const who = m.role === 'user' ? 'Athlete' : 'Coach'
+        return `[${m.surface}, ${day}] ${who}: ${m.content}`
+      })
+      parts.push(`RECENT CONVERSATIONS (across all your coaching):\n${lines.join('\n')}`)
+    }
 
-    return `RECENT CONVERSATIONS (across all your coaching):\n${lines.join('\n')}`
+    const digest = digestRow as CoachConversationMemory | null
+    if (digest?.digest) {
+      const memLines = [`CONVERSATION MEMORY:`, digest.digest]
+      const threads = (digest.open_threads ?? []) as { topic?: string }[]
+      if (threads.length) {
+        memLines.push(`Open threads: ${threads.map(t => t.topic ?? String(t)).join(', ')}`)
+      }
+      const commitments = (digest.commitments ?? []) as string[]
+      if (commitments.length) {
+        memLines.push(`Commitments: ${commitments.join('; ')}`)
+      }
+      parts.push(memLines.join('\n'))
+    }
+
+    return parts.join('\n\n')
   } catch {
     return ''
   }
