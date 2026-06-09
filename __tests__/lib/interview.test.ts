@@ -23,7 +23,7 @@ function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
 
 describe('buildInterviewSystemPrompt', () => {
   const wellness: ICUWellness = {
-    id: '2026-05-31', ctl: 55, atl: 70, form: -15, hrv: 60, resting_hr: 48, sleep_secs: null,
+    id: '2026-05-31', ctl: 55, atl: 70, form: -15, hrv: 60, resting_hr: 48, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null,
   }
 
   it('surfaces the athlete goals, FTP and the upcoming event', () => {

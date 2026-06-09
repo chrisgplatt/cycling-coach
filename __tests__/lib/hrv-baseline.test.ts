@@ -6,7 +6,7 @@ function series(n: number, end: string, val: (i: number) => number | null): ICUW
   const endMs = new Date(end + 'T00:00:00Z').getTime()
   return Array.from({ length: n }, (_, i) => {
     const date = new Date(endMs - (n - 1 - i) * 864e5).toISOString().split('T')[0]
-    return { id: date, ctl: null, atl: null, form: null, hrv: val(i), resting_hr: null, sleep_secs: null }
+    return { id: date, ctl: null, atl: null, form: null, hrv: val(i), resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null }
   })
 }
 

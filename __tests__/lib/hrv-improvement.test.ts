@@ -14,6 +14,7 @@ function wellness(days: number, end: string, hrv: (i: number) => number | null, 
     hrv: hrv(i),
     resting_hr: null,
     sleep_secs: sleepH(i) === null ? null : (sleepH(i) as number) * 3600,
+    body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null,
   }))
 }
 

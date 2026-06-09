@@ -3,7 +3,7 @@ import MetricsBar from '@/components/MetricsBar'
 import type { ICUWellness } from '@/types'
 
 const wellness: ICUWellness = {
-  id: '2026-05-11', ctl: 65, atl: 72, form: -7, hrv: 68, resting_hr: 52, sleep_secs: 28800,
+  id: '2026-05-11', ctl: 65, atl: 72, form: -7, hrv: 68, resting_hr: 52, sleep_secs: 28800, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null,
 }
 
 describe('MetricsBar', () => {

@@ -4,9 +4,9 @@ import type { ChartsData } from '@/types'
 
 const mockCharts: ChartsData = {
   wellness: [
-    { id: '2026-02-01', ctl: 40, atl: 45, form: -5, hrv: null, resting_hr: null, sleep_secs: null },
-    { id: '2026-03-01', ctl: 48, atl: 52, form: -4, hrv: null, resting_hr: null, sleep_secs: null },
-    { id: '2026-05-20', ctl: 54, atl: 61, form: -7, hrv: null, resting_hr: null, sleep_secs: null },
+    { id: '2026-02-01', ctl: 40, atl: 45, form: -5, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
+    { id: '2026-03-01', ctl: 48, atl: 52, form: -4, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
+    { id: '2026-05-20', ctl: 54, atl: 61, form: -7, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
   ],
   weeklyTss: [
     { weekStart: '2026-02-02', tss: 280 },
