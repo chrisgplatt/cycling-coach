@@ -56,3 +56,6 @@ next-env.d.ts
 .superpowers/
 
 .vercel
+
+# graphify generated knowledge graph
+graphify-out/
