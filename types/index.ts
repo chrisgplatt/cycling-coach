@@ -215,6 +215,16 @@ export interface ChatMessage {
   created_at: string
 }
 
+export interface CoachMessage {
+  id: string
+  user_id: string
+  surface: 'coach' | 'plan' | 'workout' | 'feedback' | 'interview'
+  role: 'user' | 'assistant'
+  content: string
+  context: { workout_id?: string; plan_id?: string; feedback_id?: string } | null
+  created_at: string
+}
+
 // intervals.icu API types
 export interface ICUActivity {
   id: string
