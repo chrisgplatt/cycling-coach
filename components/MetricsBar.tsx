@@ -1,4 +1,5 @@
 import type { ICUWellness } from '@/types'
+import { computeDailyStrain, strainLabel } from '@/lib/strain'
 
 interface MetricProps {
   label: string
@@ -54,6 +55,15 @@ export default function MetricsBar({
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
   const formPositive = form !== null && form >= 0
+  const dailyStrain = computeDailyStrain(
+    wellness.garmin_training_load,
+    wellness.stress_avg,
+  )
+  const strainColor =
+    dailyStrain === null ? 'text-gray-900'
+    : strainLabel(dailyStrain) === 'low' ? 'text-emerald-600'
+    : strainLabel(dailyStrain) === 'moderate' ? 'text-amber-500'
+    : 'text-red-500'
   return (
     <div className={embedded ? 'overflow-hidden' : 'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden'}>
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
@@ -73,6 +83,9 @@ export default function MetricsBar({
         )}
         {wellness.resting_hr !== null && (
           <Metric label="Resting HR" value={wellness.resting_hr} valueClass="text-rose-500" unit="bpm" stale={stale.restingHr} />
+        )}
+        {dailyStrain !== null && (
+          <Metric label="Strain" value={dailyStrain} valueClass={strainColor} unit="/21" />
         )}
       </div>
     </div>
