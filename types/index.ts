@@ -264,6 +264,13 @@ export interface ICUWellness {
   hrv: number | null
   resting_hr: number | null
   sleep_secs: number | null
+  // Garmin fields (populated when Garmin is connected to intervals.icu)
+  body_battery_low: number | null
+  body_battery_high: number | null
+  stress_avg: number | null
+  stress_high: number | null
+  garmin_training_load: number | null
+  sleep_score: number | null
 }
 
 export interface ICUEvent {
@@ -448,6 +455,8 @@ export interface BriefingContext {
   readinessLabel: 'Ready' | 'Moderate' | 'Fatigued' | 'Unknown'
   hrv: number | null
   hrvStatus?: import('@/lib/hrv/baseline').HrvStatus | null
+  dailyStrain: number | null
+  strainHistory?: Array<{ date: string; strain: number | null }>
   recentWorkouts: Array<{
     date: string
     type: string
