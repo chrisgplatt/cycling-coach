@@ -3,6 +3,7 @@ import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { weekdayName, labelDate } from '@/lib/calendar-helpers'
 import { formatDistributions } from '@/lib/claude/activity-metrics'
+import { buildCoachContext } from './coach-memory'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -24,6 +25,7 @@ export function buildSessionSystemPrompt(
   events: TrainingEvent[] = [],
   dossierSection = '',
   hrvStatus?: HrvStatus | null,
+  memoryBlock = '',
 ): string {
   const tsb = wellness?.form ?? (
     wellness?.ctl != null && wellness?.atl != null ? wellness.ctl - wellness.atl : null
@@ -68,7 +70,7 @@ export function buildSessionSystemPrompt(
 
   const distributionSection = formatDistributions(workout.activity_metrics?.distributions ?? null)
 
-  return `You are an expert road cycling coach messaging your athlete directly. Be direct, brief, and conversational — like a coach texting between sessions. No markdown, no bullet points, no headers, no bold text. Plain prose only. 2–4 sentences per response unless the athlete asks for detail.
+  return `${buildCoachContext(memoryBlock, dossierSection)}
 
 TODAY: ${today} (${weekday})
 
@@ -84,7 +86,7 @@ FTP: ${currentFTP}W
 
 ${planSection}
 
-${dossierSection ? dossierSection + '\n\n' : ''}UPCOMING EVENTS (races, sportives, holidays — do not propose workouts on these dates):
+UPCOMING EVENTS (races, sportives, holidays — do not propose workouts on these dates):
 ${eventsSection}
 
 NEXT 7 DAYS (ID | date: type duration — description):

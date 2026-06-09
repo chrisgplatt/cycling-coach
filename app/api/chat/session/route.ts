@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
 import { buildSessionSystemPrompt } from '@/lib/claude/session-chat'
+import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { formatDossier, fetchDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
@@ -33,12 +34,14 @@ export async function POST(req: NextRequest) {
   }
 
   const [
+    memoryBlock,
     { data: workout },
     { data: plan },
     { data: upcomingWorkouts },
     { data: profile },
     dossierRow,
   ] = await Promise.all([
+    loadCoachMemory(supabase, user.id, { excludeContextKey: 'workout_id', excludeContextValue: workoutId }),
     supabase.from('workouts').select('*').eq('id', workoutId).maybeSingle(),
     supabase.from('training_plans').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('workouts').select('*').eq('status', 'planned')
@@ -71,12 +74,20 @@ export async function POST(req: NextRequest) {
     events,
     formatDossier(dossierRow as AthleteDossier | null),
     hrvStatus,
+    memoryBlock,
   )
 
   const messages = [
     ...history.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
     { role: 'user' as const, content: message },
   ]
+
+  await supabase.from('coach_messages').insert({
+    user_id: user.id, surface: 'workout', role: 'user',
+    content: message, context: { workout_id: workoutId },
+  })
+
+  let fullResponse = ''
 
   const stream = await anthropic.messages.stream({
     model: MODEL,
@@ -90,10 +101,15 @@ export async function POST(req: NextRequest) {
       try {
         for await (const chunk of stream) {
           if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+            fullResponse += chunk.delta.text
             controller.enqueue(new TextEncoder().encode(chunk.delta.text))
           }
         }
         controller.close()
+        await supabase.from('coach_messages').insert({
+          user_id: user.id, surface: 'workout', role: 'assistant',
+          content: fullResponse, context: { workout_id: workoutId },
+        })
       } catch (err) {
         controller.error(err)
       }

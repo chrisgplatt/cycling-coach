@@ -3,6 +3,7 @@ import { formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { Workout, TrainingPlan, ICUWellness } from '@/types'
 import { makeWorkout, makeTrainingPlan } from '../support/factories'
+import { COACH_PERSONA } from '@/lib/claude/coach-memory'
 
 const workout = makeWorkout({
   id: 'wk-today',
@@ -70,6 +71,20 @@ describe('buildSessionSystemPrompt', () => {
   it('includes __FORGET__ instruction', () => {
     const prompt = buildSessionSystemPrompt(workout, plan, upcoming, wellness, 240)
     expect(prompt).toContain('__FORGET__')
+  })
+
+  it('includes memory block when provided', () => {
+    const p = buildSessionSystemPrompt(
+      workout, plan, upcoming, wellness, 240, [], '', null,
+      'RECENT CONVERSATIONS:\n[coach, yesterday] Athlete: knee hurts',
+    )
+    expect(p).toContain('RECENT CONVERSATIONS')
+    expect(p).toContain('knee hurts')
+  })
+
+  it('starts with COACH_PERSONA when memory block is provided', () => {
+    const p = buildSessionSystemPrompt(workout, plan, upcoming, wellness, 240, [], '', null, 'MEM')
+    expect(p.startsWith(COACH_PERSONA)).toBe(true)
   })
 })
 
