@@ -21,7 +21,8 @@ import PlanReviewModal from '@/components/PlanReviewModal'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus, WorkoutType, GeneratedPlan, UnavailabilityPeriod } from '@/types'
-import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr } from '@/lib/calendar-helpers'
+import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr, weekStartsAround, weekStartsAfter } from '@/lib/calendar-helpers'
+import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
 import { periodOverlapsWeek, coveredDaysInWeek, periodDurationDays } from '@/lib/utils/unavailability'
 
@@ -332,6 +333,101 @@ function WeekDetail({
   )
 }
 
+// ─── Continuous week list ──────────────────────────────────────────────────────
+
+// Short label for a week given its Monday, e.g. "25–31 May" or "29 Jun – 5 Jul".
+function WeekHeader({ monday, todayStr }: { monday: string; todayStr: string }) {
+  const { start, end } = getWeekBounds(monday)
+  const s = new Date(start + 'T00:00:00Z')
+  const e = new Date(end + 'T00:00:00Z')
+  const sMonth = MONTHS[s.getUTCMonth()]
+  const eMonth = MONTHS[e.getUTCMonth()]
+  const label = sMonth === eMonth
+    ? `${s.getUTCDate()}–${e.getUTCDate()} ${sMonth}`
+    : `${s.getUTCDate()} ${sMonth} – ${e.getUTCDate()} ${eMonth}`
+  const isThisWeek = todayStr >= start && todayStr <= end
+  return (
+    <div className="flex items-center gap-2 px-1 pb-1 pt-0.5">
+      <span className="text-xs font-semibold text-slate-500">{label}</span>
+      {isThisWeek && (
+        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">This week</span>
+      )}
+    </div>
+  )
+}
+
+type ContinuousWeeksProps = Omit<WeekDetailProps, 'selectedDateStr'> & {
+  navTarget: { date: string; seq: number }
+  onWeekInView: (monday: string) => void
+}
+
+// A scrollable run of weeks that flows continuously: scrolling past Sunday brings
+// in the next week. The visible week is reported via onWeekInView (keeps the month
+// strip in sync); the list extends forward as you near the bottom; tapping a date
+// re-anchors and scrolls that week to the top.
+function ContinuousWeeks({ navTarget, onWeekInView, ...week }: ContinuousWeeksProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const weekEls = useRef<Map<string, HTMLDivElement>>(new Map())
+  const lastWeek = useRef('')
+  const appending = useRef(false)
+  const pendingScrollTo = useRef<string>(getWeekBounds(navTarget.date).start)
+  // The window re-anchors on explicit navigation by remounting (see `key` at the
+  // call site), so the initial state below is the anchor; scroll forward extends it.
+  const [weeks, setWeeks] = useState<string[]>(() => weekStartsAround(navTarget.date, 4, 16))
+
+  // After the weeks render, run any queued scroll-to-week (nav), and clear the
+  // append lock so the next near-bottom scroll can extend again.
+  useEffect(() => {
+    appending.current = false
+    const target = pendingScrollTo.current
+    if (!target) return
+    const el = weekEls.current.get(target)
+    const c = scrollRef.current
+    if (el && c) {
+      c.scrollTop = Math.max(0, el.offsetTop - 4)
+      lastWeek.current = target
+      pendingScrollTo.current = ''
+    }
+  }, [weeks])
+
+  function handleScroll() {
+    const c = scrollRef.current
+    if (!c) return
+    // Current week = the last block whose top has scrolled to/above the container top.
+    let current = weeks[0]
+    for (const monday of weeks) {
+      const el = weekEls.current.get(monday)
+      if (el && el.offsetTop - c.scrollTop <= 8) current = monday
+    }
+    if (current && current !== lastWeek.current) {
+      lastWeek.current = current
+      onWeekInView(current)
+    }
+    if (!appending.current && c.scrollHeight - c.scrollTop - c.clientHeight < 400) {
+      appending.current = true
+      setWeeks(w => (w.length ? [...w, ...weekStartsAfter(w[w.length - 1], 8)] : w))
+    }
+  }
+
+  return (
+    <div
+      ref={scrollRef}
+      onScroll={handleScroll}
+      className="relative overflow-y-auto max-h-[calc(100vh-13rem)] space-y-3 pb-4"
+    >
+      {weeks.map(monday => (
+        <div
+          key={monday}
+          ref={el => { if (el) weekEls.current.set(monday, el); else weekEls.current.delete(monday) }}
+        >
+          <WeekHeader monday={monday} todayStr={week.todayStr} />
+          <WeekDetail selectedDateStr={monday} {...week} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
@@ -351,8 +447,24 @@ export default function CalendarPage() {
   const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
   const [syncData, setSyncData] = useState<ICUSyncData | null>(null)
   const [selectedDateStr, setSelectedDateStr] = useState(todayStr)
+  // Explicit navigation target for the continuous week list (tap a date / Today).
+  // `seq` bumps on every nav so the list re-anchors even when the date repeats.
+  const [navTarget, setNavTarget] = useState<{ date: string; seq: number }>({ date: todayStr, seq: 0 })
   const [displayYear, setDisplayYear] = useState(() => new Date().getFullYear())
   const [displayMonth, setDisplayMonth] = useState(() => new Date().getMonth())
+
+  // Scroll in the continuous list reports the week now in view: keep the month
+  // strip highlight and the displayed month following along.
+  function handleWeekInView(monday: string) {
+    setSelectedDateStr(monday)
+    const [y, mo] = monday.split('-').map(Number)
+    setDisplayYear(y)
+    setDisplayMonth(mo - 1)
+  }
+  function navigateTo(date: string) {
+    setSelectedDateStr(date)
+    setNavTarget(t => ({ date, seq: t.seq + 1 }))
+  }
 
   const [currentFTP, setCurrentFTP] = useState<number | undefined>(undefined)
   const [unavailability, setUnavailability] = useState<UnavailabilityPeriod[]>([])
@@ -530,7 +642,7 @@ export default function CalendarPage() {
         {selectedDateStr !== todayStr && (
           <button
             onClick={() => {
-              setSelectedDateStr(todayStr)
+              navigateTo(todayStr)
               setDisplayMonth(new Date().getMonth())
               setDisplayYear(new Date().getFullYear())
             }}
@@ -550,15 +662,18 @@ export default function CalendarPage() {
         events={events}
         unlinkedActivities={unlinkedActivities}
         todayStr={todayStr}
-        onDateClick={(ds) => setSelectedDateStr(ds)}
+        onDateClick={navigateTo}
         onPrevMonth={prevMonth}
         onNextMonth={nextMonth}
       />
 
-      {/* Week detail — wrapped in a DnD context so planned workouts can be dragged to another day */}
+      {/* Continuous, scrollable run of weeks — wrapped in a DnD context so planned
+          workouts can be dragged to another day (including across weeks). */}
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <WeekDetail
-          selectedDateStr={selectedDateStr}
+        <ContinuousWeeks
+          key={navTarget.seq}
+          navTarget={navTarget}
+          onWeekInView={handleWeekInView}
           workouts={workouts}
           events={events}
           unlinkedActivities={unlinkedActivities}

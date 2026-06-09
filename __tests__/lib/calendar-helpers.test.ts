@@ -6,6 +6,8 @@ import {
   toLocalDateStr,
   weekdayName,
   labelDate,
+  weekStartsAround,
+  weekStartsAfter,
 } from '@/lib/calendar-helpers'
 
 describe('calendarMonthDays', () => {
@@ -73,6 +75,24 @@ describe('formatMovingTime', () => {
     expect(formatMovingTime(3600)).toBe('1h')
     expect(formatMovingTime(5400)).toBe('1h 30m')
     expect(formatMovingTime(2700)).toBe('45m')
+  })
+})
+
+describe('weekStartsAround', () => {
+  it('returns Mondays from `before` weeks back to `after` weeks forward', () => {
+    // 2026-05-27 is a Wednesday; its Monday is 2026-05-25.
+    const weeks = weekStartsAround('2026-05-27', 2, 2)
+    expect(weeks).toEqual(['2026-05-11', '2026-05-18', '2026-05-25', '2026-06-01', '2026-06-08'])
+  })
+
+  it('anchors on the Monday of the given date with before=after=0', () => {
+    expect(weekStartsAround('2026-06-07', 0, 0)).toEqual(['2026-06-01']) // Sun 7th → Mon 1st
+  })
+})
+
+describe('weekStartsAfter', () => {
+  it('returns the next `count` Mondays', () => {
+    expect(weekStartsAfter('2026-05-25', 3)).toEqual(['2026-06-01', '2026-06-08', '2026-06-15'])
   })
 })
 

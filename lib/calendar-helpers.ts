@@ -44,6 +44,27 @@ export function labelDate(dateStr: string): string {
   return `${dateStr} (${weekdayName(dateStr)})`
 }
 
+// Monday (YYYY-MM-DD) of the week containing dateStr, plus `before` weeks of
+// Mondays before it and `after` weeks after, ascending. Used to render a
+// continuous, scrollable run of weeks around the selected one.
+export function weekStartsAround(dateStr: string, before: number, after: number): string[] {
+  const { start } = getWeekBounds(dateStr)
+  const [y, m, d] = start.split('-').map(Number)
+  const out: string[] = []
+  for (let i = -before; i <= after; i++) {
+    out.push(new Date(Date.UTC(y, m - 1, d + i * 7)).toISOString().split('T')[0])
+  }
+  return out
+}
+
+// The `count` Mondays immediately after `mondayStr` (ascending). For extending a
+// week run as the user scrolls forward.
+export function weekStartsAfter(mondayStr: string, count: number): string[] {
+  const [y, m, d] = mondayStr.split('-').map(Number)
+  return Array.from({ length: count }, (_, i) =>
+    new Date(Date.UTC(y, m - 1, d + (i + 1) * 7)).toISOString().split('T')[0])
+}
+
 // Formats a duration in minutes: "45m", "1h", "1h 30m"
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes}m`
