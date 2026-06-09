@@ -35,6 +35,7 @@ const basePostRideCtx: BriefingContext = {
   hrv: 50,
   recentWorkouts: [],
   upcomingEvents: [],
+  dailyStrain: null,
 }
 
 const baseMorningCtx: BriefingContext = {
@@ -56,6 +57,7 @@ const baseMorningCtx: BriefingContext = {
   hrv: 41,
   recentWorkouts: [],
   upcomingEvents: [],
+  dailyStrain: null,
 }
 
 describe('generateMorningBriefing — HRV awareness', () => {

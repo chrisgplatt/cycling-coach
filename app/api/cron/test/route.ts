@@ -104,6 +104,7 @@ export async function POST() {
     today, todayWorkout, workoutCompleted: false, completedRide: null,
     ctl, atl, tsb, readinessLabel: readinessLabel(tsb), hrv, recentWorkouts, upcomingEvents,
     weather,
+    dailyStrain: null,
   }
 
   let coach_note: string

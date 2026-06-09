@@ -196,6 +196,7 @@ export async function GET(req: NextRequest) {
       activeUnavailability,
       athleteModel: formatAthleteModel(beliefs),
       weather,
+      dailyStrain: null,
     }
 
     let coach_note = existing?.coach_note ?? null
