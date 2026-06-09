@@ -883,28 +883,35 @@ export default function PlanPage() {
                     {event.icu_event_id && <p className="text-xs text-green-600 mt-0.5">↑ synced to intervals.icu</p>}
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      onClick={() => setEditingEvent(event)}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
-                    >Edit</button>
-                    {confirmingEvent === key ? (
-                      <>
-                        <span className="text-xs text-slate-600">Delete?</span>
-                        <button
-                          onClick={() => deleteEvent(event.name, event.date)}
-                          disabled={deletingEvent === key}
-                          className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors"
-                        >{deletingEvent === key ? 'Deleting…' : 'Yes'}</button>
-                        <button
-                          onClick={() => setConfirmingEvent(null)}
-                          className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                        >Cancel</button>
-                      </>
+                    {diffDays < 0 ? (
+                      /* Past events are done — no longer editable or deletable */
+                      <span className="text-xs font-medium text-slate-300">Done</span>
                     ) : (
-                      <button
-                        onClick={() => setConfirmingEvent(key)}
-                        className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
-                      >Delete</button>
+                      <>
+                        <button
+                          onClick={() => setEditingEvent(event)}
+                          className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                        >Edit</button>
+                        {confirmingEvent === key ? (
+                          <>
+                            <span className="text-xs text-slate-600">Delete?</span>
+                            <button
+                              onClick={() => deleteEvent(event.name, event.date)}
+                              disabled={deletingEvent === key}
+                              className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors"
+                            >{deletingEvent === key ? 'Deleting…' : 'Yes'}</button>
+                            <button
+                              onClick={() => setConfirmingEvent(null)}
+                              className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                            >Cancel</button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmingEvent(key)}
+                            className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                          >Delete</button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

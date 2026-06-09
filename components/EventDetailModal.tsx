@@ -42,6 +42,9 @@ export default function EventDetailModal({
   const [showPicker, setShowPicker] = useState(false)
 
   const hasResult = !!event.icu_activity_id
+  // A past event is "done": its details can no longer be edited (a result can still
+  // be recorded after the fact — that's not editing the event itself).
+  const isPast = event.date < new Date().toISOString().split('T')[0]
 
   async function assign() {
     const activity = rides.find(a => a.id === selectedActivityId)
@@ -335,7 +338,7 @@ export default function EventDetailModal({
             )}
           </div>
           <div className="flex items-center gap-2">
-            {onEdit && !hasResult && (
+            {onEdit && !hasResult && !isPast && (
               <button
                 onClick={onEdit}
                 className="text-sm font-medium text-blue-600 hover:text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
