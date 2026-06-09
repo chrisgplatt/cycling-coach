@@ -5,6 +5,7 @@ import { formatZones, formatSchedule } from '@/lib/claude/plan'
 import type { ICUWellness, TrainingEvent, TrainingPlan, UserProfile, Workout, UnavailabilityPeriod } from '@/types'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
+import { loadCoachMemory, buildCoachContext } from '@/lib/claude/coach-memory'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -25,6 +26,7 @@ function buildSystemPrompt(
   profile: UserProfile,
   dossierSection = '',
   unavailability: UnavailabilityPeriod[] = [],
+  memoryBlock = '',
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' })
@@ -99,7 +101,9 @@ function buildSystemPrompt(
         .join('\n')
     : 'No future planned workouts.'
 
-  return `You are an expert road cycling coach discussing and adapting a training plan with your athlete. Be direct and conversational — like a coach talking things through. No markdown, no bullet points, no headers, no bold text. Plain prose only. Keep responses concise unless the athlete asks for detail.
+  return `${buildCoachContext(memoryBlock, dossierSection)}
+
+You are discussing and adapting a training plan with your athlete.
 
 TODAY: ${today} (${weekday})
 
@@ -119,7 +123,7 @@ ACTIVE PLAN: ${plan.name} (${plan.phase} phase)
 Target: ${plan.target_event_name} on ${plan.target_event_date}
 Rationale: ${plan.rationale}
 ${removedTargetNote}
-${unavailSection ? unavailSection + '\n\n' : ''}${dossierSection ? dossierSection + '\n\n' : ''}UPCOMING EVENTS (BLOCKED — never propose a workout on these dates):
+${unavailSection ? unavailSection + '\n\n' : ''}UPCOMING EVENTS (BLOCKED — never propose a workout on these dates):
 ${eventsSection}
 
 FUTURE PLANNED WORKOUTS (ID | date | type | duration | description):
@@ -195,13 +199,10 @@ export async function POST(req: NextRequest) {
   if (!profile) return new Response('Profile not configured', { status: 400 })
 
   const today = new Date().toISOString().split('T')[0]
-  const { data: futureWorkouts } = await supabase
-    .from('workouts')
-    .select('*')
-    .eq('plan_id', plan.id)
-    .eq('status', 'planned')
-    .gte('date', today)
-    .order('date')
+  const [memoryBlock, { data: futureWorkouts }] = await Promise.all([
+    loadCoachMemory(supabase, user.id, { excludeContextKey: 'plan_id', excludeContextValue: plan.id }),
+    supabase.from('workouts').select('*').eq('plan_id', plan.id).eq('status', 'planned').gte('date', today).order('date'),
+  ])
 
   const systemPrompt = buildSystemPrompt(
     plan as TrainingPlan,
@@ -211,12 +212,18 @@ export async function POST(req: NextRequest) {
     profile as unknown as UserProfile,
     formatDossier(dossier as AthleteDossier | null),
     ((profile as Record<string, unknown>).unavailability ?? []) as UnavailabilityPeriod[],
+    memoryBlock,
   )
 
   const messages = [
     ...history.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
     { role: 'user' as const, content: message },
   ]
+
+  await supabase.from('coach_messages').insert({
+    user_id: user.id, surface: 'plan', role: 'user',
+    content: message, context: { plan_id: (plan as TrainingPlan).id },
+  })
 
   const stream = await anthropic.messages.stream({
     model: 'claude-opus-4-8',
@@ -225,17 +232,24 @@ export async function POST(req: NextRequest) {
     messages,
   })
 
+  let fullResponse = ''
   const readable = new ReadableStream({
     async start(controller) {
       try {
         for await (const chunk of stream) {
           if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+            fullResponse += chunk.delta.text
             controller.enqueue(new TextEncoder().encode(chunk.delta.text))
           }
         }
         controller.close()
       } catch (err) {
         controller.error(err)
+      } finally {
+        await supabase.from('coach_messages').insert({
+          user_id: user.id, surface: 'plan', role: 'assistant',
+          content: fullResponse, context: { plan_id: (plan as TrainingPlan).id },
+        })
       }
     },
   })
