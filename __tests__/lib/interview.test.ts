@@ -1,5 +1,6 @@
 /** @jest-environment node */
 import { parseInterviewCompletion, buildInterviewSystemPrompt } from '@/lib/claude/interview'
+import { COACH_PERSONA } from '@/lib/claude/coach-memory'
 import type { UserProfile, ICUWellness } from '@/types'
 
 function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
@@ -63,6 +64,20 @@ describe('buildInterviewSystemPrompt', () => {
       baselineDrift: 'falling',
     })
     expect(p).toMatch(/SUPPRESSED/)
+  })
+
+  it('includes memory block when provided', () => {
+    const p = buildInterviewSystemPrompt(
+      makeProfile(), wellness, 250, '', null,
+      'RECENT CONVERSATIONS:\n[coach, yesterday] Athlete: left knee pain',
+    )
+    expect(p).toContain('RECENT CONVERSATIONS')
+    expect(p).toContain('left knee pain')
+  })
+
+  it('starts with COACH_PERSONA when memory block provided', () => {
+    const p = buildInterviewSystemPrompt(makeProfile(), wellness, 250, '', null, 'MEM')
+    expect(p.startsWith(COACH_PERSONA)).toBe(true)
   })
 })
 

@@ -7,6 +7,7 @@ import { weekdayName } from '@/lib/calendar-helpers'
 import type { UserProfile, ICUWellness, TrainingEvent } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
+import { buildCoachContext } from './coach-memory'
 
 export const INTERVIEW_COMPLETE_MARKER = '__INTERVIEW_COMPLETE__'
 
@@ -55,6 +56,7 @@ export function buildInterviewSystemPrompt(
   currentFTP: number,
   dossierSection = '',
   hrvStatus?: HrvStatus | null,
+  memoryBlock = '',
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = weekdayName(today)
@@ -76,7 +78,9 @@ export function buildInterviewSystemPrompt(
     ? upcoming.map(e => `- ${e.date}: ${e.name} (${e.type}, priority ${e.priority})`).join('\n')
     : 'None on the calendar.'
 
-  return `You are an expert road cycling coach interviewing your athlete before you write their next training plan. Your job is to draw out the context that shapes a good plan — things they might not think to volunteer. Warm, direct, conversational. No markdown, no bullet points, no headers, no bold. Plain prose only. Ask ONE question at a time and keep each turn short.
+  return `${buildCoachContext(memoryBlock, dossierSection)}
+
+You are an expert road cycling coach interviewing your athlete before you write their next training plan. Your job is to draw out the context that shapes a good plan — things they might not think to volunteer. Warm, direct, conversational. No markdown, no bullet points, no headers, no bold. Plain prose only. Ask ONE question at a time and keep each turn short.
 
 TODAY: ${today} (${weekday})
 
@@ -94,7 +98,7 @@ ${fitnessSection}
 
 UPCOMING EVENTS:
 ${eventsSection}
-${dossierSection ? '\n' + dossierSection + '\n' : ''}
+
 INTERVIEW STRUCTURE:
 Walk through these core topics in order, one question per turn. Open with a brief personalised greeting that references what you already know (their goal or next event), then ask the first question.
 1. Their goal — what they want out of THIS training block specifically.

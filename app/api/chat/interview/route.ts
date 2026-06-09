@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic } from '@/lib/claude/client'
 import { buildInterviewSystemPrompt } from '@/lib/claude/interview'
+import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { ICUWellness, UserProfile } from '@/types'
@@ -28,9 +29,10 @@ export async function POST(req: NextRequest) {
     return new Response('Invalid request body', { status: 400 })
   }
 
-  const [{ data: profile }, dossier] = await Promise.all([
+  const [{ data: profile }, dossier, memoryBlock] = await Promise.all([
     supabase.from('user_profile').select('*').maybeSingle(),
     fetchDossier(supabase, user.id),
+    loadCoachMemory(supabase, user.id, { excludeSurface: 'interview' }),
   ])
   if (!profile) return new Response('Profile not configured', { status: 400 })
 
@@ -50,14 +52,22 @@ export async function POST(req: NextRequest) {
     currentFTP,
     formatDossier(dossier as AthleteDossier | null),
     hrvStatus,
+    memoryBlock,
   )
 
   // The opening turn arrives with an empty message and no history: seed a single
   // synthetic user turn so the model streams its greeting + first question.
+  const userContent = message.trim() || "Let's begin."
   const convo = [
     ...history.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-    { role: 'user' as const, content: message.trim() || "Let's begin." },
+    { role: 'user' as const, content: userContent },
   ]
+
+  // Persist user turn before streaming
+  await supabase.from('coach_messages').insert({
+    user_id: user.id, surface: 'interview', role: 'user',
+    content: userContent, context: null,
+  })
 
   const stream = await anthropic.messages.stream({
     model: 'claude-opus-4-8',
@@ -66,15 +76,23 @@ export async function POST(req: NextRequest) {
     messages: convo,
   })
 
+  let fullResponse = ''
+
   const readable = new ReadableStream({
     async start(controller) {
       try {
         for await (const chunk of stream) {
           if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+            fullResponse += chunk.delta.text
             controller.enqueue(new TextEncoder().encode(chunk.delta.text))
           }
         }
         controller.close()
+        // Persist assistant turn after stream completes
+        await supabase.from('coach_messages').insert({
+          user_id: user.id, surface: 'interview', role: 'assistant',
+          content: fullResponse, context: null,
+        })
       } catch (err) {
         controller.error(err)
       }
