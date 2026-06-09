@@ -225,6 +225,15 @@ export interface CoachMessage {
   created_at: string
 }
 
+export interface CoachConversationMemory {
+  user_id: string
+  digest: string
+  open_threads: unknown[]
+  recurring_concerns: unknown[]
+  commitments: unknown[]
+  synthesized_at: string
+}
+
 // intervals.icu API types
 export interface ICUActivity {
   id: string
