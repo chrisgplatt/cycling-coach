@@ -1,6 +1,7 @@
 import type { Workout } from '@/types'
 import { formatReportedSignals } from './feedback-signals'
 import type { SessionSignals } from './session-note'
+import { buildCoachContext } from './coach-memory'
 
 // System prompt for the post-ride feedback conversation. Anchored to one logged
 // session and the coach's note about it — the athlete can dig into how the session
@@ -10,13 +11,16 @@ export function buildFeedbackChatSystemPrompt(
   signals: SessionSignals,
   rideExecution: string,
   coachNote: string,
+  memoryBlock = '',
 ): string {
   const signalsLine = formatReportedSignals(signals)
   const moodLine = signals.mood != null ? `Mood ${signals.mood}/4` : ''
   const reported = [signalsLine, moodLine].filter(Boolean).join(' · ')
 
   const lines: string[] = [
-    `You are the athlete's cycling coach, talking with them about a session they have just completed and logged feedback for. Speak directly to them in a warm, concise coaching voice.`,
+    buildCoachContext(memoryBlock, ''),
+    ``,
+    `You are discussing a session this athlete has just completed and logged feedback for.`,
     ``,
     `THE SESSION:`,
     `${workout.date} ${workout.type} ${workout.duration_minutes}min`,

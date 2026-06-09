@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
 import { buildFeedbackChatSystemPrompt } from '@/lib/claude/feedback-chat'
+import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { formatRideExecution, formatRideShape, formatDistributions } from '@/lib/claude/activity-metrics'
 import type { Workout, SessionFeedback } from '@/types'
 
@@ -65,6 +66,11 @@ export async function POST(req: NextRequest) {
   }
   if (!workout) return new Response('Workout not found', { status: 404 })
 
+  const memoryBlock = await loadCoachMemory(supabase, userId, {
+    excludeContextKey: 'feedback_id',
+    excludeContextValue: feedbackId,
+  })
+
   const rideExecution = [
     formatRideExecution(workout.steps, workout.activity_metrics),
     formatRideShape(workout.activity_metrics?.shape ?? null),
@@ -79,6 +85,7 @@ export async function POST(req: NextRequest) {
     },
     rideExecution,
     feedback.coach_note ?? '',
+    memoryBlock,
   )
 
   const messages = [
@@ -86,9 +93,15 @@ export async function POST(req: NextRequest) {
     { role: 'user' as const, content: message },
   ]
 
-  await supabase.from('feedback_messages').insert({
-    feedback_id: feedbackId, user_id: userId, role: 'user', content: message,
-  })
+  await Promise.all([
+    supabase.from('feedback_messages').insert({
+      feedback_id: feedbackId, user_id: userId, role: 'user', content: message,
+    }),
+    supabase.from('coach_messages').insert({
+      user_id: userId, surface: 'feedback', role: 'user',
+      content: message, context: { feedback_id: feedbackId },
+    }),
+  ])
 
   const stream = await anthropic.messages.stream({
     model: MODEL,
@@ -107,9 +120,15 @@ export async function POST(req: NextRequest) {
             controller.enqueue(new TextEncoder().encode(chunk.delta.text))
           }
         }
-        await supabase.from('feedback_messages').insert({
-          feedback_id: feedbackId, user_id: userId, role: 'assistant', content: fullResponse,
-        })
+        await Promise.all([
+          supabase.from('feedback_messages').insert({
+            feedback_id: feedbackId, user_id: userId, role: 'assistant', content: fullResponse,
+          }),
+          supabase.from('coach_messages').insert({
+            user_id: userId, surface: 'feedback', role: 'assistant',
+            content: fullResponse, context: { feedback_id: feedbackId },
+          }),
+        ])
         controller.close()
       } catch (err) {
         controller.error(err)

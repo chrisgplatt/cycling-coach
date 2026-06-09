@@ -1,4 +1,5 @@
 import { buildFeedbackChatSystemPrompt } from '@/lib/claude/feedback-chat'
+import { COACH_PERSONA } from '@/lib/claude/coach-memory'
 import { makeWorkout } from '../support/factories'
 
 const workout = makeWorkout({
@@ -36,5 +37,22 @@ describe('buildFeedbackChatSystemPrompt', () => {
   it('omits the coach-note line when there is no note', () => {
     const prompt = buildFeedbackChatSystemPrompt(workout, {}, '', '')
     expect(prompt).not.toContain('Your note to the athlete')
+  })
+
+  it('includes memory block when provided', () => {
+    const p = buildFeedbackChatSystemPrompt(
+      workout,
+      { rpe: 7, feel: 3, completion: 'as_planned', tags: [], mood: null },
+      '',
+      '',
+      'RECENT CONVERSATIONS:\n[plan, yesterday] Athlete: tired legs',
+    )
+    expect(p).toContain('RECENT CONVERSATIONS')
+    expect(p).toContain('tired legs')
+  })
+
+  it('starts with COACH_PERSONA when memory block provided', () => {
+    const p = buildFeedbackChatSystemPrompt(workout, {}, '', '', 'MEM')
+    expect(p.startsWith(COACH_PERSONA)).toBe(true)
   })
 })
