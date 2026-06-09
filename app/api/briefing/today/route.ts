@@ -6,6 +6,7 @@ import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-mod
 import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatus } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
+import { computeDailyStrain } from '@/lib/strain'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -80,6 +81,8 @@ export async function GET(req: NextRequest) {
   let hrv: number | null = null
   let hrvStatus: BriefingContext['hrvStatus'] = null
   let recentWorkouts: BriefingContext['recentWorkouts'] = []
+  let dailyStrain: number | null = null
+  let strainHistory: Array<{ date: string; strain: number | null }> = []
 
   if (profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
     const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
@@ -95,6 +98,14 @@ export async function GET(req: NextRequest) {
       atl = latest?.atl ?? null
       tsb = latest?.form ?? (ctl !== null && atl !== null ? ctl - atl : null)
       hrv = latest?.hrv ?? null
+      dailyStrain = computeDailyStrain(
+        latest?.garmin_training_load ?? null,
+        latest?.stress_avg ?? null,
+      )
+      strainHistory = wellness.map(w => ({
+        date: w.id,
+        strain: computeDailyStrain(w.garmin_training_load, w.stress_avg),
+      }))
       recentWorkouts = activities
         .filter((a: ICUActivity) => /ride/i.test(a.type))
         .sort((a: ICUActivity, b: ICUActivity) => b.start_date_local.localeCompare(a.start_date_local))
@@ -169,6 +180,8 @@ export async function GET(req: NextRequest) {
     dossier,
     athleteModel: formatAthleteModel(beliefs),
     weather,
+    dailyStrain,
+    strainHistory,
   }
 
   const { coach_note, verdict, headline } = await generateBriefing(ctx)
