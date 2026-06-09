@@ -25,9 +25,7 @@ create policy "own data" on coach_messages
 insert into coach_messages (id, user_id, surface, role, content, context, created_at)
 select id, user_id, 'coach', role, content, null, created_at
 from chat_messages
-where not exists (
-  select 1 from coach_messages cm where cm.id = chat_messages.id
-);
+on conflict (id) do nothing;
 
 -- Idempotent backfill: feedback_messages → coach_messages (surface='feedback')
 insert into coach_messages (id, user_id, surface, role, content, context, created_at)
@@ -35,6 +33,4 @@ select id, user_id, 'feedback', role, content,
   jsonb_build_object('feedback_id', feedback_id),
   created_at
 from feedback_messages
-where not exists (
-  select 1 from coach_messages cm where cm.id = feedback_messages.id
-);
+on conflict (id) do nothing;
