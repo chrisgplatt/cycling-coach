@@ -4,6 +4,7 @@ import { formatActivityMetrics, formatRideExecution } from './activity-metrics'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { weekdayName, labelDate } from '@/lib/calendar-helpers'
+import { buildCoachContext } from './coach-memory'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -33,6 +34,7 @@ export function buildChatSystemPrompt(
   dossierSection = '',
   recentRides: RecentRide[] = [],
   hrvStatus?: HrvStatus | null,
+  memoryBlock = '',
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = weekdayName(today)
@@ -71,7 +73,7 @@ export function buildChatSystemPrompt(
       }).join('\n')
     : 'No upcoming events.'
 
-  return `You are an expert road cycling coach messaging your athlete directly. Be direct, specific, and conversational — like a coach texting between sessions. No markdown, no bullet points, no headers, no bold text. Plain prose only. Keep responses concise unless the athlete explicitly asks for a detailed breakdown.
+  return `${buildCoachContext(memoryBlock, dossierSection)}
 
 TODAY: ${today} (${weekday})
 
@@ -94,7 +96,7 @@ Athlete FTP: ${currentFTP}W
 Power zones (watts, derived from FTP):
 ${formatZones(currentFTP)}
 
-${dossierSection ? dossierSection + '\n\n' : ''}Answer questions about training, recovery, pacing, nutrition, and race strategy. Reference specific workouts, power zones, and upcoming events where relevant — use the watt ranges above when giving pacing or zone advice.
+Answer questions about training, recovery, pacing, nutrition, and race strategy. Reference specific workouts, power zones, and upcoming events where relevant — use the watt ranges above when giving pacing or zone advice.
 
 You also keep private notes about this athlete. When the conversation surfaces something durable and personal worth remembering — a persistent feeling or mood (burnout, low motivation, stress), a physical constraint or niggle, a sleep or recovery pattern, or a scheduling limitation — save it yourself by appending a marker after your visible response, even if the athlete did not explicitly ask:
 

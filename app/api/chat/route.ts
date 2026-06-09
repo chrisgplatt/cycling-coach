@@ -5,6 +5,7 @@ import type { ChatMessage, TrainingPlan, Workout, ICUSyncData, TrainingEvent } f
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { buildChatSystemPrompt } from '@/lib/claude/chat'
+import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { fetchHrvStatus } from '@/lib/hrv/server'
 import { IntervalsClient } from '@/lib/intervals/client'
 
@@ -30,7 +31,8 @@ export async function POST(req: NextRequest) {
     return new Response('Message is required', { status: 400 })
   }
 
-  const [{ data: plan }, { data: recentMessages }, { data: upcomingWorkouts }, { data: profileData }, dossier, { data: recentRides }] = await Promise.all([
+  const [memoryBlock, { data: plan }, { data: recentMessages }, { data: upcomingWorkouts }, { data: profileData }, dossier, { data: recentRides }] = await Promise.all([
+    loadCoachMemory(supabase, userId, { excludeSurface: 'coach' }),
     supabase.from('training_plans').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('chat_messages').select('*').order('created_at', { ascending: false }).limit(20),
     supabase.from('workouts').select('*').eq('status', 'planned')
@@ -53,7 +55,10 @@ export async function POST(req: NextRequest) {
 
   messages.push({ role: 'user', content: message })
 
-  await supabase.from('chat_messages').insert({ role: 'user', content: message, user_id: userId })
+  await Promise.all([
+    supabase.from('chat_messages').insert({ role: 'user', content: message, user_id: userId }),
+    supabase.from('coach_messages').insert({ user_id: userId, surface: 'coach', role: 'user', content: message, context: null }),
+  ])
 
   const latestWellness = syncData?.wellness?.slice(-1)[0] ?? null
   const events = ((profileData as { events?: TrainingEvent[] } | null)?.events ?? []) as TrainingEvent[]
@@ -75,6 +80,7 @@ export async function POST(req: NextRequest) {
     formatDossier(dossier as AthleteDossier | null),
     (recentRides ?? []) as import('@/lib/claude/chat').RecentRide[],
     hrvStatus,
+    memoryBlock,
   )
 
   const stream = await anthropic.messages.stream({
@@ -94,7 +100,10 @@ export async function POST(req: NextRequest) {
             controller.enqueue(new TextEncoder().encode(chunk.delta.text))
           }
         }
-        await supabase.from('chat_messages').insert({ role: 'assistant', content: fullResponse, user_id: userId })
+        await Promise.all([
+          supabase.from('chat_messages').insert({ role: 'assistant', content: fullResponse, user_id: userId }),
+          supabase.from('coach_messages').insert({ user_id: userId, surface: 'coach', role: 'assistant', content: fullResponse, context: null }),
+        ])
         controller.close()
       } catch (err) {
         controller.error(err)

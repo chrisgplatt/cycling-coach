@@ -94,4 +94,18 @@ describe('buildChatSystemPrompt', () => {
     expect(p).toContain('Actual intervals:')
     expect(p).toContain('Work 8:00 avg 244W HR 161')
   })
+
+  it('includes memory block when provided', () => {
+    const p = buildChatSystemPrompt(
+      plan, upcoming, wellness, 240, events, '', [], null,
+      'RECENT CONVERSATIONS:\n[workout, yesterday] Athlete: felt great',
+    )
+    expect(p).toContain('RECENT CONVERSATIONS')
+    expect(p).toContain('felt great')
+  })
+
+  it('omits memory block when empty string', () => {
+    const p = buildChatSystemPrompt(plan, upcoming, wellness, 240, events, '', [], null, '')
+    expect(p).not.toContain('RECENT CONVERSATIONS')
+  })
 })
