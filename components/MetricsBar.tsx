@@ -59,11 +59,12 @@ export default function MetricsBar({
     wellness.garmin_training_load,
     wellness.stress_avg,
   )
+  const strainCategory = dailyStrain !== null ? strainLabel(dailyStrain) : null
   const strainColor =
-    dailyStrain === null ? 'text-gray-900'
-    : strainLabel(dailyStrain) === 'low' ? 'text-emerald-600'
-    : strainLabel(dailyStrain) === 'moderate' ? 'text-amber-500'
-    : 'text-red-500'
+    strainCategory === 'low' ? 'text-emerald-600'
+    : strainCategory === 'moderate' ? 'text-amber-500'
+    : strainCategory === 'high' ? 'text-red-500'
+    : 'text-gray-900'
   return (
     <div className={embedded ? 'overflow-hidden' : 'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden'}>
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
