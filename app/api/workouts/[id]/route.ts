@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { generateWorkoutSteps } from '@/lib/claude/steps'
-import type { Workout, WorkoutStep } from '@/types'
+import { generateCoachingNotes } from '@/lib/claude/coaching-notes'
+import type { Workout, WorkoutStep, CoachingNotes, UserProfile } from '@/types'
 
 export async function DELETE(
   _req: NextRequest,
@@ -94,16 +95,36 @@ export async function PATCH(
   const { error } = await supabase.from('workouts').update(update).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Sync content changes to intervals.icu with a full rewrite
+  // Regenerate coach notes + sync content changes to intervals.icu with a full rewrite
   const contentFieldsChanged = ['type', 'duration_minutes', 'description', 'target_zones'].some(f => body[f] !== undefined)
   if (contentFieldsChanged) {
     const { data: updated } = await supabase.from('workouts').select('*').eq('id', id).maybeSingle()
-    if (updated?.intervals_icu_event_id && updated.status === 'planned') {
+    if (updated) {
       const { data: profile } = await supabase
         .from('user_profile')
-        .select('intervals_icu_athlete_id, intervals_icu_api_key')
+        .select('intervals_icu_athlete_id, intervals_icu_api_key, goals, current_ftp, weight_kg')
         .maybeSingle()
-      if (profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
+
+      // Regenerate coaching notes best-effort
+      let notesSummary = (updated.coaching_notes as CoachingNotes | null)?.summary
+      if (profile) {
+        try {
+          const notesMap = await generateCoachingNotes(profile as unknown as UserProfile, [{
+            id: updated.id,
+            date: updated.date,
+            type: updated.type,
+            description: updated.description,
+            target_zones: updated.target_zones,
+            steps: updated.steps as WorkoutStep[] | null,
+          }])
+          if (notesMap[updated.id]) {
+            await supabase.from('workouts').update({ coaching_notes: notesMap[updated.id] }).eq('id', id)
+            notesSummary = notesMap[updated.id].summary
+          }
+        } catch { /* best-effort */ }
+      }
+
+      if (updated.intervals_icu_event_id && updated.status === 'planned' && profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
         const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
         let steps = (updated.steps as WorkoutStep[] | null) ?? []
         if (body.duration_minutes !== undefined && body.steps === undefined) {
@@ -125,6 +146,7 @@ export async function PATCH(
             description,
             duration_minutes: updated.duration_minutes,
             steps,
+            note: notesSummary,
           })
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
