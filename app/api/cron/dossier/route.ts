@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { synthesizeDossier } from '@/lib/claude/synthesize-dossier'
 import { synthesizeBeliefs } from '@/lib/claude/synthesize-beliefs'
+import { synthesizeConversationMemory } from '@/lib/claude/synthesize-conversation-memory'
 import type { TrainingEvent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -108,6 +109,12 @@ export async function GET(req: NextRequest) {
         // Best-effort: a belief-synthesis failure must not abort the dossier run.
         console.error(`[cron/dossier] beliefs failed for user ${profile.user_id}:`, beliefErr)
         await log(profile.user_id, 'beliefs_failed', 'error', { error: String(beliefErr) })
+      }
+      try {
+        await synthesizeConversationMemory(supabase, profile.user_id, runAt.toISOString())
+      } catch (memErr) {
+        console.error(`[cron/dossier] conversation memory failed for user ${profile.user_id}:`, memErr)
+        await log(profile.user_id, 'conversation_memory_failed', 'error', { error: String(memErr) })
       }
       updated++
       console.log(`[cron/dossier] user ${profile.user_id}: synthesis complete`)
