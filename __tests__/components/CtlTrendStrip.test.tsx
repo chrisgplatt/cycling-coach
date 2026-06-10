@@ -18,9 +18,9 @@ const mockCharts: ChartsData = {
   ],
   weeklyTss: [],
   rides: [
-    { date: daysAgo(100), avgHr: 138 },
-    { date: daysAgo(9),  avgHr: 142 },
-    { date: daysAgo(4),  avgHr: 143 },
+    { date: daysAgo(100), avgHr: 138, tss: 80 },
+    { date: daysAgo(10),  avgHr: 142, tss: 95 },
+    { date: daysAgo(5),   avgHr: 143, tss: 60 },
   ],
 }
 
@@ -55,11 +55,12 @@ it('shows current RHR value', async () => {
   expect(screen.getByText(/RHR 50 bpm/)).toBeInTheDocument()
 })
 
-it('renders the SVG with CTL path and no HR dots', async () => {
+it('renders CTL path and session dot circles', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
   const svg = screen.getByTestId('ctl-trend-svg')
-  expect(svg.querySelector('path')).not.toBeNull()       // CTL line
-  expect(svg.querySelectorAll('circle').length).toBe(0)  // HR is a line, not dots
+  expect(svg.querySelector('path')).not.toBeNull()        // CTL line
+  // daysAgo(10) and daysAgo(5) rides match wellness dates → 2 session dots in 1m window
+  expect(svg.querySelectorAll('circle').length).toBe(2)
 })
 
 it('renders time-range tabs', async () => {
@@ -78,8 +79,8 @@ it('changing range tab re-filters data', async () => {
   await user.click(screen.getByRole('button', { name: /12m/i }))
   const svg = screen.getByTestId('ctl-trend-svg')
   expect(screen.getByTestId('ctl-trend-strip')).toBeInTheDocument()
-  expect(svg.querySelectorAll('path').length).toBe(2)   // CTL line + weekly HR line
-  expect(svg.querySelectorAll('circle').length).toBe(0) // no HR dots
+  expect(svg.querySelectorAll('path').length).toBe(2)   // CTL line + RHR line
+  expect(svg.querySelectorAll('circle').length).toBe(3) // session dots for all 3 rides in 12m
 })
 
 it('renders nothing when fetch fails', async () => {

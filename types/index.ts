@@ -319,6 +319,7 @@ export interface WeeklyTss {
 export interface RidePoint {
   date: string          // YYYY-MM-DD
   avgHr: number | null
+  tss: number | null
 }
 
 export interface ChartsData {

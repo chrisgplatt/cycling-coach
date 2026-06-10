@@ -52,6 +52,20 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
     .map((w, i) => `${i === 0 ? 'M' : 'L'}${xOf(w.id).toFixed(1)},${ctlY(w.ctl as number).toFixed(1)}`)
     .join(' ')
 
+  const ctlWindowStart = ctlPoints[0].id
+
+  // Session dots — one circle per training day, radius ∝ TSS
+  const ctlByDate = new Map(ctlPoints.map(w => [w.id, w.ctl as number]))
+  const dailyTss = new Map<string, number>()
+  for (const r of (data.rides ?? []).filter(r => r.date >= ctlWindowStart && r.tss)) {
+    dailyTss.set(r.date, (dailyTss.get(r.date) ?? 0) + (r.tss as number))
+  }
+  const sessionDots = Array.from(dailyTss.entries()).flatMap(([date, tss]) => {
+    const ctl = ctlByDate.get(date)
+    if (ctl === undefined) return []
+    return [{ x: xOf(date), y: ctlY(ctl), r: Math.max(1.5, Math.min(tss / 25, 5)) }]
+  })
+
   // Resting HR — daily values from wellness, same window as CTL
   const rhrPoints = ctlPoints.filter(w => w.resting_hr !== null)
   const rhrVals   = rhrPoints.map(w => w.resting_hr as number)
@@ -151,6 +165,18 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
           strokeLinejoin="round"
           strokeLinecap="round"
         />
+        {/* Session dots — white fill + blue stroke, radius ∝ daily TSS */}
+        {sessionDots.map((dot, i) => (
+          <circle
+            key={i}
+            cx={dot.x.toFixed(1)}
+            cy={dot.y.toFixed(1)}
+            r={dot.r.toFixed(1)}
+            fill="#fff"
+            stroke="#3b82f6"
+            strokeWidth="1.5"
+          />
+        ))}
         {/* Resting HR line */}
         {rhrPath && (
           <path

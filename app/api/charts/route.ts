@@ -52,7 +52,11 @@ export async function GET() {
 
     // Per-activity HR — all types, sorted ascending so latestHr badge is correct
     const rides: RidePoint[] = activities
-      .map(a => ({ date: a.start_date_local.slice(0, 10), avgHr: a.average_heartrate }))
+      .map(a => ({
+        date: a.start_date_local.slice(0, 10),
+        avgHr: a.average_heartrate,
+        tss: a.training_load ?? null,
+      }))
       .sort((a, b) => a.date.localeCompare(b.date))
 
     const charts: ChartsData = { wellness, weeklyTss, rides }
