@@ -311,6 +311,10 @@ export class IntervalsClient {
     const raw = await this.request<Array<Record<string, unknown>>>(
       `/athlete/${this.athleteId}/wellness?start=${start}&end=${end}`
     )
+    if (raw.length > 0) {
+      const last = raw[raw.length - 1]
+      console.log('[DEBUG wellness latest]', last.id, '| atlLoad:', last.atlLoad, '| stress:', last.stress, '| sleepScore:', last.sleepScore)
+    }
     return raw.map(w => ({
       id: w.id as string,
       ctl: (w.ctl ?? null) as number | null,
