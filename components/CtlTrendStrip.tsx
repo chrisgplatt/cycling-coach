@@ -12,7 +12,7 @@ const W = 320, H = 64, PAD = 4
 
 export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean }) {
   const [data, setData] = useState<ChartsData | null>(null)
-  const [range, setRange] = useState<Range>('12m')
+  const [range, setRange] = useState<Range>('3m')
 
   useEffect(() => {
     fetch('/api/charts')

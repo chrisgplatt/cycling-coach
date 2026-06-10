@@ -59,7 +59,7 @@ it('renders the SVG with CTL path and HR dots', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
   const svg = screen.getByTestId('ctl-trend-svg')
   expect(svg.querySelector('path')).not.toBeNull()    // CTL line
-  expect(svg.querySelectorAll('circle').length).toBe(3) // 3 HR dots
+  expect(svg.querySelectorAll('circle').length).toBe(2) // 2 HR dots within default 3m window
 })
 
 it('renders time-range tabs', async () => {
@@ -91,4 +91,10 @@ it('applies embedded styling when embedded prop is true', async () => {
   const strip = screen.getByTestId('ctl-trend-strip')
   // embedded version has no bg-white/border classes
   expect(strip.className).not.toContain('bg-white')
+})
+
+it('defaults to the 3m tab', async () => {
+  await act(async () => { render(<CtlTrendStrip />) })
+  const btn = screen.getByRole('button', { name: /3m/i })
+  expect(btn.className).toContain('bg-blue-600')
 })
