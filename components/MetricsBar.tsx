@@ -57,12 +57,14 @@ export default function MetricsBar({
   stale = {},
   embedded = false,
   lastRideLabel,
+  onStrainTap,
 }: {
   wellness: ICUWellness | null
   syncedAt?: Date | null
   stale?: { hrv?: boolean; restingHr?: boolean }
   embedded?: boolean
   lastRideLabel?: string
+  onStrainTap?: () => void
 }) {
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -77,7 +79,7 @@ export default function MetricsBar({
       {strainCategory ? (
         <>
           {/* Coloured strain band */}
-          <div className={`flex items-center justify-between px-4 py-3.5 ${BAND_BG[strainCategory]}`}>
+          <div className={`flex items-center justify-between px-4 py-3.5 ${BAND_BG[strainCategory]}${onStrainTap ? ' cursor-pointer active:opacity-90' : ''}`} onClick={onStrainTap}>
             <div>
               <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/60 mb-1.5">Strain</div>
               <div className="flex items-baseline gap-1.5">
