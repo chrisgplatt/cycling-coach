@@ -2,14 +2,43 @@ export const STRAIN_TRAINING_LOAD_MAX = 400
 export const STRAIN_WORKOUT_WEIGHT = 14
 export const STRAIN_LIFE_WEIGHT = 7
 
+// Sum intensity-weighted training load across all activities on a given date.
+// For power-metered rides, load is scaled by intensity factor (NP/FTP) so a
+// threshold ride contributes more than an easy spin at the same TSS.
+// Non-power activities (walks, runs, HR-only rides) use their raw training load
+// since intervals.icu already incorporates HR-based intensity into that figure.
+export function computeDailyActivityLoad(
+  activities: Array<{
+    start_date_local: string
+    training_load: number | null
+    weighted_average_watts: number | null
+    rolling_ftp: number | null
+  }>,
+  date: string,
+  ftpWatts?: number | null,
+): number {
+  return activities
+    .filter(a => a.start_date_local.startsWith(date))
+    .reduce((sum, a) => {
+      const load = a.training_load ?? 0
+      if (load === 0) return sum
+      const ftp = ftpWatts ?? a.rolling_ftp
+      if (a.weighted_average_watts && ftp && ftp > 0) {
+        const intensityFactor = Math.min(1.5, a.weighted_average_watts / ftp)
+        return sum + load * intensityFactor
+      }
+      return sum + load
+    }, 0)
+}
+
 export function computeDailyStrain(
-  garminTrainingLoad: number | null,
+  activityLoad: number | null,
   stressAvg: number | null,
 ): number | null {
-  if (garminTrainingLoad == null && stressAvg == null) return null
-  // atlLoad=0 means no cycling workout today; if stress also hasn't synced yet, nothing to show
-  if ((garminTrainingLoad == null || garminTrainingLoad === 0) && stressAvg == null) return null
-  const workout = ((garminTrainingLoad ?? 0) / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT
+  if (activityLoad == null && stressAvg == null) return null
+  // No activity load and stress not yet synced — nothing meaningful to show
+  if ((activityLoad == null || activityLoad === 0) && stressAvg == null) return null
+  const workout = ((activityLoad ?? 0) / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT
   const life = ((stressAvg ?? 0) / 100) * STRAIN_LIFE_WEIGHT
   return Math.min(21, Math.round(workout + life))
 }

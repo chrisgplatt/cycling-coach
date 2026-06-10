@@ -12,6 +12,7 @@ import PlanReviewModal from '@/components/PlanReviewModal'
 import { isoWeek } from '@/lib/iso-week'
 import { getWeekBounds } from '@/lib/week-bounds'
 import { localDateStr } from '@/lib/local-date'
+import { computeDailyActivityLoad } from '@/lib/strain'
 import type { GeneratedPlan } from '@/types'
 import {
   DndContext,
@@ -333,6 +334,10 @@ export default function DashboardPage() {
   }
 
   const todayStr = localDateStr(new Date())
+  const todayActivityLoad = computeDailyActivityLoad(syncData?.activities ?? [], todayStr, currentFTP)
+  const latestWellnessWithLoad: ICUWellness | null = latestWellness
+    ? { ...latestWellness, garmin_training_load: todayActivityLoad > 0 ? todayActivityLoad : latestWellness.garmin_training_load }
+    : null
   const todayWorkout = workouts.find(w => w.date === todayStr) ?? null
   const todaySessionCount = workouts.filter(w => w.date === todayStr).length
 
@@ -405,10 +410,10 @@ export default function DashboardPage() {
         />
       </div>
 
-      {latestWellness && (
+      {latestWellnessWithLoad && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-200">
           <MetricsBar
-            wellness={latestWellness}
+            wellness={latestWellnessWithLoad}
             syncedAt={lastSyncedAt}
             stale={wellnessStale}
             embedded

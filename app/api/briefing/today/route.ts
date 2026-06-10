@@ -6,7 +6,7 @@ import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-mod
 import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatus } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
-import { computeDailyStrain } from '@/lib/strain'
+import { computeDailyStrain, computeDailyActivityLoad } from '@/lib/strain'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -98,13 +98,17 @@ export async function GET(req: NextRequest) {
       atl = latest?.atl ?? null
       tsb = latest?.form ?? (ctl !== null && atl !== null ? ctl - atl : null)
       hrv = latest?.hrv ?? null
+      const todayLoad = computeDailyActivityLoad(activities, today)
       dailyStrain = computeDailyStrain(
-        latest?.garmin_training_load ?? null,
+        todayLoad > 0 ? todayLoad : null,
         latest?.stress_avg ?? null,
       )
       strainHistory = wellness.map(w => ({
         date: w.id,
-        strain: computeDailyStrain(w.garmin_training_load, w.stress_avg),
+        strain: computeDailyStrain(
+          computeDailyActivityLoad(activities, w.id) || null,
+          w.stress_avg,
+        ),
       }))
       recentWorkouts = activities
         .filter((a: ICUActivity) => /ride/i.test(a.type))
