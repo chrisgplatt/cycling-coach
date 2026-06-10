@@ -36,6 +36,7 @@ import AddEventModal from '@/components/AddEventModal'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import HrvStatusChip from '@/components/HrvStatusChip'
+import StrainBreakdownSheet from '@/components/StrainBreakdownSheet'
 
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
@@ -97,6 +98,7 @@ export default function DashboardPage() {
   const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(null)
   const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
+  const [strainSheetOpen, setStrainSheetOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -338,6 +340,13 @@ export default function DashboardPage() {
   const latestWellnessWithLoad: ICUWellness | null = latestWellness
     ? { ...latestWellness, garmin_training_load: todayActivityLoad > 0 ? todayActivityLoad : latestWellness.garmin_training_load }
     : null
+  const todayActivities = (syncData?.activities ?? []).filter((a: ICUActivity) =>
+    a.start_date_local.startsWith(todayStr)
+  )
+  const activitySummary: string | undefined = todayActivities.length > 0
+    ? todayActivities.map((a: ICUActivity) => a.name).filter(Boolean).join(' · ') || undefined
+    : undefined
+
   const todayWorkout = workouts.find(w => w.date === todayStr) ?? null
   const todaySessionCount = workouts.filter(w => w.date === todayStr).length
 
@@ -418,6 +427,7 @@ export default function DashboardPage() {
             stale={wellnessStale}
             embedded
             lastRideLabel={lastRide ? formatLastRide() : undefined}
+            onStrainTap={() => setStrainSheetOpen(true)}
           />
           <HrvStatusChip embedded />
           <RpeTrendStrip embedded />
@@ -699,6 +709,14 @@ export default function DashboardPage() {
           estimatedWorkouts={reviewEstimatedWorkouts}
           onApprove={handleReviewApprove}
           onReject={() => { setShowReviewModal(false); setReviewPlan(null) }}
+        />
+      )}
+
+      {strainSheetOpen && latestWellnessWithLoad && (
+        <StrainBreakdownSheet
+          wellness={latestWellnessWithLoad}
+          activitySummary={activitySummary}
+          onClose={() => setStrainSheetOpen(false)}
         />
       )}
     </div>
