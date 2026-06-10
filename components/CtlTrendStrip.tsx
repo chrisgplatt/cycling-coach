@@ -4,8 +4,7 @@ import type { ChartsData } from '@/types'
 
 type Range = '1m' | '3m' | '6m' | '12m'
 
-// Use day-based windows so filtering is deterministic regardless of month length
-const RANGE_DAYS: Record<Range, number> = { '1m': 30, '3m': 75, '6m': 150, '12m': 365 }
+const RANGE_MONTHS: Record<Range, number> = { '1m': 1, '3m': 3, '6m': 6, '12m': 12 }
 const RANGES: Range[] = ['1m', '3m', '6m', '12m']
 
 const W = 320, H = 64, PAD = 4
@@ -24,7 +23,7 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
   if (!data) return null
 
   const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - RANGE_DAYS[range])
+  cutoff.setMonth(cutoff.getMonth() - RANGE_MONTHS[range])
   const cutoffStr = cutoff.toISOString().slice(0, 10)
 
   const ctlPoints = (data.wellness ?? []).filter(w => w.id >= cutoffStr && w.ctl !== null)

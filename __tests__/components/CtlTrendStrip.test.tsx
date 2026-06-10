@@ -12,13 +12,13 @@ function daysAgo(n: number): string {
 
 const mockCharts: ChartsData = {
   wellness: [
-    { id: daysAgo(80), ctl: 55, atl: 60, form: -5, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
+    { id: daysAgo(100), ctl: 55, atl: 60, form: -5, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
     { id: daysAgo(10), ctl: 62, atl: 65, form: -3, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
     { id: daysAgo(5),  ctl: 68, atl: 70, form: -2, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
   ],
   weeklyTss: [],
   rides: [
-    { date: daysAgo(70), avgHr: 138 },
+    { date: daysAgo(100), avgHr: 138 },
     { date: daysAgo(9),  avgHr: 142 },
     { date: daysAgo(4),  avgHr: 143 },
   ],
@@ -73,7 +73,7 @@ it('renders time-range tabs', async () => {
 it('changing range tab re-filters data', async () => {
   const user = userEvent.setup()
   await act(async () => { render(<CtlTrendStrip />) })
-  // Switch to 3m — daysAgo(80) CTL point is excluded; only 2 points remain, strip still renders
+  // Switch to 3m — daysAgo(100) CTL point is excluded; only 2 points remain, strip still renders
   await user.click(screen.getByRole('button', { name: /3m/i }))
   expect(screen.getByTestId('ctl-trend-strip')).toBeInTheDocument()
   // HR dots within 3m: daysAgo(9) and daysAgo(4) — 2 dots
