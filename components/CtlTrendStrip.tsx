@@ -10,8 +10,14 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 const W = 320, H = 80
 const PAD_T = 4, PAD_B = 16, PAD_L = 28, PAD_R = 28
-const CW = W - PAD_L - PAD_R   // 264 — chart width
-const CH = H - PAD_T - PAD_B   // 60  — chart height
+const CW = W - PAD_L - PAD_R
+const CH = H - PAD_T - PAD_B
+
+// Map SVG user coordinates to percentage positions for HTML overlay labels.
+// Works correctly because the SVG preserves its aspect ratio (width=100%, height=auto),
+// so the overlay div always covers the same logical rectangle.
+const xPct = (x: number) => `${(x / W * 100).toFixed(2)}%`
+const yPct = (y: number) => `${(y / H * 100).toFixed(2)}%`
 
 export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean }) {
   const [data, setData] = useState<ChartsData | null>(null)
@@ -86,11 +92,10 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
   const endDate = new Date(ctlPoints[ctlPoints.length - 1].id)
   const xTicks: Array<{ x: number; label: string }> = []
   if (range === '1m') {
-    // Find the Monday of the week containing ctlPoints[0], then step forward
     const firstDate = new Date(ctlPoints[0].id)
-    const dow = (firstDate.getDay() + 6) % 7  // Mon=0 … Sun=6
+    const dow = (firstDate.getDay() + 6) % 7
     const d = new Date(firstDate)
-    d.setDate(d.getDate() - dow + 7)           // first Monday after start
+    d.setDate(d.getDate() - dow + 7)
     while (d <= endDate) {
       xTicks.push({
         x: PAD_L + ((d.getTime() - startMs) / spanMs) * CW,
@@ -120,39 +125,13 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
   const showCtlAxis = r10(ctlActMin) !== r10(ctlActMax)
   const showRhrAxis = rhrActMin !== null && rhrActMax !== null && r10(rhrActMin) !== r10(rhrActMax)
 
-  const inner = (
-    <div>
-      <div className="flex items-center justify-between px-4 pt-3 pb-1">
-        <div className="flex gap-1">
-          {RANGES.map(r => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={`text-[11px] font-bold uppercase tracking-wide px-2 py-1.5 rounded-full transition-colors ${
-                r === range
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 text-[11px] font-semibold">
-          {latestCtl !== null && (
-            <span className="text-blue-600">Progress (CTL) {Math.round(latestCtl)}</span>
-          )}
-          {latestRhr !== null && (
-            <>
-              <span className="text-gray-300" aria-hidden="true">·</span>
-              <span className="text-rose-500">RHR {Math.round(latestRhr)} bpm</span>
-            </>
-          )}
-        </div>
-      </div>
+  const chart = (
+    // position:relative so the HTML label overlay aligns with the SVG
+    <div className="relative">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         width="100%"
+        className="block"
         preserveAspectRatio="none"
         aria-hidden="true"
         data-testid="ctl-trend-svg"
@@ -190,48 +169,103 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
             strokeDasharray="4 2"
           />
         )}
-        {/* X-axis tick marks + labels */}
+        {/* X-axis tick marks */}
         {xTicks.map((tick, i) => (
-          <g key={i}>
-            <line
-              x1={tick.x.toFixed(1)} y1={PAD_T + CH}
-              x2={tick.x.toFixed(1)} y2={PAD_T + CH + 3}
-              stroke="#e5e7eb"
-              strokeWidth="1"
-            />
-            <text
-              x={tick.x.toFixed(1)}
-              y={H - 2}
-              textAnchor="middle"
-              className="text-[7px] font-sans fill-gray-400"
-            >
-              {tick.label}
-            </text>
-          </g>
+          <line
+            key={i}
+            x1={tick.x.toFixed(1)} y1={PAD_T + CH}
+            x2={tick.x.toFixed(1)} y2={PAD_T + CH + 3}
+            stroke="#e5e7eb"
+            strokeWidth="1"
+          />
         ))}
-        {/* CTL y-axis labels: min (bottom) and max (top), left side, blue */}
+      </svg>
+
+      {/* HTML label overlay — font-size here is real CSS pixels, not SVG user units */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* X-axis labels */}
+        {xTicks.map((tick, i) => (
+          <span
+            key={i}
+            className="absolute text-[10px] leading-none font-sans text-gray-400 whitespace-nowrap"
+            style={{
+              left: xPct(tick.x),
+              top: yPct(H - 2),
+              transform: 'translate(-50%, -100%)',
+            }}
+          >
+            {tick.label}
+          </span>
+        ))}
+        {/* CTL y-axis labels: right-aligned just inside left edge */}
         {showCtlAxis && (
           <>
-            <text x={PAD_L - 3} y={ctlY(ctlActMin) + 3} textAnchor="end" className="text-[7px] font-sans fill-blue-500">
-              {r10(ctlActMin)}
-            </text>
-            <text x={PAD_L - 3} y={ctlY(ctlActMax) + 3} textAnchor="end" className="text-[7px] font-sans fill-blue-500">
+            <span
+              className="absolute text-[10px] leading-none font-sans text-blue-500 font-medium"
+              style={{ left: xPct(PAD_L), top: yPct(ctlY(ctlActMax)), transform: 'translate(-100%, -50%)' }}
+            >
               {r10(ctlActMax)}
-            </text>
+            </span>
+            <span
+              className="absolute text-[10px] leading-none font-sans text-blue-500 font-medium"
+              style={{ left: xPct(PAD_L), top: yPct(ctlY(ctlActMin)), transform: 'translate(-100%, -50%)' }}
+            >
+              {r10(ctlActMin)}
+            </span>
           </>
         )}
-        {/* RHR y-axis labels: min (bottom) and max (top), right side, rose */}
+        {/* RHR y-axis labels: left-aligned just outside right edge */}
         {showRhrAxis && (
           <>
-            <text x={PAD_L + CW + 3} y={rhrY(rhrActMin!) + 3} textAnchor="start" className="text-[7px] font-sans fill-rose-500">
-              {r10(rhrActMin!)}
-            </text>
-            <text x={PAD_L + CW + 3} y={rhrY(rhrActMax!) + 3} textAnchor="start" className="text-[7px] font-sans fill-rose-500">
+            <span
+              className="absolute text-[10px] leading-none font-sans text-rose-500 font-medium"
+              style={{ left: xPct(PAD_L + CW), top: yPct(rhrY(rhrActMax!)), transform: 'translateY(-50%)' }}
+            >
               {r10(rhrActMax!)}
-            </text>
+            </span>
+            <span
+              className="absolute text-[10px] leading-none font-sans text-rose-500 font-medium"
+              style={{ left: xPct(PAD_L + CW), top: yPct(rhrY(rhrActMin!)), transform: 'translateY(-50%)' }}
+            >
+              {r10(rhrActMin!)}
+            </span>
           </>
         )}
-      </svg>
+      </div>
+    </div>
+  )
+
+  const inner = (
+    <div>
+      <div className="flex items-center justify-between px-4 pt-3 pb-1">
+        <div className="flex gap-1">
+          {RANGES.map(r => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={`text-[11px] font-bold uppercase tracking-wide px-2 py-1.5 rounded-full transition-colors ${
+                r === range
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-[11px] font-semibold">
+          {latestCtl !== null && (
+            <span className="text-blue-600">Progress (CTL) {Math.round(latestCtl)}</span>
+          )}
+          {latestRhr !== null && (
+            <>
+              <span className="text-gray-300" aria-hidden="true">·</span>
+              <span className="text-rose-500">RHR {Math.round(latestRhr)} bpm</span>
+            </>
+          )}
+        </div>
+      </div>
+      {chart}
     </div>
   )
 
