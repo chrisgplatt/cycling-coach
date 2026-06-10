@@ -41,6 +41,16 @@ function formatSyncTime(syncedAt: Date | null): string {
   return `Synced ${day} ${monthName} at ${timeStr}`
 }
 
+const BAND_BG: Record<string, string> = {
+  low:      'bg-emerald-600',
+  moderate: 'bg-amber-600',
+  high:     'bg-red-600',
+}
+
+const BAND_LABEL: Record<string, string> = {
+  low: 'Low', moderate: 'Moderate', high: 'High',
+}
+
 export default function MetricsBar({
   wellness,
   syncedAt = null,
@@ -57,27 +67,58 @@ export default function MetricsBar({
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
   const formPositive = form !== null && form >= 0
-  const dailyStrain = computeDailyStrain(
-    wellness.garmin_training_load,
-    wellness.stress_avg,
-  )
+  const dailyStrain = computeDailyStrain(wellness.garmin_training_load, wellness.stress_avg)
   const strainCategory = dailyStrain !== null ? strainLabel(dailyStrain) : null
-  const strainColor =
-    strainCategory === 'low' ? 'text-emerald-600'
-    : strainCategory === 'moderate' ? 'text-amber-500'
-    : strainCategory === 'high' ? 'text-red-500'
-    : 'text-gray-900'
+
   return (
     <div className={embedded ? 'overflow-hidden' : 'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden'}>
-      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-        <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Fitness Stats</h2>
-        <div className="text-right">
-          <div className="text-xs text-gray-400">{formatSyncTime(syncedAt)}</div>
-          {lastRideLabel && (
-            <div className="text-[11px] text-gray-400">Last ride: <span className="font-medium text-gray-500">{lastRideLabel}</span></div>
-          )}
+
+      {strainCategory ? (
+        <>
+          {/* Coloured strain band */}
+          <div className={`flex items-center justify-between px-4 py-3.5 ${BAND_BG[strainCategory]}`}>
+            <div>
+              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/60 mb-1.5">Strain</div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-4xl font-black tracking-tight text-white leading-none">
+                  {dailyStrain}
+                </span>
+                <span className="text-lg font-medium text-white/55">/21</span>
+                <span className="ml-1 text-sm font-bold uppercase tracking-wide text-white/90">
+                  {BAND_LABEL[strainCategory]}
+                </span>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[11px] text-white/60">{formatSyncTime(syncedAt)}</div>
+              {lastRideLabel && (
+                <div className="text-[11px] text-white/60">
+                  Last ride: <span className="font-semibold text-white/85">{lastRideLabel}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div className="h-[3px] bg-black/10">
+            <div
+              className="h-full bg-white/40 transition-all"
+              style={{ width: `${Math.round((dailyStrain! / 21) * 100)}%` }}
+            />
+          </div>
+        </>
+      ) : (
+        /* Fallback gray header when no strain data */
+        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+          <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Fitness Stats</h2>
+          <div className="text-right">
+            <div className="text-xs text-gray-400">{formatSyncTime(syncedAt)}</div>
+            {lastRideLabel && (
+              <div className="text-[11px] text-gray-400">Last ride: <span className="font-medium text-gray-500">{lastRideLabel}</span></div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
       <div className="flex divide-x divide-gray-100">
         <Metric label="CTL" value={wellness.ctl} valueClass="text-blue-600" />
         <Metric label="ATL" value={wellness.atl} valueClass="text-orange-500" />
@@ -91,9 +132,6 @@ export default function MetricsBar({
         )}
         {wellness.resting_hr !== null && (
           <Metric label="Resting HR" value={wellness.resting_hr} valueClass="text-rose-500" unit="bpm" stale={stale.restingHr} />
-        )}
-        {dailyStrain !== null && (
-          <Metric label="Strain" value={dailyStrain} valueClass={strainColor} unit="/21" />
         )}
       </div>
     </div>

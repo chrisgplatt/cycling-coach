@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Strain — Design Options</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: #f0f0ed;
+      color: #111;
+      min-height: 100vh;
+      padding: 36px 20px 80px;
+    }
+
+    /* ── PAGE CHROME ── */
+    .page-header { max-width: 940px; margin: 0 auto 32px; }
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: #111; margin-bottom: 14px;
+    }
+    .toggle-group {
+      display: inline-flex;
+      background: #ddddd8; border-radius: 99px; padding: 3px; gap: 2px;
+    }
+    .toggle-btn {
+      padding: 6px 18px; border-radius: 99px; border: none;
+      background: transparent;
+      font-family: 'Barlow', sans-serif; font-size: 13px; font-weight: 600;
+      color: #666; cursor: pointer;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+    .toggle-btn.active {
+      background: white; color: #111;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.13);
+    }
+    .toggle-hint { font-size: 13px; color: #999; margin-left: 12px; }
+
+    /* ── GRID ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 36px 28px;
+      max-width: 940px;
+      margin: 0 auto;
+    }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+    .option-wrap {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+    }
+    .option-eyebrow {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase; color: #aaa;
+    }
+    .option-title { font-size: 14px; font-weight: 600; color: #333; }
+
+    /* ── CARD BASE ── */
+    .card {
+      width: 100%; max-width: 380px;
+      background: white;
+      border-radius: 14px;
+      border: 1px solid #e2e2e0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04);
+      overflow: hidden;
+      transition: box-shadow 0.2s;
+    }
+
+    /* ── SHARED HEADER ── */
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px;
+      background: #fafafa;
+      border-bottom: 1px solid #efefef;
+    }
+    .header-title {
+      font-size: 11px; font-weight: 700;
+      color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .header-meta { text-align: right; }
+    .header-sync { font-size: 11px; color: #9ca3af; }
+    .header-lastride { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+    .header-lastride b { font-weight: 600; color: #6b7280; }
+
+    /* ── CHIPS ROW ── */
+    .chips-row { display: flex; border-top: 1px solid #efefef; }
+    .chip {
+      flex: 1; text-align: center;
+      padding: 11px 6px;
+      border-right: 1px solid #efefef;
+    }
+    .chip:last-child { border-right: none; }
+    .chip-val {
+      font-size: 20px; font-weight: 800;
+      letter-spacing: -0.02em; line-height: 1;
+    }
+    .chip-unit { font-size: 9px; font-weight: 500; color: #9ca3af; }
+    .chip-lbl {
+      font-size: 9px; font-weight: 700;
+      color: #9ca3af; text-transform: uppercase;
+      letter-spacing: 0.06em; margin-top: 3px;
+    }
+
+    /* ── HRV ROW ── */
+    .hrv-row {
+      display: flex; align-items: center; gap: 7px;
+      padding: 9px 16px;
+      background: #faf6ff;
+      border-top: 1px solid #efefef;
+    }
+    .hrv-dot { width: 7px; height: 7px; border-radius: 50%; background: #a855f7; flex-shrink: 0; }
+    .hrv-tag { font-size: 10px; font-weight: 700; color: #7e22ce; text-transform: uppercase; letter-spacing: 0.05em; }
+    .hrv-detail { font-size: 10px; color: #a78bfa; }
+
+    /* ── TREND ROW ── */
+    .trend-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 11px 16px;
+      border-top: 1px solid #efefef;
+    }
+    .trend-lbl-group { flex-shrink: 0; }
+    .trend-title { font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; }
+    .trend-sub { font-size: 12px; color: #374151; margin-top: 2px; }
+    .trend-svg { flex: 1; min-width: 0; }
+
+    /* ── PROGRESS BAR ── */
+    .prog-track { height: 4px; background: #e9e9e6; border-radius: 99px; overflow: hidden; }
+    .prog-fill { height: 100%; border-radius: 99px; transition: width 0.35s ease, background 0.35s ease; }
+
+    /* Option A hero section */
+    .hero-a {
+      padding: 14px 16px 14px;
+      border-bottom: 1px solid #efefef;
+      transition: background 0.35s;
+    }
+    .hero-a-top { display: flex; align-items: baseline; gap: 5px; margin-bottom: 10px; }
+    .hero-a-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 52px; font-weight: 500; line-height: 1;
+      transition: color 0.35s;
+    }
+    .hero-a-denom { font-size: 20px; color: #9ca3af; font-weight: 500; }
+    .hero-a-label {
+      margin-left: 6px;
+      font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      transition: color 0.35s;
+    }
+
+    /* Option B coloured band */
+    .band-b {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px;
+      transition: background 0.35s;
+    }
+    .band-b-left {}
+    .band-b-eyebrow {
+      font-size: 9px; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 5px;
+    }
+    .band-b-num-row { display: flex; align-items: baseline; gap: 4px; }
+    .band-b-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 40px; font-weight: 500; color: white; line-height: 1;
+    }
+    .band-b-denom { font-size: 17px; color: rgba(255,255,255,0.6); font-weight: 500; }
+    .band-b-label {
+      font-size: 13px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      color: rgba(255,255,255,0.88);
+      margin-left: 5px;
+    }
+    .band-b-meta { text-align: right; }
+    .band-b-sync { font-size: 10px; color: rgba(255,255,255,0.6); }
+    .band-b-lastride { font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+    .band-b-lastride b { color: rgba(255,255,255,0.88); font-weight: 600; }
+    .band-b-prog { height: 3px; transition: background 0.35s; }
+    .band-b-fill { height: 100%; background: rgba(255,255,255,0.5); transition: width 0.35s ease; }
+
+    /* Option C left panel */
+    .split-row { display: flex; border-top: 1px solid #efefef; }
+    .strain-panel {
+      padding: 16px 14px;
+      border-right: 1px solid #efefef;
+      display: flex; flex-direction: column; justify-content: center;
+      min-width: 96px;
+      transition: background 0.35s;
+    }
+    .strain-panel-lbl {
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: #9ca3af; margin-bottom: 6px;
+    }
+    .strain-panel-num-row { display: flex; align-items: baseline; gap: 2px; }
+    .strain-panel-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 40px; font-weight: 500; line-height: 1;
+      transition: color 0.35s;
+    }
+    .strain-panel-denom { font-size: 14px; color: #9ca3af; font-weight: 500; }
+    .strain-panel-cat {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      margin-top: 5px; transition: color 0.35s;
+    }
+    .strain-panel-prog { margin-top: 10px; }
+    .chips-grid {
+      flex: 1;
+      display: grid; grid-template-columns: repeat(3, 1fr);
+    }
+    .chips-grid .chip { font-size: inherit; }
+    .chips-grid .chip { border-bottom: 1px solid #efefef; }
+    .chips-grid .chip:nth-child(4),
+    .chips-grid .chip:nth-child(5),
+    .chips-grid .chip:nth-child(6) { border-bottom: none; }
+    .chips-grid .chip:nth-child(2),
+    .chips-grid .chip:nth-child(3),
+    .chips-grid .chip:nth-child(5),
+    .chips-grid .chip:nth-child(6) { border-left: 1px solid #efefef; }
+    .chips-grid .chip-val { font-size: 18px; }
+
+    /* Option D strain-as-header */
+    .header-d {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      background: #fafafa;
+      border-bottom: none;
+    }
+    .header-d-left { display: flex; align-items: baseline; gap: 4px; }
+    .header-d-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 44px; font-weight: 500; line-height: 1;
+      transition: color 0.35s;
+    }
+    .header-d-denom { font-size: 17px; color: #9ca3af; font-weight: 500; }
+    .header-d-stack { display: flex; flex-direction: column; margin-left: 6px; justify-content: flex-end; padding-bottom: 3px; }
+    .header-d-label {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      transition: color 0.35s;
+    }
+    .header-d-word { font-size: 9px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 1px; }
+    .prog-d { height: 3px; background: #f0f0f0; }
+    .prog-d-fill { height: 100%; transition: width 0.35s ease, background 0.35s ease; }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <div class="page-title">Strain — Design Options</div>
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div class="toggle-group">
+        <button class="toggle-btn" data-level="low"      onclick="setStrain('low')">Low · 6/21</button>
+        <button class="toggle-btn active" data-level="moderate" onclick="setStrain('moderate')">Moderate · 14/21</button>
+        <button class="toggle-btn" data-level="high"     onclick="setStrain('high')">High · 18/21</button>
+      </div>
+      <span class="toggle-hint">Toggle to preview colour states</span>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- ════ OPTION A ════ -->
+    <div class="option-wrap">
+      <div class="option-eyebrow">Option A</div>
+      <div class="option-title">Hero row above chips</div>
+      <div class="card">
+        <div class="card-header">
+          <div class="header-title">Fitness Stats</div>
+          <div class="header-meta">
+            <div class="header-sync">Synced today at 07:15</div>
+            <div class="header-lastride">Last ride: <b>yesterday at 08:30</b></div>
+          </div>
+        </div>
+
+        <div class="hero-a" id="hero-a-bg" style="background:#fffbeb;">
+          <div class="hero-a-top">
+            <div class="hero-a-num" id="a-num" style="color:#d97706;">14</div>
+            <div class="hero-a-denom">/21</div>
+            <div class="hero-a-label" id="a-lbl" style="color:#d97706;">Moderate</div>
+          </div>
+          <div class="prog-track">
+            <div class="prog-fill" id="a-bar" style="width:66.7%;background:#d97706;"></div>
+          </div>
+        </div>
+
+        <div class="chips-row">
+          <div class="chip"><div class="chip-val" style="color:#2563eb;">62</div><div class="chip-lbl">CTL</div></div>
+          <div class="chip"><div class="chip-val" style="color:#f97316;">71</div><div class="chip-lbl">ATL</div></div>
+          <div class="chip"><div class="chip-val" style="color:#ef4444;">−9</div><div class="chip-lbl">Form</div></div>
+          <div class="chip"><div class="chip-val" style="color:#7c3aed;">68</div><div class="chip-unit">ms</div><div class="chip-lbl">HRV</div></div>
+          <div class="chip"><div class="chip-val" style="color:#e11d48;">52</div><div class="chip-unit">bpm</div><div class="chip-lbl">RHR</div></div>
+        </div>
+        <div class="hrv-row">
+          <div class="hrv-dot"></div>
+          <div class="hrv-tag">HRV Balanced</div>
+          <div class="hrv-detail">68 ms · 7-day avg</div>
+        </div>
+        <div class="trend-row">
+          <div class="trend-lbl-group">
+            <div class="trend-title">Effort trend</div>
+            <div class="trend-sub">7 sessions · RPE 7/10</div>
+          </div>
+          <svg class="trend-svg" height="36" viewBox="0 0 200 36" fill="none">
+            <path d="M4 28 L36 24 L68 18 L100 26 L132 14 L164 10 L196 17" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="4"   cy="28" r="2.5" fill="#2563eb"/>
+            <circle cx="36"  cy="24" r="2.5" fill="#2563eb"/>
+            <circle cx="68"  cy="18" r="2.5" fill="#2563eb"/>
+            <circle cx="100" cy="26" r="2.5" fill="#2563eb"/>
+            <circle cx="132" cy="14" r="2.5" fill="#2563eb"/>
+            <circle cx="164" cy="10" r="2.5" fill="#2563eb"/>
+            <circle cx="196" cy="17" r="2.5" fill="#2563eb"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ OPTION B ════ -->
+    <div class="option-wrap">
+      <div class="option-eyebrow">Option B</div>
+      <div class="option-title">Coloured header band</div>
+      <div class="card">
+        <div class="band-b" id="b-band" style="background:#d97706;">
+          <div class="band-b-left">
+            <div class="band-b-eyebrow">Strain</div>
+            <div class="band-b-num-row">
+              <div class="band-b-num" id="b-num">14</div>
+              <div class="band-b-denom">/21</div>
+              <div class="band-b-label" id="b-lbl">Moderate</div>
+            </div>
+          </div>
+          <div class="band-b-meta">
+            <div class="band-b-sync">Synced today at 07:15</div>
+            <div class="band-b-lastride">Last ride: <b>yesterday at 08:30</b></div>
+          </div>
+        </div>
+        <div class="band-b-prog" id="b-prog-bg" style="background:rgba(0,0,0,0.15);">
+          <div class="band-b-fill" id="b-bar" style="width:66.7%;"></div>
+        </div>
+
+        <div class="chips-row" style="border-top:none;">
+          <div class="chip"><div class="chip-val" style="color:#2563eb;">62</div><div class="chip-lbl">CTL</div></div>
+          <div class="chip"><div class="chip-val" style="color:#f97316;">71</div><div class="chip-lbl">ATL</div></div>
+          <div class="chip"><div class="chip-val" style="color:#ef4444;">−9</div><div class="chip-lbl">Form</div></div>
+          <div class="chip"><div class="chip-val" style="color:#7c3aed;">68</div><div class="chip-unit">ms</div><div class="chip-lbl">HRV</div></div>
+          <div class="chip"><div class="chip-val" style="color:#e11d48;">52</div><div class="chip-unit">bpm</div><div class="chip-lbl">RHR</div></div>
+        </div>
+        <div class="hrv-row">
+          <div class="hrv-dot"></div>
+          <div class="hrv-tag">HRV Balanced</div>
+          <div class="hrv-detail">68 ms · 7-day avg</div>
+        </div>
+        <div class="trend-row">
+          <div class="trend-lbl-group">
+            <div class="trend-title">Effort trend</div>
+            <div class="trend-sub">7 sessions · RPE 7/10</div>
+          </div>
+          <svg class="trend-svg" height="36" viewBox="0 0 200 36" fill="none">
+            <path d="M4 28 L36 24 L68 18 L100 26 L132 14 L164 10 L196 17" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="4"   cy="28" r="2.5" fill="#2563eb"/>
+            <circle cx="36"  cy="24" r="2.5" fill="#2563eb"/>
+            <circle cx="68"  cy="18" r="2.5" fill="#2563eb"/>
+            <circle cx="100" cy="26" r="2.5" fill="#2563eb"/>
+            <circle cx="132" cy="14" r="2.5" fill="#2563eb"/>
+            <circle cx="164" cy="10" r="2.5" fill="#2563eb"/>
+            <circle cx="196" cy="17" r="2.5" fill="#2563eb"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ OPTION C ════ -->
+    <div class="option-wrap">
+      <div class="option-eyebrow">Option C</div>
+      <div class="option-title">Left-panel layout</div>
+      <div class="card">
+        <div class="card-header">
+          <div class="header-title">Fitness Stats</div>
+          <div class="header-meta">
+            <div class="header-sync">Synced today at 07:15</div>
+            <div class="header-lastride">Last ride: <b>yesterday at 08:30</b></div>
+          </div>
+        </div>
+
+        <div class="split-row">
+          <div class="strain-panel" id="c-panel" style="background:#fffbeb;">
+            <div class="strain-panel-lbl">Strain</div>
+            <div class="strain-panel-num-row">
+              <div class="strain-panel-num" id="c-num" style="color:#d97706;">14</div>
+              <div class="strain-panel-denom">/21</div>
+            </div>
+            <div class="strain-panel-cat" id="c-lbl" style="color:#d97706;">Moderate</div>
+            <div class="strain-panel-prog">
+              <div class="prog-track">
+                <div class="prog-fill" id="c-bar" style="width:66.7%;background:#d97706;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chips-grid">
+            <div class="chip"><div class="chip-val" style="color:#2563eb;">62</div><div class="chip-lbl">CTL</div></div>
+            <div class="chip"><div class="chip-val" style="color:#f97316;">71</div><div class="chip-lbl">ATL</div></div>
+            <div class="chip"><div class="chip-val" style="color:#ef4444;">−9</div><div class="chip-lbl">Form</div></div>
+            <div class="chip"><div class="chip-val" style="color:#7c3aed;">68</div><div class="chip-unit">ms</div><div class="chip-lbl">HRV</div></div>
+            <div class="chip"><div class="chip-val" style="color:#e11d48;">52</div><div class="chip-unit">bpm</div><div class="chip-lbl">RHR</div></div>
+            <div class="chip"></div>
+          </div>
+        </div>
+
+        <div class="hrv-row">
+          <div class="hrv-dot"></div>
+          <div class="hrv-tag">HRV Balanced</div>
+          <div class="hrv-detail">68 ms · 7-day avg</div>
+        </div>
+        <div class="trend-row">
+          <div class="trend-lbl-group">
+            <div class="trend-title">Effort trend</div>
+            <div class="trend-sub">7 sessions · RPE 7/10</div>
+          </div>
+          <svg class="trend-svg" height="36" viewBox="0 0 200 36" fill="none">
+            <path d="M4 28 L36 24 L68 18 L100 26 L132 14 L164 10 L196 17" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="4"   cy="28" r="2.5" fill="#2563eb"/>
+            <circle cx="36"  cy="24" r="2.5" fill="#2563eb"/>
+            <circle cx="68"  cy="18" r="2.5" fill="#2563eb"/>
+            <circle cx="100" cy="26" r="2.5" fill="#2563eb"/>
+            <circle cx="132" cy="14" r="2.5" fill="#2563eb"/>
+            <circle cx="164" cy="10" r="2.5" fill="#2563eb"/>
+            <circle cx="196" cy="17" r="2.5" fill="#2563eb"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ OPTION D ════ -->
+    <div class="option-wrap">
+      <div class="option-eyebrow">Option D</div>
+      <div class="option-title">Strain as the header</div>
+      <div class="card">
+        <div class="header-d">
+          <div class="header-d-left">
+            <div class="header-d-num" id="d-num" style="color:#d97706;">14</div>
+            <div class="header-d-denom">/21</div>
+            <div class="header-d-stack">
+              <div class="header-d-label" id="d-lbl" style="color:#d97706;">Moderate</div>
+              <div class="header-d-word">Strain</div>
+            </div>
+          </div>
+          <div class="header-meta">
+            <div class="header-sync">Synced today at 07:15</div>
+            <div class="header-lastride">Last ride: <b>yesterday at 08:30</b></div>
+          </div>
+        </div>
+        <div class="prog-d">
+          <div class="prog-d-fill" id="d-bar" style="width:66.7%;background:#d97706;"></div>
+        </div>
+
+        <div class="chips-row" style="border-top:1px solid #efefef;">
+          <div class="chip"><div class="chip-val" style="color:#2563eb;">62</div><div class="chip-lbl">CTL</div></div>
+          <div class="chip"><div class="chip-val" style="color:#f97316;">71</div><div class="chip-lbl">ATL</div></div>
+          <div class="chip"><div class="chip-val" style="color:#ef4444;">−9</div><div class="chip-lbl">Form</div></div>
+          <div class="chip"><div class="chip-val" style="color:#7c3aed;">68</div><div class="chip-unit">ms</div><div class="chip-lbl">HRV</div></div>
+          <div class="chip"><div class="chip-val" style="color:#e11d48;">52</div><div class="chip-unit">bpm</div><div class="chip-lbl">RHR</div></div>
+        </div>
+        <div class="hrv-row">
+          <div class="hrv-dot"></div>
+          <div class="hrv-tag">HRV Balanced</div>
+          <div class="hrv-detail">68 ms · 7-day avg</div>
+        </div>
+        <div class="trend-row">
+          <div class="trend-lbl-group">
+            <div class="trend-title">Effort trend</div>
+            <div class="trend-sub">7 sessions · RPE 7/10</div>
+          </div>
+          <svg class="trend-svg" height="36" viewBox="0 0 200 36" fill="none">
+            <path d="M4 28 L36 24 L68 18 L100 26 L132 14 L164 10 L196 17" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="4"   cy="28" r="2.5" fill="#2563eb"/>
+            <circle cx="36"  cy="24" r="2.5" fill="#2563eb"/>
+            <circle cx="68"  cy="18" r="2.5" fill="#2563eb"/>
+            <circle cx="100" cy="26" r="2.5" fill="#2563eb"/>
+            <circle cx="132" cy="14" r="2.5" fill="#2563eb"/>
+            <circle cx="164" cy="10" r="2.5" fill="#2563eb"/>
+            <circle cx="196" cy="17" r="2.5" fill="#2563eb"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+
+  <script>
+    const STATE = {
+      low:      { score: 6,  pct: '28.6%', label: 'Low',      color: '#059669', bg: '#ecfdf5', band: '#059669' },
+      moderate: { score: 14, pct: '66.7%', label: 'Moderate', color: '#d97706', bg: '#fffbeb', band: '#d97706' },
+      high:     { score: 18, pct: '85.7%', label: 'High',     color: '#dc2626', bg: '#fef2f2', band: '#dc2626' },
+    };
+
+    function setStrain(level) {
+      const s = STATE[level];
+      document.querySelectorAll('.toggle-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.level === level)
+      );
+
+      // A
+      document.getElementById('a-num').textContent  = s.score;
+      document.getElementById('a-num').style.color  = s.color;
+      document.getElementById('a-lbl').textContent  = s.label;
+      document.getElementById('a-lbl').style.color  = s.color;
+      document.getElementById('a-bar').style.width  = s.pct;
+      document.getElementById('a-bar').style.background = s.color;
+      document.getElementById('hero-a-bg').style.background = s.bg;
+
+      // B
+      document.getElementById('b-band').style.background = s.band;
+      document.getElementById('b-num').textContent = s.score;
+      document.getElementById('b-lbl').textContent = s.label;
+      document.getElementById('b-bar').style.width = s.pct;
+
+      // C
+      document.getElementById('c-panel').style.background = s.bg;
+      document.getElementById('c-num').textContent = s.score;
+      document.getElementById('c-num').style.color = s.color;
+      document.getElementById('c-lbl').textContent = s.label;
+      document.getElementById('c-lbl').style.color = s.color;
+      document.getElementById('c-bar').style.width = s.pct;
+      document.getElementById('c-bar').style.background = s.color;
+
+      // D
+      document.getElementById('d-num').textContent = s.score;
+      document.getElementById('d-num').style.color = s.color;
+      document.getElementById('d-lbl').textContent = s.label;
+      document.getElementById('d-lbl').style.color = s.color;
+      document.getElementById('d-bar').style.width = s.pct;
+      document.getElementById('d-bar').style.background = s.color;
+    }
+  </script>
+</body>
+</html>
