@@ -79,10 +79,16 @@ function DraggableWorkoutCard({ workout, onClick }: { workout: Workout; onClick:
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="relative cursor-grab active:cursor-grabbing">
-      <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-slate-300 pointer-events-none z-10" />
+    <div ref={setNodeRef} style={style} {...attributes} className="relative">
+      <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-16 h-0.5 rounded-full bg-slate-300 pointer-events-none z-10" />
       <WorkoutCard workout={workout} onClick={onClick} />
-      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-slate-300 pointer-events-none z-10" />
+      {/* Drag zone sits between the two grip bars; relays quick taps as card-open */}
+      <div
+        {...listeners}
+        className="absolute inset-x-0 top-3 bottom-3 z-10 cursor-grab active:cursor-grabbing"
+        onClick={onClick}
+      />
+      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-16 h-0.5 rounded-full bg-slate-300 pointer-events-none z-10" />
     </div>
   )
 }
