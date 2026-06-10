@@ -1,12 +1,17 @@
 export const STRAIN_TRAINING_LOAD_MAX = 400
+export const STRAIN_NONPOWER_LOAD_MAX = 50  // ceiling for walks, runs, HR-only activities
 export const STRAIN_WORKOUT_WEIGHT = 14
 export const STRAIN_LIFE_WEIGHT = 7
 
-// Sum intensity-weighted training load across all activities on a given date.
-// For power-metered rides, load is scaled by intensity factor (NP/FTP) so a
-// threshold ride contributes more than an easy spin at the same TSS.
-// Non-power activities (walks, runs, HR-only rides) use their raw training load
-// since intervals.icu already incorporates HR-based intensity into that figure.
+// Sum activity load across all activities on a given date, normalised to the
+// power scale so computeDailyStrain can use a single ceiling (STRAIN_TRAINING_LOAD_MAX).
+//
+// Power-metered rides: load × IF (NP/FTP) — harder rides contribute more.
+// Non-power activities (walks, runs, HR-only): load is scaled up by
+// (STRAIN_TRAINING_LOAD_MAX / STRAIN_NONPOWER_LOAD_MAX) so that a "full"
+// non-power day (≈50 TSS) saturates the same workout component as a
+// "full" cycling day (≈400 TSS), meaning small walk loads register as 1–2/21
+// rather than rounding to zero.
 export function computeDailyActivityLoad(
   activities: Array<{
     start_date_local: string
@@ -17,6 +22,7 @@ export function computeDailyActivityLoad(
   date: string,
   ftpWatts?: number | null,
 ): number {
+  const nonPowerScale = STRAIN_TRAINING_LOAD_MAX / STRAIN_NONPOWER_LOAD_MAX
   return activities
     .filter(a => a.start_date_local.startsWith(date))
     .reduce((sum, a) => {
@@ -27,7 +33,7 @@ export function computeDailyActivityLoad(
         const intensityFactor = Math.min(1.5, a.weighted_average_watts / ftp)
         return sum + load * intensityFactor
       }
-      return sum + load
+      return sum + load * nonPowerScale
     }, 0)
 }
 
