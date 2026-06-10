@@ -7,6 +7,8 @@ export function computeDailyStrain(
   stressAvg: number | null,
 ): number | null {
   if (garminTrainingLoad == null && stressAvg == null) return null
+  // atlLoad=0 means no cycling workout today; if stress also hasn't synced yet, nothing to show
+  if ((garminTrainingLoad == null || garminTrainingLoad === 0) && stressAvg == null) return null
   const workout = ((garminTrainingLoad ?? 0) / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT
   const life = ((stressAvg ?? 0) / 100) * STRAIN_LIFE_WEIGHT
   return Math.min(21, Math.round(workout + life))
