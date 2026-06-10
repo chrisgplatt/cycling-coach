@@ -17,7 +17,8 @@ import type { GeneratedPlan } from '@/types'
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -47,18 +48,10 @@ function DraggableWorkoutCard({ workout, onClick, ftp }: { workout: Workout; onC
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="relative">
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="relative cursor-grab active:cursor-grabbing">
+      <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-slate-300 pointer-events-none z-10" />
       <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} />
-      {/* Drag handle — middle third only, so edge taps scroll normally */}
-      <div
-        {...listeners}
-        className="absolute inset-x-0 top-1/3 bottom-1/3 cursor-grab active:cursor-grabbing"
-        style={{ touchAction: 'none' }}
-        aria-label="Drag to reschedule"
-      >
-        <div className="absolute inset-x-8 top-0.5 h-0.5 rounded-full bg-slate-400/40" />
-        <div className="absolute inset-x-8 bottom-0.5 h-0.5 rounded-full bg-slate-400/40" />
-      </div>
+      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-slate-300 pointer-events-none z-10" />
     </div>
   )
 }
@@ -111,7 +104,8 @@ export default function DashboardPage() {
   const [strainSheetOpen, setStrainSheetOpen] = useState(false)
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   )
 
   function handleDragStart(event: DragStartEvent) {

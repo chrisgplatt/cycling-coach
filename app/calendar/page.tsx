@@ -3,7 +3,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -70,26 +71,18 @@ function WorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => vo
   )
 }
 
-// Planned workouts are draggable so they can be rescheduled to another day.
-// Listeners are scoped to the middle-third drag handle so edge taps scroll normally.
+// Planned workouts are draggable. TouchSensor requires a 200ms press before activating
+// so scrolling past cards never triggers a drag accidentally.
 function DraggableWorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: workout.id })
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="relative">
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="relative cursor-grab active:cursor-grabbing">
+      <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-slate-300 pointer-events-none z-10" />
       <WorkoutCard workout={workout} onClick={onClick} />
-      {/* Drag handle — middle third only, so edge taps scroll normally */}
-      <div
-        {...listeners}
-        className="absolute inset-x-0 top-1/3 bottom-1/3 cursor-grab active:cursor-grabbing"
-        style={{ touchAction: 'none' }}
-        aria-label="Drag to reschedule"
-      >
-        <div className="absolute inset-x-8 top-0.5 h-0.5 rounded-full bg-slate-400/40" />
-        <div className="absolute inset-x-8 bottom-0.5 h-0.5 rounded-full bg-slate-400/40" />
-      </div>
+      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-slate-300 pointer-events-none z-10" />
     </div>
   )
 }
@@ -482,7 +475,8 @@ export default function CalendarPage() {
 
   // Drag-to-reschedule: a planned workout can be dragged onto another day.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   )
   const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null)
   const [pendingReschedule, setPendingReschedule] = useState<{ workout: Workout; toDate: string } | null>(null)
