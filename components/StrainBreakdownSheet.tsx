@@ -1,5 +1,5 @@
 'use client'
-import { computeStrainComponents, strainLabel } from '@/lib/strain'
+import { computeStrainComponents, strainLabel, STRAIN_WORKOUT_WEIGHT, STRAIN_LIFE_WEIGHT } from '@/lib/strain'
 import type { ICUWellness } from '@/types'
 
 interface Props {
@@ -24,7 +24,7 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
   )
   if (!c) return null
 
-  const totalStrain = Math.min(21, Math.round(c.workoutPts + c.lifePts))
+  const totalStrain = c.total
   const label = strainLabel(totalStrain)
 
   // Donut: use raw un-normalised pts as fractions of 21 for proportional arcs
@@ -37,7 +37,14 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/40"
+        role="button"
+        tabIndex={0}
+        aria-label="Close"
+        onClick={onClose}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose() }}
+      />
       <div className="relative bg-white w-full rounded-t-2xl sm:rounded-2xl sm:max-w-sm max-h-[92vh] overflow-y-auto">
         {/* Drag handle */}
         <button
@@ -80,13 +87,13 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
               <span className="text-sm font-semibold text-gray-800">Workout load</span>
               <span className="text-sm font-bold text-blue-600">
                 {(Math.round(c.workoutPts * 10) / 10).toFixed(1)}
-                <span className="text-xs font-normal text-gray-400"> / 14 pts</span>
+                <span className="text-xs font-normal text-gray-400"> / {STRAIN_WORKOUT_WEIGHT} pts</span>
               </span>
             </div>
             <div className="h-2 bg-blue-50 rounded-full mb-1.5">
               <div
                 className="h-full bg-blue-500 rounded-full transition-all"
-                style={{ width: `${Math.min(100, (c.workoutPts / 14) * 100)}%` }}
+                style={{ width: `${Math.min(100, (c.workoutPts / STRAIN_WORKOUT_WEIGHT) * 100)}%` }}
               />
             </div>
             <p className="text-[11px] text-gray-400">
@@ -102,14 +109,14 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
               <span className="text-sm font-semibold text-gray-800">Wellbeing</span>
               <span className="text-sm font-bold text-amber-500">
                 {(Math.round(c.lifePts * 10) / 10).toFixed(1)}
-                <span className="text-xs font-normal text-gray-400"> / 7 pts</span>
+                <span className="text-xs font-normal text-gray-400"> / {STRAIN_LIFE_WEIGHT} pts</span>
               </span>
             </div>
             <div className="h-2 bg-amber-50 rounded-full mb-3">
               <div
                 className="h-full rounded-full transition-all"
                 style={{
-                  width: `${Math.min(100, (c.lifePts / 7) * 100)}%`,
+                  width: `${Math.min(100, (c.lifePts / STRAIN_LIFE_WEIGHT) * 100)}%`,
                   background: 'linear-gradient(90deg, #f59e0b, #fb923c)',
                 }}
               />

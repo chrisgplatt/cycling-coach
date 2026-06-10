@@ -84,6 +84,18 @@ describe('computeStrainComponents', () => {
     expect(c.workoutPts).toBe(0)
     expect(c.workoutLoad).toBe(0)
   })
+
+  test('total matches Math.min(21, Math.round(workoutPts + lifePts))', () => {
+    // load=200 → workoutPts=7; stress=54,sleep=85,battery=75 → lifePts≈2.565
+    // total = round(7 + 2.565) = round(9.565) = 10
+    const c = computeStrainComponents(200, 54, null, 85, 75)!
+    expect(c.total).toBe(Math.min(21, Math.round(c.workoutPts + c.lifePts)))
+  })
+
+  test('total caps at 21', () => {
+    const c = computeStrainComponents(600, 100, 100, 0, 0)!
+    expect(c.total).toBe(21)
+  })
 })
 
 describe('computeDailyStrain', () => {

@@ -76,6 +76,7 @@ export function computeDailyLifeLoad(
 }
 
 export interface StrainComponents {
+  total: number             // final strain score 0–21
   workoutPts: number        // 0–14 workout contribution
   workoutLoad: number       // raw activity load (TSS-equivalent)
   lifePts: number           // 0–7 normalised life contribution
@@ -117,7 +118,8 @@ export function computeStrainComponents(
   }
   const rawLife = stressRawPts + sleepRawPts + batteryRawPts
   const lifePts = availableWeight > 0 ? (rawLife / availableWeight) * STRAIN_LIFE_WEIGHT : 0
-  return { workoutPts, workoutLoad: load, lifePts, stressRawPts, sleepRawPts, batteryRawPts, stressAvg, stressHigh, sleepScore, bodyBatteryLow }
+  const total = Math.min(21, Math.round(workoutPts + lifePts))
+  return { total, workoutPts, workoutLoad: load, lifePts, stressRawPts, sleepRawPts, batteryRawPts, stressAvg, stressHigh, sleepScore, bodyBatteryLow }
 }
 
 export function computeDailyStrain(
