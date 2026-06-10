@@ -46,11 +46,13 @@ export default function MetricsBar({
   syncedAt = null,
   stale = {},
   embedded = false,
+  lastRideLabel,
 }: {
   wellness: ICUWellness | null
   syncedAt?: Date | null
   stale?: { hrv?: boolean; restingHr?: boolean }
   embedded?: boolean
+  lastRideLabel?: string
 }) {
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -69,7 +71,12 @@ export default function MetricsBar({
     <div className={embedded ? 'overflow-hidden' : 'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden'}>
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
         <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Fitness Stats</h2>
-        <span className="text-xs text-gray-400">{formatSyncTime(syncedAt)}</span>
+        <div className="text-right">
+          <div className="text-xs text-gray-400">{formatSyncTime(syncedAt)}</div>
+          {lastRideLabel && (
+            <div className="text-[11px] text-gray-400">Last ride: <span className="font-medium text-gray-500">{lastRideLabel}</span></div>
+          )}
+        </div>
       </div>
       <div className="flex divide-x divide-gray-100">
         <Metric label="CTL" value={wellness.ctl} valueClass="text-blue-600" />

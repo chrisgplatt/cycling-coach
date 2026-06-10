@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 
 interface Entry { created_at: string; rpe: number | null; feel: number | null }
 
-export default function RpeTrendStrip() {
+export default function RpeTrendStrip({ embedded = false }: { embedded?: boolean }) {
   const [points, setPoints] = useState<number[] | null>(null)
 
   useEffect(() => {
@@ -33,11 +33,8 @@ export default function RpeTrendStrip() {
   const d = points.map((v, i) => `${i === 0 ? 'M' : 'L'} ${pad + i * stepX} ${y(v)}`).join(' ')
   const latest = points[points.length - 1]
 
-  return (
-    <div
-      data-testid="rpe-trend-strip"
-      className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex items-center gap-4"
-    >
+  const inner = (
+    <div className="flex items-center gap-4">
       <div className="shrink-0">
         <p className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Effort trend</p>
         <p className="text-sm text-gray-700">Last {points.length} sessions · RPE {latest}/10</p>
@@ -48,6 +45,16 @@ export default function RpeTrendStrip() {
           <circle key={i} cx={pad + i * stepX} cy={y(v)} r={2} fill="#2563eb" />
         ))}
       </svg>
+    </div>
+  )
+
+  if (embedded) {
+    return <div data-testid="rpe-trend-strip" className="px-4 py-3">{inner}</div>
+  }
+
+  return (
+    <div data-testid="rpe-trend-strip" className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      {inner}
     </div>
   )
 }

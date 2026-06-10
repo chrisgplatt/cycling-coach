@@ -36,31 +36,6 @@ import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import HrvStatusChip from '@/components/HrvStatusChip'
 
-function getReadinessSummary(wellness: ICUWellness): string {
-  const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
-
-  let summary: string
-  if (form === null) {
-    summary = 'Not enough training load data to assess readiness yet.'
-  } else if (form > 10) {
-    summary = `With a form score of +${Math.round(form)}, you're well rested and carrying low fatigue — prime condition for a hard effort today.`
-  } else if (form > 5) {
-    summary = `Your form score of +${Math.round(form)} shows you're fresh and ready for quality training. A structured session today should feel good.`
-  } else if (form >= -5) {
-    summary = `Your form score of ${Math.round(form)} reflects a balanced training load. You're fit to train — moderate intensity suits the current state well.`
-  } else if (form >= -15) {
-    summary = `Your form score of ${Math.round(form)} indicates some accumulated fatigue from recent training. Keep today's effort controlled and focus on completion over intensity.`
-  } else {
-    summary = `Your form score of ${Math.round(form)} points to significant fatigue. Prioritise recovery — an easy spin or rest will serve you better than pushing hard right now.`
-  }
-
-  const notes: string[] = []
-  if (wellness.hrv !== null) notes.push(`HRV ${Math.round(wellness.hrv)} ms`)
-  if (wellness.resting_hr !== null) notes.push(`resting HR ${Math.round(wellness.resting_hr)} bpm`)
-  if (notes.length > 0) summary += ` (${notes.join(', ')})`
-
-  return summary
-}
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
 
@@ -340,13 +315,6 @@ export default function DashboardPage() {
     .slice()
     .sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))[0] ?? null
 
-  function formatReadinessTime(date: Date): string {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-    return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} at ${time}`
-  }
-
   function formatLastRide(): string {
     if (!lastRide) return ''
     const rideDate = new Date(lastRide.start_date_local)
@@ -437,26 +405,17 @@ export default function DashboardPage() {
         />
       </div>
 
-      <RpeTrendStrip />
-
       {latestWellness && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-200">
-          <MetricsBar wellness={latestWellness} syncedAt={lastSyncedAt} stale={wellnessStale} embedded />
+          <MetricsBar
+            wellness={latestWellness}
+            syncedAt={lastSyncedAt}
+            stale={wellnessStale}
+            embedded
+            lastRideLabel={lastRide ? formatLastRide() : undefined}
+          />
           <HrvStatusChip embedded />
-          <div>
-            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-              <div className="flex items-baseline gap-2">
-                <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Readiness</h2>
-                {lastSyncedAt && (
-                  <span className="text-[11px] text-gray-400">as of {formatReadinessTime(lastSyncedAt)}</span>
-                )}
-              </div>
-              {lastRide && (
-                <span className="text-xs text-gray-400">Last ride: <span className="font-semibold text-gray-500">{formatLastRide()}</span></span>
-              )}
-            </div>
-            <p className="text-sm text-gray-600 leading-relaxed px-4 py-3">{getReadinessSummary(latestWellness)}</p>
-          </div>
+          <RpeTrendStrip embedded />
         </div>
       )}
 
