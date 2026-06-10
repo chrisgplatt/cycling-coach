@@ -47,7 +47,7 @@ it('renders the strip after data loads', async () => {
 
 it('shows current CTL value', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
-  expect(screen.getByText(/CTL 68/)).toBeInTheDocument()
+  expect(screen.getByText(/Progress \(CTL\) 68/)).toBeInTheDocument()
 })
 
 it('shows current HR value', async () => {
@@ -55,11 +55,11 @@ it('shows current HR value', async () => {
   expect(screen.getByText(/HR 143 bpm/)).toBeInTheDocument()
 })
 
-it('renders the SVG with CTL path and HR dots', async () => {
+it('renders the SVG with CTL path and no HR dots', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
   const svg = screen.getByTestId('ctl-trend-svg')
-  expect(svg.querySelector('path')).not.toBeNull()    // CTL line
-  expect(svg.querySelectorAll('circle').length).toBe(2) // 2 HR dots within default 3m window
+  expect(svg.querySelector('path')).not.toBeNull()       // CTL line
+  expect(svg.querySelectorAll('circle').length).toBe(0)  // HR is a line, not dots
 })
 
 it('renders time-range tabs', async () => {
@@ -73,11 +73,13 @@ it('renders time-range tabs', async () => {
 it('changing range tab re-filters data', async () => {
   const user = userEvent.setup()
   await act(async () => { render(<CtlTrendStrip />) })
-  // Switch to 3m — daysAgo(100) CTL point is excluded; only 2 points remain, strip still renders
-  await user.click(screen.getByRole('button', { name: /3m/i }))
+  // Switch to 12m — all 3 CTL points included; daysAgo(100) ride is >91 days from
+  // daysAgo(9), guaranteeing 2+ distinct ISO weeks and rendering an HR line
+  await user.click(screen.getByRole('button', { name: /12m/i }))
+  const svg = screen.getByTestId('ctl-trend-svg')
   expect(screen.getByTestId('ctl-trend-strip')).toBeInTheDocument()
-  // HR dots within 3m: daysAgo(9) and daysAgo(4) — 2 dots
-  expect(screen.getByTestId('ctl-trend-svg').querySelectorAll('circle').length).toBe(2)
+  expect(svg.querySelectorAll('path').length).toBe(2)   // CTL line + weekly HR line
+  expect(svg.querySelectorAll('circle').length).toBe(0) // no HR dots
 })
 
 it('renders nothing when fetch fails', async () => {
@@ -93,8 +95,8 @@ it('applies embedded styling when embedded prop is true', async () => {
   expect(strip.className).not.toContain('bg-white')
 })
 
-it('defaults to the 3m tab', async () => {
+it('defaults to the 1m tab', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
-  const btn = screen.getByRole('button', { name: /3m/i })
+  const btn = screen.getByRole('button', { name: /1m/i })
   expect(btn.className).toContain('bg-blue-600')
 })

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { isoWeekStart } from '@/lib/chart-helpers'
 import type { ChartsData } from '@/types'
 
 type Range = '1m' | '3m' | '6m' | '12m'
@@ -11,7 +12,7 @@ const W = 320, H = 64, PAD = 4
 
 export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean }) {
   const [data, setData] = useState<ChartsData | null>(null)
-  const [range, setRange] = useState<Range>('3m')
+  const [range, setRange] = useState<Range>('1m')
 
   useEffect(() => {
     fetch('/api/charts')
@@ -30,10 +31,6 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
 
   if (ctlPoints.length < 2) return null
 
-  // HR dots are aligned to the CTL x-axis window (first CTL point date → last)
-  const ctlWindowStart = ctlPoints[0].id
-  const hrPoints  = (data.rides ?? []).filter(r => r.date >= ctlWindowStart && r.avgHr !== null)
-
   // Shared x-axis (time)
   const startMs = new Date(ctlPoints[0].id).getTime()
   const endMs   = new Date(ctlPoints[ctlPoints.length - 1].id).getTime()
@@ -48,21 +45,40 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
   const ctlY = (v: number) =>
     PAD + ((ctlMax - v) / (ctlMax - ctlMin)) * (H - PAD * 2)
 
-  // HR y-axis (right — independent scale)
-  const hrVals = hrPoints.map(r => r.avgHr as number)
-  const hrMin  = hrVals.length ? Math.min(...hrVals) - 5 : 0
-  const hrMax  = hrVals.length ? Math.max(...hrVals) + 5 : 200
-  const hrY = (v: number) =>
-    PAD + ((hrMax - v) / (hrMax - hrMin)) * (H - PAD * 2)
-
   // CTL path
   const ctlPath = ctlPoints
     .map((w, i) => `${i === 0 ? 'M' : 'L'}${xOf(w.id).toFixed(1)},${ctlY(w.ctl as number).toFixed(1)}`)
     .join(' ')
 
+  // Weekly average HR — group rides within the CTL window by ISO week
+  const ctlWindowStart = ctlPoints[0].id
+  const inWindowRides = (data.rides ?? []).filter(r => r.date >= ctlWindowStart && r.avgHr !== null)
+  const weekHrMap = new Map<string, { sum: number; count: number }>()
+  for (const r of inWindowRides) {
+    const week = isoWeekStart(r.date)
+    const entry = weekHrMap.get(week) ?? { sum: 0, count: 0 }
+    entry.sum += r.avgHr as number
+    entry.count += 1
+    weekHrMap.set(week, entry)
+  }
+  const weeklyHr = Array.from(weekHrMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, { sum, count }]) => ({ date: week, avgHr: Math.round(sum / count) }))
+
+  // HR y-axis (right — independent scale)
+  const hrVals = weeklyHr.map(p => p.avgHr)
+  const hrMin  = hrVals.length ? Math.min(...hrVals) - 5 : 0
+  const hrMax  = hrVals.length ? Math.max(...hrVals) + 5 : 200
+  const hrY = (v: number) =>
+    PAD + ((hrMax - v) / (hrMax - hrMin)) * (H - PAD * 2)
+
+  const hrPath = weeklyHr.length >= 2
+    ? weeklyHr.map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(p.date).toFixed(1)},${hrY(p.avgHr).toFixed(1)}`).join(' ')
+    : null
+
   // Current-value badges
   const latestCtl = ctlVals[ctlVals.length - 1] ?? null
-  const latestHr  = hrVals.length ? hrVals[hrVals.length - 1] : null
+  const latestHr  = weeklyHr.length ? weeklyHr[weeklyHr.length - 1].avgHr : null
 
   const inner = (
     <div>
@@ -84,7 +100,7 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
         </div>
         <div className="flex items-center gap-2 text-[11px] font-semibold">
           {latestCtl !== null && (
-            <span className="text-blue-600">CTL {Math.round(latestCtl)}</span>
+            <span className="text-blue-600">Progress (CTL) {Math.round(latestCtl)}</span>
           )}
           {latestHr !== null && (
             <>
@@ -110,15 +126,17 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
           strokeLinejoin="round"
           strokeLinecap="round"
         />
-        {hrPoints.map((r, i) => (
-          <circle
-            key={i}
-            cx={xOf(r.date)}
-            cy={hrY(r.avgHr as number)}
-            r={2}
-            fill="#f43f5e"
+        {hrPath && (
+          <path
+            d={hrPath}
+            fill="none"
+            stroke="#f43f5e"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            strokeDasharray="4 2"
           />
-        ))}
+        )}
       </svg>
     </div>
   )
