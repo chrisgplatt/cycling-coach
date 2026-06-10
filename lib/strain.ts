@@ -4,9 +4,9 @@ export const STRAIN_WORKOUT_WEIGHT = 14
 export const STRAIN_LIFE_WEIGHT = 7
 
 // Sub-weights within the 7-point life component
-const STRAIN_STRESS_WEIGHT = 3.5
-const STRAIN_SLEEP_WEIGHT = 2.0
-const STRAIN_BATTERY_WEIGHT = 1.5
+export const STRAIN_STRESS_WEIGHT = 3.5
+export const STRAIN_SLEEP_WEIGHT = 2.0
+export const STRAIN_BATTERY_WEIGHT = 1.5
 
 // Sum activity load across all activities on a given date, normalised to the
 // power scale so computeDailyStrain can use a single ceiling (STRAIN_TRAINING_LOAD_MAX).
@@ -73,6 +73,51 @@ export function computeDailyLifeLoad(
     availableWeight += STRAIN_BATTERY_WEIGHT
   }
   return availableWeight > 0 ? (rawScore / availableWeight) * STRAIN_LIFE_WEIGHT : null
+}
+
+export interface StrainComponents {
+  workoutPts: number        // 0–14 workout contribution
+  workoutLoad: number       // raw activity load (TSS-equivalent)
+  lifePts: number           // 0–7 normalised life contribution
+  stressRawPts: number      // un-normalised stress pts (for donut)
+  sleepRawPts: number       // un-normalised sleep pts (for donut)
+  batteryRawPts: number     // un-normalised battery pts (for donut)
+  stressAvg: number | null
+  stressHigh: number | null
+  sleepScore: number | null
+  bodyBatteryLow: number | null
+}
+
+export function computeStrainComponents(
+  activityLoad: number | null,
+  stressAvg: number | null,
+  stressHigh: number | null,
+  sleepScore: number | null,
+  bodyBatteryLow: number | null,
+): StrainComponents | null {
+  if (activityLoad == null && stressAvg == null && sleepScore == null && bodyBatteryLow == null) return null
+  const load = activityLoad ?? 0
+  const workoutPts = Math.min(STRAIN_WORKOUT_WEIGHT, (load / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT)
+  let stressRawPts = 0
+  let sleepRawPts = 0
+  let batteryRawPts = 0
+  let availableWeight = 0
+  if (stressAvg != null) {
+    const effective = stressHigh != null ? stressAvg * 0.7 + stressHigh * 0.3 : stressAvg
+    stressRawPts = (effective / 100) * STRAIN_STRESS_WEIGHT
+    availableWeight += STRAIN_STRESS_WEIGHT
+  }
+  if (sleepScore != null) {
+    sleepRawPts = ((100 - sleepScore) / 100) * STRAIN_SLEEP_WEIGHT
+    availableWeight += STRAIN_SLEEP_WEIGHT
+  }
+  if (bodyBatteryLow != null) {
+    batteryRawPts = ((100 - bodyBatteryLow) / 100) * STRAIN_BATTERY_WEIGHT
+    availableWeight += STRAIN_BATTERY_WEIGHT
+  }
+  const rawLife = stressRawPts + sleepRawPts + batteryRawPts
+  const lifePts = availableWeight > 0 ? (rawLife / availableWeight) * STRAIN_LIFE_WEIGHT : 0
+  return { workoutPts, workoutLoad: load, lifePts, stressRawPts, sleepRawPts, batteryRawPts, stressAvg, stressHigh, sleepScore, bodyBatteryLow }
 }
 
 export function computeDailyStrain(

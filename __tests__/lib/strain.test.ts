@@ -2,6 +2,7 @@
 import {
   computeDailyStrain,
   computeDailyLifeLoad,
+  computeStrainComponents,
   strainLabel,
   formatStrainForPrompt,
   formatStrainHistoryForPrompt,
@@ -40,6 +41,48 @@ describe('computeDailyLifeLoad', () => {
 
   test('all null → null', () => {
     expect(computeDailyLifeLoad(null, null, null, null)).toBeNull()
+  })
+})
+
+describe('computeStrainComponents', () => {
+  test('returns null when all inputs null', () => {
+    expect(computeStrainComponents(null, null, null, null, null)).toBeNull()
+  })
+
+  test('workoutPts = (load / 400) * 14', () => {
+    const c = computeStrainComponents(200, null, null, null, null)
+    expect(c).not.toBeNull()
+    expect(c!.workoutPts).toBeCloseTo(7, 1)   // (200/400)*14 = 7
+    expect(c!.workoutLoad).toBe(200)
+  })
+
+  test('lifePts matches computeDailyLifeLoad', () => {
+    const c = computeStrainComponents(0, 54, null, 85, 75)!
+    const expected = computeDailyLifeLoad(54, null, 85, 75)!
+    expect(c.lifePts).toBeCloseTo(expected, 4)
+  })
+
+  test('raw sub-scores are un-normalised', () => {
+    // stress=54 only: raw = (54/100)*3.5 = 1.89; normalised life = 3.78
+    // stressRawPts should be 1.89, not 3.78
+    const c = computeStrainComponents(0, 54, null, null, null)!
+    expect(c.stressRawPts).toBeCloseTo(1.89, 1)
+    expect(c.sleepRawPts).toBe(0)
+    expect(c.batteryRawPts).toBe(0)
+  })
+
+  test('source values pass through unchanged', () => {
+    const c = computeStrainComponents(100, 60, 75, 72, 35)!
+    expect(c.stressAvg).toBe(60)
+    expect(c.stressHigh).toBe(75)
+    expect(c.sleepScore).toBe(72)
+    expect(c.bodyBatteryLow).toBe(35)
+  })
+
+  test('no workout today — workoutPts is 0', () => {
+    const c = computeStrainComponents(0, 58, null, null, null)!
+    expect(c.workoutPts).toBe(0)
+    expect(c.workoutLoad).toBe(0)
   })
 })
 
