@@ -111,13 +111,14 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
     }
   }
 
-  // Y-axis: actual (unpadded) data range
+  // Y-axis: actual (unpadded) data range, rounded to nearest 10 for labels
   const ctlActMin = Math.min(...ctlVals)
   const ctlActMax = Math.max(...ctlVals)
   const rhrActMin = rhrVals.length ? Math.min(...rhrVals) : null
   const rhrActMax = rhrVals.length ? Math.max(...rhrVals) : null
-  const showCtlAxis = ctlActMin !== ctlActMax
-  const showRhrAxis = rhrActMin !== null && rhrActMax !== null && rhrActMin !== rhrActMax
+  const r10 = (v: number) => Math.round(v / 10) * 10
+  const showCtlAxis = r10(ctlActMin) !== r10(ctlActMax)
+  const showRhrAxis = rhrActMin !== null && rhrActMax !== null && r10(rhrActMin) !== r10(rhrActMax)
 
   const inner = (
     <div>
@@ -202,9 +203,7 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
               x={tick.x.toFixed(1)}
               y={H - 2}
               textAnchor="middle"
-              fontSize="8"
-              fill="#9ca3af"
-              fontFamily="system-ui,sans-serif"
+              className="text-[7px] font-sans fill-gray-400"
             >
               {tick.label}
             </text>
@@ -213,22 +212,22 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
         {/* CTL y-axis labels: min (bottom) and max (top), left side, blue */}
         {showCtlAxis && (
           <>
-            <text x={PAD_L - 3} y={ctlY(ctlActMin) + 3} textAnchor="end" fontSize="8" fill="#3b82f6" fontFamily="system-ui,sans-serif">
-              {Math.round(ctlActMin)}
+            <text x={PAD_L - 3} y={ctlY(ctlActMin) + 3} textAnchor="end" className="text-[7px] font-sans fill-blue-500">
+              {r10(ctlActMin)}
             </text>
-            <text x={PAD_L - 3} y={ctlY(ctlActMax) + 3} textAnchor="end" fontSize="8" fill="#3b82f6" fontFamily="system-ui,sans-serif">
-              {Math.round(ctlActMax)}
+            <text x={PAD_L - 3} y={ctlY(ctlActMax) + 3} textAnchor="end" className="text-[7px] font-sans fill-blue-500">
+              {r10(ctlActMax)}
             </text>
           </>
         )}
         {/* RHR y-axis labels: min (bottom) and max (top), right side, rose */}
         {showRhrAxis && (
           <>
-            <text x={PAD_L + CW + 3} y={rhrY(rhrActMin!) + 3} textAnchor="start" fontSize="8" fill="#f43f5e" fontFamily="system-ui,sans-serif">
-              {Math.round(rhrActMin!)}
+            <text x={PAD_L + CW + 3} y={rhrY(rhrActMin!) + 3} textAnchor="start" className="text-[7px] font-sans fill-rose-500">
+              {r10(rhrActMin!)}
             </text>
-            <text x={PAD_L + CW + 3} y={rhrY(rhrActMax!) + 3} textAnchor="start" fontSize="8" fill="#f43f5e" fontFamily="system-ui,sans-serif">
-              {Math.round(rhrActMax!)}
+            <text x={PAD_L + CW + 3} y={rhrY(rhrActMax!) + 3} textAnchor="start" className="text-[7px] font-sans fill-rose-500">
+              {r10(rhrActMax!)}
             </text>
           </>
         )}
