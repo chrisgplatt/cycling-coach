@@ -50,7 +50,7 @@ export async function GET() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([weekStart, tss]) => ({ weekStart, tss: Math.round(tss) }))
 
-    const charts: ChartsData = { wellness, weeklyTss }
+    const charts: ChartsData = { wellness, weeklyTss, rides: [] }
     return NextResponse.json({ charts })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

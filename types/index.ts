@@ -316,9 +316,15 @@ export interface WeeklyTss {
   tss: number
 }
 
+export interface RidePoint {
+  date: string          // YYYY-MM-DD
+  avgHr: number | null
+}
+
 export interface ChartsData {
   wellness: ICUWellness[]
   weeklyTss: WeeklyTss[]
+  rides: RidePoint[]
 }
 
 export interface ICUPowerCurvePoint {
