@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { isoWeekStart } from '@/lib/chart-helpers'
-import type { ChartsData, WeeklyTss } from '@/types'
+import type { ChartsData, WeeklyTss, RidePoint } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,9 +24,8 @@ export async function GET() {
 
   const today = new Date()
   const newest = today.toISOString().split('T')[0]
-  const activitiesOldest = new Date(today.getTime() - 112 * 24 * 60 * 60 * 1000)
-    .toISOString().split('T')[0]
-  const wellnessOldest = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000)
+  // Both wellness and activities fetched for 365 days so all time windows are covered
+  const oldest = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000)
     .toISOString().split('T')[0]
 
   const client = new IntervalsClient(
@@ -36,13 +35,14 @@ export async function GET() {
 
   try {
     const [wellness, activities] = await Promise.all([
-      client.getWellness(wellnessOldest, newest),
-      client.getActivities(activitiesOldest, newest),
+      client.getWellness(oldest, newest),
+      client.getActivities(oldest, newest),
     ])
 
-    const rides = activities.filter(a => /ride/i.test(a.type))
+    // Weekly TSS — cycling only
+    const cyclingRides = activities.filter(a => /ride/i.test(a.type))
     const tssMap = new Map<string, number>()
-    for (const ride of rides) {
+    for (const ride of cyclingRides) {
       const week = isoWeekStart(ride.start_date_local)
       tssMap.set(week, (tssMap.get(week) ?? 0) + (ride.training_load ?? 0))
     }
@@ -50,7 +50,13 @@ export async function GET() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([weekStart, tss]) => ({ weekStart, tss: Math.round(tss) }))
 
-    const charts: ChartsData = { wellness, weeklyTss, rides: [] }
+    // Per-activity HR — all types
+    const rides: RidePoint[] = activities.map(a => ({
+      date: a.start_date_local.slice(0, 10),
+      avgHr: a.average_heartrate,
+    }))
+
+    const charts: ChartsData = { wellness, weeklyTss, rides }
     return NextResponse.json({ charts })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
