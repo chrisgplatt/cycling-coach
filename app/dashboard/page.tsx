@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
 import FeedbackModal from '@/components/FeedbackModal'
-import RpeTrendStrip from '@/components/RpeTrendStrip'
+import CtlTrendStrip from '@/components/CtlTrendStrip'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback, ICUActivity } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
@@ -440,7 +440,7 @@ export default function DashboardPage() {
             onStrainTap={() => setStrainSheetOpen(true)}
           />
           <HrvStatusChip embedded />
-          <RpeTrendStrip embedded />
+          <CtlTrendStrip embedded />
         </div>
       )}
 
