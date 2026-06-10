@@ -70,17 +70,26 @@ function WorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => vo
   )
 }
 
-// Planned workouts are draggable so they can be rescheduled to another day. The
-// dnd-kit listeners sit on the wrapper; the inner button still fires its onClick on a
-// tap because the PointerSensor only activates a drag after an 8px move.
+// Planned workouts are draggable so they can be rescheduled to another day.
+// Listeners are scoped to the middle-third drag handle so edge taps scroll normally.
 function DraggableWorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: workout.id })
   const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, touchAction: 'none' as const }
-    : { touchAction: 'none' as const }
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} className="relative">
       <WorkoutCard workout={workout} onClick={onClick} />
+      {/* Drag handle — middle third only, so edge taps scroll normally */}
+      <div
+        {...listeners}
+        className="absolute inset-x-0 top-1/3 bottom-1/3 cursor-grab active:cursor-grabbing"
+        style={{ touchAction: 'none' }}
+        aria-label="Drag to reschedule"
+      >
+        <div className="absolute inset-x-8 top-0.5 h-0.5 rounded-full bg-slate-400/40" />
+        <div className="absolute inset-x-8 bottom-0.5 h-0.5 rounded-full bg-slate-400/40" />
+      </div>
     </div>
   )
 }

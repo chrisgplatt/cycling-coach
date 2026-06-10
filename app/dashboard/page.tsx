@@ -47,8 +47,18 @@ function DraggableWorkoutCard({ workout, onClick, ftp }: { workout: Workout; onC
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} className="relative">
       <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} />
+      {/* Drag handle — middle third only, so edge taps scroll normally */}
+      <div
+        {...listeners}
+        className="absolute inset-x-0 top-1/3 bottom-1/3 cursor-grab active:cursor-grabbing"
+        style={{ touchAction: 'none' }}
+        aria-label="Drag to reschedule"
+      >
+        <div className="absolute inset-x-8 top-0.5 h-0.5 rounded-full bg-slate-400/40" />
+        <div className="absolute inset-x-8 bottom-0.5 h-0.5 rounded-full bg-slate-400/40" />
+      </div>
     </div>
   )
 }
