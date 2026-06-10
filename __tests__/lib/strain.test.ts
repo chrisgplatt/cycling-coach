@@ -1,39 +1,83 @@
 /** @jest-environment node */
-import { computeDailyStrain, strainLabel, formatStrainForPrompt, formatStrainHistoryForPrompt } from '@/lib/strain'
+import {
+  computeDailyStrain,
+  computeDailyLifeLoad,
+  strainLabel,
+  formatStrainForPrompt,
+  formatStrainHistoryForPrompt,
+} from '@/lib/strain'
 
-describe('computeDailyStrain', () => {
-  test('typical hard training day', () => {
-    // trainingLoad=220, stressAvg=54
-    // workout = (220/400)*14 = 7.7, life = (54/100)*7 = 3.78 → round(11.48) = 11
-    expect(computeDailyStrain(220, 54)).toBe(11)
+describe('computeDailyLifeLoad', () => {
+  test('stress only — backwards compat', () => {
+    // stress_avg=54 → (54/100)*3.5=1.89, avail=3.5 → (1.89/3.5)*7=3.78
+    expect(computeDailyLifeLoad(54, null, null, null)).toBeCloseTo(3.78, 1)
   })
 
-  test('rest day with moderate stress', () => {
-    // trainingLoad=0, stressAvg=80
-    // workout = 0, life = (80/100)*7 = 5.6 → round(5.6) = 6
-    expect(computeDailyStrain(0, 80)).toBe(6)
+  test('stress + peak — peak blended at 30%', () => {
+    // stress_avg=40, stress_high=80 → effective=52 → (52/100)*3.5=1.82 → (1.82/3.5)*7=3.64
+    expect(computeDailyLifeLoad(40, 80, null, null)).toBeCloseTo(3.64, 1)
+  })
+
+  test('poor sleep only', () => {
+    // sleep_score=30 → ((100-30)/100)*2=1.4, avail=2 → (1.4/2)*7=4.9
+    expect(computeDailyLifeLoad(null, null, 30, null)).toBeCloseTo(4.9, 1)
+  })
+
+  test('low body battery only', () => {
+    // body_battery_low=20 → ((100-20)/100)*1.5=1.2, avail=1.5 → (1.2/1.5)*7=5.6
+    expect(computeDailyLifeLoad(null, null, null, 20)).toBeCloseTo(5.6, 1)
+  })
+
+  test('all three signals', () => {
+    // stress=54→1.89, sleep=85→0.3, battery=75→0.375; raw=2.565, avail=7 → 2.565
+    expect(computeDailyLifeLoad(54, null, 85, 75)).toBeCloseTo(2.565, 1)
+  })
+
+  test('great sleep + good battery softens score', () => {
+    // stress=30→1.05, sleep=90→0.2, battery=85→0.225; raw=1.475, avail=7 → 1.475
+    expect(computeDailyLifeLoad(30, null, 90, 85)).toBeCloseTo(1.475, 1)
+  })
+
+  test('all null → null', () => {
+    expect(computeDailyLifeLoad(null, null, null, null)).toBeNull()
+  })
+})
+
+describe('computeDailyStrain', () => {
+  test('typical hard training day with moderate life load', () => {
+    // activityLoad=220, lifeLoad=3.78 → workout=7.7, life=3.78 → round(11.48)=11
+    expect(computeDailyStrain(220, 3.78)).toBe(11)
+  })
+
+  test('rest day with high life load', () => {
+    // activityLoad=0, lifeLoad=5.6 → round(5.6)=6
+    expect(computeDailyStrain(0, 5.6)).toBe(6)
   })
 
   test('very high training load caps at 21', () => {
-    expect(computeDailyStrain(600, 100)).toBe(21)
+    expect(computeDailyStrain(600, 7)).toBe(21)
   })
 
   test('zero everything → 0', () => {
     expect(computeDailyStrain(0, 0)).toBe(0)
   })
 
-  test('null trainingLoad falls back to stress only', () => {
-    // workout = 0, life = (50/100)*7 = 3.5 → round(3.5) = 4 (JS rounds .5 up)
-    expect(computeDailyStrain(null, 50)).toBe(4)
+  test('null activityLoad falls back to life only', () => {
+    // round(3.5) = 4 (JS rounds .5 up)
+    expect(computeDailyStrain(null, 3.5)).toBe(4)
   })
 
-  test('null stressAvg falls back to training only', () => {
-    // workout = (200/400)*14 = 7, life = 0 → 7
+  test('null lifeLoad falls back to activity only', () => {
+    // workout = (200/400)*14 = 7
     expect(computeDailyStrain(200, null)).toBe(7)
   })
 
   test('both null → null', () => {
     expect(computeDailyStrain(null, null)).toBeNull()
+  })
+
+  test('zero activityLoad with null lifeLoad → null', () => {
+    expect(computeDailyStrain(0, null)).toBeNull()
   })
 })
 
@@ -55,6 +99,22 @@ describe('formatStrainForPrompt', () => {
 
   test('null → empty string', () => {
     expect(formatStrainForPrompt(null)).toBe('')
+  })
+
+  test('appends sleep context when sleep is poor', () => {
+    const s = formatStrainForPrompt(10, 45, null)
+    expect(s).toContain('sleep 45/100')
+  })
+
+  test('appends battery context when battery is low', () => {
+    const s = formatStrainForPrompt(10, null, 28)
+    expect(s).toContain('body battery woke at 28%')
+  })
+
+  test('no context when sleep and battery are good', () => {
+    const s = formatStrainForPrompt(10, 80, 70)
+    expect(s).not.toContain('sleep')
+    expect(s).not.toContain('battery')
   })
 })
 

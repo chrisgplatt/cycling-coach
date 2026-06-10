@@ -3,6 +3,11 @@ export const STRAIN_NONPOWER_LOAD_MAX = 50  // ceiling for walks, runs, HR-only 
 export const STRAIN_WORKOUT_WEIGHT = 14
 export const STRAIN_LIFE_WEIGHT = 7
 
+// Sub-weights within the 7-point life component
+const STRAIN_STRESS_WEIGHT = 3.5
+const STRAIN_SLEEP_WEIGHT = 2.0
+const STRAIN_BATTERY_WEIGHT = 1.5
+
 // Sum activity load across all activities on a given date, normalised to the
 // power scale so computeDailyStrain can use a single ceiling (STRAIN_TRAINING_LOAD_MAX).
 //
@@ -37,15 +42,48 @@ export function computeDailyActivityLoad(
     }, 0)
 }
 
+// Compute the life component of daily strain (0–7) from Garmin wellness signals.
+//
+// Blends up to three signals: stress (3.5 pts), sleep quality (2 pts),
+// body battery recovery floor (1.5 pts). Missing signals are excluded from
+// the denominator so the remaining signals normalise back to 7 pts —
+// stress-only input gives the same result as the previous stressAvg formula.
+export function computeDailyLifeLoad(
+  stressAvg: number | null,
+  stressHigh: number | null,
+  sleepScore: number | null,
+  bodyBatteryLow: number | null,
+): number | null {
+  if (stressAvg == null && sleepScore == null && bodyBatteryLow == null) return null
+  let rawScore = 0
+  let availableWeight = 0
+  if (stressAvg != null) {
+    const effective = stressHigh != null
+      ? stressAvg * 0.7 + stressHigh * 0.3
+      : stressAvg
+    rawScore += (effective / 100) * STRAIN_STRESS_WEIGHT
+    availableWeight += STRAIN_STRESS_WEIGHT
+  }
+  if (sleepScore != null) {
+    rawScore += ((100 - sleepScore) / 100) * STRAIN_SLEEP_WEIGHT
+    availableWeight += STRAIN_SLEEP_WEIGHT
+  }
+  if (bodyBatteryLow != null) {
+    rawScore += ((100 - bodyBatteryLow) / 100) * STRAIN_BATTERY_WEIGHT
+    availableWeight += STRAIN_BATTERY_WEIGHT
+  }
+  return availableWeight > 0 ? (rawScore / availableWeight) * STRAIN_LIFE_WEIGHT : null
+}
+
 export function computeDailyStrain(
   activityLoad: number | null,
-  stressAvg: number | null,
+  lifeLoad: number | null,
 ): number | null {
-  if (activityLoad == null && stressAvg == null) return null
-  // No activity load and stress not yet synced — nothing meaningful to show
-  if ((activityLoad == null || activityLoad === 0) && stressAvg == null) return null
+  if (activityLoad == null && lifeLoad == null) return null
+  // No activity load and life signals not yet synced — nothing meaningful to show
+  if ((activityLoad == null || activityLoad === 0) && lifeLoad == null) return null
   const workout = ((activityLoad ?? 0) / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT
-  const life = ((stressAvg ?? 0) / 100) * STRAIN_LIFE_WEIGHT
+  const life = lifeLoad ?? 0
   return Math.min(21, Math.round(workout + life))
 }
 
@@ -55,9 +93,17 @@ export function strainLabel(score: number): 'low' | 'moderate' | 'high' {
   return 'high'
 }
 
-export function formatStrainForPrompt(strain: number | null): string {
+export function formatStrainForPrompt(
+  strain: number | null,
+  sleepScore?: number | null,
+  bodyBatteryLow?: number | null,
+): string {
   if (strain == null) return ''
-  return `Daily Strain: ${strain}/21 (${strainLabel(strain)})`
+  const parts: string[] = []
+  if (sleepScore != null && sleepScore < 70) parts.push(`sleep ${sleepScore}/100`)
+  if (bodyBatteryLow != null && bodyBatteryLow < 50) parts.push(`body battery woke at ${bodyBatteryLow}%`)
+  const context = parts.length ? ` — ${parts.join(', ')}` : ''
+  return `Daily Strain: ${strain}/21 (${strainLabel(strain)})${context}`
 }
 
 export function formatStrainHistoryForPrompt(
