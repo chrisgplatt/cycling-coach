@@ -13,8 +13,8 @@ function daysAgo(n: number): string {
 const mockCharts: ChartsData = {
   wellness: [
     { id: daysAgo(100), ctl: 55, atl: 60, form: -5, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
-    { id: daysAgo(10), ctl: 62, atl: 65, form: -3, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
-    { id: daysAgo(5),  ctl: 68, atl: 70, form: -2, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
+    { id: daysAgo(10), ctl: 62, atl: 65, form: -3, hrv: null, resting_hr: 52,   sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
+    { id: daysAgo(5),  ctl: 68, atl: 70, form: -2, hrv: null, resting_hr: 50,   sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
   ],
   weeklyTss: [],
   rides: [
@@ -50,9 +50,9 @@ it('shows current CTL value', async () => {
   expect(screen.getByText(/Progress \(CTL\) 68/)).toBeInTheDocument()
 })
 
-it('shows current HR value', async () => {
+it('shows current RHR value', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
-  expect(screen.getByText(/HR 143 bpm/)).toBeInTheDocument()
+  expect(screen.getByText(/RHR 50 bpm/)).toBeInTheDocument()
 })
 
 it('renders the SVG with CTL path and no HR dots', async () => {
@@ -73,8 +73,8 @@ it('renders time-range tabs', async () => {
 it('changing range tab re-filters data', async () => {
   const user = userEvent.setup()
   await act(async () => { render(<CtlTrendStrip />) })
-  // Switch to 12m — all 3 CTL points included; daysAgo(100) ride is >91 days from
-  // daysAgo(9), guaranteeing 2+ distinct ISO weeks and rendering an HR line
+  // Switch to 12m — all 3 wellness entries included; daysAgo(10) and daysAgo(5)
+  // both have resting_hr, so rhrPath renders (2 points)
   await user.click(screen.getByRole('button', { name: /12m/i }))
   const svg = screen.getByTestId('ctl-trend-svg')
   expect(screen.getByTestId('ctl-trend-strip')).toBeInTheDocument()

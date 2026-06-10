@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { isoWeekStart } from '@/lib/chart-helpers'
 import type { ChartsData } from '@/types'
 
 type Range = '1m' | '3m' | '6m' | '12m'
@@ -49,47 +48,35 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
   const ctlY = (v: number) =>
     PAD_T + ((ctlMax - v) / (ctlMax - ctlMin)) * CH
 
-  // CTL path
   const ctlPath = ctlPoints
     .map((w, i) => `${i === 0 ? 'M' : 'L'}${xOf(w.id).toFixed(1)},${ctlY(w.ctl as number).toFixed(1)}`)
     .join(' ')
 
-  // Weekly average HR — group rides within the CTL window by ISO week
-  const ctlWindowStart = ctlPoints[0].id
-  const inWindowRides = (data.rides ?? []).filter(r => r.date >= ctlWindowStart && r.avgHr !== null)
-  const weekHrMap = new Map<string, { sum: number; count: number }>()
-  for (const r of inWindowRides) {
-    const week = isoWeekStart(r.date)
-    const entry = weekHrMap.get(week) ?? { sum: 0, count: 0 }
-    entry.sum += r.avgHr as number
-    entry.count += 1
-    weekHrMap.set(week, entry)
-  }
-  const weeklyHr = Array.from(weekHrMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([week, { sum, count }]) => ({ date: week, avgHr: Math.round(sum / count) }))
+  // Resting HR — daily values from wellness, same window as CTL
+  const rhrPoints = ctlPoints.filter(w => w.resting_hr !== null)
+  const rhrVals   = rhrPoints.map(w => w.resting_hr as number)
+  const rhrMin    = rhrVals.length ? Math.min(...rhrVals) - 3 : 0
+  const rhrMax    = rhrVals.length ? Math.max(...rhrVals) + 3 : 100
+  const rhrY = (v: number) =>
+    PAD_T + ((rhrMax - v) / (rhrMax - rhrMin)) * CH
 
-  // HR y-axis (right — independent scale)
-  const hrVals = weeklyHr.map(p => p.avgHr)
-  const hrMin  = hrVals.length ? Math.min(...hrVals) - 5 : 0
-  const hrMax  = hrVals.length ? Math.max(...hrVals) + 5 : 200
-  const hrY = (v: number) =>
-    PAD_T + ((hrMax - v) / (hrMax - hrMin)) * CH
-
-  const hrPath = weeklyHr.length >= 2
-    ? weeklyHr.map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(p.date).toFixed(1)},${hrY(p.avgHr).toFixed(1)}`).join(' ')
+  const rhrPath = rhrPoints.length >= 2
+    ? rhrPoints.map((w, i) => `${i === 0 ? 'M' : 'L'}${xOf(w.id).toFixed(1)},${rhrY(w.resting_hr as number).toFixed(1)}`).join(' ')
     : null
 
   // Current-value badges
   const latestCtl = ctlVals[ctlVals.length - 1] ?? null
-  const latestHr  = weeklyHr.length ? weeklyHr[weeklyHr.length - 1].avgHr : null
+  const latestRhr = rhrVals.length ? rhrVals[rhrVals.length - 1] : null
 
-  // X-axis ticks: weekly for 1m, monthly for 3m/6m (step=1), every 2 months for 12m
+  // X-axis ticks: weekly for 1m, monthly for 3m/6m, every 2 months for 12m
   const endDate = new Date(ctlPoints[ctlPoints.length - 1].id)
   const xTicks: Array<{ x: number; label: string }> = []
   if (range === '1m') {
-    const d = new Date(isoWeekStart(ctlPoints[0].id))
-    d.setDate(d.getDate() + 7)
+    // Find the Monday of the week containing ctlPoints[0], then step forward
+    const firstDate = new Date(ctlPoints[0].id)
+    const dow = (firstDate.getDay() + 6) % 7  // Mon=0 … Sun=6
+    const d = new Date(firstDate)
+    d.setDate(d.getDate() - dow + 7)           // first Monday after start
     while (d <= endDate) {
       xTicks.push({
         x: PAD_L + ((d.getTime() - startMs) / spanMs) * CW,
@@ -113,10 +100,10 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
   // Y-axis: actual (unpadded) data range
   const ctlActMin = Math.min(...ctlVals)
   const ctlActMax = Math.max(...ctlVals)
-  const hrActMin  = hrVals.length ? Math.min(...hrVals) : null
-  const hrActMax  = hrVals.length ? Math.max(...hrVals) : null
+  const rhrActMin = rhrVals.length ? Math.min(...rhrVals) : null
+  const rhrActMax = rhrVals.length ? Math.max(...rhrVals) : null
   const showCtlAxis = ctlActMin !== ctlActMax
-  const showHrAxis  = hrActMin !== null && hrActMax !== null && hrActMin !== hrActMax
+  const showRhrAxis = rhrActMin !== null && rhrActMax !== null && rhrActMin !== rhrActMax
 
   const inner = (
     <div>
@@ -140,10 +127,10 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
           {latestCtl !== null && (
             <span className="text-blue-600">Progress (CTL) {Math.round(latestCtl)}</span>
           )}
-          {latestHr !== null && (
+          {latestRhr !== null && (
             <>
               <span className="text-gray-300" aria-hidden="true">·</span>
-              <span className="text-rose-500">HR {Math.round(latestHr)} bpm</span>
+              <span className="text-rose-500">RHR {Math.round(latestRhr)} bpm</span>
             </>
           )}
         </div>
@@ -164,10 +151,10 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
           strokeLinejoin="round"
           strokeLinecap="round"
         />
-        {/* Weekly avg HR line */}
-        {hrPath && (
+        {/* Resting HR line */}
+        {rhrPath && (
           <path
-            d={hrPath}
+            d={rhrPath}
             fill="none"
             stroke="#f43f5e"
             strokeWidth="1.5"
@@ -208,14 +195,14 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
             </text>
           </>
         )}
-        {/* HR y-axis labels: min (bottom) and max (top), right side, rose */}
-        {showHrAxis && (
+        {/* RHR y-axis labels: min (bottom) and max (top), right side, rose */}
+        {showRhrAxis && (
           <>
-            <text x={PAD_L + CW + 3} y={hrY(hrActMin!) + 3} textAnchor="start" fontSize="8" fill="#f43f5e" fontFamily="system-ui,sans-serif">
-              {Math.round(hrActMin!)}
+            <text x={PAD_L + CW + 3} y={rhrY(rhrActMin!) + 3} textAnchor="start" fontSize="8" fill="#f43f5e" fontFamily="system-ui,sans-serif">
+              {Math.round(rhrActMin!)}
             </text>
-            <text x={PAD_L + CW + 3} y={hrY(hrActMax!) + 3} textAnchor="start" fontSize="8" fill="#f43f5e" fontFamily="system-ui,sans-serif">
-              {Math.round(hrActMax!)}
+            <text x={PAD_L + CW + 3} y={rhrY(rhrActMax!) + 3} textAnchor="start" fontSize="8" fill="#f43f5e" fontFamily="system-ui,sans-serif">
+              {Math.round(rhrActMax!)}
             </text>
           </>
         )}
