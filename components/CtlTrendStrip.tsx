@@ -7,8 +7,12 @@ type Range = '1m' | '3m' | '6m' | '12m'
 
 const RANGE_MONTHS: Record<Range, number> = { '1m': 1, '3m': 3, '6m': 6, '12m': 12 }
 const RANGES: Range[] = ['1m', '3m', '6m', '12m']
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-const W = 320, H = 64, PAD = 4
+const W = 320, H = 80
+const PAD_T = 4, PAD_B = 16, PAD_L = 28, PAD_R = 28
+const CW = W - PAD_L - PAD_R   // 264 — chart width
+const CH = H - PAD_T - PAD_B   // 60  — chart height
 
 export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean }) {
   const [data, setData] = useState<ChartsData | null>(null)
@@ -36,14 +40,14 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
   const endMs   = new Date(ctlPoints[ctlPoints.length - 1].id).getTime()
   const spanMs  = Math.max(endMs - startMs, 1)
   const xOf = (dateStr: string) =>
-    PAD + ((new Date(dateStr).getTime() - startMs) / spanMs) * (W - PAD * 2)
+    PAD_L + ((new Date(dateStr).getTime() - startMs) / spanMs) * CW
 
   // CTL y-axis (left)
   const ctlVals = ctlPoints.map(w => w.ctl as number)
   const ctlMin  = Math.min(...ctlVals) - 5
   const ctlMax  = Math.max(...ctlVals) + 5
   const ctlY = (v: number) =>
-    PAD + ((ctlMax - v) / (ctlMax - ctlMin)) * (H - PAD * 2)
+    PAD_T + ((ctlMax - v) / (ctlMax - ctlMin)) * CH
 
   // CTL path
   const ctlPath = ctlPoints
@@ -70,7 +74,7 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
   const hrMin  = hrVals.length ? Math.min(...hrVals) - 5 : 0
   const hrMax  = hrVals.length ? Math.max(...hrVals) + 5 : 200
   const hrY = (v: number) =>
-    PAD + ((hrMax - v) / (hrMax - hrMin)) * (H - PAD * 2)
+    PAD_T + ((hrMax - v) / (hrMax - hrMin)) * CH
 
   const hrPath = weeklyHr.length >= 2
     ? weeklyHr.map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(p.date).toFixed(1)},${hrY(p.avgHr).toFixed(1)}`).join(' ')
@@ -79,6 +83,40 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
   // Current-value badges
   const latestCtl = ctlVals[ctlVals.length - 1] ?? null
   const latestHr  = weeklyHr.length ? weeklyHr[weeklyHr.length - 1].avgHr : null
+
+  // X-axis ticks: weekly for 1m, monthly for 3m/6m (step=1), every 2 months for 12m
+  const endDate = new Date(ctlPoints[ctlPoints.length - 1].id)
+  const xTicks: Array<{ x: number; label: string }> = []
+  if (range === '1m') {
+    const d = new Date(isoWeekStart(ctlPoints[0].id))
+    d.setDate(d.getDate() + 7)
+    while (d <= endDate) {
+      xTicks.push({
+        x: PAD_L + ((d.getTime() - startMs) / spanMs) * CW,
+        label: `${d.getDate()} ${MONTHS[d.getMonth()]}`,
+      })
+      d.setDate(d.getDate() + 7)
+    }
+  } else {
+    const step = range === '12m' ? 2 : 1
+    const s = new Date(ctlPoints[0].id)
+    const d = new Date(s.getFullYear(), s.getMonth() + 1, 1)
+    while (d <= endDate) {
+      xTicks.push({
+        x: PAD_L + ((d.getTime() - startMs) / spanMs) * CW,
+        label: MONTHS[d.getMonth()],
+      })
+      d.setMonth(d.getMonth() + step)
+    }
+  }
+
+  // Y-axis: actual (unpadded) data range
+  const ctlActMin = Math.min(...ctlVals)
+  const ctlActMax = Math.max(...ctlVals)
+  const hrActMin  = hrVals.length ? Math.min(...hrVals) : null
+  const hrActMax  = hrVals.length ? Math.max(...hrVals) : null
+  const showCtlAxis = ctlActMin !== ctlActMax
+  const showHrAxis  = hrActMin !== null && hrActMax !== null && hrActMin !== hrActMax
 
   const inner = (
     <div>
@@ -116,8 +154,8 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
         preserveAspectRatio="none"
         aria-hidden="true"
         data-testid="ctl-trend-svg"
-        className="px-1"
       >
+        {/* CTL line */}
         <path
           d={ctlPath}
           fill="none"
@@ -126,6 +164,7 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
           strokeLinejoin="round"
           strokeLinecap="round"
         />
+        {/* Weekly avg HR line */}
         {hrPath && (
           <path
             d={hrPath}
@@ -136,6 +175,49 @@ export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean
             strokeLinecap="round"
             strokeDasharray="4 2"
           />
+        )}
+        {/* X-axis tick marks + labels */}
+        {xTicks.map((tick, i) => (
+          <g key={i}>
+            <line
+              x1={tick.x.toFixed(1)} y1={PAD_T + CH}
+              x2={tick.x.toFixed(1)} y2={PAD_T + CH + 3}
+              stroke="#e5e7eb"
+              strokeWidth="1"
+            />
+            <text
+              x={tick.x.toFixed(1)}
+              y={H - 2}
+              textAnchor="middle"
+              fontSize="8"
+              fill="#9ca3af"
+              fontFamily="system-ui,sans-serif"
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
+        {/* CTL y-axis labels: min (bottom) and max (top), left side, blue */}
+        {showCtlAxis && (
+          <>
+            <text x={PAD_L - 3} y={ctlY(ctlActMin) + 3} textAnchor="end" fontSize="8" fill="#3b82f6" fontFamily="system-ui,sans-serif">
+              {Math.round(ctlActMin)}
+            </text>
+            <text x={PAD_L - 3} y={ctlY(ctlActMax) + 3} textAnchor="end" fontSize="8" fill="#3b82f6" fontFamily="system-ui,sans-serif">
+              {Math.round(ctlActMax)}
+            </text>
+          </>
+        )}
+        {/* HR y-axis labels: min (bottom) and max (top), right side, rose */}
+        {showHrAxis && (
+          <>
+            <text x={PAD_L + CW + 3} y={hrY(hrActMin!) + 3} textAnchor="start" fontSize="8" fill="#f43f5e" fontFamily="system-ui,sans-serif">
+              {Math.round(hrActMin!)}
+            </text>
+            <text x={PAD_L + CW + 3} y={hrY(hrActMax!) + 3} textAnchor="start" fontSize="8" fill="#f43f5e" fontFamily="system-ui,sans-serif">
+              {Math.round(hrActMax!)}
+            </text>
+          </>
         )}
       </svg>
     </div>
