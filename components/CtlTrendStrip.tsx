@@ -19,16 +19,25 @@ const CH = H - PAD_T - PAD_B
 const xPct = (x: number) => `${(x / W * 100).toFixed(2)}%`
 const yPct = (y: number) => `${(y / H * 100).toFixed(2)}%`
 
-export default function CtlTrendStrip({ embedded = false }: { embedded?: boolean }) {
-  const [data, setData] = useState<ChartsData | null>(null)
+export default function CtlTrendStrip({
+  embedded = false,
+  chartsData,
+}: {
+  embedded?: boolean
+  chartsData?: ChartsData | null
+}) {
+  const [fetched, setFetched] = useState<ChartsData | null>(null)
   const [range, setRange] = useState<Range>('1m')
 
   useEffect(() => {
+    if (chartsData !== undefined) return   // skip self-fetch when data is provided
     fetch('/api/charts')
       .then(r => r.ok ? r.json() : null)
-      .then(d => setData(d?.charts ?? null))
-      .catch(() => setData(null))
-  }, [])
+      .then(d => setFetched(d?.charts ?? null))
+      .catch(() => setFetched(null))
+  }, [chartsData])
+
+  const data = chartsData ?? fetched
 
   if (!data) return null
 

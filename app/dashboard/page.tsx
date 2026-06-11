@@ -108,6 +108,7 @@ export default function DashboardPage() {
   const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
   const [strainSheetOpen, setStrainSheetOpen] = useState(false)
+  const [chartsData, setChartsData] = useState<import('@/types').ChartsData | null>(null)
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -310,6 +311,13 @@ export default function DashboardPage() {
     }).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    fetch('/api/charts')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setChartsData(d?.charts ?? null))
+      .catch(() => setChartsData(null))
+  }, [])
+
   const wellnessArr = syncData?.wellness ?? []
   const latestEntry = wellnessArr.length > 0 ? wellnessArr[wellnessArr.length - 1] : null
   const reversed = [...wellnessArr].reverse()
@@ -438,9 +446,10 @@ export default function DashboardPage() {
             embedded
             lastRideLabel={lastRide ? formatLastRide() : undefined}
             onStrainTap={() => setStrainSheetOpen(true)}
+            strainHistory={chartsData?.dailyStrain}
           />
           <HrvStatusChip embedded />
-          <CtlTrendStrip embedded />
+          <CtlTrendStrip embedded chartsData={chartsData} />
         </div>
       )}
 
