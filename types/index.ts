@@ -322,10 +322,18 @@ export interface RidePoint {
   tss: number | null
 }
 
+export interface DailyStrainPoint {
+  date: string    // YYYY-MM-DD
+  workout: number // workout contribution 0–14 (float)
+  life: number    // life signal contribution 0–7 (float)
+  total: number   // rounded combined strain score 0–21
+}
+
 export interface ChartsData {
   wellness: ICUWellness[]
   weeklyTss: WeeklyTss[]
   rides: RidePoint[]
+  dailyStrain: DailyStrainPoint[]
 }
 
 export interface ICUPowerCurvePoint {
