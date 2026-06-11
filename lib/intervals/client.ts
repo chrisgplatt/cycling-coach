@@ -224,6 +224,7 @@ export class IntervalsClient {
       max_watts: (a.p_max ?? null) as number | null,
       weighted_average_watts: (a.icu_weighted_avg_watts ?? null) as number | null,
       average_heartrate: (a.average_heartrate ?? null) as number | null,
+      max_heartrate: (a.max_heartrate ?? null) as number | null,
       training_load: (a.icu_training_load ?? null) as number | null,
       rolling_ftp: (a.icu_rolling_ftp ?? null) as number | null,
       distance: (a.distance ?? null) as number | null,

@@ -245,6 +245,7 @@ export interface ICUActivity {
   max_watts: number | null
   weighted_average_watts: number | null
   average_heartrate: number | null
+  max_heartrate?: number | null
   training_load: number | null   // TSS
   rolling_ftp: number | null     // intervals.icu rolling FTP estimate
   distance: number | null              // metres
@@ -369,6 +370,8 @@ export interface ActivityMetrics {
   avg_power: number | null
   max_power: number | null
   avg_hr: number | null
+  max_hr?: number | null
+  min_hr?: number | null
   distance_m: number | null
   elevation_m: number | null   // total_elevation_gain
   lr_balance: number | null    // left %

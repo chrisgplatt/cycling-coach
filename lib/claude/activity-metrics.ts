@@ -39,6 +39,8 @@ export function extractActivityMetrics(
     avg_power: act.average_watts ?? null,
     max_power: act.max_watts ?? null,
     avg_hr: act.average_heartrate ?? null,
+    max_hr: act.max_heartrate ?? null,
+    min_hr: null,
     distance_m: act.distance ?? null,
     elevation_m: act.total_elevation_gain ?? null,
     lr_balance: act.left_right_balance ?? null,

@@ -10,6 +10,8 @@ export interface RideStatsData {
   elevationM: number | null
   durationSecs: number
   avgHr: number | null
+  maxHr: number | null
+  minHr: number | null
   lrBalanceLeft: number | null   // left %, e.g. 52.3
 }
 
@@ -32,6 +34,8 @@ export function rideStatsFromActivity(a: ICUActivity): RideStatsData {
     elevationM: a.total_elevation_gain,
     durationSecs: a.moving_time,
     avgHr: a.average_heartrate,
+    maxHr: a.max_heartrate ?? null,
+    minHr: null,
     lrBalanceLeft: a.left_right_balance,
   }
 }
@@ -47,6 +51,8 @@ export function rideStatsFromMetrics(m: ActivityMetrics, durationSecs: number, t
     elevationM: m.elevation_m,
     durationSecs,
     avgHr: m.avg_hr,
+    maxHr: m.max_hr ?? null,
+    minHr: m.min_hr ?? null,
     lrBalanceLeft: m.lr_balance,
   }
 }
@@ -115,10 +121,12 @@ export default function RideStats({ data }: { data: RideStatsData }) {
         </div>
       </SectionCard>
 
-      {data.avgHr !== null && (
+      {(data.avgHr !== null || data.maxHr !== null) && (
         <SectionCard title="Heart Rate" accent="bg-red-400">
-          <div className="flex justify-center">
-            <StatCell label="Avg HR" value={num(data.avgHr)} unit="bpm" valueClass="text-red-500" />
+          <div className="flex divide-x divide-gray-100">
+            {data.minHr !== null && <StatCell label="Min HR" value={num(data.minHr)} unit="bpm" valueClass="text-red-300" />}
+            {data.avgHr !== null && <StatCell label="Avg HR" value={num(data.avgHr)} unit="bpm" valueClass="text-red-500" />}
+            {data.maxHr !== null && <StatCell label="Max HR" value={num(data.maxHr)} unit="bpm" valueClass="text-red-600" />}
           </div>
         </SectionCard>
       )}
