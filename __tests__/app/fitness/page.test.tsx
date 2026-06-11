@@ -14,6 +14,7 @@ const mockCharts: ChartsData = {
     { weekStart: '2026-05-18', tss: 180 },
   ],
   rides: [],
+  dailyStrain: [],
 }
 
 global.fetch = jest.fn()

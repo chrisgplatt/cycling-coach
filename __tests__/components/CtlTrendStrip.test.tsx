@@ -17,6 +17,7 @@ const mockCharts: ChartsData = {
     { id: daysAgo(5),  ctl: 68, atl: 70, form: -2, hrv: null, resting_hr: 50,   sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
   ],
   weeklyTss: [],
+  dailyStrain: [],
   rides: [
     { date: daysAgo(100), avgHr: 138, tss: 80 },
     { date: daysAgo(10),  avgHr: 142, tss: 95 },
