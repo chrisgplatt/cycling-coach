@@ -119,6 +119,9 @@ function yOf(v: number) {
   return PAD_T + (Y_MAX - v) / Y_MAX * CH
 }
 
+const xPct = (x: number) => `${(x / VW * 100).toFixed(2)}%`
+const yPct = (y: number) => `${(y / VH * 100).toFixed(2)}%`
+
 function StrainChart({
   data,
   tab,
@@ -135,19 +138,10 @@ function StrainChart({
   const gridLines = [0, 10, 20].map(v => {
     const y = yOf(v).toFixed(1)
     return (
-      <g key={v}>
-        <line
-          x1={PAD_L} y1={y} x2={PAD_L + CW} y2={y}
-          stroke={v === 0 ? '#e5e7eb' : '#f3f4f6'} strokeWidth="1"
-        />
-        <text
-          x={(PAD_L - 4).toFixed(1)} y={(yOf(v) + 3).toFixed(1)}
-          fontSize="7.5" fill="#9ca3af" textAnchor="end"
-          fontFamily="system-ui,sans-serif"
-        >
-          {v}
-        </text>
-      </g>
+      <line key={v}
+        x1={PAD_L} y1={y} x2={PAD_L + CW} y2={y}
+        stroke={v === 0 ? '#e5e7eb' : '#f3f4f6'} strokeWidth="1"
+      />
     )
   })
 
@@ -183,17 +177,7 @@ function StrainChart({
 
     linePoints.push(`${cx.toFixed(1)},${yOf(d.total).toFixed(1)}`)
 
-    if (d.label) {
-      bars.push(
-        <text key={`lbl-${i}`}
-          x={cx.toFixed(1)} y={(VH - 2).toFixed(1)}
-          fontSize={n > 10 ? '6' : '7.5'} fill="#9ca3af"
-          textAnchor="middle" fontFamily="system-ui,sans-serif"
-        >
-          {d.label}
-        </text>
-      )
-    }
+    // x-axis labels rendered in HTML overlay below
   })
 
   const dots = showDots ? data.map((d, i) => {
@@ -208,18 +192,47 @@ function StrainChart({
   }) : null
 
   return (
-    <svg viewBox={`0 0 ${VW} ${VH}`} width="100%" style={{ display: 'block', overflow: 'visible' }}>
-      {gridLines}
-      {bars}
-      {linePoints.length > 1 && (
-        <polyline
-          points={linePoints.join(' ')}
-          fill="none" stroke="#374151" strokeWidth="1.8"
-          strokeLinecap="round" strokeLinejoin="round"
-        />
-      )}
-      {dots}
-    </svg>
+    <div className="relative">
+      <svg viewBox={`0 0 ${VW} ${VH}`} width="100%" style={{ display: 'block', overflow: 'visible' }}>
+        {gridLines}
+        {bars}
+        {linePoints.length > 1 && (
+          <polyline
+            points={linePoints.join(' ')}
+            fill="none" stroke="#374151" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round"
+          />
+        )}
+        {dots}
+      </svg>
+      {/* HTML label overlay — font-size here is real CSS pixels, not SVG user units */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Y-axis labels */}
+        {[0, 10, 20].map(v => (
+          <span
+            key={v}
+            className="absolute text-[9px] leading-none font-sans text-gray-400 whitespace-nowrap"
+            style={{ left: xPct(PAD_L - 2), top: yPct(yOf(v)), transform: 'translate(-100%, -50%)' }}
+          >
+            {v}
+          </span>
+        ))}
+        {/* X-axis labels */}
+        {data.map((d, i) => {
+          if (!d.label) return null
+          const cx = PAD_L + (CW / n) * i + (CW / n) / 2
+          return (
+            <span
+              key={i}
+              className={`absolute leading-none font-sans text-gray-400 whitespace-nowrap ${n > 10 ? 'text-[8px]' : 'text-[9px]'}`}
+              style={{ left: xPct(cx), top: yPct(VH - 2), transform: 'translate(-50%, -100%)' }}
+            >
+              {d.label}
+            </span>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
