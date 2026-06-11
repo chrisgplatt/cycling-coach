@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import type { ICUWellness, DailyStrainPoint } from '@/types'
+import type { HrvStatus } from '@/lib/hrv/baseline'
 import { computeDailyStrain, computeDailyLifeLoad, strainLabel } from '@/lib/strain'
 import { isoWeekStart } from '@/lib/chart-helpers'
 
@@ -254,6 +255,7 @@ export default function MetricsBar({
   lastRideLabel,
   onStrainTap,
   strainHistory,
+  hrvStatus,
 }: {
   wellness: ICUWellness | null
   syncedAt?: Date | null
@@ -262,6 +264,7 @@ export default function MetricsBar({
   lastRideLabel?: string
   onStrainTap?: () => void
   strainHistory?: DailyStrainPoint[]
+  hrvStatus?: HrvStatus | null
 }) {
   const [trendOpen, setTrendOpen] = useState(false)
   const [trendTab, setTrendTab] = useState<'1w' | '1m' | '3m'>('1w')
@@ -331,8 +334,23 @@ export default function MetricsBar({
           value={form}
           valueClass={form === null ? 'text-gray-900' : formPositive ? 'text-emerald-600' : 'text-red-500'}
         />
-        {wellness.hrv !== null && (
-          <Metric label="HRV" value={wellness.hrv} valueClass="text-violet-600" stale={stale.hrv} />
+        {(wellness.hrv !== null || hrvStatus?.sevenDayAvg !== null) && (
+          <div className="flex-1 text-center px-2 py-3 sm:px-3 sm:py-4">
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-violet-600">
+              {hrvStatus?.sevenDayAvg != null
+                ? Math.round(hrvStatus.sevenDayAvg)
+                : Math.round(wellness.hrv!)}
+            </div>
+            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">HRV</div>
+            {stale.hrv && (
+              <span className="inline-block mt-0.5 text-[9px] font-bold uppercase tracking-wide bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full">
+                prev day
+              </span>
+            )}
+            {hrvStatus?.sevenDayAvg != null && wellness.hrv != null && (
+              <div className="text-[9px] text-gray-400 mt-0.5">today {Math.round(wellness.hrv)}</div>
+            )}
+          </div>
         )}
         {wellness.resting_hr !== null && (
           <Metric label="Resting HR" value={wellness.resting_hr} valueClass="text-rose-500" unit="bpm" stale={stale.restingHr} />

@@ -52,7 +52,7 @@ export default function SplashScreen() {
       style={{ transitionDuration: `${FADE_MS}ms` }}
     >
       <div className="flex flex-col items-center gap-5 text-center">
-        <div className="animate-[ride-in_0.7s_cubic-bezier(0.22,1,0.36,1)_both] motion-reduce:animate-none">
+        <div className="flex justify-center animate-[ride-in_0.7s_cubic-bezier(0.22,1,0.36,1)_both] motion-reduce:animate-none">
           <AnimatedLogo size={150} bare />
         </div>
         <span className="text-lg font-bold tracking-tight text-white animate-[splash-fade-up_0.4s_ease-out_0.55s_both] motion-reduce:animate-none">

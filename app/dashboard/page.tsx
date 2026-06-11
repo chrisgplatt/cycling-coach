@@ -13,6 +13,7 @@ import { isoWeek } from '@/lib/iso-week'
 import { getWeekBounds } from '@/lib/week-bounds'
 import { localDateStr } from '@/lib/local-date'
 import { computeDailyActivityLoad } from '@/lib/strain'
+import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import type { GeneratedPlan } from '@/types'
 import {
   DndContext,
@@ -330,6 +331,7 @@ export default function DashboardPage() {
     hrv: !!(hrvEntry && latestEntry && hrvEntry.id !== latestEntry.id),
     restingHr: !!(restingHrEntry && latestEntry && restingHrEntry.id !== latestEntry.id),
   }
+  const hrvStatus = computeHrvBaseline(wellnessArr)
 
   const lastRide = syncData?.activities
     ?.filter(a => /ride/i.test(a.type))
@@ -447,6 +449,7 @@ export default function DashboardPage() {
             lastRideLabel={lastRide ? formatLastRide() : undefined}
             onStrainTap={() => setStrainSheetOpen(true)}
             strainHistory={chartsData?.dailyStrain}
+            hrvStatus={hrvStatus}
           />
           <HrvStatusChip embedded />
           <CtlTrendStrip embedded chartsData={chartsData} />
