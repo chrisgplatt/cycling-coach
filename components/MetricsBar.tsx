@@ -48,6 +48,10 @@ function formatSyncTime(syncedAt: Date | null): string {
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function strainChartData(
   history: DailyStrainPoint[],
   tab: '1w' | '1m' | '3m',
@@ -55,7 +59,7 @@ function strainChartData(
   if (tab === '3m') {
     const cutoff = new Date()
     cutoff.setMonth(cutoff.getMonth() - 3)
-    const cutoffStr = cutoff.toISOString().slice(0, 10)
+    const cutoffStr = localDateStr(cutoff)
     const filtered = history.filter(p => p.date >= cutoffStr)
     const weekMap = new Map<string, DailyStrainPoint[]>()
     for (const p of filtered) {
@@ -83,14 +87,14 @@ function strainChartData(
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - days + 1)
   cutoff.setHours(0, 0, 0, 0)
-  const cutoffStr = cutoff.toISOString().slice(0, 10)
+  const cutoffStr = localDateStr(cutoff)
   const filtered = history.filter(p => p.date >= cutoffStr)
 
   const result: Array<{ label: string; workout: number; life: number; total: number }> = []
   for (let i = 0; i < days; i++) {
     const d = new Date(cutoff)
     d.setDate(cutoff.getDate() + i)
-    const dateStr = d.toISOString().slice(0, 10)
+    const dateStr = localDateStr(d)
     const found = filtered.find(p => p.date === dateStr)
     let label = ''
     if (tab === '1w') {
