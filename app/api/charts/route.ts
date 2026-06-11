@@ -2,15 +2,11 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { isoWeekStart } from '@/lib/chart-helpers'
-import type { ChartsData, WeeklyTss, RidePoint } from '@/types'
+import type { ChartsData, WeeklyTss, RidePoint, DailyStrainPoint } from '@/types'
 import {
   computeDailyActivityLoad,
-  computeDailyLifeLoad,
-  computeDailyStrain,
-  STRAIN_TRAINING_LOAD_MAX,
-  STRAIN_WORKOUT_WEIGHT,
+  computeStrainComponents,
 } from '@/lib/strain'
-import type { DailyStrainPoint } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,21 +68,17 @@ export async function GET() {
     const dailyStrain: DailyStrainPoint[] = wellness
       .map(w => {
         const activityLoad = computeDailyActivityLoad(activities, w.id, ftp)
-        const lifeLoad = computeDailyLifeLoad(
+        const components = computeStrainComponents(
+          activityLoad > 0 ? activityLoad : null,
           w.stress_avg,
           w.stress_high ?? null,
           w.sleep_score,
           w.body_battery_low,
         )
-        const workoutPts = Math.min(
-          STRAIN_WORKOUT_WEIGHT,
-          (activityLoad / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT,
-        )
-        const lifePts = lifeLoad ?? 0
-        const total = computeDailyStrain(activityLoad, lifeLoad) ?? 0
-        return { date: w.id, workout: workoutPts, life: lifePts, total }
+        if (!components) return null
+        return { date: w.id, workout: components.workoutPts, life: components.lifePts, total: components.total }
       })
-      .filter(p => p.total > 0 || p.life > 0 || p.workout > 0)
+      .filter((p): p is DailyStrainPoint => p !== null && (p.total > 0 || p.life > 0 || p.workout > 0))
 
     const charts: ChartsData = { wellness, weeklyTss, rides, dailyStrain }
     return NextResponse.json({ charts })
