@@ -41,7 +41,7 @@ function formatSyncTime(syncedAt: Date | null): string {
   yesterday.setDate(today.getDate() - 1)
   if (syncedStr === yesterday.toISOString().split('T')[0]) return `Synced yesterday at ${timeStr}`
   const [, month, day] = syncedStr.split('-').map(Number)
-  const monthName = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month - 1]
+  const monthName = MONTHS_SHORT[month - 1]
   return `Synced ${day} ${monthName} at ${timeStr}`
 }
 
