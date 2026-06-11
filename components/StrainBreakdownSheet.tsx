@@ -33,7 +33,7 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
   const donut = `conic-gradient(#3b82f6 0% ${w}%, #8b5cf6 ${w}% ${w + sl}%, #10b981 ${w + sl}% ${w + sl + b}%, #e2e8f0 ${w + sl + b}% 100%)`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/40"
         role="button"
@@ -42,17 +42,15 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
         onClick={onClose}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose() }}
       />
-      <div className="relative bg-white w-full rounded-t-2xl sm:rounded-2xl sm:max-w-sm max-h-[92vh] overflow-y-auto">
-        {/* Drag handle */}
+      <div className="relative bg-white w-full max-w-sm rounded-2xl max-h-[92vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="w-full pt-3 pb-1 flex justify-center"
           aria-label="Close"
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
         >
-          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+          ✕
         </button>
-
-        <div className="px-5 pb-8 pt-2">
+        <div className="px-5 pb-8 pt-5">
           {/* Header */}
           <div className="flex items-start justify-between mb-5">
             <div>
