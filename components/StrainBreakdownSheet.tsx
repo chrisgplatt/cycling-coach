@@ -43,14 +43,7 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose() }}
       />
       <div className="relative bg-white w-full max-w-sm rounded-2xl max-h-[92vh] overflow-y-auto">
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-        >
-          ✕
-        </button>
-        <div className="px-5 pb-8 pt-5">
+        <div className="px-5 pb-5 pt-5">
           {/* Header */}
           <div className="flex items-start justify-between mb-5">
             <div>
@@ -142,6 +135,15 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="flex justify-end mt-5">
+            <button
+              onClick={onClose}
+              className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>
