@@ -17,8 +17,6 @@ const BAND_BG: Record<string, string> = {
 export default function StrainBreakdownSheet({ wellness, activitySummary, onClose }: Props) {
   const c = computeStrainComponents(
     wellness.garmin_training_load,
-    wellness.stress_avg,
-    wellness.stress_high,
     wellness.sleep_score,
     wellness.body_battery_low,
   )
@@ -30,10 +28,9 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
   // Donut: use raw un-normalised pts as fractions of 21 for proportional arcs
   const d = 21
   const w  = (c.workoutPts    / d) * 100
-  const s  = (c.stressRawPts  / d) * 100
   const sl = (c.sleepRawPts   / d) * 100
   const b  = (c.batteryRawPts / d) * 100
-  const donut = `conic-gradient(#3b82f6 0% ${w}%, #f59e0b ${w}% ${w + s}%, #8b5cf6 ${w + s}% ${w + s + sl}%, #10b981 ${w + s + sl}% ${w + s + sl + b}%, #e2e8f0 ${w + s + sl + b}% 100%)`
+  const donut = `conic-gradient(#3b82f6 0% ${w}%, #8b5cf6 ${w}% ${w + sl}%, #10b981 ${w + sl}% ${w + sl + b}%, #e2e8f0 ${w + sl + b}% 100%)`
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-4">
@@ -124,20 +121,6 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
 
             {/* Sub-signal rows */}
             <div className="space-y-2.5 pl-1">
-              {/* Stress */}
-              <div className="flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.stressAvg != null ? 'bg-amber-400' : 'bg-gray-200'}`} />
-                {c.stressAvg != null ? (
-                  <span className="text-xs text-gray-700">
-                    Stress{' '}
-                    <span className="text-gray-400">
-                      avg {c.stressAvg}{c.stressHigh != null ? ` · peak ${c.stressHigh}` : ''}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-xs text-gray-300">Stress <em>not synced</em></span>
-                )}
-              </div>
               {/* Sleep */}
               <div className="flex items-center gap-2">
                 <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.sleepScore != null ? 'bg-violet-400' : 'bg-gray-200'}`} />

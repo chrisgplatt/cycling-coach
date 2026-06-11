@@ -273,7 +273,7 @@ export default function MetricsBar({
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
   const formPositive = form !== null && form >= 0
-  const lifeLoad = computeDailyLifeLoad(wellness.stress_avg, wellness.stress_high, wellness.sleep_score, wellness.body_battery_low)
+  const lifeLoad = computeDailyLifeLoad(wellness.sleep_score, wellness.body_battery_low)
   const dailyStrain = computeDailyStrain(wellness.garmin_training_load, lifeLoad)
   const strainCategory = dailyStrain !== null ? strainLabel(dailyStrain) : null
 

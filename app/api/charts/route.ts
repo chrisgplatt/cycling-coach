@@ -70,8 +70,6 @@ export async function GET() {
         const activityLoad = computeDailyActivityLoad(activities, w.id, ftp)
         const components = computeStrainComponents(
           activityLoad > 0 ? activityLoad : null,
-          w.stress_avg,
-          w.stress_high ?? null,
           w.sleep_score,
           w.body_battery_low,
         )

@@ -1,10 +1,9 @@
-export const STRAIN_TRAINING_LOAD_MAX = 400
+export const STRAIN_TRAINING_LOAD_MAX = 150
 export const STRAIN_NONPOWER_LOAD_MAX = 50  // ceiling for walks, runs, HR-only activities
 export const STRAIN_WORKOUT_WEIGHT = 14
 export const STRAIN_LIFE_WEIGHT = 7
 
 // Sub-weights within the 7-point life component
-export const STRAIN_STRESS_WEIGHT = 3.5
 export const STRAIN_SLEEP_WEIGHT = 2.0
 export const STRAIN_BATTERY_WEIGHT = 1.5
 
@@ -15,7 +14,7 @@ export const STRAIN_BATTERY_WEIGHT = 1.5
 // Non-power activities (walks, runs, HR-only): load is scaled up by
 // (STRAIN_TRAINING_LOAD_MAX / STRAIN_NONPOWER_LOAD_MAX) so that a "full"
 // non-power day (≈50 TSS) saturates the same workout component as a
-// "full" cycling day (≈400 TSS), meaning small walk loads register as 1–2/21
+// "full" cycling day (≈150 TSS), meaning small walk loads register as 1–2/21
 // rather than rounding to zero.
 export function computeDailyActivityLoad(
   activities: Array<{
@@ -44,26 +43,16 @@ export function computeDailyActivityLoad(
 
 // Compute the life component of daily strain (0–7) from Garmin wellness signals.
 //
-// Blends up to three signals: stress (3.5 pts), sleep quality (2 pts),
-// body battery recovery floor (1.5 pts). Missing signals are excluded from
-// the denominator so the remaining signals normalise back to 7 pts —
-// stress-only input gives the same result as the previous stressAvg formula.
+// Blends sleep quality (2 pts) and body battery recovery floor (1.5 pts).
+// Missing signals are excluded from the denominator so the remaining signal
+// normalises back to 7 pts.
 export function computeDailyLifeLoad(
-  stressAvg: number | null,
-  stressHigh: number | null,
   sleepScore: number | null,
   bodyBatteryLow: number | null,
 ): number | null {
-  if (stressAvg == null && sleepScore == null && bodyBatteryLow == null) return null
+  if (sleepScore == null && bodyBatteryLow == null) return null
   let rawScore = 0
   let availableWeight = 0
-  if (stressAvg != null) {
-    const effective = stressHigh != null
-      ? stressAvg * 0.7 + stressHigh * 0.3
-      : stressAvg
-    rawScore += (effective / 100) * STRAIN_STRESS_WEIGHT
-    availableWeight += STRAIN_STRESS_WEIGHT
-  }
   if (sleepScore != null) {
     rawScore += ((100 - sleepScore) / 100) * STRAIN_SLEEP_WEIGHT
     availableWeight += STRAIN_SLEEP_WEIGHT
@@ -80,34 +69,23 @@ export interface StrainComponents {
   workoutPts: number        // 0–14 workout contribution
   workoutLoad: number       // raw activity load (TSS-equivalent)
   lifePts: number           // 0–7 normalised life contribution
-  stressRawPts: number      // un-normalised stress pts (for donut)
   sleepRawPts: number       // un-normalised sleep pts (for donut)
   batteryRawPts: number     // un-normalised battery pts (for donut)
-  stressAvg: number | null
-  stressHigh: number | null
   sleepScore: number | null
   bodyBatteryLow: number | null
 }
 
 export function computeStrainComponents(
   activityLoad: number | null,
-  stressAvg: number | null,
-  stressHigh: number | null,
   sleepScore: number | null,
   bodyBatteryLow: number | null,
 ): StrainComponents | null {
-  if (activityLoad == null && stressAvg == null && sleepScore == null && bodyBatteryLow == null) return null
+  if (activityLoad == null && sleepScore == null && bodyBatteryLow == null) return null
   const load = activityLoad ?? 0
   const workoutPts = Math.min(STRAIN_WORKOUT_WEIGHT, (load / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT)
-  let stressRawPts = 0
   let sleepRawPts = 0
   let batteryRawPts = 0
   let availableWeight = 0
-  if (stressAvg != null) {
-    const effective = stressHigh != null ? stressAvg * 0.7 + stressHigh * 0.3 : stressAvg
-    stressRawPts = (effective / 100) * STRAIN_STRESS_WEIGHT
-    availableWeight += STRAIN_STRESS_WEIGHT
-  }
   if (sleepScore != null) {
     sleepRawPts = ((100 - sleepScore) / 100) * STRAIN_SLEEP_WEIGHT
     availableWeight += STRAIN_SLEEP_WEIGHT
@@ -116,10 +94,10 @@ export function computeStrainComponents(
     batteryRawPts = ((100 - bodyBatteryLow) / 100) * STRAIN_BATTERY_WEIGHT
     availableWeight += STRAIN_BATTERY_WEIGHT
   }
-  const rawLife = stressRawPts + sleepRawPts + batteryRawPts
+  const rawLife = sleepRawPts + batteryRawPts
   const lifePts = availableWeight > 0 ? (rawLife / availableWeight) * STRAIN_LIFE_WEIGHT : 0
   const total = Math.min(21, Math.round(workoutPts + lifePts))
-  return { total, workoutPts, workoutLoad: load, lifePts, stressRawPts, sleepRawPts, batteryRawPts, stressAvg, stressHigh, sleepScore, bodyBatteryLow }
+  return { total, workoutPts, workoutLoad: load, lifePts, sleepRawPts, batteryRawPts, sleepScore, bodyBatteryLow }
 }
 
 export function computeDailyStrain(

@@ -9,99 +9,87 @@ import {
 } from '@/lib/strain'
 
 describe('computeDailyLifeLoad', () => {
-  test('stress only — backwards compat', () => {
-    // stress_avg=54 → (54/100)*3.5=1.89, avail=3.5 → (1.89/3.5)*7=3.78
-    expect(computeDailyLifeLoad(54, null, null, null)).toBeCloseTo(3.78, 1)
-  })
-
-  test('stress + peak — peak blended at 30%', () => {
-    // stress_avg=40, stress_high=80 → effective=52 → (52/100)*3.5=1.82 → (1.82/3.5)*7=3.64
-    expect(computeDailyLifeLoad(40, 80, null, null)).toBeCloseTo(3.64, 1)
-  })
-
   test('poor sleep only', () => {
     // sleep_score=30 → ((100-30)/100)*2=1.4, avail=2 → (1.4/2)*7=4.9
-    expect(computeDailyLifeLoad(null, null, 30, null)).toBeCloseTo(4.9, 1)
+    expect(computeDailyLifeLoad(30, null)).toBeCloseTo(4.9, 1)
   })
 
   test('low body battery only', () => {
     // body_battery_low=20 → ((100-20)/100)*1.5=1.2, avail=1.5 → (1.2/1.5)*7=5.6
-    expect(computeDailyLifeLoad(null, null, null, 20)).toBeCloseTo(5.6, 1)
+    expect(computeDailyLifeLoad(null, 20)).toBeCloseTo(5.6, 1)
   })
 
-  test('all three signals', () => {
-    // stress=54→1.89, sleep=85→0.3, battery=75→0.375; raw=2.565, avail=7 → 2.565
-    expect(computeDailyLifeLoad(54, null, 85, 75)).toBeCloseTo(2.565, 1)
+  test('both signals present', () => {
+    // sleep=85→0.3, battery=75→0.375; raw=0.675, avail=3.5 → (0.675/3.5)*7=1.35
+    expect(computeDailyLifeLoad(85, 75)).toBeCloseTo(1.35, 1)
   })
 
-  test('great sleep + good battery softens score', () => {
-    // stress=30→1.05, sleep=90→0.2, battery=85→0.225; raw=1.475, avail=7 → 1.475
-    expect(computeDailyLifeLoad(30, null, 90, 85)).toBeCloseTo(1.475, 1)
+  test('great sleep + good battery gives low score', () => {
+    // sleep=90→0.2, battery=85→0.225; raw=0.425, avail=3.5 → (0.425/3.5)*7=0.85
+    expect(computeDailyLifeLoad(90, 85)).toBeCloseTo(0.85, 1)
   })
 
   test('all null → null', () => {
-    expect(computeDailyLifeLoad(null, null, null, null)).toBeNull()
+    expect(computeDailyLifeLoad(null, null)).toBeNull()
   })
 })
 
 describe('computeStrainComponents', () => {
   test('returns null when all inputs null', () => {
-    expect(computeStrainComponents(null, null, null, null, null)).toBeNull()
+    expect(computeStrainComponents(null, null, null)).toBeNull()
   })
 
-  test('workoutPts = (load / 400) * 14', () => {
-    const c = computeStrainComponents(200, null, null, null, null)
+  test('workoutPts = (load / 150) * 14', () => {
+    const c = computeStrainComponents(75, null, null)
     expect(c).not.toBeNull()
-    expect(c!.workoutPts).toBeCloseTo(7, 1)   // (200/400)*14 = 7
-    expect(c!.workoutLoad).toBe(200)
+    expect(c!.workoutPts).toBeCloseTo(7, 1)   // (75/150)*14 = 7
+    expect(c!.workoutLoad).toBe(75)
   })
 
   test('lifePts matches computeDailyLifeLoad', () => {
-    const c = computeStrainComponents(0, 54, null, 85, 75)!
-    const expected = computeDailyLifeLoad(54, null, 85, 75)!
+    const c = computeStrainComponents(0, 85, 75)!
+    const expected = computeDailyLifeLoad(85, 75)!
     expect(c.lifePts).toBeCloseTo(expected, 4)
   })
 
   test('raw sub-scores are un-normalised', () => {
-    // stress=54 only: raw = (54/100)*3.5 = 1.89; normalised life = 3.78
-    // stressRawPts should be 1.89, not 3.78
-    const c = computeStrainComponents(0, 54, null, null, null)!
-    expect(c.stressRawPts).toBeCloseTo(1.89, 1)
+    // battery=20 only: raw = (80/100)*1.5 = 1.2; normalised life = 5.6
+    // batteryRawPts should be 1.2, not 5.6
+    const c = computeStrainComponents(0, null, 20)!
     expect(c.sleepRawPts).toBe(0)
-    expect(c.batteryRawPts).toBe(0)
+    expect(c.batteryRawPts).toBeCloseTo(1.2, 1)
   })
 
   test('source values pass through unchanged', () => {
-    const c = computeStrainComponents(100, 60, 75, 72, 35)!
-    expect(c.stressAvg).toBe(60)
-    expect(c.stressHigh).toBe(75)
+    const c = computeStrainComponents(100, 72, 35)!
     expect(c.sleepScore).toBe(72)
     expect(c.bodyBatteryLow).toBe(35)
   })
 
   test('no workout today — workoutPts is 0', () => {
-    const c = computeStrainComponents(0, 58, null, null, null)!
+    const c = computeStrainComponents(0, 85, null)!
     expect(c.workoutPts).toBe(0)
     expect(c.workoutLoad).toBe(0)
   })
 
   test('total matches Math.min(21, Math.round(workoutPts + lifePts))', () => {
-    // load=200 → workoutPts=7; stress=54,sleep=85,battery=75 → lifePts≈2.565
-    // total = round(7 + 2.565) = round(9.565) = 10
-    const c = computeStrainComponents(200, 54, null, 85, 75)!
+    // load=75 → workoutPts=7; sleep=85,battery=75 → lifePts≈1.35
+    // total = round(7 + 1.35) = round(8.35) = 8
+    const c = computeStrainComponents(75, 85, 75)!
     expect(c.total).toBe(Math.min(21, Math.round(c.workoutPts + c.lifePts)))
   })
 
   test('total caps at 21', () => {
-    const c = computeStrainComponents(600, 100, 100, 0, 0)!
+    // workoutPts=14 (capped), sleep=0 battery=0 → lifePts=7, total=21
+    const c = computeStrainComponents(600, 0, 0)!
     expect(c.total).toBe(21)
   })
 })
 
 describe('computeDailyStrain', () => {
-  test('typical hard training day with moderate life load', () => {
-    // activityLoad=220, lifeLoad=3.78 → workout=7.7, life=3.78 → round(11.48)=11
-    expect(computeDailyStrain(220, 3.78)).toBe(11)
+  test('typical training day with life load', () => {
+    // activityLoad=75, lifeLoad=3.78 → workout=7, life=3.78 → round(10.78)=11
+    expect(computeDailyStrain(75, 3.78)).toBe(11)
   })
 
   test('rest day with high life load', () => {
@@ -123,8 +111,8 @@ describe('computeDailyStrain', () => {
   })
 
   test('null lifeLoad falls back to activity only', () => {
-    // workout = (200/400)*14 = 7
-    expect(computeDailyStrain(200, null)).toBe(7)
+    // workout = (75/150)*14 = 7
+    expect(computeDailyStrain(75, null)).toBe(7)
   })
 
   test('both null → null', () => {
