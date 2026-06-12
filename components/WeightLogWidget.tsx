@@ -14,6 +14,11 @@ function formatEntryDate(dateStr: string): string {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 export default function WeightLogWidget({ entries, onEntriesChange }: Props) {
   const [inputKg, setInputKg] = useState<string>(
     entries[0] ? String(entries[0].weight_kg) : ''
@@ -83,13 +88,19 @@ export default function WeightLogWidget({ entries, onEntriesChange }: Props) {
           <label htmlFor="weight-date" className="text-xs font-medium text-slate-500 mb-1 block">
             Date
           </label>
-          <input
-            id="weight-date"
-            type="date"
-            value={inputDate}
-            onChange={e => setInputDate(e.target.value)}
-            className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          {/* Styled wrapper controls height/appearance; transparent native input captures taps */}
+          <div className="relative h-10 rounded-lg border border-slate-200 flex items-center px-3">
+            <span className="text-sm text-slate-700 pointer-events-none select-none">
+              {formatShortDate(inputDate)}
+            </span>
+            <input
+              id="weight-date"
+              type="date"
+              value={inputDate}
+              onChange={e => setInputDate(e.target.value)}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 
