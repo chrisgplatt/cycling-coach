@@ -13,6 +13,8 @@ export interface RideStatsData {
   maxHr: number | null
   minHr: number | null
   lrBalanceLeft: number | null   // left %, e.g. 52.3
+  npWkg: number | null
+  avgWkg: number | null
 }
 
 export function formatDuration(secs: number): string {
@@ -37,6 +39,8 @@ export function rideStatsFromActivity(a: ICUActivity): RideStatsData {
     maxHr: a.max_heartrate ?? null,
     minHr: null,
     lrBalanceLeft: a.left_right_balance,
+    npWkg: null,
+    avgWkg: null,
   }
 }
 
@@ -54,6 +58,8 @@ export function rideStatsFromMetrics(m: ActivityMetrics, durationSecs: number, t
     maxHr: m.max_hr ?? null,
     minHr: m.min_hr ?? null,
     lrBalanceLeft: m.lr_balance,
+    npWkg: null,
+    avgWkg: null,
   }
 }
 

@@ -314,6 +314,12 @@ export interface RidingStats {
   cross_training: CrossTrainingGroup[]
 }
 
+export interface WeightEntry {
+  id: string
+  date: string       // YYYY-MM-DD
+  weight_kg: number
+}
+
 export interface WeeklyTss {
   weekStart: string  // YYYY-MM-DD (Monday of that ISO week)
   tss: number

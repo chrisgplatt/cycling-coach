@@ -100,3 +100,12 @@ export function makeGeneratedWorkout(
     ...overrides,
   }
 }
+
+export function makeWeightEntry(overrides: Partial<import('@/types').WeightEntry> = {}): import('@/types').WeightEntry {
+  return {
+    id: 'we-1',
+    date: '2026-06-01',
+    weight_kg: 75,
+    ...overrides,
+  }
+}
