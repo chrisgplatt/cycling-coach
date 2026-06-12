@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState, type ReactNode } from 'react'
 import { normalizeY, isoWeekStart } from '@/lib/chart-helpers'
-import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss } from '@/types'
+import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss, WeightEntry } from '@/types'
+import WeightHistoryChart from '@/components/WeightHistoryChart'
 import type { HrvImprovement } from '@/lib/hrv/improvement'
 import { computeHrvBaseline, type HrvStatus } from '@/lib/hrv/baseline'
 import AnimatedLogo from '@/components/AnimatedLogo'
@@ -448,6 +449,8 @@ export default function FitnessPage() {
   const [chartsLoading, setChartsLoading] = useState(true)
   const [chartsError, setChartsError] = useState<string | null>(null)
   const [activePrediction, setActivePrediction] = useState(0)
+  const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
+  const [weightKg, setWeightKg] = useState<number | null>(null)
 
   useEffect(() => {
     fetch('/api/ftp').then(r => r.json()).then(setPredictions).catch(() => {})
@@ -463,6 +466,14 @@ export default function FitnessPage() {
       })
       .catch((e: Error) => setChartsError(e.message))
       .finally(() => setChartsLoading(false))
+    fetch('/api/weight-log')
+      .then(r => r.json())
+      .then(d => {
+        const entries: WeightEntry[] = d.entries ?? []
+        setWeightLog(entries)
+        if (entries[0]) setWeightKg(entries[0].weight_kg)
+      })
+      .catch(() => {})
   }, [])
 
   const lastPrediction = predictions[0] ?? null
@@ -652,6 +663,24 @@ export default function FitnessPage() {
           <SectionCard title="FTP History" accent="bg-orange-400">
             <FTPHistoryChart predictions={predictions} />
           </SectionCard>
+
+          {weightKg !== null && currentFTP && (
+            <SectionCard title="Power to Weight" accent="bg-rose-400">
+              <div className="px-5 py-4 flex items-baseline gap-2">
+                <span className="text-4xl font-black text-gray-900 tracking-tight">
+                  {(currentFTP / weightKg).toFixed(2)}
+                </span>
+                <span className="text-base font-semibold text-gray-400">w/kg</span>
+                <span className="text-xs text-gray-400 ml-2">{currentFTP}W / {weightKg}kg</span>
+              </div>
+            </SectionCard>
+          )}
+
+          {weightLog.length > 0 && (
+            <SectionCard title="Weight History" accent="bg-rose-400">
+              <WeightHistoryChart entries={weightLog} />
+            </SectionCard>
+          )}
 
           <SectionCard title="Performance Management" accent="bg-blue-500">
             <PMCChart wellness={charts.wellness} />
