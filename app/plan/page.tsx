@@ -16,7 +16,8 @@ import CoachingLog from '@/components/plan/CoachingLog'
 import { resolvePhases } from '@/lib/plan/phases'
 import { buildWeekBuckets, weekState, consistency, planHours } from '@/lib/plan/progress'
 import { buildForecast, daysBetweenUtc, addDaysUtc } from '@/lib/plan/forecast'
-import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase, CoachingLogEntry } from '@/types'
+import WeightLogWidget from '@/components/WeightLogWidget'
+import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase, CoachingLogEntry, WeightEntry } from '@/types'
 import { periodDurationDays } from '@/lib/utils/unavailability'
 
 type Tab = 'plan' | 'profile' | 'events'
@@ -48,6 +49,7 @@ export default function PlanPage() {
   )
   const [savedMinSessions, setSavedMinSessions] = useState(3)
   const [savedMaxSessions, setSavedMaxSessions] = useState(5)
+  const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -56,7 +58,6 @@ export default function PlanPage() {
   const isProfileDirty =
     goals !== savedGoals ||
     currentFtp !== savedFtp ||
-    weightKg !== savedWeight ||
     DAYS.some(d => schedule[d] !== savedSchedule[d]) ||
     minSessions !== savedMinSessions ||
     maxSessions !== savedMaxSessions
@@ -224,6 +225,11 @@ export default function PlanPage() {
       })
       // Fix 2: surface load errors instead of silently swallowing them
       .catch(() => setLoadError('Failed to load profile'))
+
+    fetch('/api/weight-log')
+      .then(r => r.json())
+      .then(d => setWeightLog(d.entries ?? []))
+      .catch(() => {})
 
     loadPlan()
 
@@ -737,16 +743,14 @@ export default function PlanPage() {
                   className={inputClass}
                 />
               </div>
-              <div>
-                <label htmlFor="weight" className={labelClass}>Weight (kg)</label>
-                {/* Fix 5: remove redundant aria-label, htmlFor association is sufficient */}
-                <input
-                  id="weight"
-                  type="number"
-                  step="0.5"
-                  value={weightKg}
-                  onChange={e => setWeightKg(Number(e.target.value))}
-                  className={inputClass}
+              <div className="col-span-2">
+                <label className={labelClass}>Weight Log</label>
+                <WeightLogWidget
+                  entries={weightLog}
+                  onEntriesChange={entries => {
+                    setWeightLog(entries)
+                    if (entries[0]) setWeightKg(entries[0].weight_kg)
+                  }}
                 />
               </div>
             </div>
