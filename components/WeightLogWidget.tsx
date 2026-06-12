@@ -63,7 +63,7 @@ export default function WeightLogWidget({ entries, onEntriesChange }: Props) {
     <div className="space-y-3">
       {/* Input row: weight (wider) + date (narrower) */}
       <div className="flex gap-2">
-        <div className="flex-[2]">
+        <div className="flex-1">
           <label htmlFor="weight-input" className="text-xs font-medium text-slate-500 mb-1 block">
             Weight (kg)
           </label>
@@ -76,10 +76,10 @@ export default function WeightLogWidget({ entries, onEntriesChange }: Props) {
             value={inputKg}
             onChange={e => { setInputKg(e.target.value); setError(null) }}
             placeholder="e.g. 75.0"
-            className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <div className="flex-[3]">
+        <div className="flex-1">
           <label htmlFor="weight-date" className="text-xs font-medium text-slate-500 mb-1 block">
             Date
           </label>
@@ -88,7 +88,7 @@ export default function WeightLogWidget({ entries, onEntriesChange }: Props) {
             type="date"
             value={inputDate}
             onChange={e => setInputDate(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
