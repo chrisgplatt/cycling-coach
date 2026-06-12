@@ -38,7 +38,7 @@ function makeSupabase({
       }),
       upsert: () => ({ select: () => ({ single: async () => ({ data: insertedEntry, error: null }) }) }),
       update: () => ({ eq: () => ({ error: null }) }),
-      delete: () => ({ eq: () => ({ error: null }) }),
+      delete: () => ({ eq: () => ({ eq: () => ({ error: null }) }) }),
     }),
   }
 }

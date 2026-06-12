@@ -72,7 +72,7 @@ export async function DELETE(req: Request) {
   const id = new URL(req.url).searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  const { error } = await supabase.from('weight_log').delete().eq('id', id)
+  const { error } = await supabase.from('weight_log').delete().eq('id', id).eq('user_id', user.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Re-sync user_profile.weight_kg to the new most-recent entry after deletion
