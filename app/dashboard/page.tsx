@@ -5,7 +5,7 @@ import WorkoutCard from '@/components/WorkoutCard'
 import FeedbackModal from '@/components/FeedbackModal'
 import CtlTrendStrip from '@/components/CtlTrendStrip'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback, ICUActivity } from '@/types'
+import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback, ICUActivity, WeightEntry } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
@@ -110,6 +110,7 @@ export default function DashboardPage() {
   const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
   const [strainSheetOpen, setStrainSheetOpen] = useState(false)
   const [chartsData, setChartsData] = useState<import('@/types').ChartsData | null>(null)
+  const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -310,6 +311,10 @@ export default function DashboardPage() {
       setNotificationsEnabled(data?.notifications_enabled ?? false)
       if (data?.current_ftp) setCurrentFTP(data.current_ftp)
     }).catch(() => {})
+    fetch('/api/weight-log')
+      .then(r => r.json())
+      .then(d => setWeightLog(d.entries ?? []))
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -602,6 +607,7 @@ export default function DashboardPage() {
               a.start_date_local.startsWith(selectedWorkout.date)
             ) ?? []
           }
+          weightLog={weightLog}
           onClose={() => setSelectedWorkout(null)}
           onFeedback={(existingFeedback) => {
             setInitialFeedback(existingFeedback ?? null)

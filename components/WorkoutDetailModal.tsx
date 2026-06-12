@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent, RideStreams } from '@/types'
+import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent, RideStreams, WeightEntry } from '@/types'
+import { weightAtDate } from '@/lib/weight-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import WorkoutProfileChart, { WorkoutStepList } from './WorkoutProfileChart'
 import RideStats, { rideStatsFromMetrics } from './RideStats'
@@ -51,6 +52,7 @@ interface Props {
   ftp?: number
   activitiesOnDate?: ICUActivity[]
   nearbyEvents?: TrainingEvent[]
+  weightLog?: WeightEntry[]
   onClose: () => void
   onFeedback?: (existingFeedback?: SessionFeedback) => void
   onStatusChange?: () => void
@@ -61,7 +63,7 @@ interface Props {
 }
 
 export default function WorkoutDetailModal({
-  workout, athleteId, ftp, activitiesOnDate, nearbyEvents, onClose, onFeedback,
+  workout, athleteId, ftp, activitiesOnDate, nearbyEvents, weightLog = [], onClose, onFeedback,
   onStatusChange, onDelete, onReschedule, onChat, onEventLinked,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
@@ -393,7 +395,16 @@ export default function WorkoutDetailModal({
           {hasRide && tab === 'stats' && (
             workout.activity_metrics
               ? <>
-                  <RideStats data={rideStatsFromMetrics(workout.activity_metrics, workout.duration_minutes * 60, workout.tss)} />
+                  {(() => {
+                    const rideDate = workout.date
+                    const w = weightAtDate(weightLog, rideDate, null)
+                    const metricsStats = rideStatsFromMetrics(workout.activity_metrics, workout.duration_minutes * 60, workout.tss)
+                    if (w) {
+                      metricsStats.avgWkg = metricsStats.avgWatts !== null ? parseFloat((metricsStats.avgWatts / w).toFixed(2)) : null
+                      metricsStats.npWkg = metricsStats.np !== null ? parseFloat((metricsStats.np / w).toFixed(2)) : null
+                    }
+                    return <RideStats data={metricsStats} />
+                  })()}
                   <SessionHistogram distributions={workout.activity_metrics.distributions} />
                 </>
               : <p className="text-sm text-slate-400 italic">Ride stats not available yet.</p>

@@ -106,6 +106,16 @@ export default function RideStats({ data }: { data: RideStatsData }) {
           <StatCell label="NP" value={num(data.np)} unit={data.np !== null ? 'w' : undefined} valueClass="text-orange-500" />
           <StatCell label="TSS" value={num(data.tss)} valueClass="text-orange-500" />
         </div>
+        {(data.avgWkg !== null || data.npWkg !== null) && (
+          <div className="flex divide-x divide-gray-100 border-t border-gray-100">
+            {data.avgWkg !== null && (
+              <StatCell label="Avg w/kg" value={data.avgWkg.toFixed(2)} valueClass="text-orange-400" />
+            )}
+            {data.npWkg !== null && (
+              <StatCell label="NP w/kg" value={data.npWkg.toFixed(2)} valueClass="text-orange-400" />
+            )}
+          </div>
+        )}
       </SectionCard>
 
       {hasBest && (

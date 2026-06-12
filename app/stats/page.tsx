@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { RidingStats, CrossTrainingGroup } from '@/types'
+import type { RidingStats, CrossTrainingGroup, WeightEntry } from '@/types'
 import RideStats, { rideStatsFromActivity, StatCell, SectionCard, formatDuration } from '@/components/RideStats'
+import { weightAtDate } from '@/lib/weight-helpers'
 import AnimatedLogo from '@/components/AnimatedLogo'
 
 function formatRideTabLabel(dateStr: string): string {
@@ -154,6 +155,7 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<number>(0)
+  const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
 
   useEffect(() => {
     fetch('/api/stats')
@@ -165,6 +167,10 @@ export default function StatsPage() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
+    fetch('/api/weight-log')
+      .then(r => r.json())
+      .then(d => setWeightLog(d.entries ?? []))
+      .catch(() => {})
   }, [])
 
   if (loading) {
@@ -228,7 +234,16 @@ export default function StatsPage() {
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-gray-500 font-medium truncate">{rides[activeTab - 1].name}</p>
-          <RideStats data={rideStatsFromActivity(rides[activeTab - 1])} />
+          {(() => {
+            const ride = rides[activeTab - 1]
+            const stats = rideStatsFromActivity(ride)
+            const w = weightAtDate(weightLog, ride.start_date_local.split('T')[0], null)
+            if (w) {
+              stats.avgWkg = stats.avgWatts !== null ? parseFloat((stats.avgWatts / w).toFixed(2)) : null
+              stats.npWkg = stats.np !== null ? parseFloat((stats.np / w).toFixed(2)) : null
+            }
+            return <RideStats data={stats} />
+          })()}
         </div>
       )}
     </main>
