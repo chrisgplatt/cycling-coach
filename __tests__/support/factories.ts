@@ -79,6 +79,8 @@ export function makeRidingStats(overrides: Partial<RidingStats> = {}): RidingSta
     power_20min: null,
     avg_left_right_balance: null,
     balance_ride_count: 0,
+    avg_hr: null,
+    max_hr: null,
     recent_rides: [],
     cross_training: [],
     ...overrides,

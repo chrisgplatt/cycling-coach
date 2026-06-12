@@ -308,6 +308,8 @@ export interface RidingStats {
   power_20min: number | null
   avg_left_right_balance: number | null  // left %, e.g. 52.3
   balance_ride_count: number
+  avg_hr: number | null
+  max_hr: number | null
   recent_rides: ICUActivity[]
   cross_training: CrossTrainingGroup[]
 }

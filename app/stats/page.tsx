@@ -70,6 +70,19 @@ function AggregateView({ stats }: { stats: RidingStats }) {
         </div>
       </SectionCard>
 
+      {(stats.avg_hr !== null || stats.max_hr !== null) && (
+        <SectionCard title="Heart Rate · 28 Days" accent="bg-red-400">
+          <div className="flex divide-x divide-gray-100">
+            {stats.avg_hr !== null && (
+              <StatCell label="Avg HR" value={String(stats.avg_hr)} unit="bpm" valueClass="text-red-500" />
+            )}
+            {stats.max_hr !== null && (
+              <StatCell label="Max HR" value={String(stats.max_hr)} unit="bpm" valueClass="text-red-600" />
+            )}
+          </div>
+        </SectionCard>
+      )}
+
       <SectionCard title="L/R Balance" accent="bg-rose-400">
         <div className="text-center px-2 py-3 sm:px-3 sm:py-4">
           <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-rose-500">{balance}</div>

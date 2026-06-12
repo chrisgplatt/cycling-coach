@@ -69,6 +69,14 @@ export async function GET() {
       power_20min: findNearestPower(powerCurve, 1200),
       avg_left_right_balance: computeLeftRightBalance(rides),
       balance_ride_count: rides.filter(r => r.left_right_balance !== null).length,
+      avg_hr: (() => {
+        const hrs = rides.map(r => r.average_heartrate).filter((v): v is number => v !== null && v !== undefined)
+        return hrs.length ? Math.round(hrs.reduce((s, v) => s + v, 0) / hrs.length) : null
+      })(),
+      max_hr: (() => {
+        const hrs = rides.map(r => r.max_heartrate).filter((v): v is number => v !== null && v !== undefined)
+        return hrs.length ? Math.max(...hrs) : null
+      })(),
       recent_rides: last7DaysRides,
       cross_training: groupCrossTraining(activities),
     }
