@@ -31,6 +31,7 @@ describe('FitnessPage charts', () => {
   it('renders PMC stat pills after load', async () => {
     ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === '/api/charts') return Promise.resolve({ json: async () => ({ charts: mockCharts }) })
+      if (url === '/api/weight-log') return Promise.resolve({ json: async () => ({ entries: [] }) })
       return Promise.resolve({ json: async () => [] })
     })
     render(<FitnessPage />)
@@ -45,6 +46,7 @@ describe('FitnessPage charts', () => {
   it('renders weekly TSS bars (one rect per week)', async () => {
     ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === '/api/charts') return Promise.resolve({ json: async () => ({ charts: mockCharts }) })
+      if (url === '/api/weight-log') return Promise.resolve({ json: async () => ({ entries: [] }) })
       return Promise.resolve({ json: async () => [] })
     })
     render(<FitnessPage />)
@@ -57,6 +59,7 @@ describe('FitnessPage charts', () => {
   it('shows charts error message on fetch failure', async () => {
     ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === '/api/charts') return Promise.resolve({ json: async () => ({ error: 'intervals.icu not configured' }) })
+      if (url === '/api/weight-log') return Promise.resolve({ json: async () => ({ entries: [] }) })
       return Promise.resolve({ json: async () => [] })
     })
     render(<FitnessPage />)
@@ -66,6 +69,7 @@ describe('FitnessPage charts', () => {
   it('shows placeholder when wellness is empty', async () => {
     ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === '/api/charts') return Promise.resolve({ json: async () => ({ charts: { wellness: [], weeklyTss: [] } }) })
+      if (url === '/api/weight-log') return Promise.resolve({ json: async () => ({ entries: [] }) })
       return Promise.resolve({ json: async () => [] })
     })
     render(<FitnessPage />)
