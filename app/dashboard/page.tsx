@@ -39,6 +39,7 @@ import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import HrvStatusChip from '@/components/HrvStatusChip'
 import StrainBreakdownSheet from '@/components/StrainBreakdownSheet'
+import ProgressBrief from '@/components/ProgressBrief'
 
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
@@ -111,6 +112,7 @@ export default function DashboardPage() {
   const [strainSheetOpen, setStrainSheetOpen] = useState(false)
   const [chartsData, setChartsData] = useState<import('@/types').ChartsData | null>(null)
   const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
+  const [syncVersion, setSyncVersion] = useState(0)
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -150,6 +152,7 @@ export default function DashboardPage() {
           localStorage.setItem(SYNC_CACHE_KEY, JSON.stringify({ syncedAt: now.toISOString(), data }))
         } catch { /* ignore storage errors */ }
         await loadPlan()
+        setSyncVersion(v => v + 1)
       }
     } finally {
       setSyncing(false)
@@ -386,6 +389,8 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <ProgressBrief syncVersion={syncVersion} />
+
       {showReviewBanner && (
         <WeeklyReviewBanner
           lastWeekCompleted={lastWeekStats.completed}
