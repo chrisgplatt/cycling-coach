@@ -54,23 +54,26 @@ describe('Profile & Schedule tab', () => {
     })
   })
 
-  it('shows goals field on Profile tab', async () => {
+  it('shows goals textarea when Goals Edit is clicked', async () => {
     render(<PlanPage />)
     fireEvent.click(screen.getByRole('button', { name: /profile/i }))
-    expect(await screen.findByPlaceholderText(/your goals/i)).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: /edit goals/i }))
+    expect(screen.getByPlaceholderText(/your goals/i)).toBeInTheDocument()
   })
 
-  it('shows FTP and weight inputs on Profile tab', async () => {
+  it('shows FTP input when Stats Edit is clicked', async () => {
     render(<PlanPage />)
     fireEvent.click(screen.getByRole('button', { name: /profile/i }))
-    expect(await screen.findByLabelText(/ftp/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/weight/i)).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: /edit stats/i }))
+    expect(screen.getByLabelText(/ftp/i)).toBeInTheDocument()
   })
 
-  it('shows Save Profile button on Profile tab', async () => {
+  it('shows save and cancel buttons when a section is being edited', async () => {
     render(<PlanPage />)
     fireEvent.click(screen.getByRole('button', { name: /profile/i }))
-    expect(await screen.findByRole('button', { name: /save profile/i })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: /edit goals/i }))
+    expect(screen.getByRole('button', { name: /save goals/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
   })
 })
 

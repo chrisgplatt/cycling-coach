@@ -28,6 +28,13 @@ const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
 
+function formatMins(mins: number): string {
+  if (mins === 0) return 'Rest'
+  if (mins < 60) return `${mins}min`
+  if (mins % 60 === 0) return `${mins / 60}h`
+  return `${Math.floor(mins / 60)}h ${mins % 60}min`
+}
+
 export default function PlanPage() {
   const [tab, setTab] = useState<Tab>('plan')
 
@@ -54,13 +61,10 @@ export default function PlanPage() {
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-
-  const isProfileDirty =
-    goals !== savedGoals ||
-    currentFtp !== savedFtp ||
-    DAYS.some(d => schedule[d] !== savedSchedule[d]) ||
-    minSessions !== savedMinSessions ||
-    maxSessions !== savedMaxSessions
+  const [editingGoals, setEditingGoals] = useState(false)
+  const [editingStats, setEditingStats] = useState(false)
+  const [editingSchedule, setEditingSchedule] = useState(false)
+  const [editingFrequency, setEditingFrequency] = useState(false)
 
   const [events, setEvents] = useState<TrainingEvent[]>([])
   const [syncing, setSyncing] = useState(false)
@@ -711,132 +715,233 @@ export default function PlanPage() {
       {/* PROFILE & SCHEDULE TAB */}
       <div data-testid="tab-profile" style={{ display: tab === 'profile' ? 'block' : 'none' }}>
         <div className="space-y-4">
-          {/* Fix 2: show load error banner */}
           {loadError && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{loadError}</div>
           )}
-
-          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
-            {/* Fix 3: use <label htmlFor> instead of <h2> for the Goals textarea */}
-            <label htmlFor="goals" className="text-sm font-bold text-slate-700 uppercase tracking-wider">Goals</label>
-            <textarea
-              id="goals"
-              value={goals}
-              onChange={e => setGoals(e.target.value)}
-              placeholder="Your goals (e.g. Complete Dragon Ride, improve FTP, lose 5kg)"
-              rows={5}
-              className={inputClass}
-            />
-          </section>
-
-          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
-            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Athlete stats</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="ftp" className={labelClass}>FTP (W)</label>
-                {/* Fix 5: remove redundant aria-label, htmlFor association is sufficient */}
-                <input
-                  id="ftp"
-                  type="number"
-                  value={currentFtp}
-                  onChange={e => setCurrentFtp(Number(e.target.value))}
-                  className={inputClass}
-                />
-              </div>
-              <div className="col-span-2">
-                <label className={labelClass}>Weight Log</label>
-                <WeightLogWidget
-                  entries={weightLog}
-                  onEntriesChange={entries => {
-                    setWeightLog(entries)
-                    if (entries[0]) setWeightKg(entries[0].weight_kg)
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
-            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Weekly Training Availability</h2>
-            <p className="text-xs text-slate-400">Set the maximum time available each day. Sessions will be as long as the training needs — up to this limit.</p>
-            <div className="space-y-3">
-              {DAYS.map((day, i) => {
-                const mins = schedule[day] ?? 0
-                const label = mins === 0
-                  ? 'Rest'
-                  : mins < 60
-                    ? `${mins}min`
-                    : mins % 60 === 0
-                      ? `${mins / 60}h`
-                      : `${Math.floor(mins / 60)}h ${mins % 60}min`
-                return (
-                  <div key={day} className="flex items-center gap-3">
-                    <span className="text-sm text-slate-600 w-8 shrink-0">{DAY_LABELS[i]}</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={360}
-                      step={15}
-                      aria-label={`${DAY_LABELS[i]} training minutes`}
-                      value={mins}
-                      onChange={e => setSchedule(s => ({ ...s, [day]: Number(e.target.value) }))}
-                      className="flex-1 accent-blue-600"
-                    />
-                    <span className={`text-xs w-14 text-right font-medium ${mins === 0 ? 'text-slate-300' : 'text-slate-600'}`}>
-                      {label}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-
-          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
-            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Session frequency</h2>
-            <p className="text-xs text-slate-400">How many sessions per week to aim for. Claude will target this range, prioritising quality over hitting a number.</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Minimum sessions</label>
-                <select
-                  value={minSessions}
-                  onChange={e => {
-                    const v = Number(e.target.value)
-                    setMinSessions(v)
-                    if (v > maxSessions) setMaxSessions(v)
-                  }}
-                  className={inputClass}
-                >
-                  {[1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Maximum sessions</label>
-                <select
-                  value={maxSessions}
-                  onChange={e => {
-                    const v = Number(e.target.value)
-                    setMaxSessions(v)
-                    if (v < minSessions) setMinSessions(v)
-                  }}
-                  className={inputClass}
-                >
-                  {[1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </div>
-            </div>
-          </section>
-
           {saveError && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{saveError}</div>
           )}
 
-          <button
-            onClick={saveProfile}
-            disabled={saving || !isProfileDirty}
-            className="bg-slate-800 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors shadow-sm w-full"
-          >
-            {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Profile'}
-          </button>
+          {/* Goals */}
+          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Goals</h2>
+              {editingGoals ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => { const ok = await saveProfile(); if (ok) setEditingGoals(false) }}
+                    disabled={saving}
+                    aria-label="Save goals"
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                  >✓</button>
+                  <button
+                    onClick={() => { setGoals(savedGoals); setEditingGoals(false); setSaveError(null) }}
+                    aria-label="Cancel"
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
+                  >✕</button>
+                </div>
+              ) : (
+                <button onClick={() => setEditingGoals(true)} aria-label="Edit goals" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
+              )}
+            </div>
+            {editingGoals ? (
+              <textarea
+                id="goals"
+                value={goals}
+                onChange={e => setGoals(e.target.value)}
+                placeholder="Your goals (e.g. Complete Dragon Ride, improve FTP, lose 5kg)"
+                rows={5}
+                className={inputClass}
+              />
+            ) : goals ? (
+              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{goals}</p>
+            ) : (
+              <p className="text-sm text-slate-400 italic">No goals set yet.</p>
+            )}
+          </section>
+
+          {/* Athlete stats */}
+          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Athlete stats</h2>
+              {editingStats ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => { const ok = await saveProfile(); if (ok) setEditingStats(false) }}
+                    disabled={saving}
+                    aria-label="Save stats"
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                  >✓</button>
+                  <button
+                    onClick={() => { setCurrentFtp(savedFtp); setEditingStats(false); setSaveError(null) }}
+                    aria-label="Cancel"
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
+                  >✕</button>
+                </div>
+              ) : (
+                <button onClick={() => setEditingStats(true)} aria-label="Edit stats" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
+              )}
+            </div>
+            <div>
+              {editingStats ? (
+                <>
+                  <label htmlFor="ftp" className={labelClass}>FTP (W)</label>
+                  <input
+                    id="ftp"
+                    type="number"
+                    value={currentFtp}
+                    onChange={e => setCurrentFtp(Number(e.target.value))}
+                    className={inputClass}
+                  />
+                </>
+              ) : (
+                <>
+                  <p className={labelClass}>FTP (W)</p>
+                  <p className="text-sm font-semibold text-slate-800">{currentFtp} W</p>
+                </>
+              )}
+            </div>
+            <div>
+              <p className={labelClass}>Weight Log</p>
+              <WeightLogWidget
+                entries={weightLog}
+                onEntriesChange={entries => {
+                  setWeightLog(entries)
+                  if (entries[0]) setWeightKg(entries[0].weight_kg)
+                }}
+              />
+            </div>
+          </section>
+
+          {/* Weekly schedule */}
+          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Weekly Availability</h2>
+              {editingSchedule ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => { const ok = await saveProfile(); if (ok) setEditingSchedule(false) }}
+                    disabled={saving}
+                    aria-label="Save schedule"
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                  >✓</button>
+                  <button
+                    onClick={() => { setSchedule({ ...savedSchedule }); setEditingSchedule(false); setSaveError(null) }}
+                    aria-label="Cancel"
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
+                  >✕</button>
+                </div>
+              ) : (
+                <button onClick={() => setEditingSchedule(true)} className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
+              )}
+            </div>
+            {editingSchedule ? (
+              <>
+                <p className="text-xs text-slate-400">Set the maximum time available each day. Sessions will be as long as the training needs — up to this limit.</p>
+                <div className="space-y-3">
+                  {DAYS.map((day, i) => {
+                    const mins = schedule[day] ?? 0
+                    return (
+                      <div key={day} className="flex items-center gap-3">
+                        <span className="text-sm text-slate-600 w-8 shrink-0">{DAY_LABELS[i]}</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={360}
+                          step={15}
+                          aria-label={`${DAY_LABELS[i]} training minutes`}
+                          value={mins}
+                          onChange={e => setSchedule(s => ({ ...s, [day]: Number(e.target.value) }))}
+                          className="flex-1 accent-blue-600"
+                        />
+                        <span className={`text-xs w-14 text-right font-medium ${mins === 0 ? 'text-slate-300' : 'text-slate-600'}`}>
+                          {formatMins(mins)}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                {DAYS.map((day, i) => {
+                  const mins = schedule[day] ?? 0
+                  return (
+                    <div key={day} className="flex items-center justify-between">
+                      <span className="text-sm text-slate-500">{DAY_LABELS[i]}</span>
+                      <span className={`text-sm font-medium ${mins === 0 ? 'text-slate-300' : 'text-slate-700'}`}>
+                        {formatMins(mins)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Session frequency */}
+          <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Session frequency</h2>
+              {editingFrequency ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => { const ok = await saveProfile(); if (ok) setEditingFrequency(false) }}
+                    disabled={saving}
+                    aria-label="Save frequency"
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                  >✓</button>
+                  <button
+                    onClick={() => { setMinSessions(savedMinSessions); setMaxSessions(savedMaxSessions); setEditingFrequency(false); setSaveError(null) }}
+                    aria-label="Cancel"
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
+                  >✕</button>
+                </div>
+              ) : (
+                <button onClick={() => setEditingFrequency(true)} className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
+              )}
+            </div>
+            {editingFrequency ? (
+              <>
+                <p className="text-xs text-slate-400">How many sessions per week to aim for. Claude will target this range, prioritising quality over hitting a number.</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Minimum sessions</label>
+                    <select
+                      value={minSessions}
+                      onChange={e => {
+                        const v = Number(e.target.value)
+                        setMinSessions(v)
+                        if (v > maxSessions) setMaxSessions(v)
+                      }}
+                      className={inputClass}
+                    >
+                      {[1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Maximum sessions</label>
+                    <select
+                      value={maxSessions}
+                      onChange={e => {
+                        const v = Number(e.target.value)
+                        setMaxSessions(v)
+                        if (v < minSessions) setMinSessions(v)
+                      }}
+                      className={inputClass}
+                    >
+                      {[1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-slate-700">
+                <span className="font-semibold">{minSessions}–{maxSessions}</span>
+                <span className="text-slate-500"> sessions per week</span>
+              </p>
+            )}
+          </section>
         </div>
       </div>
 
