@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { importUnplannedRides } from '@/lib/intervals/import-rides'
 import { backfillActivityMetrics } from '@/lib/intervals/enrich'
+import { maybeGenerateProgressBrief } from '@/lib/progress/brief-generator'
 import type { ICUActivity } from '@/types'
 
 export async function POST(req: Request) {
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
 
   const { data: profile } = await supabase
     .from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp, weight_kg, goals')
     .maybeSingle()
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
@@ -77,6 +78,17 @@ export async function POST(req: Request) {
       const message = err instanceof Error ? err.message : String(err)
       console.error('[sync] activity-metrics backfill failed:', err)
       backfill = { error: message }
+    }
+
+    // Generate progress brief (4h debounce, non-fatal)
+    if (profile.current_ftp && profile.weight_kg) {
+      try {
+        await maybeGenerateProgressBrief(supabase, user.id, syncData, {
+          current_ftp: profile.current_ftp,
+          weight_kg: profile.weight_kg,
+          goals: profile.goals ?? '',
+        })
+      } catch { /* non-fatal — brief generation failure must not block sync */ }
     }
 
     return NextResponse.json({ ...syncData, athlete_id: profile.intervals_icu_athlete_id, backfill })
