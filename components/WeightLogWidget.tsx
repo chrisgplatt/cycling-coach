@@ -26,6 +26,7 @@ export default function WeightLogWidget({ entries, onEntriesChange }: Props) {
   const [inputDate, setInputDate] = useState(today())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   async function handleLog() {
     const weight_kg = parseFloat(inputKg)
@@ -55,6 +56,7 @@ export default function WeightLogWidget({ entries, onEntriesChange }: Props) {
   }
 
   async function handleDelete(id: string) {
+    setPendingDeleteId(null)
     try {
       const res = await fetch(`/api/weight-log?id=${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
@@ -126,13 +128,31 @@ export default function WeightLogWidget({ entries, onEntriesChange }: Props) {
                 <span className="text-sm text-slate-500">{formatEntryDate(e.date)}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-slate-800">{e.weight_kg} kg</span>
-                  <button
-                    onClick={() => handleDelete(e.id)}
-                    className="text-slate-300 hover:text-red-500 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                    aria-label="Delete entry"
-                  >
-                    ✕
-                  </button>
+                  {pendingDeleteId === e.id ? (
+                    <>
+                      <span className="text-xs text-red-500 font-medium">Delete?</span>
+                      <button
+                        onClick={() => handleDelete(e.id)}
+                        className="text-xs font-semibold text-red-500 min-h-[44px] px-1 flex items-center"
+                      >
+                        Yes
+                      </button>
+                      <button
+                        onClick={() => setPendingDeleteId(null)}
+                        className="text-xs text-slate-400 min-h-[44px] px-1 flex items-center"
+                      >
+                        No
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setPendingDeleteId(e.id)}
+                      className="text-slate-300 hover:text-red-500 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      aria-label="Delete entry"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
