@@ -65,6 +65,7 @@ export function computeProgressMetrics(
       const before = sorted.filter(w => w.date <= planStartDate)
       const after = sorted.filter(w => w.date > planStartDate)
       if (before.length) baselineWeight = before[before.length - 1].weight_kg
+      // fallback: use earliest post-plan entry if no pre-plan weight exists
       else if (after.length) baselineWeight = after[0].weight_kg
     } else {
       baselineWeight = sorted[0].weight_kg
@@ -93,6 +94,7 @@ export function computeProgressMetrics(
   // Adherence
   let adherence: ProgressMetrics['adherence'] = null
   if (plan && planWorkouts.length > 0) {
+    // includes today — a planned session today counts until it's marked completed
     const pastAndToday = planWorkouts.filter(w => w.date <= today)
     const completed = pastAndToday.filter(w => w.status === 'completed').length
     const total = pastAndToday.length
