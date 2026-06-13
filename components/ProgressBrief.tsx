@@ -17,11 +17,13 @@ export default function ProgressBrief({ syncVersion }: Props) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const ac = new AbortController()
     setLoading(true)
-    fetch('/api/progress-brief')
+    fetch('/api/progress-brief', { signal: ac.signal })
       .then(r => r.ok ? r.json() : null)
       .then(d => { setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
+      .catch(e => { if (e.name !== 'AbortError') setLoading(false) })
+    return () => ac.abort()
   }, [syncVersion])
 
   if (loading) return <div className="h-24 bg-gray-100 rounded-xl animate-pulse" />
@@ -54,7 +56,7 @@ export default function ProgressBrief({ syncVersion }: Props) {
         {m.weight && (
           <MetricTile label="Weight" value={`${m.weight.current}kg`} delta={m.weight.delta} goodWhenPositive={false} />
         )}
-        {m.adherence && (
+        {m.adherence && m.adherence.total > 0 && (
           <MetricTile
             label="Adherence"
             value={`${m.adherence.completed}/${m.adherence.total}`}
