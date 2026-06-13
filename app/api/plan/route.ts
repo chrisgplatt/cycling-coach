@@ -151,7 +151,7 @@ export async function PATCH(req: NextRequest) {
 
   const { data: profile } = await supabase
     .from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key, events')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, events, current_ftp')
     .maybeSingle()
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
@@ -209,6 +209,7 @@ export async function PATCH(req: NextRequest) {
       rationale: plan.rationale,
       plan_weeks: planWeeks,
       user_id: user.id,
+      baseline_ftp: profile.current_ftp ?? null,
     })
     .select()
     .single()
