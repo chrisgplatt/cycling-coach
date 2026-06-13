@@ -49,11 +49,26 @@ export default function SettingsPage() {
   const [locationQuery, setLocationQuery] = useState('')
   const [geoMatches, setGeoMatches] = useState<Array<{ label: string; latitude: number; longitude: number }> | null>(null)
   const [geoSearching, setGeoSearching] = useState(false)
+  const [savedLatitude, setSavedLatitude] = useState<number | null>(null)
+  const [savedLongitude, setSavedLongitude] = useState<number | null>(null)
+  const [editingIcu, setEditingIcu] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [editingBriefing, setEditingBriefing] = useState(false)
+  const [editingLocation, setEditingLocation] = useState(false)
 
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
-
-  const isDirty = fullName !== savedFullName || athleteId !== savedAthleteId || apiKey !== savedApiKey || notifTime !== savedNotifTime || timezone !== savedTimezone || locationLabel !== savedLocationLabel
+  const TIMEZONE_LABEL: Record<string, string> = {
+    'Europe/London': 'London (GMT/BST)',
+    'Europe/Paris': 'Paris / Amsterdam (CET)',
+    'Europe/Madrid': 'Madrid / Rome (CET)',
+    'Europe/Berlin': 'Berlin / Zurich (CET)',
+    'America/New_York': 'New York (ET)',
+    'America/Chicago': 'Chicago (CT)',
+    'America/Denver': 'Denver (MT)',
+    'America/Los_Angeles': 'Los Angeles (PT)',
+    'Australia/Sydney': 'Sydney (AEST)',
+  }
 
   useEffect(() => {
     fetch('/api/profile')
@@ -75,13 +90,15 @@ export default function SettingsPage() {
         setIsAdmin(data.is_admin ?? false)
         const loc = data.location_label ?? ''
         setLocationLabel(loc); setSavedLocationLabel(loc)
-        setLatitude(typeof data.latitude === 'number' ? data.latitude : null)
-        setLongitude(typeof data.longitude === 'number' ? data.longitude : null)
+        const lat = typeof data.latitude === 'number' ? data.latitude : null
+        const lng = typeof data.longitude === 'number' ? data.longitude : null
+        setLatitude(lat); setSavedLatitude(lat)
+        setLongitude(lng); setSavedLongitude(lng)
       })
       .catch(() => {})
   }, [])
 
-  async function save() {
+  async function save(): Promise<boolean> {
     setSaving(true)
     setSaveError(null)
     try {
@@ -97,6 +114,7 @@ export default function SettingsPage() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setSaveError(data.error ?? 'Save failed')
+        return false
       } else {
         setSavedFullName(fullName)
         setSavedAthleteId(athleteId)
@@ -104,11 +122,15 @@ export default function SettingsPage() {
         setSavedNotifTime(notifTime)
         setSavedTimezone(timezone)
         setSavedLocationLabel(locationLabel)
+        setSavedLatitude(latitude)
+        setSavedLongitude(longitude)
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
+        return true
       }
     } catch {
       setSaveError('Network error')
+      return false
     } finally {
       setSaving(false)
     }
@@ -324,25 +346,61 @@ export default function SettingsPage() {
         <p className="text-sm text-slate-500 mt-0.5">Manage your name and connection to intervals.icu</p>
       </div>
 
-      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
-        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">intervals.icu</h2>
-        <div className="space-y-3">
-          <input
-            type="text"
-            value={athleteId}
-            onChange={e => setAthleteId(e.target.value)}
-            placeholder="Athlete ID (e.g. i12345)"
-            className={inputClass}
-          />
-          <input
-            type="password"
-            value={apiKey}
-            onChange={e => setApiKey(e.target.value)}
-            placeholder="API Key"
-            className={inputClass}
-          />
-        </div>
+      {saveError && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{saveError}</div>
+      )}
 
+      {/* intervals.icu */}
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">intervals.icu</h2>
+          {editingIcu ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => { const ok = await save(); if (ok) setEditingIcu(false) }}
+                disabled={saving}
+                aria-label="Save intervals.icu settings"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+              >✓</button>
+              <button
+                onClick={() => { setAthleteId(savedAthleteId); setApiKey(savedApiKey); setEditingIcu(false); setSaveError(null) }}
+                aria-label="Cancel"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
+              >✕</button>
+            </div>
+          ) : (
+            <button onClick={() => setEditingIcu(true)} aria-label="Edit intervals.icu settings" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
+          )}
+        </div>
+        {editingIcu ? (
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={athleteId}
+              onChange={e => setAthleteId(e.target.value)}
+              placeholder="Athlete ID (e.g. i12345)"
+              className={inputClass}
+            />
+            <input
+              type="password"
+              value={apiKey}
+              onChange={e => setApiKey(e.target.value)}
+              placeholder="API Key"
+              className={inputClass}
+            />
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Athlete ID</span>
+              <span className={athleteId ? 'font-medium text-slate-800' : 'text-slate-400 italic'}>{athleteId || 'Not set'}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">API Key</span>
+              <span className={apiKey ? 'font-medium text-slate-800' : 'text-slate-400 italic'}>{apiKey ? '••••••••' : 'Not set'}</span>
+            </div>
+          </div>
+        )}
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-2">
           <p className="text-sm font-semibold text-slate-700">Ride these workouts in Zwift</p>
           <p className="text-xs text-slate-500 leading-relaxed">
@@ -368,51 +426,111 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
-        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Name</h2>
-        <div>
-          <label className={labelClass}>Full Name</label>
-          <input
-            type="text"
-            value={fullName}
-            onChange={e => setFullName(e.target.value)}
-            placeholder="e.g. Chris Smith"
-            className={inputClass}
-          />
+      {/* Name */}
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Name</h2>
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => { const ok = await save(); if (ok) setEditingName(false) }}
+                disabled={saving}
+                aria-label="Save name"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+              >✓</button>
+              <button
+                onClick={() => { setFullName(savedFullName); setEditingName(false); setSaveError(null) }}
+                aria-label="Cancel"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
+              >✕</button>
+            </div>
+          ) : (
+            <button onClick={() => setEditingName(true)} aria-label="Edit name" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
+          )}
         </div>
-      </section>
-
-      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
-        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Daily Briefing</h2>
-        <div className="space-y-3">
+        {editingName ? (
           <div>
-            <label className={labelClass}>Notification time</label>
+            <label htmlFor="full-name" className={labelClass}>Full Name</label>
             <input
-              type="time"
-              value={notifTime}
-              onChange={e => setNotifTime(e.target.value)}
+              id="full-name"
+              type="text"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              placeholder="e.g. Chris Smith"
               className={inputClass}
             />
           </div>
-          <div>
-            <label className={labelClass}>Timezone</label>
-            <select
-              value={timezone}
-              onChange={e => setTimezone(e.target.value)}
-              className={inputClass}
-            >
-              <option value="Europe/London">London (GMT/BST)</option>
-              <option value="Europe/Paris">Paris / Amsterdam (CET)</option>
-              <option value="Europe/Madrid">Madrid / Rome (CET)</option>
-              <option value="Europe/Berlin">Berlin / Zurich (CET)</option>
-              <option value="America/New_York">New York (ET)</option>
-              <option value="America/Chicago">Chicago (CT)</option>
-              <option value="America/Denver">Denver (MT)</option>
-              <option value="America/Los_Angeles">Los Angeles (PT)</option>
-              <option value="Australia/Sydney">Sydney (AEST)</option>
-            </select>
-          </div>
+        ) : fullName ? (
+          <p className="text-sm font-semibold text-slate-800">{fullName}</p>
+        ) : (
+          <p className="text-sm text-slate-400 italic">Not set</p>
+        )}
+      </section>
+
+      {/* Daily Briefing */}
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Daily Briefing</h2>
+          {editingBriefing ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => { const ok = await save(); if (ok) setEditingBriefing(false) }}
+                disabled={saving}
+                aria-label="Save briefing settings"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+              >✓</button>
+              <button
+                onClick={() => { setNotifTime(savedNotifTime); setTimezone(savedTimezone); setEditingBriefing(false); setSaveError(null) }}
+                aria-label="Cancel"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
+              >✕</button>
+            </div>
+          ) : (
+            <button onClick={() => setEditingBriefing(true)} aria-label="Edit briefing settings" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
+          )}
         </div>
+        {editingBriefing ? (
+          <div className="space-y-3">
+            <div>
+              <label className={labelClass}>Notification time</label>
+              <input
+                type="time"
+                value={notifTime}
+                onChange={e => setNotifTime(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Timezone</label>
+              <select
+                value={timezone}
+                onChange={e => setTimezone(e.target.value)}
+                className={inputClass}
+              >
+                <option value="Europe/London">London (GMT/BST)</option>
+                <option value="Europe/Paris">Paris / Amsterdam (CET)</option>
+                <option value="Europe/Madrid">Madrid / Rome (CET)</option>
+                <option value="Europe/Berlin">Berlin / Zurich (CET)</option>
+                <option value="America/New_York">New York (ET)</option>
+                <option value="America/Chicago">Chicago (CT)</option>
+                <option value="America/Denver">Denver (MT)</option>
+                <option value="America/Los_Angeles">Los Angeles (PT)</option>
+                <option value="Australia/Sydney">Sydney (AEST)</option>
+              </select>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Notification time</span>
+              <span className="font-medium text-slate-800">{notifTime}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Timezone</span>
+              <span className="font-medium text-slate-800">{TIMEZONE_LABEL[timezone] ?? timezone}</span>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between pt-1">
           <div>
             <p className="text-sm font-medium text-slate-700">Push notifications</p>
@@ -549,73 +667,90 @@ export default function SettingsPage() {
         )}
       </section>
 
+      {/* Location for weather */}
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-3">
-        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Location for weather</h2>
-        <p className="text-xs text-slate-500 leading-relaxed">
-          Used to forecast today&apos;s conditions and advise indoor vs outdoor riding.
-          Search for your town or city.
-        </p>
-        {savedLocationLabel && !geoMatches && (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-            <span className="text-sm text-slate-700">{locationLabel}</span>
-            <button
-              onClick={clearLocation}
-              className="text-xs font-medium text-slate-400 hover:text-red-500 transition-colors shrink-0 -my-1.5 px-2 py-2.5"
-            >
-              Clear
-            </button>
-          </div>
-        )}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={locationQuery}
-            onChange={e => setLocationQuery(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchLocation() } }}
-            placeholder="Town or city (e.g. Bristol)"
-            className={inputClass}
-          />
-          <button
-            onClick={searchLocation}
-            disabled={geoSearching || !locationQuery.trim()}
-            className="shrink-0 text-sm font-medium bg-slate-800 text-white px-4 py-2.5 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors"
-          >
-            {geoSearching ? '…' : 'Find'}
-          </button>
-        </div>
-        {geoMatches && geoMatches.length === 0 && (
-          <p className="text-xs text-amber-600">No matches — try a nearby town or city name.</p>
-        )}
-        {geoMatches && geoMatches.length > 0 && (
-          <div className="space-y-1.5">
-            {geoMatches.map((m, i) => (
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Location for weather</h2>
+          {editingLocation ? (
+            <div className="flex items-center gap-2">
               <button
-                key={i}
-                onClick={() => selectLocation(m)}
-                className="w-full text-left text-sm text-slate-700 rounded-lg border border-slate-200 px-3 py-2.5 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                onClick={async () => { const ok = await save(); if (ok) { setEditingLocation(false); setGeoMatches(null); setLocationQuery('') } }}
+                disabled={saving}
+                aria-label="Save location"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+              >✓</button>
+              <button
+                onClick={() => { setLocationLabel(savedLocationLabel); setLatitude(savedLatitude); setLongitude(savedLongitude); setGeoMatches(null); setLocationQuery(''); setEditingLocation(false); setSaveError(null) }}
+                aria-label="Cancel"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
+              >✕</button>
+            </div>
+          ) : (
+            <button onClick={() => setEditingLocation(true)} aria-label="Edit location" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
+          )}
+        </div>
+        {editingLocation ? (
+          <>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Used to forecast today&apos;s conditions and advise indoor vs outdoor riding.
+              Search for your town or city.
+            </p>
+            {locationLabel && (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <span className="text-sm text-slate-700">{locationLabel}</span>
+                <button
+                  onClick={clearLocation}
+                  className="text-xs font-medium text-slate-400 hover:text-red-500 transition-colors shrink-0 -my-1.5 px-2 py-2.5"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={locationQuery}
+                onChange={e => setLocationQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchLocation() } }}
+                placeholder="Town or city (e.g. Bristol)"
+                className={inputClass}
+              />
+              <button
+                onClick={searchLocation}
+                disabled={geoSearching || !locationQuery.trim()}
+                className="shrink-0 text-sm font-medium bg-slate-800 text-white px-4 py-2.5 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors"
               >
-                {m.label}
+                {geoSearching ? '…' : 'Find'}
               </button>
-            ))}
-          </div>
-        )}
-        {locationLabel && locationLabel !== savedLocationLabel && (
-          <p className="text-xs text-emerald-600">Selected: {locationLabel} — press Save to apply.</p>
+            </div>
+            {geoMatches && geoMatches.length === 0 && (
+              <p className="text-xs text-amber-600">No matches — try a nearby town or city name.</p>
+            )}
+            {geoMatches && geoMatches.length > 0 && (
+              <div className="space-y-1.5">
+                {geoMatches.map((m, i) => (
+                  <button
+                    key={i}
+                    onClick={() => selectLocation(m)}
+                    className="w-full text-left text-sm text-slate-700 rounded-lg border border-slate-200 px-3 py-2.5 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {locationLabel && locationLabel !== savedLocationLabel && (
+              <p className="text-xs text-emerald-600">Selected: {locationLabel} — press ✓ to save.</p>
+            )}
+          </>
+        ) : locationLabel ? (
+          <p className="text-sm font-semibold text-slate-800">{locationLabel}</p>
+        ) : (
+          <p className="text-sm text-slate-400 italic">No location set.</p>
         )}
       </section>
 
-      {saveError && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{saveError}</div>
-      )}
-
-      <button
-        onClick={save}
-        disabled={saving || !isDirty}
-        className="bg-slate-800 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors shadow-sm"
-      >
-        {saving ? 'Saving…' : saved ? 'Saved!' : 'Save'}
-      </button>
-
+      {/* Ride history */}
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-3">
         <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Ride history</h2>
         <p className="text-sm text-slate-500">Import rides from the last 3 months to show on the dashboard and calendar even if they had no planned session.</p>
@@ -651,6 +786,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* About */}
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
         <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3">About</h2>
         <div className="space-y-1.5 text-sm text-slate-500">
