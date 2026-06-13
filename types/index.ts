@@ -320,6 +320,24 @@ export interface WeightEntry {
   weight_kg: number
 }
 
+export interface ProgressDelta {
+  current: number
+  baseline: number
+  delta: number
+}
+
+export interface ProgressMetrics {
+  ftp: ProgressDelta | null
+  ctl: ProgressDelta | null
+  wkg: ProgressDelta | null
+  weight: ProgressDelta | null
+  adherence: { completed: number; total: number } | null
+  planPhase: string | null
+  targetEvent: string | null
+  targetDate: string | null
+  planStartDate: string | null
+}
+
 export interface WeeklyTss {
   weekStart: string  // YYYY-MM-DD (Monday of that ISO week)
   tss: number
