@@ -1,4 +1,4 @@
-import type { ICUWellness, ProgressMetrics, WeightEntry, WorkoutStatus } from '@/types'
+import type { ICUActivity, ICUWellness, ProgressMetrics, WeightEntry, WorkoutStatus } from '@/types'
 
 interface PlanInfo {
   created_at: string
@@ -13,6 +13,13 @@ interface PlanWorkout {
   date: string
 }
 
+function getWeekStart(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  const dow = d.getDay() // 0=Sun, 1=Mon…6=Sat
+  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow))
+  return d.toISOString().split('T')[0]
+}
+
 export function computeProgressMetrics(
   wellness: ICUWellness[],
   currentFTP: number,
@@ -20,6 +27,8 @@ export function computeProgressMetrics(
   plan: PlanInfo | null,
   weightLog: WeightEntry[],
   planWorkouts: PlanWorkout[],
+  activities: ICUActivity[] = [],
+  minSessionsPerWeek: number = 3,
 ): ProgressMetrics {
   const today = new Date().toISOString().split('T')[0]
   const planStartDate = plan ? plan.created_at.split('T')[0] : null
@@ -79,18 +88,6 @@ export function computeProgressMetrics(
     }
   }
 
-  // w/kg delta
-  let wkg: ProgressMetrics['wkg'] = null
-  if (ftp && weight) {
-    const currentWkg = currentFTP / currentWeightKg
-    const baselineWkg = ftp.baseline / weight.baseline
-    wkg = {
-      current: Math.round(currentWkg * 100) / 100,
-      baseline: Math.round(baselineWkg * 100) / 100,
-      delta: Math.round((currentWkg - baselineWkg) * 100) / 100,
-    }
-  }
-
   // Adherence
   let adherence: ProgressMetrics['adherence'] = null
   if (plan && planWorkouts.length > 0) {
@@ -101,12 +98,50 @@ export function computeProgressMetrics(
     if (total > 0) adherence = { completed, total }
   }
 
+  // Streak — consecutive weeks (Mon-Sun) ending before current week where completed >= minSessionsPerWeek
+  let streak: number | null = null
+  if (plan && planWorkouts.length > 0) {
+    const currentWeekStart = getWeekStart(today)
+    const weekMap = new Map<string, number>()
+    for (const w of planWorkouts) {
+      const ws = getWeekStart(w.date)
+      if (ws >= currentWeekStart) continue // exclude current (in-progress) week
+      if (!weekMap.has(ws)) weekMap.set(ws, 0)
+      if (w.status === 'completed') weekMap.set(ws, weekMap.get(ws)! + 1)
+    }
+    if (weekMap.size > 0) {
+      const weeks = [...weekMap.keys()].sort((a, b) => b.localeCompare(a)) // newest first
+      let count = 0
+      for (const ws of weeks) {
+        if (weekMap.get(ws)! >= minSessionsPerWeek) count++
+        else break
+      }
+      streak = count
+    }
+  }
+
+  // Total rides since plan start (fallback: last 6 weeks)
+  let totalRides: number | null = null
+  if (activities.length > 0) {
+    let baseline: string
+    if (planStartDate) {
+      baseline = planStartDate
+    } else {
+      const d = new Date()
+      d.setDate(d.getDate() - 42)
+      baseline = d.toISOString().split('T')[0]
+    }
+    const count = activities.filter(a => a.start_date_local.substring(0, 10) >= baseline).length
+    if (count > 0) totalRides = count
+  }
+
   return {
     ftp,
     ctl,
-    wkg,
     weight,
     adherence,
+    streak,
+    totalRides,
     planPhase: plan?.phase ?? null,
     targetEvent: plan?.target_event_name ?? null,
     targetDate: plan?.target_event_date ?? null,
