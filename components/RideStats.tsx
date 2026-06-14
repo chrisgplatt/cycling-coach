@@ -12,7 +12,7 @@ export interface RideStatsData {
   avgHr: number | null
   maxHr: number | null
   minHr: number | null
-  lrBalanceLeft: number | null   // left %, e.g. 52.3
+  lrBalanceRight: number | null  // right-side %, e.g. 47.7 (intervals.icu stores right-side %)
   npWkg: number | null
   avgWkg: number | null
 }
@@ -38,7 +38,7 @@ export function rideStatsFromActivity(a: ICUActivity): RideStatsData {
     avgHr: a.average_heartrate,
     maxHr: a.max_heartrate ?? null,
     minHr: null,
-    lrBalanceLeft: a.left_right_balance,
+    lrBalanceRight: a.left_right_balance,
     npWkg: null,
     avgWkg: null,
   }
@@ -57,7 +57,7 @@ export function rideStatsFromMetrics(m: ActivityMetrics, durationSecs: number, t
     avgHr: m.avg_hr,
     maxHr: m.max_hr ?? null,
     minHr: m.min_hr ?? null,
-    lrBalanceLeft: m.lr_balance,
+    lrBalanceRight: m.lr_balance,
     npWkg: null,
     avgWkg: null,
   }
@@ -93,8 +93,8 @@ export function SectionCard({ title, children, accent }: { title: string; childr
 // whose data is absent are hidden. Shared by the stats page and the ride modals.
 export default function RideStats({ data }: { data: RideStatsData }) {
   const hasBest = data.best.p1 != null || data.best.p5 != null || data.best.p10 != null || data.best.p20 != null
-  const balance = data.lrBalanceLeft !== null
-    ? `${data.lrBalanceLeft.toFixed(1)}% L / ${(100 - data.lrBalanceLeft).toFixed(1)}% R`
+  const balance = data.lrBalanceRight !== null
+    ? `${(100 - data.lrBalanceRight).toFixed(1)}% L / ${data.lrBalanceRight.toFixed(1)}% R`
     : null
   const num = (v: number | null) => (v !== null ? String(Math.round(v)) : '—')
 

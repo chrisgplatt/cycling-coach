@@ -13,9 +13,9 @@ function formatRideTabLabel(dateStr: string): string {
 }
 
 function AggregateView({ stats }: { stats: RidingStats }) {
-  const leftPct = stats.avg_left_right_balance
-  const balance = leftPct !== null
-    ? `${leftPct.toFixed(1)}% L / ${(100 - leftPct).toFixed(1)}% R`
+  const rightPct = stats.avg_left_right_balance
+  const balance = rightPct !== null
+    ? `${(100 - rightPct).toFixed(1)}% L / ${rightPct.toFixed(1)}% R`
     : '—'
 
   return (
@@ -88,7 +88,7 @@ function AggregateView({ stats }: { stats: RidingStats }) {
         <div className="text-center px-2 py-3 sm:px-3 sm:py-4">
           <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-rose-500">{balance}</div>
           <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">Avg Left / Right</div>
-          {leftPct !== null && (
+          {rightPct !== null && (
             <div className="text-[11px] text-gray-400 mt-0.5">from {stats.balance_ride_count} ride{stats.balance_ride_count !== 1 ? 's' : ''}</div>
           )}
         </div>

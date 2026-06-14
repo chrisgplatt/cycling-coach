@@ -250,7 +250,7 @@ export interface ICUActivity {
   rolling_ftp: number | null     // intervals.icu rolling FTP estimate
   distance: number | null              // metres
   total_elevation_gain: number | null  // metres
-  left_right_balance: number | null    // left %, e.g. 52.3
+  left_right_balance: number | null    // right-side %, e.g. 47.7 (intervals.icu stores right-side %)
   power_1min?: number | null
   power_5min?: number | null
   power_10min?: number | null
@@ -306,7 +306,7 @@ export interface RidingStats {
   power_5min: number | null
   power_10min: number | null
   power_20min: number | null
-  avg_left_right_balance: number | null  // left %, e.g. 52.3
+  avg_left_right_balance: number | null  // right-side %, e.g. 47.7 (intervals.icu stores right-side %)
   balance_ride_count: number
   avg_hr: number | null
   max_hr: number | null

@@ -81,7 +81,7 @@ describe('StatsPage', () => {
   it('renders balance after load', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => ({ stats: mockStats }) })
     render(<StatsPage />)
-    expect(await screen.findByText('52.3% L / 47.7% R')).toBeInTheDocument()
+    expect(await screen.findByText('47.7% L / 52.3% R')).toBeInTheDocument()
   })
 
   it('shows — for null power values', async () => {

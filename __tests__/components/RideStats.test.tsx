@@ -21,7 +21,7 @@ describe('RideStats adapters', () => {
     const d = rideStatsFromActivity(activity)
     expect(d).toMatchObject({
       avgWatts: 200, np: 210, tss: 85, distanceM: 30000, elevationM: 320,
-      durationSecs: 3600, avgHr: 145, lrBalanceLeft: 52,
+      durationSecs: 3600, avgHr: 145, lrBalanceRight: 52,
       best: { p1: 380, p5: 320, p10: 300, p20: 280 },
     })
   })
@@ -30,7 +30,7 @@ describe('RideStats adapters', () => {
     const d = rideStatsFromMetrics(metrics, 3600, 85)
     expect(d).toMatchObject({
       avgWatts: 200, np: 210, tss: 85, distanceM: 30000, elevationM: 320,
-      durationSecs: 3600, avgHr: 145, lrBalanceLeft: 52,
+      durationSecs: 3600, avgHr: 145, lrBalanceRight: 52,
       best: { p1: 380, p5: 320, p10: null, p20: 280 }, // 600s effort absent → null
     })
   })
