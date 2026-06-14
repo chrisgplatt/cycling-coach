@@ -85,7 +85,6 @@ describe('ProgressStats', () => {
 
   it('renders event banner with name and days', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
-    // @ts-expect-error - eventCountdown prop does not exist yet
     render(<ProgressStats syncVersion={0} eventCountdown={{ name: 'Dragon Ride', daysAway: 78 }} />)
     await screen.findByText('245W')
     expect(screen.getByText(/Dragon Ride/)).toBeInTheDocument()
@@ -94,7 +93,6 @@ describe('ProgressStats', () => {
 
   it('renders "Today!" when daysAway is 0', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
-    // @ts-expect-error - eventCountdown prop does not exist yet
     render(<ProgressStats syncVersion={0} eventCountdown={{ name: 'Gran Fondo', daysAway: 0 }} />)
     await screen.findByText('245W')
     expect(screen.getByText('Today!')).toBeInTheDocument()
@@ -102,7 +100,6 @@ describe('ProgressStats', () => {
 
   it('renders form tile with fresh badge when TSB > 5', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
-    // @ts-expect-error - form prop does not exist yet
     render(<ProgressStats syncVersion={0} form={12} />)
     await screen.findByText('245W')
     expect(screen.getByText('+12')).toBeInTheDocument()
@@ -111,7 +108,6 @@ describe('ProgressStats', () => {
 
   it('renders form tile with building badge when TSB is -8', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
-    // @ts-expect-error - form prop does not exist yet
     render(<ProgressStats syncVersion={0} form={-8} />)
     await screen.findByText('245W')
     expect(screen.getByText('-8')).toBeInTheDocument()
@@ -120,7 +116,6 @@ describe('ProgressStats', () => {
 
   it('renders form tile with tired badge when TSB is -20', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
-    // @ts-expect-error - form prop does not exist yet
     render(<ProgressStats syncVersion={0} form={-20} />)
     await screen.findByText('245W')
     expect(screen.getByText('-20')).toBeInTheDocument()
