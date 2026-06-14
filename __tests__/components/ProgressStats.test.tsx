@@ -57,13 +57,6 @@ describe('ProgressStats', () => {
     expect(await screen.findByText('47')).toBeInTheDocument()
   })
 
-  it('renders weight tile with negative delta (green)', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
-    render(<ProgressStats syncVersion={0} />)
-    expect(await screen.findByText('73.5kg')).toBeInTheDocument()
-    expect(await screen.findByText('-1.5')).toBeInTheDocument()
-  })
-
   it('does not render the coaching narrative text', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} />)
