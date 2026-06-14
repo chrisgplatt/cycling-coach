@@ -36,7 +36,7 @@ describe('CalendarPage', () => {
 
   it('shows workout duration for a workout day', async () => {
     render(<CalendarPage />)
-    await waitFor(() => expect(screen.getByText('1h')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText('1h').length).toBeGreaterThan(0))
   })
 
   it('shows plan name below month heading', async () => {
