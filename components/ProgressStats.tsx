@@ -28,12 +28,11 @@ export default function ProgressStats({ syncVersion }: Props) {
   if (!data) return null
 
   const m = data.metrics_snapshot
-  if (!m.ftp && !m.ctl && !m.adherence && m.streak == null && m.totalRides == null && !m.weight) return null
+  if (!m.ftp && !m.ctl && !m.adherence && m.streak == null && m.totalRides == null) return null
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-gray-200 flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+      <div className="px-4 py-2.5 border-b border-gray-200">
         <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Progress</h2>
       </div>
       <div className="p-3 grid grid-cols-3 gap-2">
@@ -55,9 +54,6 @@ export default function ProgressStats({ syncVersion }: Props) {
         )}
         {m.totalRides != null && (
           <Tile label="Rides" value={String(m.totalRides)} sub="since plan" />
-        )}
-        {m.weight && (
-          <Tile label="Weight" value={`${m.weight.current}kg`} delta={m.weight.delta} goodWhenPositive={false} />
         )}
       </div>
     </div>
