@@ -10,9 +10,10 @@ const mockCreate = anthropic.messages.create as jest.Mock
 const metrics = {
   ftp: { current: 245, baseline: 230, delta: 15 },
   ctl: { current: 70, baseline: 55, delta: 15 },
-  wkg: null,
   weight: null,
   adherence: { completed: 14, total: 16 },
+  streak: null,
+  totalRides: null,
   planPhase: 'build',
   targetEvent: 'Dragon Ride',
   targetDate: '2026-09-01',

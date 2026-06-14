@@ -25,10 +25,6 @@ export async function generateProgressBrief(input: ProgressBriefInput): Promise<
     const dir = metrics.ftp.delta >= 0 ? '+' : ''
     lines.push(`FTP: ${metrics.ftp.current}W (was ${metrics.ftp.baseline}W, ${dir}${metrics.ftp.delta}W)`)
   }
-  if (metrics.wkg) {
-    const dir = metrics.wkg.delta >= 0 ? '+' : ''
-    lines.push(`Power-to-weight: ${metrics.wkg.current} w/kg (was ${metrics.wkg.baseline}, ${dir}${metrics.wkg.delta})`)
-  }
   if (metrics.weight) {
     const dir = metrics.weight.delta >= 0 ? '+' : ''
     lines.push(`Weight: ${metrics.weight.current}kg (was ${metrics.weight.baseline}kg, ${dir}${metrics.weight.delta}kg)`)

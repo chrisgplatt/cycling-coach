@@ -50,9 +50,6 @@ export default function ProgressBrief({ syncVersion }: Props) {
         {m.ftp && (
           <MetricTile label="FTP" value={`${m.ftp.current}W`} delta={m.ftp.delta} goodWhenPositive />
         )}
-        {m.wkg && (
-          <MetricTile label="w/kg" value={m.wkg.current.toFixed(2)} delta={m.wkg.delta} goodWhenPositive />
-        )}
         {m.weight && (
           <MetricTile label="Weight" value={`${m.weight.current}kg`} delta={m.weight.delta} goodWhenPositive={false} />
         )}
