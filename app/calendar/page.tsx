@@ -344,7 +344,7 @@ function WeekDetail({
 // ─── Continuous week list ──────────────────────────────────────────────────────
 
 // Short label for a week given its Monday, e.g. "25–31 May" or "29 Jun – 5 Jul".
-function WeekHeader({ monday, todayStr }: { monday: string; todayStr: string }) {
+function WeekHeader({ monday, todayStr, workouts }: { monday: string; todayStr: string; workouts: Workout[] }) {
   const { start, end } = getWeekBounds(monday)
   const s = new Date(start + 'T00:00:00Z')
   const e = new Date(end + 'T00:00:00Z')
@@ -354,11 +354,22 @@ function WeekHeader({ monday, todayStr }: { monday: string; todayStr: string }) 
     ? `${s.getUTCDate()}–${e.getUTCDate()} ${sMonth}`
     : `${s.getUTCDate()} ${sMonth} – ${e.getUTCDate()} ${eMonth}`
   const isThisWeek = todayStr >= start && todayStr <= end
+
+  const weekWorkouts = workouts.filter(w => w.date >= start && w.date <= end && w.status !== 'skipped')
+  const totalMins = weekWorkouts.reduce((sum, w) => sum + w.duration_minutes, 0)
+  const totalTss = weekWorkouts.reduce((sum, w) => sum + (w.tss ?? 0), 0)
+  const hasTss = weekWorkouts.some(w => w.tss != null)
+
   return (
     <div className="flex items-center gap-2 px-1 pb-1 pt-0.5">
       <span className="text-xs font-semibold text-slate-500">{label}</span>
       {isThisWeek && (
         <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">This week</span>
+      )}
+      {weekWorkouts.length > 0 && (
+        <span className="ml-auto text-[10px] text-slate-400">
+          {formatDuration(totalMins)}{hasTss ? ` · ${Math.round(totalTss)} TSS` : ''}
+        </span>
       )}
     </div>
   )
@@ -428,7 +439,7 @@ function ContinuousWeeks({ navTarget, onWeekInView, ...week }: ContinuousWeeksPr
           key={monday}
           ref={el => { if (el) weekEls.current.set(monday, el); else weekEls.current.delete(monday) }}
         >
-          <WeekHeader monday={monday} todayStr={week.todayStr} />
+          <WeekHeader monday={monday} todayStr={week.todayStr} workouts={week.workouts} />
           <WeekDetail selectedDateStr={monday} {...week} />
         </div>
       ))}
