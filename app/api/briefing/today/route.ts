@@ -101,7 +101,8 @@ export async function GET(req: NextRequest) {
       const todayLoad = computeDailyActivityLoad(activities, today)
       const todayLifeLoad = computeDailyLifeLoad(
         latest?.sleep_score ?? null,
-        latest?.body_battery_low ?? null,
+        latest?.body_battery_high ?? null,
+        latest?.sleep_secs ?? null,
       )
       dailyStrain = computeDailyStrain(
         todayLoad > 0 ? todayLoad : null,
@@ -111,7 +112,7 @@ export async function GET(req: NextRequest) {
         date: w.id,
         strain: computeDailyStrain(
           computeDailyActivityLoad(activities, w.id) || null,
-          computeDailyLifeLoad(w.sleep_score, w.body_battery_low),
+          computeDailyLifeLoad(w.sleep_score, w.body_battery_high, w.sleep_secs),
         ),
       }))
       recentWorkouts = activities

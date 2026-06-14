@@ -71,7 +71,8 @@ export async function GET() {
         const components = computeStrainComponents(
           activityLoad > 0 ? activityLoad : null,
           w.sleep_score,
-          w.body_battery_low,
+          w.body_battery_high,
+          w.sleep_secs,
         )
         if (!components) return null
         return { date: w.id, workout: components.workoutPts, life: components.lifePts, total: components.total }

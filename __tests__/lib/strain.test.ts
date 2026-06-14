@@ -15,7 +15,7 @@ describe('computeDailyLifeLoad', () => {
   })
 
   test('low body battery only', () => {
-    // body_battery_low=20 → ((100-20)/100)*1.5=1.2, avail=1.5 → (1.2/1.5)*7=5.6
+    // body_battery_high=20 → ((100-20)/100)*1.5=1.2, avail=1.5 → (1.2/1.5)*7=5.6
     expect(computeDailyLifeLoad(null, 20)).toBeCloseTo(5.6, 1)
   })
 
@@ -31,6 +31,22 @@ describe('computeDailyLifeLoad', () => {
 
   test('all null → null', () => {
     expect(computeDailyLifeLoad(null, null)).toBeNull()
+  })
+
+  test('7.5h sleep duration gives zero penalty', () => {
+    // 27000s = target, durationScore=100 → ((100-100)/100)*1=0, adds nothing
+    expect(computeDailyLifeLoad(null, null, 27000)).toBeCloseTo(0, 4)
+  })
+
+  test('5h sleep duration gives max penalty', () => {
+    // 18000s = floor, durationScore=0 → ((100-0)/100)*1=1, avail=1 → (1/1)*7=7
+    expect(computeDailyLifeLoad(null, null, 18000)).toBeCloseTo(7, 4)
+  })
+
+  test('6h sleep (midpoint) gives partial penalty', () => {
+    // 21600s: score = (21600-18000)/(27000-18000)*100 = 3600/9000*100 ≈ 40
+    // raw = (60/100)*1 = 0.6, avail=1 → (0.6/1)*7 = 4.2
+    expect(computeDailyLifeLoad(null, null, 21600)).toBeCloseTo(4.2, 1)
   })
 })
 
@@ -60,10 +76,24 @@ describe('computeStrainComponents', () => {
     expect(c.batteryRawPts).toBeCloseTo(1.2, 1)
   })
 
+  test('sleepDurationRawPts for 6h sleep', () => {
+    // 21600s: durationScore ≈ 40 → (60/100)*1 = 0.6
+    const c = computeStrainComponents(0, null, null, 21600)!
+    expect(c.sleepDurationRawPts).toBeCloseTo(0.6, 1)
+    expect(c.sleepRawPts).toBe(0)
+    expect(c.batteryRawPts).toBe(0)
+  })
+
+  test('sleepDurationRawPts is 0 at 7.5h target', () => {
+    const c = computeStrainComponents(0, null, null, 27000)!
+    expect(c.sleepDurationRawPts).toBeCloseTo(0, 4)
+  })
+
   test('source values pass through unchanged', () => {
-    const c = computeStrainComponents(100, 72, 35)!
+    const c = computeStrainComponents(100, 72, 35, 25200)!
     expect(c.sleepScore).toBe(72)
-    expect(c.bodyBatteryLow).toBe(35)
+    expect(c.bodyBatteryHigh).toBe(35)
+    expect(c.sleepSecs).toBe(25200)
   })
 
   test('no workout today — workoutPts is 0', () => {
@@ -151,7 +181,17 @@ describe('formatStrainForPrompt', () => {
 
   test('appends battery context when battery is low', () => {
     const s = formatStrainForPrompt(10, null, 28)
-    expect(s).toContain('body battery woke at 28%')
+    expect(s).toContain('body battery peak 28%')
+  })
+
+  test('appends sleep duration context when sleep is short', () => {
+    const s = formatStrainForPrompt(10, null, null, 19800)  // 5.5h
+    expect(s).toContain('slept 5.5h')
+  })
+
+  test('no sleep duration context when duration is sufficient', () => {
+    const s = formatStrainForPrompt(10, null, null, 25200)  // 7h — above 6h threshold
+    expect(s).not.toContain('slept')
   })
 
   test('no context when sleep and battery are good', () => {

@@ -18,7 +18,8 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
   const c = computeStrainComponents(
     wellness.garmin_training_load,
     wellness.sleep_score,
-    wellness.body_battery_low,
+    wellness.body_battery_high,
+    wellness.sleep_secs,
   )
   if (!c) return null
 
@@ -27,10 +28,11 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
 
   // Donut: use raw un-normalised pts as fractions of 21 for proportional arcs
   const d = 21
-  const w  = (c.workoutPts    / d) * 100
-  const sl = (c.sleepRawPts   / d) * 100
-  const b  = (c.batteryRawPts / d) * 100
-  const donut = `conic-gradient(#3b82f6 0% ${w}%, #8b5cf6 ${w}% ${w + sl}%, #10b981 ${w + sl}% ${w + sl + b}%, #e2e8f0 ${w + sl + b}% 100%)`
+  const w  = (c.workoutPts          / d) * 100
+  const sl = (c.sleepRawPts         / d) * 100
+  const sd = (c.sleepDurationRawPts / d) * 100
+  const b  = (c.batteryRawPts       / d) * 100
+  const donut = `conic-gradient(#3b82f6 0% ${w}%, #8b5cf6 ${w}% ${w + sl}%, #a78bfa ${w + sl}% ${w + sl + sd}%, #10b981 ${w + sl + sd}% ${w + sl + sd + b}%, #e2e8f0 ${w + sl + sd + b}% 100%)`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -112,23 +114,34 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
 
             {/* Sub-signal rows */}
             <div className="space-y-2.5 pl-1">
-              {/* Sleep */}
+              {/* Sleep quality */}
               <div className="flex items-center gap-2">
                 <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.sleepScore != null ? 'bg-violet-400' : 'bg-gray-200'}`} />
                 {c.sleepScore != null ? (
                   <span className="text-xs text-gray-700">
-                    Sleep <span className="text-gray-400">score {c.sleepScore} / 100</span>
+                    Sleep quality <span className="text-gray-400">score {c.sleepScore} / 100</span>
                   </span>
                 ) : (
-                  <span className="text-xs text-gray-300">Sleep <em>not synced</em></span>
+                  <span className="text-xs text-gray-300">Sleep quality <em>not synced</em></span>
+                )}
+              </div>
+              {/* Sleep duration */}
+              <div className="flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.sleepSecs != null ? 'bg-violet-300' : 'bg-gray-200'}`} />
+                {c.sleepSecs != null ? (
+                  <span className="text-xs text-gray-700">
+                    Sleep duration <span className="text-gray-400">{(c.sleepSecs / 3600).toFixed(1)}h</span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-300">Sleep duration <em>not synced</em></span>
                 )}
               </div>
               {/* Body battery */}
               <div className="flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.bodyBatteryLow != null ? 'bg-emerald-400' : 'bg-gray-200'}`} />
-                {c.bodyBatteryLow != null ? (
+                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.bodyBatteryHigh != null ? 'bg-emerald-400' : 'bg-gray-200'}`} />
+                {c.bodyBatteryHigh != null ? (
                   <span className="text-xs text-gray-700">
-                    Body battery <span className="text-gray-400">woke at {c.bodyBatteryLow}%</span>
+                    Body battery <span className="text-gray-400">peak {c.bodyBatteryHigh}%</span>
                   </span>
                 ) : (
                   <span className="text-xs text-gray-300">Body battery <em>not synced</em></span>
