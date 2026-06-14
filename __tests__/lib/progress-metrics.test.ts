@@ -1,5 +1,5 @@
 import { computeProgressMetrics } from '@/lib/progress/metrics'
-import type { ICUWellness, WeightEntry } from '@/types'
+import type { ICUActivity, ICUWellness, WeightEntry } from '@/types'
 
 const baseWellness = {
   atl: 60, form: -5, hrv: null, resting_hr: null, sleep_secs: null,
@@ -23,6 +23,11 @@ const plan = {
   phase: 'build',
   target_event_name: 'Dragon Ride',
   target_event_date: '2026-09-01',
+}
+
+// Helper to build a minimal ICUActivity fixture
+function act(date: string): ICUActivity {
+  return { start_date_local: `${date}T09:00:00`, category: 'WORKOUT', name: 'Ride' } as ICUActivity
 }
 
 describe('computeProgressMetrics', () => {
@@ -61,13 +66,6 @@ describe('computeProgressMetrics', () => {
     expect(result.weight).toEqual({ current: 73.5, baseline: 75.0, delta: -1.5 })
   })
 
-  it('computes w/kg delta when both ftp and weight baselines exist', () => {
-    const result = computeProgressMetrics([], 245, 73.5, plan, weightLog, [])
-    expect(result.wkg?.current).toBeCloseTo(245 / 73.5, 2)
-    expect(result.wkg?.baseline).toBeCloseTo(230 / 75.0, 2)
-    expect(result.wkg?.delta).toBeCloseTo((245 / 73.5) - (230 / 75.0), 2)
-  })
-
   it('computes adherence from completed workouts up to today', () => {
     const workouts = [
       { status: 'completed' as const, date: '2026-05-01' },
@@ -89,5 +87,76 @@ describe('computeProgressMetrics', () => {
     expect(result.targetEvent).toBe('Dragon Ride')
     expect(result.targetDate).toBe('2026-09-01')
     expect(result.planStartDate).toBe('2026-04-01')
+  })
+
+  it('does not expose wkg', () => {
+    const result = computeProgressMetrics([], 245, 73.5, plan, weightLog, [])
+    expect(result).not.toHaveProperty('wkg')
+  })
+
+  // Streak tests
+  // Weeks below use Mon-Sun. Mar 2 2026 is a Monday.
+  it('computes streak of consecutive hit weeks, stopping at a miss', () => {
+    const workouts = [
+      // Week of Mar 2 — HIT (3 completed)
+      { status: 'completed' as const, date: '2026-03-02' },
+      { status: 'completed' as const, date: '2026-03-03' },
+      { status: 'completed' as const, date: '2026-03-04' },
+      // Week of Mar 9 — MISS (2 completed)
+      { status: 'completed' as const, date: '2026-03-09' },
+      { status: 'completed' as const, date: '2026-03-10' },
+      { status: 'skipped' as const, date: '2026-03-12' },
+      // Week of Mar 16 — HIT (3 completed)
+      { status: 'completed' as const, date: '2026-03-16' },
+      { status: 'completed' as const, date: '2026-03-17' },
+      { status: 'completed' as const, date: '2026-03-18' },
+      // Week of Mar 23 — HIT (3 completed)
+      { status: 'completed' as const, date: '2026-03-23' },
+      { status: 'completed' as const, date: '2026-03-24' },
+      { status: 'completed' as const, date: '2026-03-25' },
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], workouts, [], 3)
+    expect(result.streak).toBe(2) // Mar 16 + Mar 23 consecutive; Mar 9 breaks it
+  })
+
+  it('returns 0 streak when most recent past week was a miss', () => {
+    const workouts = [
+      // Week of Mar 9 — HIT
+      { status: 'completed' as const, date: '2026-03-09' },
+      { status: 'completed' as const, date: '2026-03-10' },
+      { status: 'completed' as const, date: '2026-03-11' },
+      // Week of Mar 16 — MISS (only 1 completed)
+      { status: 'completed' as const, date: '2026-03-16' },
+      { status: 'skipped' as const, date: '2026-03-17' },
+      { status: 'skipped' as const, date: '2026-03-18' },
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], workouts, [], 3)
+    expect(result.streak).toBe(0)
+  })
+
+  it('returns null streak when there is no plan', () => {
+    const result = computeProgressMetrics([], 245, 73.5, null, [], [], [], 3)
+    expect(result.streak).toBeNull()
+  })
+
+  it('returns null streak when there are no planWorkouts', () => {
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], [], 3)
+    expect(result.streak).toBeNull()
+  })
+
+  // Rides tests
+  it('counts activities since plan start', () => {
+    const activities = [
+      act('2026-04-02'), // after plan start (2026-04-01) → counted
+      act('2026-04-15'), // after → counted
+      act('2026-03-15'), // before → not counted
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], activities, 3)
+    expect(result.totalRides).toBe(2)
+  })
+
+  it('returns null totalRides when activities array is empty', () => {
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], [], 3)
+    expect(result.totalRides).toBeNull()
   })
 })
