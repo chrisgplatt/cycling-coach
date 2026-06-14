@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
   const { data: profile } = await supabase
     .from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp, weight_kg, goals')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp, weight_kg, goals, min_sessions_per_week')
     .maybeSingle()
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
@@ -87,6 +87,7 @@ export async function POST(req: Request) {
           current_ftp: profile.current_ftp,
           weight_kg: profile.weight_kg,
           goals: profile.goals ?? '',
+          min_sessions_per_week: profile.min_sessions_per_week ?? 3,
         })
       } catch { /* non-fatal — brief generation failure must not block sync */ }
     }

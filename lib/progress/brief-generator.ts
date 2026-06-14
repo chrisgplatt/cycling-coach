@@ -9,6 +9,7 @@ interface BriefProfile {
   current_ftp: number
   weight_kg: number
   goals: string
+  min_sessions_per_week: number
 }
 
 export async function maybeGenerateProgressBrief(
@@ -61,6 +62,8 @@ export async function maybeGenerateProgressBrief(
     plan ?? null,
     weightLog,
     planWorkouts,
+    syncData.activities,
+    profile.min_sessions_per_week,
   )
 
   const content = await generateProgressBrief({ metrics, goals: profile.goals ?? '' })

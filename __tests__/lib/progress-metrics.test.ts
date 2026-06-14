@@ -27,7 +27,7 @@ const plan = {
 
 // Helper to build a minimal ICUActivity fixture
 function act(date: string): ICUActivity {
-  return { start_date_local: `${date}T09:00:00`, category: 'WORKOUT', name: 'Ride' } as ICUActivity
+  return { start_date_local: `${date}T09:00:00`, category: 'WORKOUT', name: 'Ride' } as unknown as ICUActivity
 }
 
 describe('computeProgressMetrics', () => {
