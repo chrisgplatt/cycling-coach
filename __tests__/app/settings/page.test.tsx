@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import SettingsPage from '@/app/settings/page'
 
 global.fetch = jest.fn().mockResolvedValue({
@@ -34,21 +34,25 @@ describe('Account page', () => {
 
   it('shows intervals.icu athlete ID input', () => {
     render(<SettingsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /edit intervals\.icu settings/i }))
     expect(screen.getByPlaceholderText(/athlete id/i)).toBeInTheDocument()
   })
 
   it('shows intervals.icu API key input', () => {
     render(<SettingsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /edit intervals\.icu settings/i }))
     expect(screen.getByPlaceholderText(/api key/i)).toBeInTheDocument()
   })
 
   it('shows Full Name input', () => {
     render(<SettingsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /edit name/i }))
     expect(screen.getByPlaceholderText(/e\.g\. chris smith/i)).toBeInTheDocument()
   })
 
   it('shows the location search input', () => {
     render(<SettingsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /edit location/i }))
     expect(screen.getByPlaceholderText(/town or city/i)).toBeInTheDocument()
   })
 })
