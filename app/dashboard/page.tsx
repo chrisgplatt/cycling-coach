@@ -39,7 +39,7 @@ import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import HrvStatusChip from '@/components/HrvStatusChip'
 import StrainBreakdownSheet from '@/components/StrainBreakdownSheet'
-import ProgressBrief from '@/components/ProgressBrief'
+import ProgressStats from '@/components/ProgressStats'
 
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
@@ -389,8 +389,6 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <ProgressBrief syncVersion={syncVersion} />
-
       {showReviewBanner && (
         <WeeklyReviewBanner
           lastWeekCompleted={lastWeekStats.completed}
@@ -465,6 +463,8 @@ export default function DashboardPage() {
           <CtlTrendStrip embedded chartsData={chartsData} />
         </div>
       )}
+
+      <ProgressStats syncVersion={syncVersion} />
 
       <div>
         <div className="flex items-baseline justify-between mb-0.5">
