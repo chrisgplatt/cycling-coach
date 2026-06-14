@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import type { ProgressMetrics, WeeklyProgress } from '@/types'
+import type { ProgressMetrics, WeeklyProgress, EventCountdown } from '@/types'
 
 interface StatsData {
   metrics_snapshot: ProgressMetrics
@@ -9,13 +9,15 @@ interface StatsData {
 interface Props {
   syncVersion: number
   weeklyProgress?: WeeklyProgress | null
+  eventCountdown?: EventCountdown | null
+  form?: number | null
 }
 
 function fmtH(mins: number) {
   return `${(mins / 60).toFixed(1)}h`
 }
 
-export default function ProgressStats({ syncVersion, weeklyProgress }: Props) {
+export default function ProgressStats({ syncVersion, weeklyProgress, eventCountdown, form }: Props) {
   const [data, setData] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -34,7 +36,7 @@ export default function ProgressStats({ syncVersion, weeklyProgress }: Props) {
   const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || data.metrics_snapshot.streak != null || data.metrics_snapshot.totalRides != null)
   const hasWeek = weeklyProgress && weeklyProgress.sessionsTotal > 0
 
-  if (!hasSeasonStats && !hasWeek) return null
+  if (!hasSeasonStats && !hasWeek && !eventCountdown) return null
 
   const m = data?.metrics_snapshot
 
@@ -43,6 +45,14 @@ export default function ProgressStats({ syncVersion, weeklyProgress }: Props) {
       <div className="px-4 py-2.5 border-b border-gray-200">
         <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Progress</h2>
       </div>
+      {eventCountdown && (
+        <div className="px-4 py-1.5 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+          <span className="text-[11px] font-semibold text-blue-700 truncate">🏁 {eventCountdown.name}</span>
+          <span className="text-[11px] font-bold text-blue-700 ml-2 shrink-0">
+            {eventCountdown.daysAway === 0 ? 'Today!' : `${eventCountdown.daysAway}d`}
+          </span>
+        </div>
+      )}
       {hasSeasonStats && m && (
         <div className="p-3 grid grid-cols-3 gap-2">
           {m.ftp && (
@@ -63,6 +73,14 @@ export default function ProgressStats({ syncVersion, weeklyProgress }: Props) {
           )}
           {m.totalRides != null && (
             <Tile label="Rides" value={String(m.totalRides)} sub="since plan" />
+          )}
+          {form != null && (
+            <Tile
+              label="Form"
+              value={form > 0 ? `+${form}` : String(form)}
+              sub={form > 5 ? 'fresh' : form >= -15 ? 'building' : 'tired'}
+              subColour={form > 5 ? 'text-emerald-600' : form >= -15 ? 'text-amber-500' : 'text-red-500'}
+            />
           )}
         </div>
       )}
@@ -108,10 +126,11 @@ interface TileProps {
   goodWhenPositive?: boolean
   pct?: number
   sub?: string
+  subColour?: string
   deltaSuffix?: string
 }
 
-function Tile({ label, value, delta, goodWhenPositive, pct, sub, deltaSuffix = '' }: TileProps) {
+function Tile({ label, value, delta, goodWhenPositive, pct, sub, subColour, deltaSuffix = '' }: TileProps) {
   let badge = ''
   let badgeColour = 'text-gray-400'
 
@@ -120,6 +139,7 @@ function Tile({ label, value, delta, goodWhenPositive, pct, sub, deltaSuffix = '
     badgeColour = pct >= 80 ? 'text-emerald-600' : pct >= 60 ? 'text-amber-500' : 'text-red-500'
   } else if (sub) {
     badge = sub
+    if (subColour) badgeColour = subColour
   } else if (delta !== undefined && delta !== 0) {
     badge = `${delta > 0 ? '+' : ''}${delta}${deltaSuffix}`
     const isGood = goodWhenPositive ? delta > 0 : delta < 0
