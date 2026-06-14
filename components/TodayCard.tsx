@@ -39,6 +39,7 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
   const [weather, setWeather] = useState<WeatherSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
   // workoutCompleted state recorded when the cached note was last generated
   const [cacheWorkoutCompleted, setCacheWorkoutCompleted] = useState<boolean | null>(null)
   // prevent the auto-refresh from firing more than once per session
@@ -199,39 +200,58 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
       </div>
 
       {/* Coach note */}
-      <div className="border-t border-slate-100 pt-3 space-y-2">
-        {!loading && verdict && headline && (
-          <ReadinessBadge verdict={verdict} headline={headline} />
-        )}
-        {!loading && weather && <WeatherStrip weather={weather} />}
-        {loading ? (
-          <p className="text-sm text-slate-400">Getting your briefing…</p>
-        ) : coachNote ? (
-          <p className="text-sm text-slate-600 leading-relaxed font-light">{coachNote}</p>
-        ) : (
-          <p className="text-sm text-slate-400 italic">Coach note unavailable.</p>
-        )}
-        {!loading && (
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="text-xs text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+      <div className="border-t border-slate-100">
+        <button
+          onClick={() => setNotesOpen(o => !o)}
+          className="w-full flex items-center justify-between pt-3 pb-1 text-left"
+          aria-expanded={notesOpen}
+        >
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Coach's note</span>
+          <svg
+            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+            strokeLinecap="round" strokeLinejoin="round"
+            className={`text-slate-400 transition-transform duration-200 ${notesOpen ? 'rotate-180' : ''}`}
+            aria-hidden="true"
           >
-            {refreshing ? 'Getting note…' : todayEvent?.result_tss != null ? 'Get post-race note' : workout?.status === 'completed' ? 'Get post-ride note' : 'Refresh note'}
-          </button>
-        )}
-        {!loading && onChatWithCoach && workout && (
-          <button
-            onClick={onChatWithCoach}
-            className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors py-2 block"
-          >
-            <span className="flex items-center gap-1.5">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-              </svg>
-              Chat with coach →
-            </span>
-          </button>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        {notesOpen && (
+          <div className="pb-1 space-y-2">
+            {!loading && verdict && headline && (
+              <ReadinessBadge verdict={verdict} headline={headline} />
+            )}
+            {!loading && weather && <WeatherStrip weather={weather} />}
+            {loading ? (
+              <p className="text-sm text-slate-400">Getting your briefing…</p>
+            ) : coachNote ? (
+              <p className="text-sm text-slate-600 leading-relaxed font-light">{coachNote}</p>
+            ) : (
+              <p className="text-sm text-slate-400 italic">Coach note unavailable.</p>
+            )}
+            {!loading && (
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="text-xs text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+              >
+                {refreshing ? 'Getting note…' : todayEvent?.result_tss != null ? 'Get post-race note' : workout?.status === 'completed' ? 'Get post-ride note' : 'Refresh note'}
+              </button>
+            )}
+            {!loading && onChatWithCoach && workout && (
+              <button
+                onClick={onChatWithCoach}
+                className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors py-2 block"
+              >
+                <span className="flex items-center gap-1.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                  </svg>
+                  Chat with coach →
+                </span>
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
