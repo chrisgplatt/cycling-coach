@@ -329,9 +329,10 @@ export interface ProgressDelta {
 export interface ProgressMetrics {
   ftp: ProgressDelta | null
   ctl: ProgressDelta | null
-  wkg: ProgressDelta | null
   weight: ProgressDelta | null
   adherence: { completed: number; total: number } | null
+  streak: number | null
+  totalRides: number | null
   planPhase: string | null
   targetEvent: string | null
   targetDate: string | null
