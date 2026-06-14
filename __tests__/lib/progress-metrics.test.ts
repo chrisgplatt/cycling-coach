@@ -159,4 +159,23 @@ describe('computeProgressMetrics', () => {
     const result = computeProgressMetrics([], 245, 73.5, plan, [], [], [], 3)
     expect(result.totalRides).toBeNull()
   })
+
+  it('counts an activity on the exact plan start date', () => {
+    const activities = [
+      act('2026-04-01'), // exact plan start date → should count (>=)
+      act('2026-03-31'), // day before → should NOT count
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], activities, 3)
+    expect(result.totalRides).toBe(1)
+  })
+
+  it('uses 6-week fallback baseline when there is no plan', () => {
+    // Today is 2026-06-14; 6 weeks ago = 2026-05-03
+    const activities = [
+      act('2026-06-01'), // within 6 weeks → counted
+      act('2026-04-01'), // older than 6 weeks → NOT counted
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, null, [], [], activities, 3)
+    expect(result.totalRides).toBe(1)
+  })
 })
