@@ -51,13 +51,7 @@ describe('ProgressStats', () => {
     expect(await screen.findByText('🔥 5')).toBeInTheDocument()
   })
 
-  it('renders rides tile', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
-    render(<ProgressStats syncVersion={0} />)
-    expect(await screen.findByText('47')).toBeInTheDocument()
-  })
-
-  it('does not render the coaching narrative text', async () => {
+it('does not render the coaching narrative text', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} />)
     await screen.findByText('245W') // wait for data to load

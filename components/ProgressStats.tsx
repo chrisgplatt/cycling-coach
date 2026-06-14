@@ -33,7 +33,7 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
 
   if (loading) return <div className="h-24 bg-gray-100 rounded-xl animate-pulse" />
 
-  const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || data.metrics_snapshot.streak != null || data.metrics_snapshot.totalRides != null)
+  const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || data.metrics_snapshot.streak != null)
   const hasWeek = weeklyProgress && weeklyProgress.sessionsTotal > 0
 
   if (!hasSeasonStats && !hasWeek && !eventCountdown) return null
@@ -71,10 +71,7 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
           {m.streak != null && (
             <Tile label="Streak" value={m.streak > 0 ? `🔥 ${m.streak}` : `${m.streak}`} sub="weeks" />
           )}
-          {m.totalRides != null && (
-            <Tile label="Rides" value={String(m.totalRides)} sub="since plan" />
-          )}
-          {form != null && (
+{form != null && (
             <Tile
               label="Form"
               value={form > 0 ? `+${form}` : String(form)}
