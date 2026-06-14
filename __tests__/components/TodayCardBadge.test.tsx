@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import TodayCard from '@/components/TodayCard'
 
 beforeEach(() => {
@@ -12,6 +12,7 @@ afterEach(() => jest.restoreAllMocks())
 
 it('shows the readiness badge when the briefing returns a verdict', async () => {
   render(<TodayCard workout={null} wellness={null} />)
+  fireEvent.click(screen.getByRole('button', { name: /coach's note/i }))
   await waitFor(() => expect(screen.getByTestId('readiness-badge')).toBeInTheDocument())
   expect(screen.getByTestId('readiness-badge')).toHaveTextContent(/GO HARD/i)
 })
@@ -30,5 +31,6 @@ it('renders the weather strip when the briefing returns weather', async () => {
     }),
   })
   render(<TodayCard workout={null} wellness={null} />)
+  fireEvent.click(screen.getByRole('button', { name: /coach's note/i }))
   expect(await screen.findByTestId('weather-strip')).toHaveTextContent('Heavy rain')
 })
