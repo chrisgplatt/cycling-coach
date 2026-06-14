@@ -349,6 +349,11 @@ export interface WeeklyProgress {
   timeActualMins: number
 }
 
+export interface EventCountdown {
+  name: string
+  daysAway: number
+}
+
 export interface WeeklyTss {
   weekStart: string  // YYYY-MM-DD (Monday of that ISO week)
   tss: number
