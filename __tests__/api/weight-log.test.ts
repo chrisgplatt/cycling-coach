@@ -27,11 +27,12 @@ function makeSupabase({
     from: (table: string) => ({
       select: (cols?: string) => ({
         eq: () => ({
-          order: () => ({ data: entries, error: null }),
+          // supports both: direct .data access (GET list) and .limit().maybeSingle() (latest entry)
+          order: () => ({
+            data: entries, error: null,
+            limit: () => ({ maybeSingle: async () => ({ data: latestEntry }) }),
+          }),
           maybeSingle: async () => ({ data: table === 'user_profile' ? profile : null }),
-          limit: () => ({ maybeSingle: async () => ({ data: latestEntry }) }),
-        }),
-        order: () => ({
           limit: () => ({ maybeSingle: async () => ({ data: latestEntry }) }),
         }),
         maybeSingle: async () => ({ data: profile }),

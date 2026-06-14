@@ -44,6 +44,7 @@ export async function POST(req: Request) {
     .from('weight_log')
     .select('date, weight_kg')
     .eq('user_id', user.id)
+    .order('date', { ascending: false })
     .limit(1)
     .maybeSingle()
 
@@ -80,6 +81,7 @@ export async function DELETE(req: Request) {
     .from('weight_log')
     .select('date, weight_kg')
     .eq('user_id', user.id)
+    .order('date', { ascending: false })
     .limit(1)
     .maybeSingle()
 
