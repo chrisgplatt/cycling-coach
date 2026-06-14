@@ -5,7 +5,7 @@ import WorkoutCard from '@/components/WorkoutCard'
 import FeedbackModal from '@/components/FeedbackModal'
 import CtlTrendStrip from '@/components/CtlTrendStrip'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback, ICUActivity, WeightEntry } from '@/types'
+import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback, ICUActivity, WeightEntry, WeeklyProgress } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
@@ -387,6 +387,21 @@ export default function DashboardPage() {
     return localDateStr(d)
   })
 
+  const IF_VALS_WP: Record<string, number> = { recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90 }
+  const weekWorkoutsWP = workouts.filter(w => weekDates.includes(w.date))
+  const weeklyProgress: WeeklyProgress | null = weekWorkoutsWP.length > 0 ? {
+    sessionsCompleted: weekWorkoutsWP.filter(w => w.status === 'completed').length,
+    sessionsTotal: weekWorkoutsWP.length,
+    tssActual: Math.round(weekWorkoutsWP.filter(w => w.status === 'completed' && w.tss !== null).reduce((s, w) => s + (w.tss ?? 0), 0)),
+    tssPlanned: weekWorkoutsWP.reduce((s, w) => {
+      const if_ = IF_VALS_WP[w.type] ?? 0.68
+      return s + Math.round((w.duration_minutes * 60 * if_ * if_) / 36)
+    }, 0),
+    distanceKm: Math.round(weekWorkoutsWP.filter(w => w.status === 'completed').reduce((s, w) => s + ((w.activity_metrics?.distance_m ?? 0) / 1000), 0) * 10) / 10,
+    timePlannedMins: weekWorkoutsWP.reduce((s, w) => s + w.duration_minutes, 0),
+    timeActualMins: weekWorkoutsWP.filter(w => w.status === 'completed').reduce((s, w) => s + w.duration_minutes, 0),
+  } : null
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {showReviewBanner && (
@@ -464,7 +479,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <ProgressStats syncVersion={syncVersion} />
+      <ProgressStats syncVersion={syncVersion} weeklyProgress={weeklyProgress} />
 
       <div>
         <div className="flex items-baseline justify-between mb-0.5">

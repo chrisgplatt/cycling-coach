@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import type { ProgressMetrics } from '@/types'
+import type { ProgressMetrics, WeeklyProgress } from '@/types'
 
 interface StatsData {
   metrics_snapshot: ProgressMetrics
@@ -8,9 +8,14 @@ interface StatsData {
 
 interface Props {
   syncVersion: number
+  weeklyProgress?: WeeklyProgress | null
 }
 
-export default function ProgressStats({ syncVersion }: Props) {
+function fmtH(mins: number) {
+  return `${(mins / 60).toFixed(1)}h`
+}
+
+export default function ProgressStats({ syncVersion, weeklyProgress }: Props) {
   const [data, setData] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -25,37 +30,73 @@ export default function ProgressStats({ syncVersion }: Props) {
   }, [syncVersion])
 
   if (loading) return <div className="h-24 bg-gray-100 rounded-xl animate-pulse" />
-  if (!data) return null
 
-  const m = data.metrics_snapshot
-  if (!m.ftp && !m.ctl && !m.adherence && m.streak == null && m.totalRides == null) return null
+  const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || data.metrics_snapshot.streak != null || data.metrics_snapshot.totalRides != null)
+  const hasWeek = weeklyProgress && weeklyProgress.sessionsTotal > 0
+
+  if (!hasSeasonStats && !hasWeek) return null
+
+  const m = data?.metrics_snapshot
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="px-4 py-2.5 border-b border-gray-200">
         <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Progress</h2>
       </div>
-      <div className="p-3 grid grid-cols-3 gap-2">
-        {m.ftp && (
-          <Tile label="FTP" value={`${m.ftp.current}W`} delta={m.ftp.delta} deltaSuffix="W" goodWhenPositive />
-        )}
-        {m.ctl && (
-          <Tile label="Fitness" value={String(m.ctl.current)} delta={m.ctl.delta} deltaSuffix="pts" goodWhenPositive />
-        )}
-        {m.adherence && m.adherence.total > 0 && (
-          <Tile
-            label="Sessions"
-            value={`${m.adherence.completed}/${m.adherence.total}`}
-            pct={Math.round((m.adherence.completed / m.adherence.total) * 100)}
-          />
-        )}
-        {m.streak != null && (
-          <Tile label="Streak" value={m.streak > 0 ? `🔥 ${m.streak}` : `${m.streak}`} sub="weeks" />
-        )}
-        {m.totalRides != null && (
-          <Tile label="Rides" value={String(m.totalRides)} sub="since plan" />
-        )}
-      </div>
+      {hasSeasonStats && m && (
+        <div className="p-3 grid grid-cols-3 gap-2">
+          {m.ftp && (
+            <Tile label="FTP" value={`${m.ftp.current}W`} delta={m.ftp.delta} deltaSuffix="W" goodWhenPositive />
+          )}
+          {m.ctl && (
+            <Tile label="Fitness" value={String(m.ctl.current)} delta={m.ctl.delta} deltaSuffix="pts" goodWhenPositive />
+          )}
+          {m.adherence && m.adherence.total > 0 && (
+            <Tile
+              label="Sessions"
+              value={`${m.adherence.completed}/${m.adherence.total}`}
+              pct={Math.round((m.adherence.completed / m.adherence.total) * 100)}
+            />
+          )}
+          {m.streak != null && (
+            <Tile label="Streak" value={m.streak > 0 ? `🔥 ${m.streak}` : `${m.streak}`} sub="weeks" />
+          )}
+          {m.totalRides != null && (
+            <Tile label="Rides" value={String(m.totalRides)} sub="since plan" />
+          )}
+        </div>
+      )}
+      {hasWeek && weeklyProgress && (
+        <>
+          {hasSeasonStats && <div className="mx-3 border-t border-gray-100" />}
+          <div className="px-4 pt-2 pb-1">
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.06em]">This Week</span>
+          </div>
+          <div className="px-3 pb-3 grid grid-cols-2 gap-2">
+            <Tile
+              label="Sessions"
+              value={`${weeklyProgress.sessionsCompleted}/${weeklyProgress.sessionsTotal}`}
+              pct={Math.round((weeklyProgress.sessionsCompleted / weeklyProgress.sessionsTotal) * 100)}
+            />
+            <Tile
+              label="TSS"
+              value={String(weeklyProgress.tssActual)}
+              sub={`of ${weeklyProgress.tssPlanned}`}
+            />
+            {weeklyProgress.distanceKm > 0 && (
+              <Tile
+                label="Distance"
+                value={`${weeklyProgress.distanceKm < 10 ? weeklyProgress.distanceKm.toFixed(1) : Math.round(weeklyProgress.distanceKm)} km`}
+              />
+            )}
+            <Tile
+              label="Time"
+              value={fmtH(weeklyProgress.timeActualMins)}
+              sub={`of ${fmtH(weeklyProgress.timePlannedMins)}`}
+            />
+          </div>
+        </>
+      )}
     </div>
   )
 }

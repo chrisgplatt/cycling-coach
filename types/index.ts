@@ -339,6 +339,16 @@ export interface ProgressMetrics {
   planStartDate: string | null
 }
 
+export interface WeeklyProgress {
+  sessionsCompleted: number
+  sessionsTotal: number
+  tssActual: number
+  tssPlanned: number
+  distanceKm: number
+  timePlannedMins: number
+  timeActualMins: number
+}
+
 export interface WeeklyTss {
   weekStart: string  // YYYY-MM-DD (Monday of that ISO week)
   tss: number
