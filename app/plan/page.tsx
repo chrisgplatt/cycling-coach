@@ -35,6 +35,14 @@ function formatMins(mins: number): string {
   return `${Math.floor(mins / 60)}h ${mins % 60}min`
 }
 
+function formatTimeAgo(iso: string): string {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.round(hrs / 24)}d ago`
+}
+
 export default function PlanPage() {
   const [tab, setTab] = useState<Tab>('plan')
 
@@ -111,6 +119,7 @@ export default function PlanPage() {
   const [reviewWorkoutsFound, setReviewWorkoutsFound] = useState(0)
   const [reviewEstimatedWorkouts, setReviewEstimatedWorkouts] = useState(0)
   const [pendingAdaptNote, setPendingAdaptNote] = useState<string | null>(null)
+  const [coachBrief, setCoachBrief] = useState<{ content: string; generated_at: string } | null>(null)
 
   // Fix 1: timer ref to avoid unmount leak and double-save race
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -245,6 +254,13 @@ export default function PlanPage() {
     fetch('/api/sync', { method: 'POST' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setSyncData(data) })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/progress-brief')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setCoachBrief(d ? { content: d.content, generated_at: d.generated_at } : null))
       .catch(() => {})
   }, [])
 
@@ -551,6 +567,13 @@ export default function PlanPage() {
                   />
                 )}
               </div>
+
+              {coachBrief && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                  <p className="text-sm text-green-900 leading-relaxed">{coachBrief.content}</p>
+                  <p className="text-xs text-green-500 mt-2">Updated {formatTimeAgo(coachBrief.generated_at)}</p>
+                </div>
+              )}
 
               {totalPlanned > 0 && (
                 <ConsistencyStrip hitPct={cons.hitPct} streak={cons.streak} hours={hours} />
