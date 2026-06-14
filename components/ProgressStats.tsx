@@ -24,36 +24,42 @@ export default function ProgressStats({ syncVersion }: Props) {
     return () => ac.abort()
   }, [syncVersion])
 
-  if (loading) return <div className="h-16 bg-gray-100 rounded-xl animate-pulse" />
+  if (loading) return <div className="h-24 bg-gray-100 rounded-xl animate-pulse" />
   if (!data) return null
 
   const m = data.metrics_snapshot
   if (!m.ftp && !m.ctl && !m.adherence && m.streak == null && m.totalRides == null && !m.weight) return null
 
   return (
-    <div className="grid grid-cols-3 gap-1">
-      {m.ftp && (
-        <Tile label="FTP" value={`${m.ftp.current}W`} delta={m.ftp.delta} deltaSuffix="W" goodWhenPositive />
-      )}
-      {m.ctl && (
-        <Tile label="Fitness" value={String(m.ctl.current)} delta={m.ctl.delta} deltaSuffix="pts" goodWhenPositive />
-      )}
-      {m.adherence && m.adherence.total > 0 && (
-        <Tile
-          label="Sessions"
-          value={`${m.adherence.completed}/${m.adherence.total}`}
-          pct={Math.round((m.adherence.completed / m.adherence.total) * 100)}
-        />
-      )}
-      {m.streak != null && (
-        <Tile label="Streak" value={`🔥 ${m.streak}`} sub="weeks" />
-      )}
-      {m.totalRides != null && (
-        <Tile label="Rides" value={String(m.totalRides)} sub="since plan" />
-      )}
-      {m.weight && (
-        <Tile label="Weight" value={`${m.weight.current}kg`} delta={m.weight.delta} goodWhenPositive={false} />
-      )}
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-gray-200 flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+        <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Progress</h2>
+      </div>
+      <div className="p-3 grid grid-cols-3 gap-2">
+        {m.ftp && (
+          <Tile label="FTP" value={`${m.ftp.current}W`} delta={m.ftp.delta} deltaSuffix="W" goodWhenPositive />
+        )}
+        {m.ctl && (
+          <Tile label="Fitness" value={String(m.ctl.current)} delta={m.ctl.delta} deltaSuffix="pts" goodWhenPositive />
+        )}
+        {m.adherence && m.adherence.total > 0 && (
+          <Tile
+            label="Sessions"
+            value={`${m.adherence.completed}/${m.adherence.total}`}
+            pct={Math.round((m.adherence.completed / m.adherence.total) * 100)}
+          />
+        )}
+        {m.streak != null && (
+          <Tile label="Streak" value={m.streak > 0 ? `🔥 ${m.streak}` : `${m.streak}`} sub="weeks" />
+        )}
+        {m.totalRides != null && (
+          <Tile label="Rides" value={String(m.totalRides)} sub="since plan" />
+        )}
+        {m.weight && (
+          <Tile label="Weight" value={`${m.weight.current}kg`} delta={m.weight.delta} goodWhenPositive={false} />
+        )}
+      </div>
     </div>
   )
 }
@@ -84,10 +90,10 @@ function Tile({ label, value, delta, goodWhenPositive, pct, sub, deltaSuffix = '
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 px-2 py-1.5 text-center">
-      <div className="text-[8px] font-medium text-gray-400 uppercase tracking-wide truncate">{label}</div>
-      <div className="text-[13px] font-bold text-gray-900 leading-tight">{value}</div>
-      {badge && <div className={`text-[9px] font-semibold ${badgeColour}`}>{badge}</div>}
+    <div className="bg-gray-50 rounded-lg border border-gray-100 px-2 py-2 text-center">
+      <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide truncate mb-0.5">{label}</div>
+      <div className="text-sm font-bold text-gray-900 leading-tight">{value}</div>
+      {badge && <div className={`text-[10px] font-semibold mt-0.5 ${badgeColour}`}>{badge}</div>}
     </div>
   )
 }
