@@ -5,7 +5,7 @@ import WorkoutCard from '@/components/WorkoutCard'
 import FeedbackModal from '@/components/FeedbackModal'
 import CtlTrendStrip from '@/components/CtlTrendStrip'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback, ICUActivity, WeightEntry, WeeklyProgress } from '@/types'
+import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback, ICUActivity, WeightEntry, WeeklyProgress, EventCountdown } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
@@ -402,6 +402,23 @@ export default function DashboardPage() {
     timeActualMins: weekWorkoutsWP.filter(w => w.status === 'completed').reduce((s, w) => s + w.duration_minutes, 0),
   } : null
 
+  const nearestEvent = events
+    .filter(e => e.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
+  const eventCountdown: EventCountdown | null = nearestEvent ? {
+    name: nearestEvent.name,
+    daysAway: Math.ceil(
+      (new Date(nearestEvent.date).getTime() - new Date(todayStr).getTime())
+      / (1000 * 60 * 60 * 24)
+    ),
+  } : null
+
+  const todayWellness = syncData?.wellness.find(w => w.id === todayStr)
+  const recentWellness = [...(syncData?.wellness ?? [])]
+    .sort((a, b) => b.id.localeCompare(a.id))
+    .find(w => w.form !== null)
+  const form: number | null = todayWellness?.form ?? recentWellness?.form ?? null
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {showReviewBanner && (
@@ -479,7 +496,12 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <ProgressStats syncVersion={syncVersion} weeklyProgress={weeklyProgress} />
+      <ProgressStats
+        syncVersion={syncVersion}
+        weeklyProgress={weeklyProgress}
+        eventCountdown={eventCountdown}
+        form={form}
+      />
 
       <div>
         <div className="flex items-baseline justify-between mb-0.5">
