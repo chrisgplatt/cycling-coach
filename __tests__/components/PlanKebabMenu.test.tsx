@@ -45,6 +45,7 @@ describe('PlanKebabMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /plan options/i }))
     fireEvent.click(screen.getByText('Regenerate plan'))
     expect(handlers.onRegenerate).toHaveBeenCalled()
+    expect(screen.queryByText('Regenerate plan')).not.toBeInTheDocument()
   })
 
   it('calls onRename and closes', () => {
@@ -52,6 +53,7 @@ describe('PlanKebabMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /plan options/i }))
     fireEvent.click(screen.getByText('Rename plan'))
     expect(handlers.onRename).toHaveBeenCalled()
+    expect(screen.queryByText('Rename plan')).not.toBeInTheDocument()
   })
 
   it('calls onDelete and closes', () => {
@@ -59,5 +61,6 @@ describe('PlanKebabMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /plan options/i }))
     fireEvent.click(screen.getByText('Delete plan'))
     expect(handlers.onDelete).toHaveBeenCalled()
+    expect(screen.queryByText('Delete plan')).not.toBeInTheDocument()
   })
 })
