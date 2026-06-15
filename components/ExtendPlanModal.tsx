@@ -30,13 +30,15 @@ export default function ExtendPlanModal({
 }: Props) {
   const today = new Date().toISOString().split('T')[0]
 
+  const isEventMode = nearestEvent !== null && nearestEvent.date > planEndDate
+
   const suggestedWeeks = nearestEvent
     ? Math.max(1, Math.ceil(
         (new Date(nearestEvent.date).getTime() - new Date(planEndDate).getTime()) / (7 * 86400000)
       ))
     : 2
 
-  const [selectedWeeks, setSelectedWeeks] = useState(suggestedWeeks)
+  const [selectedWeeks, setSelectedWeeks] = useState(isEventMode ? suggestedWeeks : 2)
 
   const weeksCompleted = Math.max(0, Math.floor(
     (new Date(today).getTime() - new Date(planCreatedAt.split('T')[0]).getTime()) / (7 * 86400000)
@@ -60,8 +62,6 @@ export default function ExtendPlanModal({
     { key: 'Peak', weeks: pw.peak, colour: '#8b5cf6' },
     { key: 'Taper', weeks: pw.taper, colour: '#64748b' },
   ].filter(p => p.weeks > 0)
-
-  const isEventMode = nearestEvent !== null && nearestEvent.date > planEndDate
 
   const newEndDate = isEventMode
     ? nearestEvent!.date

@@ -81,6 +81,6 @@ describe('ExtendPlanModal — event mode', () => {
     render(<ExtendPlanModal {...baseProps} nearestEvent={eventA} />)
     fireEvent.click(screen.getByRole('button', { name: /extend to/i }))
     // suggestedWeeks = ceil((14 Sep - 22 Aug) / 7) = ceil(23/7) = 4
-    expect(baseProps.onConfirm).toHaveBeenCalledWith(expect.any(Number))
+    expect(baseProps.onConfirm).toHaveBeenCalledWith(4)
   })
 })
