@@ -103,26 +103,22 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
               value={fmtH(weeklyProgress.timeActualMins)}
               sub={`of ${fmtH(weeklyProgress.timePlannedMins)}`}
             />
-            {weeklyProgress.fitnessCtl !== null && (
-              <Tile label="Fitness" value={String(weeklyProgress.fitnessCtl)} sub="CTL" />
-            )}
-            {weeklyProgress.distanceKm > 0 && (
-              <Tile
-                label="Distance"
-                value={`${weeklyProgress.distanceKm < 10 ? weeklyProgress.distanceKm.toFixed(1) : Math.round(weeklyProgress.distanceKm)}km`}
-              />
-            )}
-            {weeklyProgress.elevationM > 0 && (
-              <Tile
-                label="Elevation"
-                value={weeklyProgress.elevationM >= 1000
+            <Tile label="Fitness" value={weeklyProgress.fitnessCtl !== null ? String(weeklyProgress.fitnessCtl) : '—'} sub="CTL" />
+            <Tile
+              label="Distance"
+              value={weeklyProgress.distanceKm > 0
+                ? `${weeklyProgress.distanceKm < 10 ? weeklyProgress.distanceKm.toFixed(1) : Math.round(weeklyProgress.distanceKm)}km`
+                : '—'}
+            />
+            <Tile
+              label="Elevation"
+              value={weeklyProgress.elevationM > 0
+                ? weeklyProgress.elevationM >= 1000
                   ? `${(weeklyProgress.elevationM / 1000).toFixed(1)}km`
-                  : `${weeklyProgress.elevationM}m`}
-              />
-            )}
-            {weeklyProgress.otherActivitiesCount > 0 && (
-              <Tile label="Other rides" value={String(weeklyProgress.otherActivitiesCount)} />
-            )}
+                  : `${weeklyProgress.elevationM}m`
+                : '—'}
+            />
+            <Tile label="Other rides" value={weeklyProgress.otherActivitiesCount > 0 ? String(weeklyProgress.otherActivitiesCount) : '—'} />
           </div>
         </>
       )}
