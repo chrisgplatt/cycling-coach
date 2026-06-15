@@ -131,6 +131,8 @@ export default function PlanPage() {
   const [planPhilosophy, setPlanPhilosophy] = useState<TrainingPhilosophy | null>(null)
   const [showExtendModal, setShowExtendModal] = useState(false)
   const [eventBannerDismissed, setEventBannerDismissed] = useState(false)
+  const [showClearFutureConfirm, setShowClearFutureConfirm] = useState(false)
+  const [clearingFuture, setClearingFuture] = useState(false)
 
   const planEndDate = planCreatedAt && (planTotalWeeks ?? planWeeks) > 0
     ? (() => {
@@ -613,6 +615,24 @@ export default function PlanPage() {
     } catch { return 'Error: Network error' }
   }
 
+  async function handleClearFuture() {
+    setClearingFuture(true)
+    try {
+      const res = await fetch('/api/workouts/reset-future', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setSaveError(data.error ?? 'Failed to clear workouts')
+      } else {
+        loadPlan()
+      }
+    } catch {
+      setSaveError('Network error')
+    } finally {
+      setClearingFuture(false)
+      setShowClearFutureConfirm(false)
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -701,9 +721,9 @@ export default function PlanPage() {
                   <button onClick={() => setSaveError(null)} className="text-red-400 hover:text-red-600 shrink-0 text-lg leading-none">×</button>
                 </div>
               )}
-              <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl text-white shadow-md overflow-hidden">
+              <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl text-white shadow-md">
                 {eventMovedEvent && (
-                  <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between gap-3">
+                  <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between gap-3 rounded-t-2xl overflow-hidden">
                     <div className="min-w-0">
                       <p className="text-[10px] font-bold text-amber-800 truncate">🗓 {eventMovedEvent.name} · {new Date(eventMovedEvent.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
                       <p className="text-[10px] text-amber-600">This event is after your plan ends — extend to cover it?</p>
@@ -743,6 +763,7 @@ export default function PlanPage() {
                         onExtend={() => setShowExtendModal(true)}
                         onRegenerate={() => setShowReplaceConfirm(true)}
                         onRename={handleRename}
+                        onClearFuture={() => setShowClearFutureConfirm(true)}
                         onDelete={() => setShowClearModal(true)}
                       />
                     </div>
@@ -929,6 +950,31 @@ export default function PlanPage() {
             onClose={() => setPlanChatOpen(false)}
             onWorkoutsUpdated={() => { setPlanChatOpen(false); loadPlan() }}
           />
+        )}
+
+        {showClearFutureConfirm && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+              <h2 className="text-lg font-bold text-slate-900">Clear future workouts?</h2>
+              <p className="text-sm text-slate-500">
+                This will delete all upcoming planned workouts from your plan and intervals.icu. Your plan remains active — you can extend it when you&apos;re ready.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowClearFutureConfirm(false)}
+                  disabled={clearingFuture}
+                  className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >Cancel</button>
+                <button
+                  onClick={handleClearFuture}
+                  disabled={clearingFuture}
+                  className="bg-amber-500 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-amber-600 transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {clearingFuture ? 'Clearing…' : 'Clear workouts'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {showExtendModal && planEndDate && (

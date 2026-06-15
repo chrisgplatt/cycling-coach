@@ -5,10 +5,11 @@ interface Props {
   onExtend: () => void
   onRegenerate: () => void
   onRename: () => void
+  onClearFuture: () => void
   onDelete: () => void
 }
 
-export default function PlanKebabMenu({ onExtend, onRegenerate, onRename, onDelete }: Props) {
+export default function PlanKebabMenu({ onExtend, onRegenerate, onRename, onClearFuture, onDelete }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -36,7 +37,7 @@ export default function PlanKebabMenu({ onExtend, onRegenerate, onRename, onDele
         ⋯
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1 min-w-[150px] z-20">
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1 min-w-[170px] z-30">
           <button
             onClick={() => pick(onExtend)}
             className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 transition-colors min-h-[44px]"
@@ -54,6 +55,12 @@ export default function PlanKebabMenu({ onExtend, onRegenerate, onRename, onDele
             className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 transition-colors min-h-[44px]"
           >
             Rename plan
+          </button>
+          <button
+            onClick={() => pick(onClearFuture)}
+            className="w-full text-left px-4 py-2.5 text-sm font-medium text-amber-600 hover:bg-amber-50 transition-colors min-h-[44px]"
+          >
+            Clear future workouts
           </button>
           <div className="mx-3 border-t border-slate-100 my-1" />
           <button

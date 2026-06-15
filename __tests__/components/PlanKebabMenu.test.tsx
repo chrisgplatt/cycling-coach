@@ -5,6 +5,7 @@ const handlers = {
   onExtend: jest.fn(),
   onRegenerate: jest.fn(),
   onRename: jest.fn(),
+  onClearFuture: jest.fn(),
   onDelete: jest.fn(),
 }
 
@@ -29,7 +30,16 @@ describe('PlanKebabMenu', () => {
     expect(screen.getByText('Extend plan')).toBeInTheDocument()
     expect(screen.getByText('Regenerate plan')).toBeInTheDocument()
     expect(screen.getByText('Rename plan')).toBeInTheDocument()
+    expect(screen.getByText('Clear future workouts')).toBeInTheDocument()
     expect(screen.getByText('Delete plan')).toBeInTheDocument()
+  })
+
+  it('calls onClearFuture and closes', () => {
+    render(<PlanKebabMenu {...handlers} />)
+    fireEvent.click(screen.getByRole('button', { name: /plan options/i }))
+    fireEvent.click(screen.getByText('Clear future workouts'))
+    expect(handlers.onClearFuture).toHaveBeenCalled()
+    expect(screen.queryByText('Clear future workouts')).not.toBeInTheDocument()
   })
 
   it('calls onExtend and closes on "Extend plan" click', () => {

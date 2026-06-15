@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useState } from 'react'
 import { computeMethodology } from '@/lib/claude/methodology'
-import type { TrainingEvent, TrainingPhilosophy } from '@/types'
+import type { GeneratedPlan, TrainingEvent, TrainingPhilosophy } from '@/types'
 
 interface Props {
   planEndDate: string
@@ -14,6 +14,8 @@ interface Props {
   onSuccess: () => void
   onClose: () => void
 }
+
+type Phase = 'select' | 'loading' | 'review' | 'applying'
 
 const WEEK_CHIPS = [2, 4, 6, 8]
 
@@ -51,9 +53,14 @@ export default function ExtendPlanModal({
   const [selectedWeeks, setSelectedWeeks] = useState(
     preselectedEvent ? weeksFromPlanEnd(preselectedEvent.date, planEndDate) : 2
   )
-  const [loading, setLoading] = useState(false)
+  const [phase, setPhase] = useState<Phase>('select')
   const [workoutsFound, setWorkoutsFound] = useState(0)
   const [totalWorkouts, setTotalWorkouts] = useState(0)
+  const [pendingResult, setPendingResult] = useState<{
+    plan: GeneratedPlan
+    extra_weeks: number
+    new_total_weeks: number
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -69,11 +76,11 @@ export default function ExtendPlanModal({
     setSelectedWeeks(w)
   }
 
-  async function handleConfirm() {
+  async function handleGenerate() {
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
-    setLoading(true)
+    setPhase('loading')
     setError(null)
     setWorkoutsFound(0)
     setTotalWorkouts(0)
@@ -87,12 +94,12 @@ export default function ExtendPlanModal({
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setError(data.error ?? `Request failed (${res.status})`)
-        setLoading(false)
+        setPhase('select')
         return
       }
       if (!res.body) {
         setError('No response from server')
-        setLoading(false)
+        setPhase('select')
         return
       }
       const reader = res.body.getReader()
@@ -110,10 +117,17 @@ export default function ExtendPlanModal({
             const event = JSON.parse(line)
             if (event.type === 'total') setTotalWorkouts(event.count)
             else if (event.type === 'progress') setWorkoutsFound(event.found)
-            else if (event.type === 'done') { onSuccess(); return }
-            else if (event.type === 'error') {
-              setError(event.message ?? 'Extension failed')
-              setLoading(false)
+            else if (event.type === 'plan') {
+              setPendingResult({
+                plan: event.plan,
+                extra_weeks: event.extra_weeks,
+                new_total_weeks: event.new_total_weeks,
+              })
+              setPhase('review')
+              return
+            } else if (event.type === 'error') {
+              setError(event.message ?? 'Generation failed')
+              setPhase('select')
               return
             }
           } catch { /* ignore malformed lines */ }
@@ -122,10 +136,37 @@ export default function ExtendPlanModal({
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return
       setError(err instanceof Error ? err.message : 'Network error')
-    } finally {
-      setLoading(false)
+      setPhase('select')
     }
   }
+
+  async function handleApply() {
+    if (!pendingResult) return
+    setPhase('applying')
+    setError(null)
+    try {
+      const res = await fetch('/api/plan/extend/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          extra_weeks: pendingResult.extra_weeks,
+          plan: pendingResult.plan,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? `Apply failed (${res.status})`)
+        setPhase('review')
+        return
+      }
+      onSuccess()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error')
+      setPhase('review')
+    }
+  }
+
+  const blocked = phase === 'loading' || phase === 'applying'
 
   const weeksCompleted = Math.max(0, Math.floor(
     (new Date(today).getTime() - new Date(planCreatedAt.split('T')[0]).getTime()) / (7 * 86400000)
@@ -158,16 +199,19 @@ export default function ExtendPlanModal({
     : `Extend plan by ${selectedWeeks} week${selectedWeeks === 1 ? '' : 's'}`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
+      onClick={blocked ? undefined : onClose}
+    >
       <div
         className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-5 space-y-4 max-h-[92vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        {loading ? (
+        {phase === 'loading' && (
           <div className="py-8 space-y-4 text-center">
             <div className="w-8 h-8 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
             <div>
-              <p className="text-sm font-semibold text-slate-700">Extending your plan…</p>
+              <p className="text-sm font-semibold text-slate-700">Generating extension…</p>
               {totalWorkouts > 0 && (
                 <p className="text-xs text-slate-400 mt-1">
                   {workoutsFound} of {totalWorkouts} sessions generated
@@ -175,7 +219,60 @@ export default function ExtendPlanModal({
               )}
             </div>
           </div>
-        ) : (
+        )}
+
+        {phase === 'review' && pendingResult && (
+          <>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Review extension</p>
+              <p className="text-lg font-extrabold text-slate-900">Your extended plan is ready</p>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 space-y-1">
+              <p className="text-sm font-semibold text-blue-800">
+                {pendingResult.plan.workouts.length} sessions generated
+              </p>
+              {pendingResult.plan.workouts.length > 0 && (
+                <p className="text-xs text-blue-600">
+                  {fmtDate(pendingResult.plan.workouts[0].date)} → {fmtDate(pendingResult.plan.workouts[pendingResult.plan.workouts.length - 1].date)}
+                </p>
+              )}
+              <p className="text-xs text-blue-500">
+                Plan extended to {pendingResult.new_total_weeks} weeks total
+              </p>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={handleApply}
+                className="w-full bg-blue-600 text-white text-sm font-bold rounded-xl py-3 hover:bg-blue-700 transition-colors min-h-[44px]"
+              >
+                Apply extension
+              </button>
+              <button
+                onClick={() => { setPendingResult(null); setPhase('select') }}
+                className="w-full text-slate-400 text-sm py-2 min-h-[44px]"
+              >
+                Go back
+              </button>
+            </div>
+          </>
+        )}
+
+        {phase === 'applying' && (
+          <div className="py-8 space-y-4 text-center">
+            <div className="w-8 h-8 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
+            <p className="text-sm font-semibold text-slate-700">Applying extension…</p>
+          </div>
+        )}
+
+        {phase === 'select' && (
           <>
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Extend plan</p>
@@ -265,7 +362,7 @@ export default function ExtendPlanModal({
 
             <div className="space-y-2 pt-1">
               <button
-                onClick={handleConfirm}
+                onClick={handleGenerate}
                 className="w-full bg-blue-600 text-white text-sm font-bold rounded-xl py-3 hover:bg-blue-700 transition-colors min-h-[44px]"
               >
                 {ctaLabel}

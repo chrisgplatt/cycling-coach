@@ -7,7 +7,7 @@ import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import { fetchHrvStatus } from '@/lib/hrv/server'
 import type { AthleteDossier } from '@/lib/claude/dossier'
-import type { GeneratedPlan, TrainingPhilosophy, PlanPhase } from '@/types'
+import type { GeneratedPlan, TrainingPhilosophy } from '@/types'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -45,6 +45,19 @@ export async function POST(req: NextRequest) {
   const currentPlanWeeks = activePlan.plan_weeks ?? 12
   const remainingWeeks = Math.max(1, currentPlanWeeks - weeksCompleted)
   const newTotal = Math.min(52, weeksCompleted + remainingWeeks + extraWeeks)
+
+  // If there's a completed workout today, start generation from tomorrow
+  const { data: todayCompleted } = await supabase
+    .from('workouts')
+    .select('id')
+    .eq('plan_id', activePlan.id)
+    .eq('date', today)
+    .eq('status', 'completed')
+    .limit(1)
+    .maybeSingle()
+  const genStartDate = todayCompleted
+    ? new Date(new Date(today).getTime() + 86400000).toISOString().split('T')[0]
+    : today
 
   // Fetch profile
   const { data: profileData } = await supabase.from('user_profile').select('*').maybeSingle()
@@ -92,7 +105,7 @@ export async function POST(req: NextRequest) {
       remainingWeeks,
       extraWeeks,
       philosophyToUse.phase_weeks,
-      today,
+      genStartDate,
       philosophyToUse,
       [formatDossier(dossier as AthleteDossier | null), formatAthleteModel(beliefs)].filter(Boolean).join('\n\n'),
       hrvStatus,
@@ -102,7 +115,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 
-  const totalWorkouts = countPlannedWorkouts(profileData, remainingWeeks + extraWeeks, today)
+  const totalWorkouts = countPlannedWorkouts(profileData, remainingWeeks + extraWeeks, genStartDate)
   const encoder = new TextEncoder()
   const readable = new ReadableStream({
     async start(controller) {
@@ -125,119 +138,18 @@ export async function POST(req: NextRequest) {
         await messageStream.finalMessage()
         const generatedPlan: GeneratedPlan = parsePlanText(accumulatedText)
 
-        // Filter out any workouts on event dates
+        // Filter out workouts on event dates
         const eventDates = new Set<string>((profileData.events ?? []).map((e: { date: string }) => e.date))
         const cleanWorkouts = generatedPlan.workouts.filter(w => !eventDates.has(w.date))
 
-        // Critical 1: Deletions moved inside the stream's try block, after AI output is confirmed good
-
-        // Delete future unplanned workouts from intervals.icu
-        if (profileData.intervals_icu_athlete_id && profileData.intervals_icu_api_key) {
-          const client = new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
-          const { data: futureWorkouts } = await supabase
-            .from('workouts')
-            .select('intervals_icu_event_id')
-            .eq('plan_id', activePlan.id)
-            .neq('status', 'completed')
-            .gte('date', today)
-            .not('intervals_icu_event_id', 'is', null)
-          for (const w of futureWorkouts ?? []) {
-            if (w.intervals_icu_event_id) {
-              try { await client.deleteEvent(w.intervals_icu_event_id) } catch { /* already gone */ }
-            }
-          }
-        }
-
-        // Delete future unplanned workout rows from DB
-        await supabase
-          .from('workouts')
-          .delete()
-          .eq('plan_id', activePlan.id)
-          .neq('status', 'completed')
-          .gte('date', today)
-
-        // Important 5: Clamp weeksCompleted to avoid exceeding week_phases array length
-        const weekPhasesArray = (activePlan.week_phases as PlanPhase[]) ?? []
-        const clampedWeeksCompleted = Math.min(weeksCompleted, weekPhasesArray.length)
-
-        // Update plan record
-        const newWeekPhases = [
-          ...weekPhasesArray.slice(0, clampedWeeksCompleted),
-          ...(generatedPlan.week_phases ?? []),
-        ]
-        await supabase
-          .from('training_plans')
-          .update({
-            plan_weeks: newTotal,
-            week_phases: newWeekPhases,
-            phase: generatedPlan.phase,
-            training_philosophy: philosophyToUse,
-          })
-          .eq('id', activePlan.id)
-
-        // Upload to intervals.icu and insert workout rows
-        function estimateTss(steps: Array<{ duration_minutes: number; power_pct_ftp: number }>): number {
-          return Math.round(
-            steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0)
-          )
-        }
-
-        const uploadErrors: string[] = []
-        const eventIds: (string | null)[] = []
-
-        if (profileData.intervals_icu_athlete_id && profileData.intervals_icu_api_key) {
-          const client = new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
-          const BATCH = 5
-          for (let i = 0; i < cleanWorkouts.length; i += BATCH) {
-            const batch = cleanWorkouts.slice(i, i + BATCH)
-            const ids = await Promise.all(batch.map(async w => {
-              try {
-                return await client.createEvent({
-                  date: w.date,
-                  name: `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`,
-                  description: `${w.description}\n\nTarget: ${w.target_zones}`,
-                  duration_minutes: w.duration_minutes,
-                  steps: w.steps,
-                  note: w.coaching_notes?.summary,
-                })
-              } catch (err) {
-                uploadErrors.push(`${w.date}: ${err instanceof Error ? err.message : String(err)}`)
-                return null
-              }
-            }))
-            eventIds.push(...ids)
-          }
-        } else {
-          eventIds.push(...cleanWorkouts.map(() => null))
-        }
-
-        const workoutsToInsert = cleanWorkouts.map((w, idx) => ({
-          plan_id: activePlan.id,
-          date: w.date,
-          type: w.type,
-          duration_minutes: w.duration_minutes,
-          description: w.description,
-          target_zones: w.target_zones,
-          intervals_icu_event_id: eventIds[idx] ?? null,
-          status: 'planned',
-          user_id: user.id,
-          tss: w.steps?.length ? estimateTss(w.steps) : null,
-          steps: w.steps ?? null,
-          coaching_notes: w.coaching_notes ?? null,
-        }))
-
-        // Critical 2: Check insert result and emit error if it fails
-        const { error: insertError } = await supabase.from('workouts').insert(workoutsToInsert)
-        if (insertError) {
-          controller.enqueue(encoder.encode(
-            JSON.stringify({ type: 'error', message: 'Failed to save workouts' }) + '\n'
-          ))
-          controller.close()
-          return
-        }
-
+        // Return the plan to the client for review — no DB mutations here
         controller.enqueue(encoder.encode(
-          JSON.stringify({ type: 'done', extra_weeks: extraWeeks, new_total_weeks: newTotal, upload_warnings: uploadErrors }) + '\n'
+          JSON.stringify({
+            type: 'plan',
+            plan: { ...generatedPlan, workouts: cleanWorkouts },
+            extra_weeks: extraWeeks,
+            new_total_weeks: newTotal,
+          }) + '\n'
         ))
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Plan extension failed'
