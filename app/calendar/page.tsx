@@ -365,6 +365,7 @@ function ContinuousWeeks({ navTarget, onWeekInView, dataLoaded, ...week }: Conti
 
   // Scroll to the nav target only after data has loaded — workout cards inflate
   // week heights, so scrolling before they render produces the wrong position.
+  // The container has position:relative so el.offsetTop is already relative to it.
   useEffect(() => {
     if (!dataLoaded) return
     const target = pendingScrollTo.current
@@ -372,8 +373,7 @@ function ContinuousWeeks({ navTarget, onWeekInView, dataLoaded, ...week }: Conti
     const el = weekEls.current.get(target)
     const c = scrollRef.current
     if (el && c) {
-      const relTop = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop
-      c.scrollTop = Math.max(0, relTop - 4)
+      c.scrollTop = Math.max(0, el.offsetTop - 4)
       lastWeek.current = target
       pendingScrollTo.current = ''
     }
