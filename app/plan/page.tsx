@@ -348,8 +348,8 @@ export default function PlanPage() {
             const event = JSON.parse(line)
             if (event.type === 'total') setExtendEstimatedWorkouts(event.count)
             else if (event.type === 'progress') setExtendWorkoutsFound(event.found)
-            else if (event.type === 'done') { setEventBannerDismissed(true); loadPlan() }
-            else if (event.type === 'error') setSaveError(event.message)
+            else if (event.type === 'done') { setExtendLoading(false); setEventBannerDismissed(true); loadPlan() }
+            else if (event.type === 'error') { setExtendLoading(false); setSaveError(event.message) }
           } catch { /* ignore */ }
         }
       }
@@ -852,12 +852,6 @@ export default function PlanPage() {
                       className="bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
                     >
                       {generating ? 'Generating plan…' : 'Build New Plan'}
-                    </button>
-                    <button
-                      onClick={() => setShowClearModal(true)}
-                      className="bg-red-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors shadow-sm"
-                    >
-                      Delete Plan
                     </button>
                   </div>
                 </div>
