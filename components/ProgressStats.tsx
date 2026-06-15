@@ -118,7 +118,6 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
                   : `${weeklyProgress.elevationM}m`
                 : '—'}
             />
-            <Tile label="Other rides" value={weeklyProgress.otherActivitiesCount > 0 ? String(weeklyProgress.otherActivitiesCount) : '—'} />
           </div>
         </>
       )}
