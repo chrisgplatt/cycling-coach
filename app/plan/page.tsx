@@ -252,7 +252,12 @@ export default function PlanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ training_philosophy: philosophy }),
       })
-      if (!res.ok) return
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setSaveError(body.error ?? `Failed to save philosophy (${res.status})`)
+        setShowPhilosophyBanner(true)
+        return
+      }
       startAdaptation(
         `Re-evaluating remaining sessions with ${philosophy.label}. Apply the Friel phase distribution rules and session type caps to restructure the remaining workouts.`
       )
