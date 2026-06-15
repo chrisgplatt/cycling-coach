@@ -205,10 +205,7 @@ export default function PlanPage() {
     }
   }
 
-  function handleInterviewComplete(brief: string) {
-    setPlanGenNote(brief)
-    setShowInterview(false)
-
+  function openMethodologyModal() {
     const weeklyHours = Object.values(schedule).reduce((sum: number, mins: unknown) => sum + (mins as number), 0) / 60
     const today = new Date().toISOString().split('T')[0]
     const nearestPriorityEvent = [...events]
@@ -236,6 +233,12 @@ export default function PlanPage() {
 
     setMethodologyRecommendation(recommendation)
     setShowMethodologyModal(true)
+  }
+
+  function handleInterviewComplete(brief: string) {
+    setPlanGenNote(brief)
+    setShowInterview(false)
+    openMethodologyModal()
   }
 
   async function handleMethodologyConfirm(philosophy: TrainingPhilosophy) {
@@ -780,7 +783,7 @@ export default function PlanPage() {
               </p>
               <div className="flex gap-3 justify-end">
                 <button
-                  onClick={() => { setShowInterviewOffer(false); setShowDurationPrompt(true) }}
+                  onClick={() => { setShowInterviewOffer(false); openMethodologyModal() }}
                   className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
                 >
                   Skip
