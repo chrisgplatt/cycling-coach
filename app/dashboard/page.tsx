@@ -389,17 +389,25 @@ export default function DashboardPage() {
 
   const IF_VALS_WP: Record<string, number> = { recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90 }
   const weekWorkoutsWP = workouts.filter(w => weekDates.includes(w.date))
+  const completedWP = weekWorkoutsWP.filter(w => w.status === 'completed')
+  const linkedActivityIds = new Set(weekWorkoutsWP.map(w => w.icu_activity_id).filter((id): id is string => id != null))
+  const recentCtl = [...(syncData?.wellness ?? [])].sort((a, b) => b.id.localeCompare(a.id)).find(w => w.ctl != null)?.ctl ?? null
   const weeklyProgress: WeeklyProgress | null = weekWorkoutsWP.length > 0 ? {
-    sessionsCompleted: weekWorkoutsWP.filter(w => w.status === 'completed').length,
+    sessionsCompleted: completedWP.length,
     sessionsTotal: weekWorkoutsWP.length,
-    tssActual: Math.round(weekWorkoutsWP.filter(w => w.status === 'completed' && w.tss !== null).reduce((s, w) => s + (w.tss ?? 0), 0)),
+    tssActual: Math.round(completedWP.filter(w => w.tss !== null).reduce((s, w) => s + (w.tss ?? 0), 0)),
     tssPlanned: weekWorkoutsWP.reduce((s, w) => {
       const if_ = IF_VALS_WP[w.type] ?? 0.68
       return s + Math.round((w.duration_minutes * 60 * if_ * if_) / 36)
     }, 0),
-    distanceKm: Math.round(weekWorkoutsWP.filter(w => w.status === 'completed').reduce((s, w) => s + ((w.activity_metrics?.distance_m ?? 0) / 1000), 0) * 10) / 10,
+    distanceKm: Math.round(completedWP.reduce((s, w) => s + ((w.activity_metrics?.distance_m ?? 0) / 1000), 0) * 10) / 10,
+    elevationM: Math.round(completedWP.reduce((s, w) => s + (w.activity_metrics?.total_elevation_gain ?? 0), 0)),
     timePlannedMins: weekWorkoutsWP.reduce((s, w) => s + w.duration_minutes, 0),
-    timeActualMins: weekWorkoutsWP.filter(w => w.status === 'completed').reduce((s, w) => s + w.duration_minutes, 0),
+    timeActualMins: completedWP.reduce((s, w) => s + w.duration_minutes, 0),
+    fitnessCtl: recentCtl !== null ? Math.round(recentCtl) : null,
+    otherActivitiesCount: (syncData?.activities ?? [])
+      .filter(a => weekDates.some(d => a.start_date_local.startsWith(d)) && !linkedActivityIds.has(a.id))
+      .length,
   } : null
 
   const nearestEvent = events

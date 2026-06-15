@@ -345,8 +345,11 @@ export interface WeeklyProgress {
   tssActual: number
   tssPlanned: number
   distanceKm: number
+  elevationM: number
   timePlannedMins: number
   timeActualMins: number
+  fitnessCtl: number | null
+  otherActivitiesCount: number
 }
 
 export interface EventCountdown {

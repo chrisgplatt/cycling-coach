@@ -87,7 +87,7 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
           <div className="px-4 pt-2 pb-1">
             <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.06em]">This Week</span>
           </div>
-          <div className="px-3 pb-3 grid grid-cols-2 gap-2">
+          <div className="px-3 pb-3 grid grid-cols-3 gap-2">
             <Tile
               label="Sessions"
               value={`${weeklyProgress.sessionsCompleted}/${weeklyProgress.sessionsTotal}`}
@@ -98,17 +98,31 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
               value={String(weeklyProgress.tssActual)}
               sub={`of ${weeklyProgress.tssPlanned}`}
             />
-            {weeklyProgress.distanceKm > 0 && (
-              <Tile
-                label="Distance"
-                value={`${weeklyProgress.distanceKm < 10 ? weeklyProgress.distanceKm.toFixed(1) : Math.round(weeklyProgress.distanceKm)} km`}
-              />
-            )}
             <Tile
               label="Time"
               value={fmtH(weeklyProgress.timeActualMins)}
               sub={`of ${fmtH(weeklyProgress.timePlannedMins)}`}
             />
+            {weeklyProgress.fitnessCtl !== null && (
+              <Tile label="Fitness" value={String(weeklyProgress.fitnessCtl)} sub="CTL" />
+            )}
+            {weeklyProgress.distanceKm > 0 && (
+              <Tile
+                label="Distance"
+                value={`${weeklyProgress.distanceKm < 10 ? weeklyProgress.distanceKm.toFixed(1) : Math.round(weeklyProgress.distanceKm)}km`}
+              />
+            )}
+            {weeklyProgress.elevationM > 0 && (
+              <Tile
+                label="Elevation"
+                value={weeklyProgress.elevationM >= 1000
+                  ? `${(weeklyProgress.elevationM / 1000).toFixed(1)}km`
+                  : `${weeklyProgress.elevationM}m`}
+              />
+            )}
+            {weeklyProgress.otherActivitiesCount > 0 && (
+              <Tile label="Other rides" value={String(weeklyProgress.otherActivitiesCount)} />
+            )}
           </div>
         </>
       )}
