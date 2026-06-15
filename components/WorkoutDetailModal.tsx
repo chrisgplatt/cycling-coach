@@ -303,7 +303,7 @@ export default function WorkoutDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex sm:items-center sm:justify-center sm:p-4">
-      <div className="bg-white shadow-2xl w-full h-full flex flex-col sm:max-w-lg sm:h-auto sm:max-h-[92vh] sm:rounded-2xl">
+      <div className="bg-white shadow-2xl w-full h-full flex flex-col sm:max-w-lg sm:h-[90vh] sm:rounded-2xl">
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
@@ -385,7 +385,7 @@ export default function WorkoutDetailModal({
         )}
 
         {hasRide && tab === 'map' ? (
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-hidden">
             {streams
               ? <RideMapGraph streams={streams} fit />
               : <p className="p-5 text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>}
