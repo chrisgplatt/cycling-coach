@@ -117,7 +117,6 @@ export default function PlanPage() {
 
   // Adaptation (plan review after event changes)
   const reviewAbortRef = useRef<AbortController | null>(null)
-  const extendAbortRef = useRef<AbortController | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
@@ -131,9 +130,6 @@ export default function PlanPage() {
   const [showPhilosophyBanner, setShowPhilosophyBanner] = useState(false)
   const [planPhilosophy, setPlanPhilosophy] = useState<TrainingPhilosophy | null>(null)
   const [showExtendModal, setShowExtendModal] = useState(false)
-  const [extendLoading, setExtendLoading] = useState(false)
-  const [extendWorkoutsFound, setExtendWorkoutsFound] = useState(0)
-  const [extendEstimatedWorkouts, setExtendEstimatedWorkouts] = useState(0)
   const [eventBannerDismissed, setEventBannerDismissed] = useState(false)
 
   const planEndDate = planCreatedAt && (planTotalWeeks ?? planWeeks) > 0
@@ -308,57 +304,6 @@ export default function PlanPage() {
     })
     setMethodologyRecommendation(recommendation)
     setShowMethodologyModal(true)
-  }
-
-  async function handleExtendConfirm(extraWeeks: number) {
-    extendAbortRef.current?.abort()
-    const controller = new AbortController()
-    extendAbortRef.current = controller
-    setShowExtendModal(false)
-    setExtendLoading(true)
-    setExtendWorkoutsFound(0)
-    setExtendEstimatedWorkouts(0)
-    setSaveError(null)
-    try {
-      const res = await fetch('/api/plan/extend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extra_weeks: extraWeeks }),
-        signal: controller.signal,
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setSaveError(data.error ?? 'Plan extension failed')
-        setExtendLoading(false)
-        return
-      }
-      if (!res.body) { setSaveError('No response from server'); setExtendLoading(false); return }
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done || controller.signal.aborted) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.trim()) continue
-          try {
-            const event = JSON.parse(line)
-            if (event.type === 'total') setExtendEstimatedWorkouts(event.count)
-            else if (event.type === 'progress') setExtendWorkoutsFound(event.found)
-            else if (event.type === 'done') { setExtendLoading(false); setEventBannerDismissed(true); loadPlan() }
-            else if (event.type === 'error') { setExtendLoading(false); setSaveError(event.message) }
-          } catch { /* ignore */ }
-        }
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return
-      setSaveError('Network error')
-    } finally {
-      setExtendLoading(false)
-    }
   }
 
   async function handleRename() {
@@ -750,12 +695,7 @@ export default function PlanPage() {
                   </button>
                 </div>
               )}
-              {extendLoading && (
-                <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-700 font-medium">
-                  Extending plan… {extendWorkoutsFound > 0 && `${extendWorkoutsFound}${extendEstimatedWorkouts > 0 ? `/${extendEstimatedWorkouts}` : ''} sessions generated`}
-                </div>
-              )}
-              {!extendLoading && saveError && (
+              {saveError && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
                   <p className="text-sm text-red-700">{saveError}</p>
                   <button onClick={() => setSaveError(null)} className="text-red-400 hover:text-red-600 shrink-0 text-lg leading-none">×</button>
@@ -1000,7 +940,7 @@ export default function PlanPage() {
             weeklyHours={Object.values(schedule).reduce((s: number, m: unknown) => s + (m as number), 0) / 60}
             events={events}
             currentCTL={syncData?.wellness?.length ? syncData.wellness[syncData.wellness.length - 1].ctl ?? null : null}
-            onConfirm={handleExtendConfirm}
+            onSuccess={() => { setEventBannerDismissed(true); setShowExtendModal(false); loadPlan() }}
             onClose={() => setShowExtendModal(false)}
           />
         )}

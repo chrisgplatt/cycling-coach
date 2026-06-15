@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { computeMethodology } from '@/lib/claude/methodology'
 import type { TrainingEvent, TrainingPhilosophy } from '@/types'
 
@@ -11,7 +11,7 @@ interface Props {
   weeklyHours: number
   events: TrainingEvent[]
   currentCTL: number | null
-  onConfirm: (extraWeeks: number) => void
+  onSuccess: () => void
   onClose: () => void
 }
 
@@ -31,18 +31,16 @@ export default function ExtendPlanModal({
   weeklyHours,
   events,
   currentCTL,
-  onConfirm,
+  onSuccess,
   onClose,
 }: Props) {
   const today = new Date().toISOString().split('T')[0]
 
-  // Events the user can target (all events beyond plan end, sorted)
   const upcomingEvents = [...events]
     .filter(e => e.date > planEndDate && e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 5)
 
-  // Pre-select nearest A/B event if one exists beyond plan end (banner trigger)
   const preselectedEvent = upcomingEvents.find(
     e => e.priority === 'A' || e.priority === 'B'
   ) ?? null
@@ -53,6 +51,11 @@ export default function ExtendPlanModal({
   const [selectedWeeks, setSelectedWeeks] = useState(
     preselectedEvent ? weeksFromPlanEnd(preselectedEvent.date, planEndDate) : 2
   )
+  const [loading, setLoading] = useState(false)
+  const [workoutsFound, setWorkoutsFound] = useState(0)
+  const [totalWorkouts, setTotalWorkouts] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const selectedEvent = upcomingEvents.find(e => e.date === selectedEventDate) ?? null
 
@@ -64,6 +67,64 @@ export default function ExtendPlanModal({
   function pickChip(w: number) {
     setSelectedEventDate(null)
     setSelectedWeeks(w)
+  }
+
+  async function handleConfirm() {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    setLoading(true)
+    setError(null)
+    setWorkoutsFound(0)
+    setTotalWorkouts(0)
+    try {
+      const res = await fetch('/api/plan/extend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extra_weeks: selectedWeeks }),
+        signal: controller.signal,
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? `Request failed (${res.status})`)
+        setLoading(false)
+        return
+      }
+      if (!res.body) {
+        setError('No response from server')
+        setLoading(false)
+        return
+      }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done || controller.signal.aborted) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const event = JSON.parse(line)
+            if (event.type === 'total') setTotalWorkouts(event.count)
+            else if (event.type === 'progress') setWorkoutsFound(event.found)
+            else if (event.type === 'done') { onSuccess(); return }
+            else if (event.type === 'error') {
+              setError(event.message ?? 'Extension failed')
+              setLoading(false)
+              return
+            }
+          } catch { /* ignore malformed lines */ }
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      setError(err instanceof Error ? err.message : 'Network error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const weeksCompleted = Math.max(0, Math.floor(
@@ -97,103 +158,127 @@ export default function ExtendPlanModal({
     : `Extend plan by ${selectedWeeks} week${selectedWeeks === 1 ? '' : 's'}`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-5 space-y-4 max-h-[92vh] overflow-y-auto">
-        <div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Extend plan</p>
-          <p className="text-lg font-extrabold text-slate-900">When do you want to extend to?</p>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Currently ends {fmtDate(planEndDate)} · Week {planWeeks} of {planWeeks}
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          {upcomingEvents.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Your events</p>
-              {upcomingEvents.map(e => {
-                const w = weeksFromPlanEnd(e.date, planEndDate)
-                const isSelected = selectedEventDate === e.date
-                return (
-                  <button
-                    key={e.date + e.name}
-                    onClick={() => pickEvent(e)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-colors min-h-[44px] ${
-                      isSelected
-                        ? 'bg-blue-50 border-blue-500 border-2'
-                        : 'bg-slate-50 border-slate-200'
-                    }`}
-                  >
-                    <span className={`text-sm font-semibold ${isSelected ? 'text-blue-800' : 'text-slate-700'}`}>{e.name}</span>
-                    <span className={`text-xs font-medium shrink-0 ml-3 ${isSelected ? 'text-blue-600' : 'text-slate-400'}`}>
-                      {fmtDate(e.date)} · +{w}w
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          <div>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
-              {upcomingEvents.length > 0 ? 'Or add weeks' : 'Add weeks'}
-            </p>
-            <div className="grid grid-cols-4 gap-2">
-              {WEEK_CHIPS.map(w => {
-                const isSelected = selectedEventDate === null && selectedWeeks === w
-                return (
-                  <button
-                    key={w}
-                    onClick={() => pickChip(w)}
-                    className={`rounded-xl py-3 text-center transition-colors ${
-                      isSelected
-                        ? 'bg-blue-50 border-2 border-blue-500'
-                        : 'bg-slate-50 border border-slate-200'
-                    }`}
-                  >
-                    <p className={`text-base font-extrabold ${isSelected ? 'text-blue-700' : 'text-slate-600'}`}>+{w}</p>
-                    <p className={`text-[9px] font-semibold ${isSelected ? 'text-blue-500' : 'text-slate-400'}`}>weeks</p>
-                  </button>
-                )
-              })}
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-5 space-y-4 max-h-[92vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        {loading ? (
+          <div className="py-8 space-y-4 text-center">
+            <div className="w-8 h-8 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Extending your plan…</p>
+              {totalWorkouts > 0 && (
+                <p className="text-xs text-slate-400 mt-1">
+                  {workoutsFound} of {totalWorkouts} sessions generated
+                </p>
+              )}
             </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Extend plan</p>
+              <p className="text-lg font-extrabold text-slate-900">When do you want to extend to?</p>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Currently ends {fmtDate(planEndDate)} · Week {planWeeks} of {planWeeks}
+              </p>
+            </div>
 
-        <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
-          <p className="text-xs text-green-800">{updatedPhilosophy.rationale}</p>
-        </div>
+            <div className="space-y-3">
+              {upcomingEvents.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Your events</p>
+                  {upcomingEvents.map(e => {
+                    const w = weeksFromPlanEnd(e.date, planEndDate)
+                    const isSelected = selectedEventDate === e.date
+                    return (
+                      <button
+                        key={e.date + e.name}
+                        onClick={() => pickEvent(e)}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-colors min-h-[44px] ${
+                          isSelected
+                            ? 'bg-blue-50 border-blue-500 border-2'
+                            : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <span className={`text-sm font-semibold ${isSelected ? 'text-blue-800' : 'text-slate-700'}`}>{e.name}</span>
+                        <span className={`text-xs font-medium shrink-0 ml-3 ${isSelected ? 'text-blue-600' : 'text-slate-400'}`}>
+                          {fmtDate(e.date)} · +{w}w
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
 
-        <div>
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-2">Updated structure</p>
-          <div className="flex rounded-lg overflow-hidden h-5">
-            {phases.map(p => (
-              <div
-                key={p.key}
-                style={{ background: p.colour, flex: p.weeks }}
-                className="flex items-center justify-center"
-              >
-                <span className="text-[8px] font-bold text-white truncate px-1">{p.key} {p.weeks}w</span>
+              <div>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                  {upcomingEvents.length > 0 ? 'Or add weeks' : 'Add weeks'}
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {WEEK_CHIPS.map(w => {
+                    const isSelected = selectedEventDate === null && selectedWeeks === w
+                    return (
+                      <button
+                        key={w}
+                        onClick={() => pickChip(w)}
+                        className={`rounded-xl py-3 text-center transition-colors ${
+                          isSelected
+                            ? 'bg-blue-50 border-2 border-blue-500'
+                            : 'bg-slate-50 border border-slate-200'
+                        }`}
+                      >
+                        <p className={`text-base font-extrabold ${isSelected ? 'text-blue-700' : 'text-slate-600'}`}>+{w}</p>
+                        <p className={`text-[9px] font-semibold ${isSelected ? 'text-blue-500' : 'text-slate-400'}`}>weeks</p>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        <div className="space-y-2 pt-1">
-          <button
-            onClick={() => onConfirm(selectedWeeks)}
-            className="w-full bg-blue-600 text-white text-sm font-bold rounded-xl py-3 hover:bg-blue-700 transition-colors min-h-[44px]"
-          >
-            {ctaLabel}
-          </button>
-          <button
-            onClick={onClose}
-            className="w-full text-slate-400 text-sm py-2 min-h-[44px]"
-          >
-            Cancel
-          </button>
-        </div>
+            <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+              <p className="text-xs text-green-800">{updatedPhilosophy.rationale}</p>
+            </div>
+
+            <div>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-2">Updated structure</p>
+              <div className="flex rounded-lg overflow-hidden h-5">
+                {phases.map(p => (
+                  <div
+                    key={p.key}
+                    style={{ background: p.colour, flex: p.weeks }}
+                    className="flex items-center justify-center"
+                  >
+                    <span className="text-[8px] font-bold text-white truncate px-1">{p.key} {p.weeks}w</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={handleConfirm}
+                className="w-full bg-blue-600 text-white text-sm font-bold rounded-xl py-3 hover:bg-blue-700 transition-colors min-h-[44px]"
+              >
+                {ctaLabel}
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full text-slate-400 text-sm py-2 min-h-[44px]"
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

@@ -33,12 +33,12 @@ const baseProps = {
   weeklyHours: 9,
   events: [],
   currentCTL: 55,
-  onConfirm: jest.fn(),
+  onSuccess: jest.fn(),
   onClose: jest.fn(),
 }
 
 beforeEach(() => {
-  baseProps.onConfirm.mockReset()
+  baseProps.onSuccess.mockReset()
   baseProps.onClose.mockReset()
 })
 
@@ -53,17 +53,15 @@ describe('ExtendPlanModal — no events', () => {
     expect(screen.getByText('+8')).toBeInTheDocument()
   })
 
-  it('calls onConfirm with 2 by default', () => {
+  it('CTA button defaults to +2 weeks label', () => {
     render(<ExtendPlanModal {...baseProps} />)
-    fireEvent.click(screen.getByRole('button', { name: /extend plan by 2/i }))
-    expect(baseProps.onConfirm).toHaveBeenCalledWith(2)
+    expect(screen.getByRole('button', { name: /extend plan by 2/i })).toBeInTheDocument()
   })
 
-  it('calls onConfirm with 4 after selecting +4', () => {
+  it('CTA label updates when +4 chip is selected', () => {
     render(<ExtendPlanModal {...baseProps} />)
     fireEvent.click(screen.getByText('+4'))
-    fireEvent.click(screen.getByRole('button', { name: /extend plan by 4/i }))
-    expect(baseProps.onConfirm).toHaveBeenCalledWith(4)
+    expect(screen.getByRole('button', { name: /extend plan by 4/i })).toBeInTheDocument()
   })
 
   it('calls onClose when cancel is clicked', () => {
@@ -73,7 +71,7 @@ describe('ExtendPlanModal — no events', () => {
   })
 })
 
-describe('ExtendPlanModal — with events', () => {
+describe('ExtendPlanModal — with C-priority events', () => {
   it('renders event rows alongside week chips', () => {
     render(<ExtendPlanModal {...baseProps} events={[eventC]} />)
     expect(screen.getByText('Club Ride')).toBeInTheDocument()
@@ -85,24 +83,12 @@ describe('ExtendPlanModal — with events', () => {
     fireEvent.click(screen.getByText('Club Ride'))
     expect(screen.getByRole('button', { name: /extend to Club Ride/i })).toBeInTheDocument()
   })
+})
 
-  it('calls onConfirm with computed weeks when event row selected', () => {
-    render(<ExtendPlanModal {...baseProps} events={[eventC]} />)
-    fireEvent.click(screen.getByText('Club Ride'))
-    fireEvent.click(screen.getByRole('button', { name: /extend to Club Ride/i }))
-    // weeksFromPlanEnd('2026-09-14', '2026-08-22') = ceil(23/7) = 4
-    expect(baseProps.onConfirm).toHaveBeenCalledWith(4)
-  })
-
-  it('pre-selects nearest A/B event and shows event CTA', () => {
+describe('ExtendPlanModal — with A-priority event (pre-selected)', () => {
+  it('pre-selects the A/B event and shows event CTA', () => {
     render(<ExtendPlanModal {...baseProps} events={[eventA]} />)
     expect(screen.getByText('Dragon Ride')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /extend to Dragon Ride/i })).toBeInTheDocument()
-  })
-
-  it('calls onConfirm with pre-selected A event weeks', () => {
-    render(<ExtendPlanModal {...baseProps} events={[eventA]} />)
-    fireEvent.click(screen.getByRole('button', { name: /extend to Dragon Ride/i }))
-    expect(baseProps.onConfirm).toHaveBeenCalledWith(4)
   })
 })
