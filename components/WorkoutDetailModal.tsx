@@ -385,7 +385,7 @@ export default function WorkoutDetailModal({
         )}
 
         {hasRide && tab === 'map' ? (
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {streams
               ? <RideMapGraph streams={streams} fit />
               : <p className="p-5 text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>}

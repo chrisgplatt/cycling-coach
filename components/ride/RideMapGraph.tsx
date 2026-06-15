@@ -33,7 +33,7 @@ export default function RideMapGraph({ streams, fit = false }: { streams: RideSt
   const t = at(streams.time)
 
   return (
-    <div className={`flex flex-col ${fit ? 'h-full' : ''}`}>
+    <div className={`flex flex-col ${fit ? 'min-h-full' : ''}`}>
       {/* `isolate` contains Leaflet's high z-index panes so the app nav/menu stays on top */}
       <div className={`bg-slate-100 relative isolate ${fit ? 'flex-1 min-h-[150px]' : 'h-[40vh] min-h-[220px]'}`}>
         {hasGps ? (
