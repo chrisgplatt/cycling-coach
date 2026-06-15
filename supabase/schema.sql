@@ -45,7 +45,8 @@ create table if not exists training_plans (
   rationale text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  last_reviewed_week text
+  last_reviewed_week text,
+  training_philosophy jsonb
 );
 
 create table if not exists workouts (
