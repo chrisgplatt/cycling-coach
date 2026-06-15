@@ -21,6 +21,8 @@ import { buildForecast, daysBetweenUtc, addDaysUtc } from '@/lib/plan/forecast'
 import WeightLogWidget from '@/components/WeightLogWidget'
 import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase, CoachingLogEntry, WeightEntry, TrainingPhilosophy } from '@/types'
 import { periodDurationDays } from '@/lib/utils/unavailability'
+import ExtendPlanModal from '@/components/ExtendPlanModal'
+import PlanKebabMenu from '@/components/PlanKebabMenu'
 
 type Tab = 'plan' | 'profile' | 'events'
 
@@ -127,6 +129,11 @@ export default function PlanPage() {
   const [trainingPhilosophy, setTrainingPhilosophy] = useState<TrainingPhilosophy | null>(null)
   const [showPhilosophyBanner, setShowPhilosophyBanner] = useState(false)
   const [planPhilosophy, setPlanPhilosophy] = useState<TrainingPhilosophy | null>(null)
+  const [showExtendModal, setShowExtendModal] = useState(false)
+  const [extendLoading, setExtendLoading] = useState(false)
+  const [extendWorkoutsFound, setExtendWorkoutsFound] = useState(0)
+  const [extendEstimatedWorkouts, setExtendEstimatedWorkouts] = useState(0)
+  const [eventBannerDismissed, setEventBannerDismissed] = useState(false)
 
   // Fix 1: timer ref to avoid unmount leak and double-save race
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -292,6 +299,69 @@ export default function PlanPage() {
     })
     setMethodologyRecommendation(recommendation)
     setShowMethodologyModal(true)
+  }
+
+  async function handleExtendConfirm(extraWeeks: number) {
+    setShowExtendModal(false)
+    setExtendLoading(true)
+    setExtendWorkoutsFound(0)
+    setExtendEstimatedWorkouts(0)
+    setSaveError(null)
+    try {
+      const res = await fetch('/api/plan/extend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extra_weeks: extraWeeks }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.error ?? 'Plan extension failed')
+        setExtendLoading(false)
+        return
+      }
+      if (!res.body) { setSaveError('No response from server'); setExtendLoading(false); return }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const event = JSON.parse(line)
+            if (event.type === 'total') setExtendEstimatedWorkouts(event.count)
+            else if (event.type === 'progress') setExtendWorkoutsFound(event.found)
+            else if (event.type === 'done') { setEventBannerDismissed(true); loadPlan() }
+            else if (event.type === 'error') setSaveError(event.message)
+          } catch { /* ignore */ }
+        }
+      }
+    } catch {
+      setSaveError('Network error')
+    } finally {
+      setExtendLoading(false)
+    }
+  }
+
+  async function handleRename() {
+    const current = planName ?? ''
+    const newName = window.prompt('Rename plan:', current)
+    if (!newName || newName.trim() === current) return
+    const res = await fetch('/api/plan', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName.trim() }),
+    })
+    if (res.ok) {
+      setPlanName(newName.trim())
+    } else {
+      const data = await res.json().catch(() => ({}))
+      setSaveError(data.error ?? 'Rename failed')
+    }
   }
 
   async function handleAdaptationApprove() {
@@ -631,6 +701,15 @@ export default function PlanPage() {
           const today = new Date().toISOString().split('T')[0]
           const startCtl = fitPoints.length ? fitPoints[fitPoints.length - 1].ctl : null
           const planEnd = planStart && totalWeeks > 0 ? addDaysUtc(planStart, totalWeeks * 7) : ''
+          const eventMovedEvent = !eventBannerDismissed && planEnd
+            ? [...events]
+                .filter(e =>
+                  (e.priority === 'A' || e.priority === 'B') &&
+                  e.date > planEnd &&
+                  e.date >= today
+                )
+                .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
+            : null
           const horizonTarget = planTargetDate && planTargetDate > today
             ? planTargetDate
             : planEnd
@@ -657,33 +736,71 @@ export default function PlanPage() {
                   </button>
                 </div>
               )}
-              <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl p-5 text-white shadow-md">
-                <p className="text-xs font-bold tracking-widest opacity-60 uppercase mb-2">Active Plan</p>
-                <div className="flex items-center justify-between gap-3 mb-1">
-                  <p className="text-xl font-extrabold tracking-tight">{planName}</p>
-                  <button
-                    onClick={() => setPlanChatOpen(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white rounded-full px-3 py-1.5 transition-colors shrink-0"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-                    </svg>
-                    Chat with coach
-                  </button>
+              {extendLoading && (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-700 font-medium">
+                  Extending plan… {extendWorkoutsFound > 0 && `${extendWorkoutsFound}${extendEstimatedWorkouts > 0 ? `/${extendEstimatedWorkouts}` : ''} sessions generated`}
                 </div>
-                {planPhilosophy && (
-                  <p className="text-xs text-white/60 mb-3">{planPhilosophy.label}</p>
+              )}
+              <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl text-white shadow-md overflow-hidden">
+                {eventMovedEvent && (
+                  <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-amber-800 truncate">🗓 {eventMovedEvent.name} moved to {new Date(eventMovedEvent.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                      <p className="text-[10px] text-amber-600">Plan ends early — extend to match?</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setShowExtendModal(true)}
+                        className="bg-amber-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors min-h-[32px]"
+                      >
+                        Extend
+                      </button>
+                      <button
+                        onClick={() => setEventBannerDismissed(true)}
+                        className="text-amber-500 text-sm font-bold px-1 min-h-[32px]"
+                        aria-label="Dismiss"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
                 )}
-                {wk && (
-                  <PlanJourney
-                    states={states}
-                    phases={phases}
-                    weekLabel={`Wk ${wk.current} of ${wk.total}`}
-                    phaseLabel={phaseLabel}
-                    eventName={next?.name ?? null}
-                    daysToEvent={next?.days ?? null}
-                  />
-                )}
+                <div className="p-5">
+                  <p className="text-xs font-bold tracking-widest opacity-60 uppercase mb-2">Active Plan</p>
+                  <div className="flex items-center justify-between gap-3 mb-1">
+                    <p className="text-xl font-extrabold tracking-tight">{planName}</p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setPlanChatOpen(true)}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white rounded-full px-3 py-1.5 transition-colors"
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                        </svg>
+                        Chat with coach
+                      </button>
+                      <PlanKebabMenu
+                        onExtend={() => setShowExtendModal(true)}
+                        onRegenerate={() => setShowReplaceConfirm(true)}
+                        onRename={handleRename}
+                        onDelete={() => setShowClearModal(true)}
+                      />
+                    </div>
+                  </div>
+                  {planPhilosophy && (
+                    <p className="text-xs text-white/60 mb-3">{planPhilosophy.label}</p>
+                  )}
+                  {wk && (
+                    <PlanJourney
+                      states={states}
+                      phases={phases}
+                      weekLabel={`Wk ${wk.current} of ${wk.total}`}
+                      phaseLabel={phaseLabel}
+                      eventName={next?.name ?? null}
+                      daysToEvent={next?.days ?? null}
+                    />
+                  )}
+                </div>
               </div>
 
               {coachBrief && (
@@ -859,6 +976,32 @@ export default function PlanPage() {
             onWorkoutsUpdated={() => { setPlanChatOpen(false); loadPlan() }}
           />
         )}
+
+        {showExtendModal && planName && (() => {
+          const planStart = planCreatedAt ? planCreatedAt.split('T')[0] : ''
+          const wk = weekNumber()
+          const totalWeeks = wk?.total ?? 0
+          const planEnd = planStart && totalWeeks > 0 ? addDaysUtc(planStart, totalWeeks * 7) : ''
+          const today = new Date().toISOString().split('T')[0]
+          if (!planEnd) return null
+          return (
+            <ExtendPlanModal
+              planEndDate={planEnd}
+              planCreatedAt={planCreatedAt}
+              planWeeks={planTotalWeeks ?? planWeeks}
+              currentPhilosophy={planPhilosophy}
+              weeklyHours={Object.values(schedule).reduce((s: number, m: unknown) => s + (m as number), 0) / 60}
+              nearestEvent={
+                [...events]
+                  .filter(e => (e.priority === 'A' || e.priority === 'B') && e.date > planEnd && e.date >= today)
+                  .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
+              }
+              currentCTL={syncData?.wellness?.length ? syncData.wellness[syncData.wellness.length - 1].ctl ?? null : null}
+              onConfirm={handleExtendConfirm}
+              onClose={() => setShowExtendModal(false)}
+            />
+          )
+        })()}
       </div>
 
       {/* PROFILE & SCHEDULE TAB */}
