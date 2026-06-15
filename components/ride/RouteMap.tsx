@@ -23,6 +23,7 @@ export default function RouteMap({ latlng, cursorIndex }: Props) {
   useEffect(() => {
     let cancelled = false
     let ro: ResizeObserver | null = null
+    let timer: ReturnType<typeof setTimeout> | null = null
     import('leaflet').then(L => {
       if (cancelled || !elRef.current || mapRef.current || latlng.length === 0) return
       const map = L.map(elRef.current, { zoomControl: false })
@@ -31,14 +32,21 @@ export default function RouteMap({ latlng, cursorIndex }: Props) {
         attribution: '© OpenStreetMap contributors', maxZoom: 19,
       }).addTo(map)
       const line: Polyline = L.polyline(latlng, { color: '#2563eb', weight: 4 }).addTo(map)
-      map.fitBounds(line.getBounds(), { padding: [20, 20] })
+      const bounds = line.getBounds()
+      map.fitBounds(bounds, { padding: [20, 20] })
       markerRef.current = L.circleMarker(latlng[cursorRef.current] ?? latlng[0], {
         radius: 7, color: '#fff', weight: 2, fillColor: '#ef4444', fillOpacity: 1,
       }).addTo(map)
-      // Re-measure after the async import; the flex layout may not have settled yet
-      // on desktop where the modal uses h-auto. ResizeObserver keeps tiles correct
-      // as the container resizes (e.g. modal opening animation, orientation change).
-      map.invalidateSize()
+      // import('leaflet') resolves from the module cache as a microtask — before
+      // the browser has done a layout pass — so the container may have 0 dimensions
+      // when L.map() runs (especially on desktop where the modal is h-auto / flex-1).
+      // Defer a remeasure + refitBounds so we get the settled container size.
+      timer = setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.invalidateSize()
+          mapRef.current.fitBounds(bounds, { padding: [20, 20] })
+        }
+      }, 100)
       if (elRef.current) {
         ro = new ResizeObserver(() => { mapRef.current?.invalidateSize() })
         ro.observe(elRef.current)
@@ -46,6 +54,7 @@ export default function RouteMap({ latlng, cursorIndex }: Props) {
     })
     return () => {
       cancelled = true
+      if (timer) clearTimeout(timer)
       ro?.disconnect()
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; markerRef.current = null }
     }
