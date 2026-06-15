@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 
+// Removes duplicate completed workouts on today's date, keeping only the one
+// with the highest TSS (most likely the real completed ride).
 export async function POST() {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,44 +18,38 @@ export async function POST() {
   if (!activePlan) return NextResponse.json({ error: 'No active plan' }, { status: 400 })
 
   const today = new Date().toISOString().split('T')[0]
-  const tomorrow = new Date(new Date(today).getTime() + 86400000).toISOString().split('T')[0]
+
+  const { data: todayCompleted } = await supabase
+    .from('workouts')
+    .select('id, tss, intervals_icu_event_id, type')
+    .eq('plan_id', activePlan.id)
+    .eq('date', today)
+    .eq('status', 'completed')
+    .order('tss', { ascending: false })
+
+  if (!todayCompleted || todayCompleted.length <= 1) {
+    return NextResponse.json({ removed: 0, message: 'No duplicates found' })
+  }
+
+  // Keep the first (highest TSS = most likely the real completed ride), delete the rest
+  const toRemove = todayCompleted.slice(1)
 
   const { data: profile } = await supabase
     .from('user_profile')
     .select('intervals_icu_athlete_id, intervals_icu_api_key')
     .maybeSingle()
 
-  // Today: delete only planned workouts (keep real completed rides)
-  const { data: todayPlanned } = await supabase
-    .from('workouts')
-    .select('id, intervals_icu_event_id')
-    .eq('plan_id', activePlan.id)
-    .eq('status', 'planned')
-    .eq('date', today)
-
-  // Tomorrow onwards: delete ALL workouts regardless of status
-  // (completed workouts in the future are always artifacts from messy extends)
-  const { data: futureAll } = await supabase
-    .from('workouts')
-    .select('id, intervals_icu_event_id')
-    .eq('plan_id', activePlan.id)
-    .gte('date', tomorrow)
-
-  const toDelete = [...(todayPlanned ?? []), ...(futureAll ?? [])]
-
   let failed = 0
   if (profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
     const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
-    for (const w of toDelete) {
+    for (const w of toRemove) {
       if (!w.intervals_icu_event_id) continue
       try { await client.deleteEvent(w.intervals_icu_event_id) } catch { failed++ }
     }
   }
 
-  const ids = toDelete.map(w => w.id)
-  if (ids.length > 0) {
-    await supabase.from('workouts').delete().in('id', ids)
-  }
+  const ids = toRemove.map(w => w.id)
+  await supabase.from('workouts').delete().in('id', ids)
 
-  return NextResponse.json({ deleted: ids.length, failed })
+  return NextResponse.json({ removed: ids.length, failed, kept: todayCompleted[0].type })
 }

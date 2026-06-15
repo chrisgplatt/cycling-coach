@@ -65,30 +65,38 @@ export async function POST(req: NextRequest) {
     ? { ...storedPhilosophy, phase_weeks: updatedPhilosophy.phase_weeks }
     : updatedPhilosophy
 
-  // Delete future unplanned workouts from intervals.icu
+  const tomorrow = new Date(new Date(today).getTime() + 86400000).toISOString().split('T')[0]
+
+  // Collect workouts to delete from intervals.icu:
+  // - Today: planned only (keep real completed rides from today)
+  // - Tomorrow+: ALL regardless of status (future "completed" workouts are artifacts)
+  const { data: todayPlanned } = await supabase
+    .from('workouts')
+    .select('id, intervals_icu_event_id')
+    .eq('plan_id', activePlan.id)
+    .eq('status', 'planned')
+    .eq('date', today)
+  const { data: futureAll } = await supabase
+    .from('workouts')
+    .select('id, intervals_icu_event_id')
+    .eq('plan_id', activePlan.id)
+    .gte('date', tomorrow)
+
+  const toDelete = [...(todayPlanned ?? []), ...(futureAll ?? [])]
+
   if (profileData.intervals_icu_athlete_id && profileData.intervals_icu_api_key) {
     const client = new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
-    const { data: futureWorkouts } = await supabase
-      .from('workouts')
-      .select('intervals_icu_event_id')
-      .eq('plan_id', activePlan.id)
-      .neq('status', 'completed')
-      .gte('date', today)
-      .not('intervals_icu_event_id', 'is', null)
-    for (const w of futureWorkouts ?? []) {
+    for (const w of toDelete) {
       if (w.intervals_icu_event_id) {
         try { await client.deleteEvent(w.intervals_icu_event_id) } catch { /* already gone */ }
       }
     }
   }
 
-  // Delete future unplanned workout rows from DB
-  await supabase
-    .from('workouts')
-    .delete()
-    .eq('plan_id', activePlan.id)
-    .neq('status', 'completed')
-    .gte('date', today)
+  const deleteIds = toDelete.map(w => w.id)
+  if (deleteIds.length > 0) {
+    await supabase.from('workouts').delete().in('id', deleteIds)
+  }
 
   // Update plan record
   const weekPhasesArray = (activePlan.week_phases as PlanPhase[]) ?? []
