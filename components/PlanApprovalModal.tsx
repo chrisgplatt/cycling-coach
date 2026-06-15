@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import type { GeneratedPlan } from '@/types'
+import type { GeneratedPlan, TrainingPhilosophy } from '@/types'
 import AnimatedLogo from './AnimatedLogo'
 
 interface Props {
@@ -9,11 +9,12 @@ interface Props {
   weeks?: number
   workoutsFound?: number
   estimatedWorkouts?: number
+  trainingPhilosophy?: TrainingPhilosophy | null
   onApprove: () => void
   onReject: () => void
 }
 
-export default function PlanApprovalModal({ plan, loading = false, weeks = 6, workoutsFound = 0, estimatedWorkouts = 0, onApprove, onReject }: Props) {
+export default function PlanApprovalModal({ plan, loading = false, weeks = 6, workoutsFound = 0, estimatedWorkouts = 0, trainingPhilosophy = null, onApprove, onReject }: Props) {
   const [name, setName] = useState('')
   const [approving, setApproving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +25,7 @@ export default function PlanApprovalModal({ plan, loading = false, weeks = 6, wo
       const res = await fetch('/api/plan', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, name: name.trim(), weeks }),
+        body: JSON.stringify({ plan, name: name.trim(), weeks, training_philosophy: trainingPhilosophy }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {

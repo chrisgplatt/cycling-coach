@@ -8,6 +8,8 @@ import PlanReviewModal from '@/components/PlanReviewModal'
 import ClearWorkoutsModal from '@/components/ClearWorkoutsModal'
 import PlanChatModal from '@/components/PlanChatModal'
 import InterviewModal from '@/components/InterviewModal'
+import MethodologyModal from '@/components/MethodologyModal'
+import { computeMethodology } from '@/lib/claude/methodology'
 import PlanJourney from '@/components/plan/PlanJourney'
 import ConsistencyStrip from '@/components/plan/ConsistencyStrip'
 import LoadComparisonChart from '@/components/plan/LoadComparisonChart'
@@ -17,7 +19,7 @@ import { resolvePhases } from '@/lib/plan/phases'
 import { buildWeekBuckets, weekState, consistency, planHours } from '@/lib/plan/progress'
 import { buildForecast, daysBetweenUtc, addDaysUtc } from '@/lib/plan/forecast'
 import WeightLogWidget from '@/components/WeightLogWidget'
-import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase, CoachingLogEntry, WeightEntry } from '@/types'
+import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase, CoachingLogEntry, WeightEntry, TrainingPhilosophy } from '@/types'
 import { periodDurationDays } from '@/lib/utils/unavailability'
 
 type Tab = 'plan' | 'profile' | 'events'
@@ -120,6 +122,11 @@ export default function PlanPage() {
   const [reviewEstimatedWorkouts, setReviewEstimatedWorkouts] = useState(0)
   const [pendingAdaptNote, setPendingAdaptNote] = useState<string | null>(null)
   const [coachBrief, setCoachBrief] = useState<{ content: string; generated_at: string } | null>(null)
+  const [showMethodologyModal, setShowMethodologyModal] = useState(false)
+  const [methodologyRecommendation, setMethodologyRecommendation] = useState<TrainingPhilosophy | null>(null)
+  const [trainingPhilosophy, setTrainingPhilosophy] = useState<TrainingPhilosophy | null>(null)
+  const [showPhilosophyBanner, setShowPhilosophyBanner] = useState(false)
+  const [planPhilosophy, setPlanPhilosophy] = useState<TrainingPhilosophy | null>(null)
 
   // Fix 1: timer ref to avoid unmount leak and double-save race
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -142,6 +149,10 @@ export default function PlanPage() {
         setPlanWeekPhases(data?.week_phases ?? null)
         const today = new Date().toISOString().split('T')[0]
         setFuturePlanWorkouts((data?.workouts ?? []).filter((w: Workout) => w.date >= today && w.status === 'planned'))
+        const hasPhilosophy = !!(data?.training_philosophy)
+        const hasPlan = !!(data?.workouts?.length || data?.plan_weeks)
+        setShowPhilosophyBanner(hasPlan && !hasPhilosophy)
+        setPlanPhilosophy(data?.training_philosophy ?? null)
       })
       .catch(() => {})
   }
@@ -192,6 +203,88 @@ export default function PlanPage() {
       if (err instanceof Error && err.name === 'AbortError') return
       setReviewLoading(false)
     }
+  }
+
+  function handleInterviewComplete(brief: string) {
+    setPlanGenNote(brief)
+    setShowInterview(false)
+
+    const weeklyHours = Object.values(schedule).reduce((sum: number, mins: unknown) => sum + (mins as number), 0) / 60
+    const today = new Date().toISOString().split('T')[0]
+    const nearestPriorityEvent = [...events]
+      .filter(e => e.date >= today && (e.priority === 'A' || e.priority === 'B'))
+      .sort((a, b) => a.date.localeCompare(b.date))[0]
+      ?? [...events].filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0]
+      ?? null
+
+    if (!nearestPriorityEvent) {
+      setShowDurationPrompt(true)
+      return
+    }
+
+    const weeksToEvent = Math.max(1, Math.ceil(
+      (new Date(nearestPriorityEvent.date).getTime() - new Date(today).getTime()) / (7 * 24 * 60 * 60 * 1000)
+    ))
+
+    const recommendation = computeMethodology({
+      weeklyHours,
+      weeksToEvent,
+      eventType: nearestPriorityEvent.type,
+      eventPriority: nearestPriorityEvent.priority,
+      currentCTL: syncData?.wellness?.length
+        ? syncData.wellness[syncData.wellness.length - 1].ctl ?? null
+        : null,
+      goals: goals ?? '',
+    })
+
+    setMethodologyRecommendation(recommendation)
+    setShowMethodologyModal(true)
+  }
+
+  async function handleMethodologyConfirm(philosophy: TrainingPhilosophy) {
+    setTrainingPhilosophy(philosophy)
+    setShowMethodologyModal(false)
+
+    if (showPhilosophyBanner) {
+      setShowPhilosophyBanner(false)
+      await fetch('/api/plan', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ training_philosophy: philosophy }),
+      })
+      startAdaptation(
+        `Re-evaluating remaining sessions with ${philosophy.label}. Apply the Friel phase distribution rules and session type caps to restructure the remaining workouts.`
+      )
+      return
+    }
+
+    setShowDurationPrompt(true)
+  }
+
+  function handlePhilosophyReeval() {
+    const weeklyHours = Object.values(schedule).reduce((sum: number, mins: unknown) => sum + (mins as number), 0) / 60
+    const today = new Date().toISOString().split('T')[0]
+    const nearestEvent = [...events]
+      .filter(e => e.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
+
+    if (!nearestEvent) return
+    const weeksToEvent = Math.max(1, Math.ceil(
+      (new Date(nearestEvent.date).getTime() - new Date(today).getTime()) / (7 * 24 * 60 * 60 * 1000)
+    ))
+
+    const recommendation = computeMethodology({
+      weeklyHours,
+      weeksToEvent,
+      eventType: nearestEvent.type,
+      eventPriority: nearestEvent.priority,
+      currentCTL: syncData?.wellness?.length
+        ? syncData.wellness[syncData.wellness.length - 1].ctl ?? null
+        : null,
+      goals: goals ?? '',
+    })
+    setMethodologyRecommendation(recommendation)
+    setShowMethodologyModal(true)
   }
 
   async function handleAdaptationApprove() {
@@ -443,7 +536,7 @@ export default function PlanPage() {
       const res = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncData, weeks, startDate, notes }),
+        body: JSON.stringify({ syncData, weeks, startDate, notes, training_philosophy: trainingPhilosophy }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -542,6 +635,21 @@ export default function PlanPage() {
             : null
           return (
             <div className="space-y-4">
+              {showPhilosophyBanner && (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-blue-700">New: Coaching philosophy</p>
+                    <p className="text-xs text-blue-600 mt-0.5">Your plan predates the coaching philosophy feature. Re-evaluate remaining sessions with Friel periodization?</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePhilosophyReeval}
+                    className="text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg px-3 py-1.5 hover:bg-blue-200 transition-colors shrink-0 min-h-[44px] flex items-center"
+                  >
+                    Apply
+                  </button>
+                </div>
+              )}
               <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl p-5 text-white shadow-md">
                 <p className="text-xs font-bold tracking-widest opacity-60 uppercase mb-2">Active Plan</p>
                 <div className="flex items-center justify-between gap-3 mb-3">
@@ -686,9 +794,16 @@ export default function PlanPage() {
             wellness={latestWellness()}
             currentFTP={currentFtp}
             onClose={() => setShowInterview(false)}
-            onComplete={(brief) => {
-              setShowInterview(false)
-              setPlanGenNote(brief)
+            onComplete={handleInterviewComplete}
+          />
+        )}
+
+        {showMethodologyModal && methodologyRecommendation && (
+          <MethodologyModal
+            recommendation={methodologyRecommendation}
+            onConfirm={handleMethodologyConfirm}
+            onClose={() => {
+              setShowMethodologyModal(false)
               setShowDurationPrompt(true)
             }}
           />
@@ -712,6 +827,7 @@ export default function PlanPage() {
             weeks={planWeeks}
             workoutsFound={workoutsFound}
             estimatedWorkouts={estimatedWorkouts}
+            trainingPhilosophy={trainingPhilosophy}
             onApprove={() => { setGeneratedPlan(null); window.location.href = '/dashboard' }}
             onReject={() => setGeneratedPlan(null)}
           />
