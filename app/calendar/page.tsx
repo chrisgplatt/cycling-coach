@@ -343,13 +343,14 @@ function WeekHeader({ monday, todayStr, workouts }: { monday: string; todayStr: 
 type ContinuousWeeksProps = Omit<WeekDetailProps, 'selectedDateStr'> & {
   navTarget: { date: string; seq: number }
   onWeekInView: (monday: string) => void
+  dataLoaded: boolean
 }
 
 // A scrollable run of weeks that flows continuously: scrolling past Sunday brings
 // in the next week. The visible week is reported via onWeekInView (keeps the month
 // strip in sync); the list extends forward as you near the bottom; tapping a date
 // re-anchors and scrolls that week to the top.
-function ContinuousWeeks({ navTarget, onWeekInView, ...week }: ContinuousWeeksProps) {
+function ContinuousWeeks({ navTarget, onWeekInView, dataLoaded, ...week }: ContinuousWeeksProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const weekEls = useRef<Map<string, HTMLDivElement>>(new Map())
   const lastWeek = useRef('')
@@ -357,30 +358,26 @@ function ContinuousWeeks({ navTarget, onWeekInView, ...week }: ContinuousWeeksPr
   const pendingScrollTo = useRef<string>(getWeekBounds(navTarget.date).start)
   // The window re-anchors on explicit navigation by remounting (see `key` at the
   // call site), so the initial state below is the anchor; scroll forward extends it.
-  // Start from the target week (0 lookback) so it's always at scrollTop=0 and no
-  // scroll-to logic is needed — avoids timing issues with async workout card renders.
-  const [weeks, setWeeks] = useState<string[]>(() => weekStartsAround(navTarget.date, 0, 20))
+  const [weeks, setWeeks] = useState<string[]>(() => weekStartsAround(navTarget.date, 4, 16))
 
-  // After the weeks render, run any queued scroll-to-week (nav), and clear the
-  // append lock so the next near-bottom scroll can extend again.
+  // Reset the append lock whenever the weeks list changes.
+  useEffect(() => { appending.current = false }, [weeks])
+
+  // Scroll to the nav target only after data has loaded — workout cards inflate
+  // week heights, so scrolling before they render produces the wrong position.
   useEffect(() => {
-    appending.current = false
+    if (!dataLoaded) return
     const target = pendingScrollTo.current
     if (!target) return
-    // Defer until layout settles — workout cards render async after the weeks
-    // themselves, shifting the scroll position if we read it too early.
-    const timer = setTimeout(() => {
-      const el = weekEls.current.get(target)
-      const c = scrollRef.current
-      if (el && c) {
-        const relTop = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop
-        c.scrollTop = Math.max(0, relTop - 4)
-        lastWeek.current = target
-        pendingScrollTo.current = ''
-      }
-    }, 0)
-    return () => clearTimeout(timer)
-  }, [weeks])
+    const el = weekEls.current.get(target)
+    const c = scrollRef.current
+    if (el && c) {
+      const relTop = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop
+      c.scrollTop = Math.max(0, relTop - 4)
+      lastWeek.current = target
+      pendingScrollTo.current = ''
+    }
+  }, [dataLoaded])
 
   function handleScroll() {
     const c = scrollRef.current
@@ -459,6 +456,7 @@ export default function CalendarPage() {
     setNavTarget(t => ({ date, seq: t.seq + 1 }))
   }
 
+  const [planLoaded, setPlanLoaded] = useState(false)
   const [currentFTP, setCurrentFTP] = useState<number | undefined>(undefined)
   const [unavailability, setUnavailability] = useState<UnavailabilityPeriod[]>([])
   const [addUnavailDate, setAddUnavailDate] = useState<string | null>(null)
@@ -546,7 +544,8 @@ export default function CalendarPage() {
     fetch('/api/plan').then(r => r.json()).then(plan => {
       setWorkouts(plan?.workouts ?? [])
       setPlanName(plan?.name ?? '')
-    }).catch(() => {})
+      setPlanLoaded(true)
+    }).catch(() => { setPlanLoaded(true) })
   }
 
   useEffect(() => {
@@ -672,6 +671,7 @@ export default function CalendarPage() {
           key={navTarget.seq}
           navTarget={navTarget}
           onWeekInView={handleWeekInView}
+          dataLoaded={planLoaded}
           workouts={workouts}
           events={events}
           unlinkedActivities={unlinkedActivities}
