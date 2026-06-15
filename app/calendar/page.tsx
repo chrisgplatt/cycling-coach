@@ -365,14 +365,19 @@ function ContinuousWeeks({ navTarget, onWeekInView, ...week }: ContinuousWeeksPr
     appending.current = false
     const target = pendingScrollTo.current
     if (!target) return
-    const el = weekEls.current.get(target)
-    const c = scrollRef.current
-    if (el && c) {
-      const relTop = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop
-      c.scrollTop = Math.max(0, relTop - 4)
-      lastWeek.current = target
-      pendingScrollTo.current = ''
-    }
+    // Defer until layout settles — workout cards render async after the weeks
+    // themselves, shifting the scroll position if we read it too early.
+    const timer = setTimeout(() => {
+      const el = weekEls.current.get(target)
+      const c = scrollRef.current
+      if (el && c) {
+        const relTop = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop
+        c.scrollTop = Math.max(0, relTop - 4)
+        lastWeek.current = target
+        pendingScrollTo.current = ''
+      }
+    }, 0)
+    return () => clearTimeout(timer)
   }, [weeks])
 
   function handleScroll() {
