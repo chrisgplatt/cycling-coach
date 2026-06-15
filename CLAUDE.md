@@ -200,6 +200,73 @@ Applied in `lib/claude/steps.ts`, `lib/claude/plan.ts`, `lib/claude/review.ts`, 
 4. All workout dates must fall on or after the plan start date
 5. Session duration must be appropriate to the workout type — do not pad to fill available time
 
+---
+
+## Coaching Methodology
+
+The coaching system uses **Friel/Coggan periodization** as its primary methodology, with polarised intensity distribution principles in the base phase. Every prompt that generates or adapts sessions must follow these rules. The chosen philosophy for a plan is stored in `training_plans.training_philosophy` and must be included in the prompt context.
+
+### Phase duration matrix
+
+Plan length determines phase weeks. Taper is always preserved — compress base first if time is short.
+
+| Plan length | Base | Build | Peak | Taper |
+|-------------|------|-------|------|-------|
+| 4 weeks | 1 | 2 | 0 | 1 |
+| 6 weeks | 2 | 2 | 1 | 1 |
+| 8 weeks | 2 | 3 | 1 | 2 |
+| 10 weeks | 3 | 4 | 1 | 2 |
+| 12 weeks | 4 | 5 | 1 | 2 |
+| 16 weeks | 6 | 6 | 2 | 2 |
+| 20+ weeks | 8 | 7 | 2 | 3 |
+
+For plan lengths between rows, round to nearest and compress base first.
+
+### Session type distribution per phase
+
+These are weekly targets for the session mix, not per-session rules.
+
+| Phase | Z1–Z2 (easy/endurance) | Z3 (tempo) | Z4 (threshold) | Z5–Z6 (VO2max/sprint) |
+|-------|------------------------|-----------|----------------|------------------------|
+| Base | ≥75% | ≤20% | late base only | none |
+| Build | 50–60% | 10–15% | 20–25% | 5–10% |
+| Peak | 50% | 10% | 20% | 20% |
+| Taper | 70% | 5% | 15% | 10% activation only |
+
+"Late base only" = threshold sessions appear in the final week of base only, as a bridge into build.
+
+**Intensity profile overrides** (stored in `training_philosophy.intensity_profile`):
+- `polarised-base`: apply distribution as above
+- `threshold-heavy`: shift Z4 up by 10% in base/build; reduce Z2 proportionally — suits time-crunched athletes (<8h/week)
+- `simplified`: Z2 majority across all phases; no VO2max sessions; max 1 threshold/week from mid-build only; no back-to-back hard days
+
+### De-load rule
+
+Every 3rd training week is a de-load week (3 weeks on, 1 week recovery — standard Friel cycle):
+- Total TSS drops to 40–50% of the preceding week
+- Sessions are Z1–Z2 only — no threshold, no intervals
+- Duration reduced, not just intensity
+- This is a hard rule. If phase duration doesn't divide into 3-week blocks, place de-load at end of block.
+
+### Weekly session caps (hard limits)
+
+- Maximum 1 threshold session per week (Z4)
+- Maximum 1 VO2max or interval session per week (Z5–Z6)
+- Minimum 1 recovery session per week (Z1 only, ≤60 min)
+- Back-to-back long endurance rides (≥2h each) only in base phase, only for sportive/gran fondo goals
+- Never two hard sessions (threshold or above) on consecutive days
+
+### Session type definitions
+
+| Type | Duration | Intensity |
+|------|----------|-----------|
+| Recovery | 30–60 min | Z1 only |
+| Endurance | 60–180 min | Z2 (56–75% FTP) |
+| Tempo | 60–120 min | Z2 with 20–40 min Z3 blocks |
+| Threshold | 60–90 min | Warm-up Z2, 2–4 × 8–20 min Z4, cool-down Z2 |
+| Intervals | 60–90 min | Warm-up Z2, 4–6 × 3–8 min Z5, cool-down Z2 |
+| Long ride | 90–240 min | Z2 predominantly; Z3 surges allowed in build |
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
