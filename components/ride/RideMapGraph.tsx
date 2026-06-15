@@ -35,18 +35,18 @@ export default function RideMapGraph({ streams, fit = false }: { streams: RideSt
   return (
     <div className={`flex flex-col ${fit ? 'h-full' : ''}`}>
       {/* `isolate` contains Leaflet's high z-index panes so the app nav/menu stays on top */}
-      <div className={`bg-slate-100 relative isolate ${fit ? 'flex-1 min-h-[220px]' : 'h-[40vh] min-h-[220px]'}`}>
+      <div className={`bg-slate-100 relative isolate ${fit ? 'flex-1 min-h-[150px]' : 'h-[40vh] min-h-[220px]'}`}>
         {hasGps ? (
           // hasGps guarantees latlng is non-null and non-empty
           <RouteMap latlng={streams.latlng!} cursorIndex={cursor} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-sm text-slate-400">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
             No GPS recorded for this ride
           </div>
         )}
       </div>
 
-      <div className="px-4 py-3 border-y border-gray-100 flex flex-wrap gap-x-5 gap-y-2 bg-white">
+      <div className="shrink-0 px-4 py-3 border-y border-gray-100 flex flex-wrap gap-x-5 gap-y-2 bg-white">
         <Chip label="Time" value={t != null ? formatDuration(t) : '—'} colour="#94a3b8" />
         <Chip label="Dist" value={dist != null ? `${(dist / 1000).toFixed(1)}km` : '—'} colour="#94a3b8" />
         {streams.power && <Chip label="Power" value={power != null ? `${Math.round(power)}W` : '—'} colour="#7c3aed" />}
@@ -54,9 +54,9 @@ export default function RideMapGraph({ streams, fit = false }: { streams: RideSt
         {streams.altitude && <Chip label="Elev" value={alt != null ? `${Math.round(alt)}m` : '—'} colour="#16a34a" />}
       </div>
 
-      <RideGraph streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis={xAxis} fit={fit} />
+      <div className="shrink-0"><RideGraph streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis={xAxis} fit={fit} /></div>
 
-      <div className="px-4 pt-3 flex gap-2 items-center">
+      <div className="shrink-0 px-4 pt-3 flex gap-2 items-center">
         <span className="text-[11px] text-gray-400 mr-1">X axis</span>
         {(['distance', 'time'] as const).map(ax => (
           <button
@@ -71,7 +71,7 @@ export default function RideMapGraph({ streams, fit = false }: { streams: RideSt
         ))}
       </div>
 
-      <div className="px-4 py-3 flex gap-2 flex-wrap">
+      <div className="shrink-0 px-4 py-3 flex gap-2 flex-wrap">
         {(['power', 'hr', 'elevation'] as const).map(k => {
           const present = k === 'power' ? streams.power : k === 'hr' ? streams.hr : streams.altitude
           if (!present) return null

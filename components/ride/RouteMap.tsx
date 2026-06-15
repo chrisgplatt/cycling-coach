@@ -65,5 +65,5 @@ export default function RouteMap({ latlng, cursorIndex }: Props) {
     if (markerRef.current && pt) markerRef.current.setLatLng(pt)
   }, [cursorIndex, latlng])
 
-  return <div ref={elRef} className="w-full h-full" />
+  return <div ref={elRef} className="absolute inset-0" />
 }
