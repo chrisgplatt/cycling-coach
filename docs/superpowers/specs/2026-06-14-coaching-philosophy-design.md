@@ -254,15 +254,82 @@ Receives current phase. Focus cards explain the *why* in phase terms:
 
 ---
 
+## Part 5: Legacy Plan Re-evaluation
+
+Existing in-progress plans have no `training_philosophy` stored. Silently ignoring these would mean the coaching methodology is only applied to new plans. Instead, we detect this condition on page load and offer a one-off re-evaluation.
+
+### Detection
+
+In `app/plan/page.tsx`, when the active plan loads:
+
+```typescript
+const needsPhilosophy = activePlan && activePlan.training_philosophy == null
+```
+
+This condition is true exactly once per plan: after the user accepts the re-evaluation banner, the philosophy is stored and the banner never appears again.
+
+### Banner UI
+
+Displayed at the top of the plan page, above the week view, when `needsPhilosophy` is true:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  New: Coaching philosophy                           │
+│                                                     │
+│  We've added a structured training methodology.     │
+│  Would you like your coach to re-evaluate your      │
+│  remaining plan using the Friel approach?           │
+│                                                     │
+│  [ Apply coaching philosophy ]  [ Not now ]        │
+└─────────────────────────────────────────────────────┘
+```
+
+"Not now" dismisses for the session only (no permanent storage change). The banner returns on next visit until the rider accepts.
+
+### Flow on Accept
+
+1. Compute methodology from existing plan data (same `computeMethodology()` call as for new plans):
+   - `weeklyHours` — from `weekly_availability`
+   - `weeksToEvent` — from nearest priority A/B event
+   - `eventType` and `eventPriority` — from that event
+   - `currentCTL` — from current athlete state
+   - `goals` — from `user_profile.goals`
+2. Show the `MethodologyModal` — same component used in the new plan flow, with computed recommendation and 3 choices
+3. On rider confirmation: call `PATCH /api/plan` with `{ id: plan.id, training_philosophy: chosenPhilosophy }` (no `plan` body — philosophy-only update path)
+4. After storing, trigger the existing plan review mechanism (`POST /api/plan/review`) — this regenerates remaining sessions using the stored philosophy
+5. The plan review replaces future sessions; past completed sessions are untouched
+
+### Philosophy-only PATCH endpoint
+
+`PATCH /api/plan` gains a second code path:
+
+```typescript
+// If body has training_philosophy but no plan, just store the philosophy
+if (body.training_philosophy && !body.plan) {
+  await supabase
+    .from('training_plans')
+    .update({ training_philosophy: body.training_philosophy })
+    .eq('id', body.id)
+  return NextResponse.json({ ok: true })
+}
+```
+
+This is the only new API surface needed — the review flow already exists.
+
+---
+
 ## Files Changed
 
 | File | Change |
 |------|--------|
 | `CLAUDE.md` | Add Coaching Methodology section: phase matrix, session distribution, de-load rule, weekly caps, session type definitions, goal mapping |
 | `lib/claude/methodology.ts` | New file — pure function computing `MethodologyRecommendation` from athlete profile |
-| `components/InterviewModal.tsx` | Add methodology recommendation step between interview completion and plan generation |
+| `components/MethodologyModal.tsx` | New file — modal shown after interview (and for legacy re-evaluation) with 3 philosophy choices |
+| `app/plan/page.tsx` | Wire `MethodologyModal` into interview flow; add legacy banner detecting plans with null `training_philosophy`; add `handlePhilosophyReeval()` |
 | `lib/claude/plan.ts` | Accept `training_philosophy`; inject phase rules and session distribution into system prompt |
+| `app/api/plan/route.ts` | POST: pass `training_philosophy` into plan creation; PATCH: store on save; PATCH (philosophy-only): new path for legacy re-evaluation |
 | `lib/claude/review.ts` | Accept `training_philosophy`; add phase/week context to adaptation prompt |
+| `app/api/plan/review/route.ts` | Extract and pass `training_philosophy` from stored plan into `createReviewStream` |
 | `lib/claude/briefing.ts` | Accept current phase + week number; add phase-aware context to coach note prompt |
 | `lib/claude/coaching-notes.ts` | Accept current phase; add phase-aware framing to focus card prompt |
 | `supabase/schema.sql` | Add `training_philosophy jsonb` column to `training_plans` |
