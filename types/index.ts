@@ -596,3 +596,12 @@ export interface AthleteBelief {
   revisions: BeliefRevision[]
   contradiction: BeliefContradiction | null
 }
+
+export interface TrainingPhilosophy {
+  name: string
+  label: string
+  phase_weeks: { base: number; build: number; peak: number; taper: number }
+  intensity_profile: 'polarised-base' | 'threshold-heavy' | 'simplified'
+  weekly_hours_at_creation: number
+  rationale: string
+}
