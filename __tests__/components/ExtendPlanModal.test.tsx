@@ -11,11 +11,27 @@ const philosophy: TrainingPhilosophy = {
   rationale: 'Based on your 9.0h/week schedule.',
 }
 
+// A-priority event beyond plan end → triggers event mode
 const eventA: TrainingEvent = {
   name: 'Dragon Ride',
   date: '2026-09-14',
   type: 'sportive',
   priority: 'A',
+}
+
+// C-priority events → appear as selectable rows in manual mode only
+const eventC1: TrainingEvent = {
+  name: 'Club Ride',
+  date: '2026-09-14',
+  type: 'sportive',
+  priority: 'C',
+}
+
+const eventC2: TrainingEvent = {
+  name: 'Mallorca Camp',
+  date: '2026-11-01',
+  type: 'holiday',
+  priority: 'C',
 }
 
 const baseProps = {
@@ -24,7 +40,7 @@ const baseProps = {
   planWeeks: 12,
   currentPhilosophy: philosophy,
   weeklyHours: 9,
-  nearestEvent: null,
+  events: [],
   currentCTL: 55,
   onConfirm: jest.fn(),
   onClose: jest.fn(),
@@ -35,11 +51,11 @@ beforeEach(() => {
   baseProps.onClose.mockReset()
 })
 
-describe('ExtendPlanModal — manual mode', () => {
+describe('ExtendPlanModal — manual mode (no events)', () => {
   it('renders the header', () => {
     render(<ExtendPlanModal {...baseProps} />)
     expect(screen.getByText('Extend plan')).toBeInTheDocument()
-    expect(screen.getByText('How many weeks?')).toBeInTheDocument()
+    expect(screen.getByText('When do you want to extend to?')).toBeInTheDocument()
   })
 
   it('renders week chips', () => {
@@ -70,15 +86,37 @@ describe('ExtendPlanModal — manual mode', () => {
   })
 })
 
-describe('ExtendPlanModal — event mode', () => {
+describe('ExtendPlanModal — manual mode with C-priority events', () => {
+  it('renders upcoming event rows', () => {
+    render(<ExtendPlanModal {...baseProps} events={[eventC1, eventC2]} />)
+    expect(screen.getByText('Club Ride')).toBeInTheDocument()
+    expect(screen.getByText('Mallorca Camp')).toBeInTheDocument()
+  })
+
+  it('selecting an event row updates the CTA label', () => {
+    render(<ExtendPlanModal {...baseProps} events={[eventC1]} />)
+    fireEvent.click(screen.getByText('Club Ride'))
+    expect(screen.getByRole('button', { name: /extend to Club Ride/i })).toBeInTheDocument()
+  })
+
+  it('calls onConfirm with computed weeks when an event row is selected', () => {
+    render(<ExtendPlanModal {...baseProps} events={[eventC1]} />)
+    fireEvent.click(screen.getByText('Club Ride'))
+    fireEvent.click(screen.getByRole('button', { name: /extend to Club Ride/i }))
+    // weeksFromPlanEnd('2026-09-14', '2026-08-22') = ceil(23/7) = 4
+    expect(baseProps.onConfirm).toHaveBeenCalledWith(4)
+  })
+})
+
+describe('ExtendPlanModal — event mode (A/B event beyond plan end)', () => {
   it('renders event name and suggested weeks CTA', () => {
-    render(<ExtendPlanModal {...baseProps} nearestEvent={eventA} />)
-    expect(screen.getByText(/Dragon Ride/)).toBeInTheDocument()
+    render(<ExtendPlanModal {...baseProps} events={[eventA]} />)
+    expect(screen.getByText(/Dragon Ride moved/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /extend to/i })).toBeInTheDocument()
   })
 
   it('calls onConfirm with suggestedWeeks when event is present', () => {
-    render(<ExtendPlanModal {...baseProps} nearestEvent={eventA} />)
+    render(<ExtendPlanModal {...baseProps} events={[eventA]} />)
     fireEvent.click(screen.getByRole('button', { name: /extend to/i }))
     // suggestedWeeks = ceil((14 Sep - 22 Aug) / 7) = ceil(23/7) = 4
     expect(baseProps.onConfirm).toHaveBeenCalledWith(4)

@@ -985,26 +985,19 @@ export default function PlanPage() {
           />
         )}
 
-        {showExtendModal && planEndDate && (() => {
-          const today = new Date().toISOString().split('T')[0]
-          return (
-            <ExtendPlanModal
-              planEndDate={planEndDate}
-              planCreatedAt={planCreatedAt}
-              planWeeks={planTotalWeeks ?? planWeeks}
-              currentPhilosophy={planPhilosophy}
-              weeklyHours={Object.values(schedule).reduce((s: number, m: unknown) => s + (m as number), 0) / 60}
-              nearestEvent={
-                [...events]
-                  .filter(e => (e.priority === 'A' || e.priority === 'B') && e.date > planEndDate && e.date >= today)
-                  .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
-              }
-              currentCTL={syncData?.wellness?.length ? syncData.wellness[syncData.wellness.length - 1].ctl ?? null : null}
-              onConfirm={handleExtendConfirm}
-              onClose={() => setShowExtendModal(false)}
-            />
-          )
-        })()}
+        {showExtendModal && planEndDate && (
+          <ExtendPlanModal
+            planEndDate={planEndDate}
+            planCreatedAt={planCreatedAt}
+            planWeeks={planTotalWeeks ?? planWeeks}
+            currentPhilosophy={planPhilosophy}
+            weeklyHours={Object.values(schedule).reduce((s: number, m: unknown) => s + (m as number), 0) / 60}
+            events={events}
+            currentCTL={syncData?.wellness?.length ? syncData.wellness[syncData.wellness.length - 1].ctl ?? null : null}
+            onConfirm={handleExtendConfirm}
+            onClose={() => setShowExtendModal(false)}
+          />
+        )}
       </div>
 
       {/* PROFILE & SCHEDULE TAB */}
