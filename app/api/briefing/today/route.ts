@@ -176,19 +176,27 @@ export async function GET(req: NextRequest) {
   }
 
   let currentPhaseWeek: number | null = null
-  if (activePlan?.week_phases && activePlan.created_at) {
-    const planStart = new Date(activePlan.created_at)
-    const todayDate = new Date()
+  let currentPhaseFromPlan: string | null = activePlan?.phase ?? null
+  if (activePlan?.week_phases && Array.isArray(activePlan.week_phases) && activePlan.week_phases.length > 0 && activePlan.created_at) {
+    const planStart = new Date(activePlan.created_at.split('T')[0] + 'T00:00:00Z')
+    const todayDate = new Date(today + 'T00:00:00Z')
     const weekIndex = Math.floor((todayDate.getTime() - planStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
     const weekPhases = activePlan.week_phases as string[]
-    const clampedIndex = Math.max(0, Math.min(weekIndex, weekPhases.length - 1))
-    const currentPhaseFromWeekPhases = weekPhases[clampedIndex]
 
-    let phaseStart = clampedIndex
-    while (phaseStart > 0 && weekPhases[phaseStart - 1] === currentPhaseFromWeekPhases) {
-      phaseStart--
+    // If the plan has ended, don't report a stale phase
+    if (weekIndex >= weekPhases.length) {
+      currentPhaseFromPlan = null
+    } else {
+      const clampedIndex = Math.max(0, weekIndex)
+      const currentPhaseFromWeekPhases = weekPhases[clampedIndex]
+      currentPhaseFromPlan = currentPhaseFromWeekPhases
+
+      let phaseStart = clampedIndex
+      while (phaseStart > 0 && weekPhases[phaseStart - 1] === currentPhaseFromWeekPhases) {
+        phaseStart--
+      }
+      currentPhaseWeek = clampedIndex - phaseStart + 1
     }
-    currentPhaseWeek = clampedIndex - phaseStart + 1
   }
 
   const ctx: BriefingContext = {
@@ -213,7 +221,7 @@ export async function GET(req: NextRequest) {
     weather,
     dailyStrain,
     strainHistory,
-    currentPhase: activePlan?.phase ?? null,
+    currentPhase: currentPhaseFromPlan,
     currentPhaseWeek,
   }
 
