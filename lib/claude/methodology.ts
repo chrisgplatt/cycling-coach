@@ -3,8 +3,8 @@ import type { TrainingPhilosophy } from '@/types'
 export interface MethodologyInput {
   weeklyHours: number
   weeksToEvent: number
-  eventType: string
-  eventPriority: string
+  eventType: string | null
+  eventPriority: string | null
   currentCTL: number | null
   goals: string
 }
@@ -51,7 +51,9 @@ export function computeMethodology(input: MethodologyInput): TrainingPhilosophy 
     taper > 0 ? `${taper}wk taper` : null,
   ].filter(Boolean).join(', ')
 
-  const rationale = `Based on your ${input.weeklyHours.toFixed(1)}h/week schedule and a ${input.eventType} in ${clampedWeeks} weeks, I recommend Friel periodization with a ${approach}: ${phaseParts}.`
+  const rationale = input.eventType
+    ? `Based on your ${input.weeklyHours.toFixed(1)}h/week schedule and a ${input.eventType} in ${clampedWeeks} weeks, I recommend Friel periodization with a ${approach}: ${phaseParts}.`
+    : `Based on your ${input.weeklyHours.toFixed(1)}h/week training schedule, I recommend Friel periodization with a ${approach}: ${phaseParts}.`
 
   return {
     name,

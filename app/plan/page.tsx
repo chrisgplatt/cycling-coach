@@ -217,20 +217,17 @@ export default function PlanPage() {
       ?? [...events].filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0]
       ?? null
 
-    if (!nearestPriorityEvent) {
-      setShowDurationPrompt(true)
-      return
-    }
-
-    const weeksToEvent = Math.max(1, Math.ceil(
-      (new Date(nearestPriorityEvent.date).getTime() - new Date(today).getTime()) / (7 * 24 * 60 * 60 * 1000)
-    ))
+    const weeksToEvent = nearestPriorityEvent
+      ? Math.max(1, Math.ceil(
+          (new Date(nearestPriorityEvent.date).getTime() - new Date(today).getTime()) / (7 * 24 * 60 * 60 * 1000)
+        ))
+      : planWeeks
 
     const recommendation = computeMethodology({
       weeklyHours,
       weeksToEvent,
-      eventType: nearestPriorityEvent.type,
-      eventPriority: nearestPriorityEvent.priority,
+      eventType: nearestPriorityEvent?.type ?? null,
+      eventPriority: nearestPriorityEvent?.priority ?? null,
       currentCTL: syncData?.wellness?.length
         ? syncData.wellness[syncData.wellness.length - 1].ctl ?? null
         : null,
@@ -274,16 +271,17 @@ export default function PlanPage() {
       .filter(e => e.date >= today)
       .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
 
-    if (!nearestEvent) return
-    const weeksToEvent = Math.max(1, Math.ceil(
-      (new Date(nearestEvent.date).getTime() - new Date(today).getTime()) / (7 * 24 * 60 * 60 * 1000)
-    ))
+    const weeksToEvent = nearestEvent
+      ? Math.max(1, Math.ceil(
+          (new Date(nearestEvent.date).getTime() - new Date(today).getTime()) / (7 * 24 * 60 * 60 * 1000)
+        ))
+      : planTotalWeeks ?? planWeeks
 
     const recommendation = computeMethodology({
       weeklyHours,
       weeksToEvent,
-      eventType: nearestEvent.type,
-      eventPriority: nearestEvent.priority,
+      eventType: nearestEvent?.type ?? null,
+      eventPriority: nearestEvent?.priority ?? null,
       currentCTL: syncData?.wellness?.length
         ? syncData.wellness[syncData.wellness.length - 1].ctl ?? null
         : null,
@@ -658,7 +656,7 @@ export default function PlanPage() {
               )}
               <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl p-5 text-white shadow-md">
                 <p className="text-xs font-bold tracking-widest opacity-60 uppercase mb-2">Active Plan</p>
-                <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center justify-between gap-3 mb-1">
                   <p className="text-xl font-extrabold tracking-tight">{planName}</p>
                   <button
                     onClick={() => setPlanChatOpen(true)}
@@ -670,6 +668,9 @@ export default function PlanPage() {
                     Chat with coach
                   </button>
                 </div>
+                {planPhilosophy && (
+                  <p className="text-xs text-white/60 mb-3">{planPhilosophy.label}</p>
+                )}
                 {wk && (
                   <PlanJourney
                     states={states}
