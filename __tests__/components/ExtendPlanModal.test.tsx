@@ -111,7 +111,7 @@ describe('ExtendPlanModal — manual mode with C-priority events', () => {
 describe('ExtendPlanModal — event mode (A/B event beyond plan end)', () => {
   it('renders event name and suggested weeks CTA', () => {
     render(<ExtendPlanModal {...baseProps} events={[eventA]} />)
-    expect(screen.getByText(/Dragon Ride moved/)).toBeInTheDocument()
+    expect(screen.getByText('Dragon Ride')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /extend to/i })).toBeInTheDocument()
   })
 

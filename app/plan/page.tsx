@@ -759,8 +759,8 @@ export default function PlanPage() {
                 {eventMovedEvent && (
                   <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-amber-800 truncate">🗓 {eventMovedEvent.name} moved to {new Date(eventMovedEvent.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
-                      <p className="text-[10px] text-amber-600">Plan ends early — extend to match?</p>
+                      <p className="text-[10px] font-bold text-amber-800 truncate">🗓 {eventMovedEvent.name} · {new Date(eventMovedEvent.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                      <p className="text-[10px] text-amber-600">This event is after your plan ends — extend to cover it?</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button

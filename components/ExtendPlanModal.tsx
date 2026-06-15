@@ -115,11 +115,11 @@ export default function ExtendPlanModal({
         <div>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Extend plan</p>
           <p className="text-lg font-extrabold text-slate-900">
-            {isEventMode ? `${nearestEvent!.name} moved` : 'When do you want to extend to?'}
+            {isEventMode ? `${nearestEvent!.name}` : 'When do you want to extend to?'}
           </p>
           <p className="text-sm text-slate-500 mt-0.5">
             {isEventMode
-              ? `Your event is now ${suggestedWeeks} week${suggestedWeeks === 1 ? '' : 's'} beyond your plan end.`
+              ? `This event is ${suggestedWeeks} week${suggestedWeeks === 1 ? '' : 's'} beyond your plan end.`
               : `Currently ends ${fmtDate(planEndDate)} · Week ${planWeeks} of ${planWeeks}`}
           </p>
         </div>
