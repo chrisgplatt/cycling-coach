@@ -66,7 +66,9 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
             <span className="text-[11px] font-semibold text-gray-700 truncate">{icon} {e.name}</span>
             <div className="flex items-center gap-2 shrink-0">
               <span className={`text-[10px] font-bold ${priorityColour}`}>{e.priority}</span>
-              <span className="text-[11px] font-bold text-gray-500">{daysAway <= 0 ? 'Today!' : `${daysAway}d`}</span>
+              <span className="text-[11px] font-bold text-gray-500">
+                {daysAway <= 0 ? 'Today!' : daysAway < 7 ? `${daysAway}d` : `${daysAway}d / ${Math.round(daysAway / 7)}w`}
+              </span>
             </div>
           </div>
         )
