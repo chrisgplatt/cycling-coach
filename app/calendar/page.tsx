@@ -357,7 +357,9 @@ function ContinuousWeeks({ navTarget, onWeekInView, ...week }: ContinuousWeeksPr
   const pendingScrollTo = useRef<string>(getWeekBounds(navTarget.date).start)
   // The window re-anchors on explicit navigation by remounting (see `key` at the
   // call site), so the initial state below is the anchor; scroll forward extends it.
-  const [weeks, setWeeks] = useState<string[]>(() => weekStartsAround(navTarget.date, 4, 16))
+  // Start from the target week (0 lookback) so it's always at scrollTop=0 and no
+  // scroll-to logic is needed — avoids timing issues with async workout card renders.
+  const [weeks, setWeeks] = useState<string[]>(() => weekStartsAround(navTarget.date, 0, 20))
 
   // After the weeks render, run any queued scroll-to-week (nav), and clear the
   // append lock so the next near-bottom scroll can extend again.
