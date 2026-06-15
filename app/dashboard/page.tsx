@@ -424,7 +424,7 @@ export default function DashboardPage() {
   const upcomingEvents = events
     .filter(e => {
       const days = Math.ceil((new Date(e.date).getTime() - new Date(todayStr).getTime()) / 86400000)
-      return days >= 0 && days <= 84
+      return days >= 0 && days <= 126
     })
     .sort((a, b) => a.date.localeCompare(b.date))
 
