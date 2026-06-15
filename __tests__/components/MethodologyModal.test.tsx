@@ -40,7 +40,11 @@ describe('MethodologyModal', () => {
     render(<MethodologyModal recommendation={recommendation} onConfirm={onConfirm} onClose={onClose} />)
     fireEvent.click(screen.getByText(/More intensity/))
     expect(onConfirm).toHaveBeenCalledWith(
-      expect.objectContaining({ intensity_profile: 'threshold-heavy' })
+      expect.objectContaining({
+        intensity_profile: 'threshold-heavy',
+        name: 'friel-threshold-heavy',
+        label: 'Friel periodization · threshold-focused base',
+      })
     )
   })
 
@@ -48,7 +52,11 @@ describe('MethodologyModal', () => {
     render(<MethodologyModal recommendation={recommendation} onConfirm={onConfirm} onClose={onClose} />)
     fireEvent.click(screen.getByText(/Keep it simpler/))
     expect(onConfirm).toHaveBeenCalledWith(
-      expect.objectContaining({ intensity_profile: 'simplified' })
+      expect.objectContaining({
+        intensity_profile: 'simplified',
+        name: 'friel-simplified',
+        label: 'Friel periodization · simplified base',
+      })
     )
   })
 

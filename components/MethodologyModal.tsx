@@ -45,11 +45,11 @@ export default function MethodologyModal({ recommendation, onConfirm, onClose }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-5 space-y-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-5 space-y-4 max-h-[92vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="methodology-modal-title">
         <div>
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Coaching approach</p>
-          <p className="text-base font-bold text-slate-900 mt-0.5">{label}</p>
+          <p className="text-base font-bold text-slate-900 mt-0.5" id="methodology-modal-title">{label}</p>
         </div>
         <p className="text-sm text-slate-600 leading-relaxed">{rationale}</p>
         <div className="space-y-1.5">
@@ -65,6 +65,7 @@ export default function MethodologyModal({ recommendation, onConfirm, onClose }:
         </div>
         <div className="space-y-2 pt-1">
           <button
+            type="button"
             onClick={() => onConfirm(recommendation)}
             className="w-full bg-blue-600 text-white text-sm font-semibold rounded-xl py-3 hover:bg-blue-700 transition-colors"
           >
@@ -72,12 +73,14 @@ export default function MethodologyModal({ recommendation, onConfirm, onClose }:
           </button>
           <div className="grid grid-cols-2 gap-2">
             <button
+              type="button"
               onClick={() => onConfirm(overrideProfile(recommendation, 'threshold-heavy'))}
               className="text-sm font-medium text-slate-700 bg-slate-100 rounded-xl py-2.5 hover:bg-slate-200 transition-colors"
             >
               More intensity →
             </button>
             <button
+              type="button"
               onClick={() => onConfirm(overrideProfile(recommendation, 'simplified'))}
               className="text-sm font-medium text-slate-700 bg-slate-100 rounded-xl py-2.5 hover:bg-slate-200 transition-colors"
             >
