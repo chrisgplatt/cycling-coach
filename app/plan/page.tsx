@@ -247,11 +247,12 @@ export default function PlanPage() {
 
     if (showPhilosophyBanner) {
       setShowPhilosophyBanner(false)
-      await fetch('/api/plan', {
+      const res = await fetch('/api/plan', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ training_philosophy: philosophy }),
       })
+      if (!res.ok) return
       startAdaptation(
         `Re-evaluating remaining sessions with ${philosophy.label}. Apply the Friel phase distribution rules and session type caps to restructure the remaining workouts.`
       )
