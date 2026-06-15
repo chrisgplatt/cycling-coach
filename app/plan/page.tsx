@@ -117,6 +117,7 @@ export default function PlanPage() {
 
   // Adaptation (plan review after event changes)
   const reviewAbortRef = useRef<AbortController | null>(null)
+  const extendAbortRef = useRef<AbortController | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
@@ -302,6 +303,9 @@ export default function PlanPage() {
   }
 
   async function handleExtendConfirm(extraWeeks: number) {
+    extendAbortRef.current?.abort()
+    const controller = new AbortController()
+    extendAbortRef.current = controller
     setShowExtendModal(false)
     setExtendLoading(true)
     setExtendWorkoutsFound(0)
@@ -312,6 +316,7 @@ export default function PlanPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ extra_weeks: extraWeeks }),
+        signal: controller.signal,
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -325,7 +330,7 @@ export default function PlanPage() {
       let buffer = ''
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done || controller.signal.aborted) break
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         buffer = lines.pop() ?? ''
@@ -340,7 +345,8 @@ export default function PlanPage() {
           } catch { /* ignore */ }
         }
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
       setSaveError('Network error')
     } finally {
       setExtendLoading(false)
@@ -751,13 +757,13 @@ export default function PlanPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => setShowExtendModal(true)}
-                        className="bg-amber-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors min-h-[32px]"
+                        className="bg-amber-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors min-h-[44px]"
                       >
                         Extend
                       </button>
                       <button
                         onClick={() => setEventBannerDismissed(true)}
-                        className="text-amber-500 text-sm font-bold px-1 min-h-[32px]"
+                        className="text-amber-500 text-sm font-bold px-1 min-h-[44px]"
                         aria-label="Dismiss"
                       >
                         ×
