@@ -343,14 +343,14 @@ function WeekHeader({ monday, todayStr, workouts }: { monday: string; todayStr: 
 type ContinuousWeeksProps = Omit<WeekDetailProps, 'selectedDateStr'> & {
   navTarget: { date: string; seq: number }
   onWeekInView: (monday: string) => void
-  dataLoaded: boolean
+  scrollVersion: number
 }
 
 // A scrollable run of weeks that flows continuously: scrolling past Sunday brings
 // in the next week. The visible week is reported via onWeekInView (keeps the month
 // strip in sync); the list extends forward as you near the bottom; tapping a date
 // re-anchors and scrolls that week to the top.
-function ContinuousWeeks({ navTarget, onWeekInView, dataLoaded, ...week }: ContinuousWeeksProps) {
+function ContinuousWeeks({ navTarget, onWeekInView, scrollVersion, ...week }: ContinuousWeeksProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const weekEls = useRef<Map<string, HTMLDivElement>>(new Map())
   const lastWeek = useRef('')
@@ -363,21 +363,26 @@ function ContinuousWeeks({ navTarget, onWeekInView, dataLoaded, ...week }: Conti
   // Reset the append lock whenever the weeks list changes.
   useEffect(() => { appending.current = false }, [weeks])
 
-  // Scroll to the nav target only after data has loaded — workout cards inflate
-  // week heights, so scrolling before they render produces the wrong position.
-  // The container has position:relative so el.offsetTop is already relative to it.
+  // Scroll to the nav target each time data loads (plan then sync), since activity
+  // cards rendered after sync inflate week heights. Position is computed by summing
+  // preceding element heights — avoids offsetParent ambiguity; Map iterates in
+  // insertion (chronological) order. pendingScrollTo is cleared after the second
+  // trigger so subsequent user scrolling isn't interrupted.
   useEffect(() => {
-    if (!dataLoaded) return
+    if (scrollVersion === 0) return
     const target = pendingScrollTo.current
     if (!target) return
-    const el = weekEls.current.get(target)
     const c = scrollRef.current
-    if (el && c) {
-      c.scrollTop = Math.max(0, el.offsetTop - 4)
-      lastWeek.current = target
-      pendingScrollTo.current = ''
+    if (!c) return
+    let scrollTo = 0
+    for (const [monday, el] of weekEls.current) {
+      if (monday === target) break
+      scrollTo += el.offsetHeight + 12  // 12px = space-y-3 gap between weeks
     }
-  }, [dataLoaded])
+    c.scrollTop = scrollTo
+    lastWeek.current = target
+    if (scrollVersion >= 2) pendingScrollTo.current = ''  // done after sync loads
+  }, [scrollVersion])
 
   function handleScroll() {
     const c = scrollRef.current
@@ -456,7 +461,7 @@ export default function CalendarPage() {
     setNavTarget(t => ({ date, seq: t.seq + 1 }))
   }
 
-  const [planLoaded, setPlanLoaded] = useState(false)
+  const [scrollVersion, setScrollVersion] = useState(0)
   const [currentFTP, setCurrentFTP] = useState<number | undefined>(undefined)
   const [unavailability, setUnavailability] = useState<UnavailabilityPeriod[]>([])
   const [addUnavailDate, setAddUnavailDate] = useState<string | null>(null)
@@ -544,8 +549,8 @@ export default function CalendarPage() {
     fetch('/api/plan').then(r => r.json()).then(plan => {
       setWorkouts(plan?.workouts ?? [])
       setPlanName(plan?.name ?? '')
-      setPlanLoaded(true)
-    }).catch(() => { setPlanLoaded(true) })
+      setScrollVersion(v => v + 1)
+    }).catch(() => { setScrollVersion(v => v + 1) })
   }
 
   useEffect(() => {
@@ -555,8 +560,9 @@ export default function CalendarPage() {
       .then(data => {
         if (data?.athlete_id) setAthleteId(data.athlete_id)
         if (data) setSyncData(data)
+        setScrollVersion(v => v + 1)  // re-scroll after sync — activity cards affect heights
       })
-      .catch(() => {})
+      .catch(() => { setScrollVersion(v => v + 1) })
     fetch('/api/weight-log')
       .then(r => r.json())
       .then(d => setWeightLog(d.entries ?? []))
@@ -671,7 +677,7 @@ export default function CalendarPage() {
           key={navTarget.seq}
           navTarget={navTarget}
           onWeekInView={handleWeekInView}
-          dataLoaded={planLoaded}
+          scrollVersion={scrollVersion}
           workouts={workouts}
           events={events}
           unlinkedActivities={unlinkedActivities}
