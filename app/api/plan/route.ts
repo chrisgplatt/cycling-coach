@@ -130,6 +130,7 @@ export async function PATCH(req: NextRequest) {
   let planWeeks: number | null = null
   let bodyTrainingPhilosophy: TrainingPhilosophy | null = null
   let isPhilosophyOnly = false
+  let isRenameOnly = false
   try {
     const body = await req.json()
     plan = body.plan
@@ -138,6 +139,7 @@ export async function PATCH(req: NextRequest) {
     planWeeks = typeof rawWeeks === 'number' && rawWeeks > 0 ? Math.min(13, Math.round(rawWeeks)) : null
     bodyTrainingPhilosophy = (body.training_philosophy as TrainingPhilosophy | null) ?? null
     isPhilosophyOnly = !body.plan && body.training_philosophy !== undefined
+    isRenameOnly = !body.plan && typeof body.name === 'string' && body.name.trim().length > 0
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
@@ -159,6 +161,29 @@ export async function PATCH(req: NextRequest) {
       .eq('id', activePlan.id)
     if (error) return NextResponse.json({ error: 'Failed to update philosophy' }, { status: 500 })
     return NextResponse.json({ ok: true })
+  }
+
+  // Rename-only update path
+  if (isRenameOnly) {
+    const newName = name
+    if (newName.length > 100) {
+      return NextResponse.json({ error: 'Plan name must be 100 characters or fewer' }, { status: 400 })
+    }
+    const { data: activePlan } = await supabase
+      .from('training_plans')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (!activePlan) return NextResponse.json({ error: 'No active plan' }, { status: 400 })
+    const { error } = await supabase
+      .from('training_plans')
+      .update({ name: newName })
+      .eq('id', activePlan.id)
+    if (error) return NextResponse.json({ error: 'Failed to rename plan' }, { status: 500 })
+    return NextResponse.json({ ok: true, name: newName })
   }
 
   if (!plan?.workouts?.length) {
