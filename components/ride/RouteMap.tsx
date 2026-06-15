@@ -22,6 +22,7 @@ export default function RouteMap({ latlng, cursorIndex }: Props) {
 
   useEffect(() => {
     let cancelled = false
+    let ro: ResizeObserver | null = null
     import('leaflet').then(L => {
       if (cancelled || !elRef.current || mapRef.current || latlng.length === 0) return
       const map = L.map(elRef.current, { zoomControl: false })
@@ -34,9 +35,18 @@ export default function RouteMap({ latlng, cursorIndex }: Props) {
       markerRef.current = L.circleMarker(latlng[cursorRef.current] ?? latlng[0], {
         radius: 7, color: '#fff', weight: 2, fillColor: '#ef4444', fillOpacity: 1,
       }).addTo(map)
+      // Re-measure after the async import; the flex layout may not have settled yet
+      // on desktop where the modal uses h-auto. ResizeObserver keeps tiles correct
+      // as the container resizes (e.g. modal opening animation, orientation change).
+      map.invalidateSize()
+      if (elRef.current) {
+        ro = new ResizeObserver(() => { mapRef.current?.invalidateSize() })
+        ro.observe(elRef.current)
+      }
     })
     return () => {
       cancelled = true
+      ro?.disconnect()
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; markerRef.current = null }
     }
   }, [latlng])
