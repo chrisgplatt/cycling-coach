@@ -22,7 +22,7 @@ const PHASE_MATRIX: Record<number, TrainingPhilosophy['phase_weeks']> = {
 function getPhaseWeeks(totalWeeks: number): TrainingPhilosophy['phase_weeks'] {
   const keys = Object.keys(PHASE_MATRIX).map(Number).sort((a, b) => a - b)
   const nearest = keys.reduce((prev, cur) =>
-    Math.abs(cur - totalWeeks) < Math.abs(prev - totalWeeks) ? cur : prev
+    Math.abs(cur - totalWeeks) <= Math.abs(prev - totalWeeks) ? cur : prev
   )
   return PHASE_MATRIX[nearest]
 }
@@ -34,7 +34,8 @@ function approachLabel(profile: TrainingPhilosophy['intensity_profile']): string
 }
 
 export function computeMethodology(input: MethodologyInput): TrainingPhilosophy {
-  const phaseWeeks = getPhaseWeeks(input.weeksToEvent)
+  const clampedWeeks = Math.max(4, input.weeksToEvent)  // minimum 4-week plan
+  const phaseWeeks = getPhaseWeeks(clampedWeeks)
   const intensityProfile: TrainingPhilosophy['intensity_profile'] =
     input.weeklyHours >= 8 ? 'polarised-base' : 'threshold-heavy'
 
@@ -50,7 +51,7 @@ export function computeMethodology(input: MethodologyInput): TrainingPhilosophy 
     taper > 0 ? `${taper}wk taper` : null,
   ].filter(Boolean).join(', ')
 
-  const rationale = `Based on your ${input.weeklyHours.toFixed(1)}h/week schedule and a ${input.eventType} in ${input.weeksToEvent} weeks, I recommend Friel periodization with a ${approach}: ${phaseParts}.`
+  const rationale = `Based on your ${input.weeklyHours.toFixed(1)}h/week schedule and a ${input.eventType} in ${clampedWeeks} weeks, I recommend Friel periodization with a ${approach}: ${phaseParts}.`
 
   return {
     name,
