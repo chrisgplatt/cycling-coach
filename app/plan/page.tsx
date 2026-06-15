@@ -136,6 +136,14 @@ export default function PlanPage() {
   const [extendEstimatedWorkouts, setExtendEstimatedWorkouts] = useState(0)
   const [eventBannerDismissed, setEventBannerDismissed] = useState(false)
 
+  const planEndDate = planCreatedAt && (planTotalWeeks ?? planWeeks) > 0
+    ? (() => {
+        const d = new Date(planCreatedAt.split('T')[0])
+        d.setUTCDate(d.getUTCDate() + (planTotalWeeks ?? planWeeks) * 7)
+        return d.toISOString().split('T')[0]
+      })()
+    : null
+
   // Fix 1: timer ref to avoid unmount leak and double-save race
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -983,23 +991,18 @@ export default function PlanPage() {
           />
         )}
 
-        {showExtendModal && planName && (() => {
-          const planStart = planCreatedAt ? planCreatedAt.split('T')[0] : ''
-          const wk = weekNumber()
-          const totalWeeks = wk?.total ?? 0
-          const planEnd = planStart && totalWeeks > 0 ? addDaysUtc(planStart, totalWeeks * 7) : ''
+        {showExtendModal && planEndDate && (() => {
           const today = new Date().toISOString().split('T')[0]
-          if (!planEnd) return null
           return (
             <ExtendPlanModal
-              planEndDate={planEnd}
+              planEndDate={planEndDate}
               planCreatedAt={planCreatedAt}
               planWeeks={planTotalWeeks ?? planWeeks}
               currentPhilosophy={planPhilosophy}
               weeklyHours={Object.values(schedule).reduce((s: number, m: unknown) => s + (m as number), 0) / 60}
               nearestEvent={
                 [...events]
-                  .filter(e => (e.priority === 'A' || e.priority === 'B') && e.date > planEnd && e.date >= today)
+                  .filter(e => (e.priority === 'A' || e.priority === 'B') && e.date > planEndDate && e.date >= today)
                   .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
               }
               currentCTL={syncData?.wellness?.length ? syncData.wellness[syncData.wellness.length - 1].ctl ?? null : null}
