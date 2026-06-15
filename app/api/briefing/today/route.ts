@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 
   const fiveDaysLater = new Date(Date.now() + 5 * 864e5).toISOString().split('T')[0]
 
-  const [{ data: workouts }, { data: upcomingWorkoutsData }, dossier, beliefs] = await Promise.all([
+  const [{ data: workouts }, { data: upcomingWorkoutsData }, dossier, beliefs, { data: activePlan }] = await Promise.all([
     supabase.from('workouts')
       .select('*')
       .eq('date', today)
@@ -63,6 +63,12 @@ export async function GET(req: NextRequest) {
       .order('date'),
     fetchDossier(supabase, user.id),
     fetchActiveBeliefs(supabase, user.id),
+    supabase.from('training_plans')
+      .select('phase, week_phases, created_at, plan_weeks')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   const todayWorkouts = (workouts ?? []) as Workout[]
@@ -169,6 +175,22 @@ export async function GET(req: NextRequest) {
     weather = await fetchDailyForecast(lat, lon, today, tz)
   }
 
+  let currentPhaseWeek: number | null = null
+  if (activePlan?.week_phases && activePlan.created_at) {
+    const planStart = new Date(activePlan.created_at)
+    const todayDate = new Date()
+    const weekIndex = Math.floor((todayDate.getTime() - planStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
+    const weekPhases = activePlan.week_phases as string[]
+    const clampedIndex = Math.max(0, Math.min(weekIndex, weekPhases.length - 1))
+    const currentPhaseFromWeekPhases = weekPhases[clampedIndex]
+
+    let phaseStart = clampedIndex
+    while (phaseStart > 0 && weekPhases[phaseStart - 1] === currentPhaseFromWeekPhases) {
+      phaseStart--
+    }
+    currentPhaseWeek = clampedIndex - phaseStart + 1
+  }
+
   const ctx: BriefingContext = {
     today,
     todayWorkout,
@@ -191,6 +213,8 @@ export async function GET(req: NextRequest) {
     weather,
     dailyStrain,
     strainHistory,
+    currentPhase: activePlan?.phase ?? null,
+    currentPhaseWeek,
   }
 
   const { coach_note, verdict, headline } = await generateBriefing(ctx)

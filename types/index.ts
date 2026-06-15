@@ -542,6 +542,8 @@ export interface BriefingContext {
     explicit_notes: Array<{ note: string; added_at: string }>
   } | null
   athleteModel?: string  // pre-formatted formatAthleteModel() output; '' or undefined when empty
+  currentPhase?: string | null       // e.g. 'base' | 'build' | 'peak' | 'taper'
+  currentPhaseWeek?: number | null   // which week within the current phase (1-based)
 }
 
 export interface DailyBriefing {
