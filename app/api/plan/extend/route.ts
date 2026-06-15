@@ -14,8 +14,14 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json()
-  const extraWeeks = typeof body.extra_weeks === 'number' ? Math.round(body.extra_weeks) : 0
+  // Important 4: Wrap req.json() in try/catch
+  let extraWeeks: number
+  try {
+    const body = await req.json()
+    extraWeeks = typeof body.extra_weeks === 'number' ? Math.round(body.extra_weeks) : 0
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
   if (extraWeeks < 1 || extraWeeks > 26) {
     return NextResponse.json({ error: 'extra_weeks must be between 1 and 26' }, { status: 400 })
   }
@@ -66,31 +72,6 @@ export async function POST(req: NextRequest) {
     ? { ...storedPhilosophy, phase_weeks: updatedPhilosophy.phase_weeks }
     : updatedPhilosophy
 
-  // Delete future unplanned workouts from intervals.icu
-  if (profileData.intervals_icu_athlete_id && profileData.intervals_icu_api_key) {
-    const client = new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
-    const { data: futureWorkouts } = await supabase
-      .from('workouts')
-      .select('intervals_icu_event_id')
-      .eq('plan_id', activePlan.id)
-      .neq('status', 'completed')
-      .gte('date', today)
-      .not('intervals_icu_event_id', 'is', null)
-    for (const w of futureWorkouts ?? []) {
-      if (w.intervals_icu_event_id) {
-        try { await client.deleteEvent(w.intervals_icu_event_id) } catch { /* already gone */ }
-      }
-    }
-  }
-
-  // Delete future unplanned workout rows
-  await supabase
-    .from('workouts')
-    .delete()
-    .eq('plan_id', activePlan.id)
-    .neq('status', 'completed')
-    .gte('date', today)
-
   // Fetch supporting data
   const [dossier, beliefs] = await Promise.all([
     fetchDossier(supabase, user.id),
@@ -103,18 +84,24 @@ export async function POST(req: NextRequest) {
     try { hrvStatus = await fetchHrvStatus(hrvClient, today) } catch { /* optional */ }
   }
 
-  // Stream extended sessions
-  const messageStream = createExtendStream(
-    profileData,
-    { activities: [], wellness: [], athlete_ftp: null, athlete_weight: null },
-    remainingWeeks,
-    extraWeeks,
-    philosophyToUse.phase_weeks,
-    today,
-    philosophyToUse,
-    [formatDossier(dossier as AthleteDossier | null), formatAthleteModel(beliefs)].filter(Boolean).join('\n\n'),
-    hrvStatus,
-  )
+  // Critical 3: Wrap createExtendStream in try/catch before any mutations
+  let messageStream
+  try {
+    messageStream = createExtendStream(
+      profileData,
+      { activities: [], wellness: [], athlete_ftp: null, athlete_weight: null },
+      remainingWeeks,
+      extraWeeks,
+      philosophyToUse.phase_weeks,
+      today,
+      philosophyToUse,
+      [formatDossier(dossier as AthleteDossier | null), formatAthleteModel(beliefs)].filter(Boolean).join('\n\n'),
+      hrvStatus,
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Plan extension failed'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 
   const totalWorkouts = countPlannedWorkouts(profileData, remainingWeeks + extraWeeks, today)
   const encoder = new TextEncoder()
@@ -143,9 +130,40 @@ export async function POST(req: NextRequest) {
         const eventDates = new Set<string>((profileData.events ?? []).map((e: { date: string }) => e.date))
         const cleanWorkouts = generatedPlan.workouts.filter(w => !eventDates.has(w.date))
 
+        // Critical 1: Deletions moved inside the stream's try block, after AI output is confirmed good
+
+        // Delete future unplanned workouts from intervals.icu
+        if (profileData.intervals_icu_athlete_id && profileData.intervals_icu_api_key) {
+          const client = new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
+          const { data: futureWorkouts } = await supabase
+            .from('workouts')
+            .select('intervals_icu_event_id')
+            .eq('plan_id', activePlan.id)
+            .neq('status', 'completed')
+            .gte('date', today)
+            .not('intervals_icu_event_id', 'is', null)
+          for (const w of futureWorkouts ?? []) {
+            if (w.intervals_icu_event_id) {
+              try { await client.deleteEvent(w.intervals_icu_event_id) } catch { /* already gone */ }
+            }
+          }
+        }
+
+        // Delete future unplanned workout rows from DB
+        await supabase
+          .from('workouts')
+          .delete()
+          .eq('plan_id', activePlan.id)
+          .neq('status', 'completed')
+          .gte('date', today)
+
+        // Important 5: Clamp weeksCompleted to avoid exceeding week_phases array length
+        const weekPhasesArray = (activePlan.week_phases as PlanPhase[]) ?? []
+        const clampedWeeksCompleted = Math.min(weeksCompleted, weekPhasesArray.length)
+
         // Update plan record
         const newWeekPhases = [
-          ...((activePlan.week_phases as PlanPhase[]) ?? []).slice(0, weeksCompleted),
+          ...weekPhasesArray.slice(0, clampedWeeksCompleted),
           ...(generatedPlan.week_phases ?? []),
         ]
         await supabase
@@ -209,7 +227,15 @@ export async function POST(req: NextRequest) {
           coaching_notes: w.coaching_notes ?? null,
         }))
 
-        await supabase.from('workouts').insert(workoutsToInsert)
+        // Critical 2: Check insert result and emit error if it fails
+        const { error: insertError } = await supabase.from('workouts').insert(workoutsToInsert)
+        if (insertError) {
+          controller.enqueue(encoder.encode(
+            JSON.stringify({ type: 'error', message: 'Failed to save workouts' }) + '\n'
+          ))
+          controller.close()
+          return
+        }
 
         controller.enqueue(encoder.encode(
           JSON.stringify({ type: 'done', extra_weeks: extraWeeks, new_total_weeks: newTotal, upload_warnings: uploadErrors }) + '\n'
