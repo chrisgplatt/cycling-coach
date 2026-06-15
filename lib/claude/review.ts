@@ -1,7 +1,7 @@
 import { anthropic } from './client'
-import { formatZones, formatSchedule, formatPlanCalendar } from './plan'
+import { formatZones, formatSchedule, formatPlanCalendar, buildPromptWithPhilosophy } from './plan'
 import { coachingNotesGuidance } from './coaching-notes'
-import type { UserProfile, ICUActivity, ICUWellness, Workout, TrainingEvent } from '@/types'
+import type { UserProfile, ICUActivity, ICUWellness, Workout, TrainingEvent, TrainingPhilosophy } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 
@@ -93,6 +93,7 @@ export function buildReviewPrompt(
   recentActivities: ICUActivity[] = [],
   dossierSection = '',
   hrvStatus?: HrvStatus | null,
+  trainingPhilosophy?: TrainingPhilosophy | null,
 ): string {
   const wPerKg = (profile.current_ftp / profile.weight_kg).toFixed(2)
   const allEvents = [...(profile.events ?? [])].sort((a: TrainingEvent, b: TrainingEvent) =>
@@ -138,7 +139,7 @@ ${latestWellness
   ? `CTL: ${latestWellness.ctl ?? '?'} TSS/day (fitness), ATL: ${latestWellness.atl ?? '?'} TSS/day (fatigue), Form (TSB): ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'} ms, Resting HR: ${latestWellness.resting_hr ?? '?'} bpm`
   : 'No wellness data.'}${hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : ''}
 Last week's actual total TSS (all rides): ${actualWeeklyTSS || 'unknown'}
-
+${trainingPhilosophy ? '\n' + buildPromptWithPhilosophy(trainingPhilosophy) + '\n' : ''}
 WELLNESS TREND — LAST 14 DAYS:
 ${formatWellness(wellness)}
 
@@ -200,8 +201,9 @@ export function createReviewStream(
   recentActivities: ICUActivity[] = [],
   dossierSection = '',
   hrvStatus?: HrvStatus | null,
+  trainingPhilosophy?: TrainingPhilosophy | null,
 ) {
-  const prompt = buildReviewPrompt(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, dossierSection, hrvStatus)
+  const prompt = buildReviewPrompt(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, dossierSection, hrvStatus, trainingPhilosophy)
   return anthropic.messages.stream({
     model: 'claude-opus-4-8',
     max_tokens: 32000,

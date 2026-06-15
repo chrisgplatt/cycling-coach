@@ -6,7 +6,7 @@ import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { fetchHrvStatus } from '@/lib/hrv/server'
 import { isoWeek } from '@/lib/iso-week'
-import type { GeneratedPlan, ICUActivity, Workout } from '@/types'
+import type { GeneratedPlan, ICUActivity, Workout, TrainingPhilosophy } from '@/types'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -34,6 +34,8 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
 
   if (!plan) return NextResponse.json({ error: 'No active plan' }, { status: 400 })
+
+  const trainingPhilosophy = plan.training_philosophy as TrainingPhilosophy | null ?? null
 
   const today = new Date().toISOString().split('T')[0]
   const fourteenDaysAgo = new Date(Date.now() - 14 * 864e5).toISOString().split('T')[0]
@@ -68,7 +70,7 @@ export async function POST(req: NextRequest) {
 
   let messageStream
   try {
-    messageStream = createReviewStream(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, formatDossier(dossier as AthleteDossier | null), hrvStatus)
+    messageStream = createReviewStream(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, formatDossier(dossier as AthleteDossier | null), hrvStatus, trainingPhilosophy)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Review generation failed'
     return NextResponse.json({ error: message }, { status: 500 })
