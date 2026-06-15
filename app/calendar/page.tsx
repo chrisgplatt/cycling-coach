@@ -21,7 +21,7 @@ import AddEventModal from '@/components/AddEventModal'
 import PlanReviewModal from '@/components/PlanReviewModal'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
-import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus, WorkoutType, GeneratedPlan, UnavailabilityPeriod } from '@/types'
+import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus, WorkoutType, GeneratedPlan, UnavailabilityPeriod, WeightEntry } from '@/types'
 import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr, weekStartsAround, weekStartsAfter } from '@/lib/calendar-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
@@ -456,6 +456,7 @@ export default function CalendarPage() {
   const [planName, setPlanName] = useState('')
   const [athleteId, setAthleteId] = useState('')
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
+  const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
   const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
   const [initialFeedback, setInitialFeedback] = useState<SessionFeedback | null>(null)
   const [chatWorkout, setChatWorkout] = useState<Workout | null>(null)
@@ -583,6 +584,10 @@ export default function CalendarPage() {
         if (data?.athlete_id) setAthleteId(data.athlete_id)
         if (data) setSyncData(data)
       })
+      .catch(() => {})
+    fetch('/api/weight-log')
+      .then(r => r.json())
+      .then(d => setWeightLog(d.entries ?? []))
       .catch(() => {})
     fetch('/api/profile')
       .then(r => r.ok ? r.json() : null)
@@ -739,6 +744,12 @@ export default function CalendarPage() {
           workout={selectedWorkout}
           athleteId={athleteId}
           ftp={currentFTP}
+          activitiesOnDate={
+            syncData?.activities.filter(a =>
+              a.start_date_local.startsWith(selectedWorkout.date)
+            ) ?? []
+          }
+          weightLog={weightLog}
           onClose={() => setSelectedWorkout(null)}
           onFeedback={(existingFeedback) => {
             setInitialFeedback(existingFeedback ?? null)
