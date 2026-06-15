@@ -401,7 +401,7 @@ export default function DashboardPage() {
       return s + Math.round((w.duration_minutes * 60 * if_ * if_) / 36)
     }, 0),
     distanceKm: Math.round(completedWP.reduce((s, w) => s + ((w.activity_metrics?.distance_m ?? 0) / 1000), 0) * 10) / 10,
-    elevationM: Math.round(completedWP.reduce((s, w) => s + (w.activity_metrics?.total_elevation_gain ?? 0), 0)),
+    elevationM: Math.round(completedWP.reduce((s, w) => s + (w.activity_metrics?.elevation_m ?? 0), 0)),
     timePlannedMins: weekWorkoutsWP.reduce((s, w) => s + w.duration_minutes, 0),
     timeActualMins: completedWP.reduce((s, w) => s + w.duration_minutes, 0),
     fitnessCtl: recentCtl !== null ? Math.round(recentCtl) : null,
