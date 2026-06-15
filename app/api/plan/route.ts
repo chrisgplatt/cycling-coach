@@ -6,7 +6,7 @@ import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { fetchHrvStatus } from '@/lib/hrv/server'
-import type { GeneratedPlan } from '@/types'
+import type { GeneratedPlan, TrainingPhilosophy } from '@/types'
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { syncData, weeks = 6, startDate, notes = '' } = await req.json()
+  const { syncData, weeks = 6, startDate, notes = '', training_philosophy = null } = await req.json()
   const safeWeeks = Math.min(13, Math.max(1, Math.round(Number(weeks) || 6)))
   const safeStartDate = typeof startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(startDate)
     ? startDate
@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
       typeof notes === 'string' ? notes.trim() : '',
       [formatDossier(dossier as AthleteDossier | null), formatAthleteModel(beliefs)].filter(Boolean).join('\n\n'),
       hrvStatus,
+      (training_philosophy as TrainingPhilosophy | null) ?? null,
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Plan generation failed'
@@ -127,14 +128,37 @@ export async function PATCH(req: NextRequest) {
   let plan: GeneratedPlan
   let name = ''
   let planWeeks: number | null = null
+  let bodyTrainingPhilosophy: TrainingPhilosophy | null = null
+  let isPhilosophyOnly = false
   try {
     const body = await req.json()
     plan = body.plan
     name = (body.name ?? '').trim()
     const rawWeeks = body.weeks
     planWeeks = typeof rawWeeks === 'number' && rawWeeks > 0 ? Math.min(13, Math.round(rawWeeks)) : null
+    bodyTrainingPhilosophy = (body.training_philosophy as TrainingPhilosophy | null) ?? null
+    isPhilosophyOnly = !body.plan && body.training_philosophy !== undefined
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+
+  // Philosophy-only update path (for legacy plan re-evaluation)
+  if (isPhilosophyOnly) {
+    const { data: activePlan } = await supabase
+      .from('training_plans')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (!activePlan) return NextResponse.json({ error: 'No active plan' }, { status: 400 })
+    const { error } = await supabase
+      .from('training_plans')
+      .update({ training_philosophy: bodyTrainingPhilosophy })
+      .eq('id', activePlan.id)
+    if (error) return NextResponse.json({ error: 'Failed to update philosophy' }, { status: 500 })
+    return NextResponse.json({ ok: true })
   }
 
   if (!plan?.workouts?.length) {
@@ -210,6 +234,7 @@ export async function PATCH(req: NextRequest) {
       plan_weeks: planWeeks,
       user_id: user.id,
       baseline_ftp: profile.current_ftp ?? null,
+      training_philosophy: bodyTrainingPhilosophy ?? null,
     })
     .select()
     .single()
