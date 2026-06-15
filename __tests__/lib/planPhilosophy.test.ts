@@ -43,4 +43,20 @@ describe('buildPromptWithPhilosophy', () => {
     const result = buildPromptWithPhilosophy(null)
     expect(result).toBe('')
   })
+
+  it('excludes zero-week phases from output (no peak for short plan)', () => {
+    const shortPlan: TrainingPhilosophy = {
+      ...philosophy,
+      phase_weeks: { base: 1, build: 2, peak: 0, taper: 1 },
+    }
+    const result = buildPromptWithPhilosophy(shortPlan)
+    expect(result).not.toContain('Peak')
+    expect(result).toContain('Base: 1 weeks')
+    expect(result).toContain('Taper: 1 weeks')
+  })
+
+  it('returns empty string for undefined', () => {
+    const result = buildPromptWithPhilosophy(undefined)
+    expect(result).toBe('')
+  })
 })
