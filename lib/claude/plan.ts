@@ -60,6 +60,39 @@ ${phaseLines}
 Apply the Friel phase distribution rules from your training guidelines. In base phase, keep ≥75% of sessions Z1–Z2. In build, add threshold (max 1×/week) and VO2max (max 1×/week). De-load every 3rd week (Z1–Z2 only, 40–50% TSS reduction). Never schedule two hard sessions on consecutive days.`
 }
 
+export function buildExtendPrompt(
+  extraWeeks: number,
+  newPhaseWeeks: TrainingPhilosophy['phase_weeks'],
+  todayDate: string,
+): string {
+  const { base, build, peak, taper } = newPhaseWeeks
+  const phaseSummary = [
+    base > 0 ? `base ${base}wk` : null,
+    build > 0 ? `build ${build}wk` : null,
+    peak > 0 ? `peak ${peak}wk` : null,
+    taper > 0 ? `taper ${taper}wk` : null,
+  ].filter(Boolean).join(', ')
+  return `PLAN EXTENSION: This is a continuation of an existing plan, extended by ${extraWeeks} week${extraWeeks === 1 ? '' : 's'}.
+Generate sessions from ${todayDate} onward only. Do not generate any sessions before ${todayDate}.
+The full updated plan structure is: ${phaseSummary}. Continue the Friel periodization arc from the current phase — do not restart from week 1.`
+}
+
+export function createExtendStream(
+  profile: UserProfile,
+  syncData: ICUSyncData,
+  remainingWeeks: number,
+  extraWeeks: number,
+  newPhaseWeeks: TrainingPhilosophy['phase_weeks'],
+  todayDate: string,
+  trainingPhilosophy: TrainingPhilosophy | null,
+  dossierSection = '',
+  hrvStatus?: HrvStatus | null,
+) {
+  const notes = buildExtendPrompt(extraWeeks, newPhaseWeeks, todayDate)
+  const weeksToGenerate = remainingWeeks + extraWeeks
+  return createPlanStream(profile, syncData, weeksToGenerate, todayDate, notes, dossierSection, hrvStatus, trainingPhilosophy)
+}
+
 function buildPrompt(
   profile: UserProfile,
   syncData: ICUSyncData,
