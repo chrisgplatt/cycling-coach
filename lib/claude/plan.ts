@@ -2,7 +2,7 @@ import { anthropic, MODEL } from './client'
 import { formatZones } from './zones'
 import { formatSchedule, formatPlanCalendar } from './schedule'
 import { coachingNotesGuidance } from './coaching-notes'
-import type { UserProfile, ICUSyncData, GeneratedPlan, ICUActivity, ICUWellness } from '@/types'
+import type { UserProfile, ICUSyncData, GeneratedPlan, ICUActivity, ICUWellness, TrainingPhilosophy } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 
@@ -44,6 +44,22 @@ export { formatZones, formatSchedule, formatPlanCalendar }
 const SYSTEM_PROMPT = `You are an expert road cycling coach. Generate periodized training plans based on athlete data.
 Always respond with ONLY valid JSON matching the exact schema requested. No markdown, no explanation outside the JSON.`
 
+export function buildPromptWithPhilosophy(philosophy: TrainingPhilosophy | null | undefined): string {
+  if (!philosophy) return ''
+  const { label, phase_weeks: pw, intensity_profile } = philosophy
+  const phaseLines = [
+    pw.base > 0 ? `  Base: ${pw.base} weeks` : null,
+    pw.build > 0 ? `  Build: ${pw.build} weeks` : null,
+    pw.peak > 0 ? `  Peak: ${pw.peak} weeks` : null,
+    pw.taper > 0 ? `  Taper: ${pw.taper} weeks` : null,
+  ].filter(Boolean).join('\n')
+  return `COACHING PHILOSOPHY: ${label}
+Intensity profile: ${intensity_profile}
+Phase structure:
+${phaseLines}
+Apply the Friel phase distribution rules from your training guidelines. In base phase, keep ≥75% of sessions Z1–Z2. In build, add threshold (max 1×/week) and VO2max (max 1×/week). De-load every 3rd week (Z1–Z2 only, 40–50% TSS reduction). Never schedule two hard sessions on consecutive days.`
+}
+
 function buildPrompt(
   profile: UserProfile,
   syncData: ICUSyncData,
@@ -52,6 +68,7 @@ function buildPrompt(
   notes: string,
   dossierSection = '',
   hrvStatus?: HrvStatus | null,
+  trainingPhilosophy?: TrainingPhilosophy | null,
 ): string {
   const allEvents = [...profile.events].sort((a, b) => a.date.localeCompare(b.date))
   if (!allEvents.length) throw new Error('Cannot generate a plan: no events configured.')
@@ -147,7 +164,7 @@ ${weeklyTssSummary(syncData.activities)}
 LOAD CALIBRATION — critical: set week 1 of the plan so its total TSS closely matches the athlete's recent average weekly TSS shown above. Build from that baseline; do not start above it. If form (TSB) is significantly negative (below -15), reduce week 1 by 10–20% to allow recovery before building.
 
 When an event week contains an event with a TSS estimate, treat that estimated TSS as part of the week's total training load. Reduce the surrounding workout load so the combined total (workouts + event) stays within the appropriate range for the training phase — do not stack a full training week on top of a hard event day.
-
+${trainingPhilosophy ? '\n' + buildPromptWithPhilosophy(trainingPhilosophy) + '\n' : ''}
 RECENT ACTIVITIES (last 10 — use these to understand training history, discipline mix, and current intensity):
 ${summariseActivities(syncData.activities)}
 
@@ -225,8 +242,9 @@ export function createPlanStream(
   notes = '',
   dossierSection = '',
   hrvStatus?: HrvStatus | null,
+  trainingPhilosophy?: TrainingPhilosophy | null,
 ) {
-  const prompt = buildPrompt(profile, syncData, weeks, startDate, notes, dossierSection, hrvStatus)
+  const prompt = buildPrompt(profile, syncData, weeks, startDate, notes, dossierSection, hrvStatus, trainingPhilosophy)
   return anthropic.messages.stream({
     model: 'claude-opus-4-8',
     max_tokens: 32000,
