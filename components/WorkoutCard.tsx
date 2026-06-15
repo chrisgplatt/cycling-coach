@@ -21,6 +21,13 @@ const TYPE_CHIPS: Record<WorkoutType, string> = {
   recovery:  'bg-emerald-50 text-emerald-700 border border-emerald-200',
 }
 
+const TYPE_BAR: Record<WorkoutType, string> = {
+  endurance: 'bg-blue-500',
+  threshold: 'bg-red-500',
+  intervals: 'bg-orange-500',
+  recovery:  'bg-emerald-500',
+}
+
 const STATUS_CHIPS = {
   planned:      'bg-gray-100 text-gray-500 border border-gray-200',
   completed:    'bg-emerald-50 text-emerald-700 border border-emerald-200',
@@ -49,6 +56,7 @@ export default function WorkoutCard({ workout, onClick, ftp }: Props) {
         onClick ? 'cursor-pointer hover:shadow-md hover:border-gray-300' : ''
       }`}
     >
+      <div className={`h-1 ${TYPE_BAR[workout.type]}`} />
       <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${TYPE_CHIPS[workout.type]}`}>

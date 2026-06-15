@@ -21,7 +21,8 @@ import AddEventModal from '@/components/AddEventModal'
 import PlanReviewModal from '@/components/PlanReviewModal'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
-import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, WorkoutStatus, WorkoutType, GeneratedPlan, UnavailabilityPeriod, WeightEntry } from '@/types'
+import WorkoutCard from '@/components/WorkoutCard'
+import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry } from '@/types'
 import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr, weekStartsAround, weekStartsAfter } from '@/lib/calendar-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
@@ -32,60 +33,23 @@ import { periodOverlapsWeek, coveredDaysInWeek, periodDurationDays } from '@/lib
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
-const STATUS_BADGE: Record<WorkoutStatus, { label: string; className: string }> = {
-  completed:    { label: 'completed ✓', className: 'bg-green-100 text-green-700' },
-  planned:      { label: 'planned',     className: 'bg-blue-100 text-blue-700' },
-  skipped:      { label: 'skipped',     className: 'bg-slate-100 text-slate-500' },
-  needs_review: { label: 'needs review', className: 'bg-amber-100 text-amber-700' },
-}
-
 // ─── Session cards ────────────────────────────────────────────────────────────
-
-// Type colours mirror the dashboard workout-type tags (components/WorkoutCard.tsx).
-const TYPE_CARD: Record<WorkoutType, { bg: string; border: string; text: string }> = {
-  endurance: { bg: 'bg-blue-50',    border: 'border-blue-500',    text: 'text-blue-800' },
-  threshold: { bg: 'bg-orange-50',  border: 'border-orange-500',  text: 'text-orange-800' },
-  intervals: { bg: 'bg-red-50',     border: 'border-red-500',     text: 'text-red-800' },
-  recovery:  { bg: 'bg-emerald-50', border: 'border-emerald-500', text: 'text-emerald-800' },
-}
-
-function WorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => void }) {
-  const badge = STATUS_BADGE[workout.status]
-  const type = TYPE_CARD[workout.type] ?? TYPE_CARD.endurance
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left border-l-4 rounded-md px-3 py-2.5 active:opacity-70 transition-opacity ${type.bg} ${type.border}`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className={`text-sm font-semibold capitalize truncate ${type.text}`}>🚴 {workout.type}</span>
-        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${badge.className}`}>
-          {badge.label}
-        </span>
-      </div>
-      <div className="flex gap-3 mt-0.5 text-xs text-slate-500">
-        <span>{formatDuration(workout.duration_minutes)}</span>
-        {workout.tss != null && <span>TSS {Math.round(workout.tss)}</span>}
-      </div>
-    </button>
-  )
-}
 
 // Planned workouts are draggable. TouchSensor requires a 200ms press before activating
 // so scrolling past cards never triggers a drag accidentally.
-function DraggableWorkoutCard({ workout, onClick }: { workout: Workout; onClick: () => void }) {
+function DraggableWorkoutCard({ workout, onClick, ftp }: { workout: Workout; onClick: () => void; ftp?: number }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: workout.id })
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="relative">
-      <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-16 h-0.5 rounded-full bg-slate-300 pointer-events-none z-10" />
-      <WorkoutCard workout={workout} onClick={onClick} />
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 w-16 h-0.5 rounded-full bg-slate-300 pointer-events-none z-10" />
+      <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} />
       {/* Drag zone sits between the two grip bars; relays quick taps as card-open */}
       <div
         {...listeners}
-        className="absolute inset-x-0 top-3 bottom-3 z-10 cursor-grab active:cursor-grabbing"
+        className="absolute inset-x-0 top-4 bottom-3 z-10 cursor-grab active:cursor-grabbing"
         onClick={onClick}
       />
       <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-16 h-0.5 rounded-full bg-slate-300 pointer-events-none z-10" />
@@ -231,11 +195,12 @@ interface WeekDetailProps {
   onActivityClick: (a: ICUActivity) => void
   unavailability: UnavailabilityPeriod[]
   onAddUnavailability: (date: string) => void
+  ftp?: number
 }
 
 function WeekDetail({
   selectedDateStr, workouts, events, unlinkedActivities, todayStr,
-  onWorkoutClick, onEventClick, onActivityClick, unavailability, onAddUnavailability,
+  onWorkoutClick, onEventClick, onActivityClick, unavailability, onAddUnavailability, ftp,
 }: WeekDetailProps) {
   const dates = weekDates(selectedDateStr)
   const overlappingPeriods = unavailability.filter(p => periodOverlapsWeek(p, dates))
@@ -316,8 +281,8 @@ function WeekDetail({
                 return (
                   <div key={w.id}>
                     {w.status === 'planned'
-                      ? <DraggableWorkoutCard workout={w} onClick={() => onWorkoutClick(w)} />
-                      : <WorkoutCard workout={w} onClick={() => onWorkoutClick(w)} />}
+                      ? <DraggableWorkoutCard workout={w} onClick={() => onWorkoutClick(w)} ftp={ftp} />
+                      : <WorkoutCard workout={w} onClick={() => onWorkoutClick(w)} ftp={ftp} />}
                     {linkedEvent && (
                       <div className="relative ml-4 mt-1">
                         <div className="absolute -top-2 -left-3 h-6 w-3 border-l-2 border-b-2 border-gray-200 rounded-bl-md" />
@@ -708,9 +673,10 @@ export default function CalendarPage() {
           onActivityClick={(a) => setSelectedActivity(a)}
           unavailability={unavailability}
           onAddUnavailability={date => setAddUnavailDate(date)}
+          ftp={currentFTP}
         />
         <DragOverlay>
-          {activeWorkout ? <WorkoutCard workout={activeWorkout} onClick={() => {}} /> : null}
+          {activeWorkout ? <WorkoutCard workout={activeWorkout} onClick={() => {}} ftp={currentFTP} /> : null}
         </DragOverlay>
       </DndContext>
 
