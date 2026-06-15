@@ -49,7 +49,6 @@ export async function POST(req: NextRequest) {
   // Fetch profile
   const { data: profileData } = await supabase.from('user_profile').select('*').maybeSingle()
   if (!profileData) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
-  if (!profileData.events?.length) return NextResponse.json({ error: 'No events configured' }, { status: 400 })
 
   // Recompute phase structure
   const weeklyHours = ((profileData.weekly_availability ?? []) as Array<{ duration_minutes: number }>)

@@ -755,6 +755,12 @@ export default function PlanPage() {
                   Extending plan… {extendWorkoutsFound > 0 && `${extendWorkoutsFound}${extendEstimatedWorkouts > 0 ? `/${extendEstimatedWorkouts}` : ''} sessions generated`}
                 </div>
               )}
+              {!extendLoading && saveError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
+                  <p className="text-sm text-red-700">{saveError}</p>
+                  <button onClick={() => setSaveError(null)} className="text-red-400 hover:text-red-600 shrink-0 text-lg leading-none">×</button>
+                </div>
+              )}
               <div className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl text-white shadow-md overflow-hidden">
                 {eventMovedEvent && (
                   <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between gap-3">
