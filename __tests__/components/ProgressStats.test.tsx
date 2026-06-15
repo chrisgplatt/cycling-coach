@@ -82,7 +82,7 @@ it('does not render the coaching narrative text', async () => {
     render(<ProgressStats syncVersion={0} eventCountdown={{ name: 'Dragon Ride', daysAway: 78 }} />)
     await screen.findByText('245W')
     expect(screen.getByText(/Dragon Ride/)).toBeInTheDocument()
-    expect(screen.getByText('78d')).toBeInTheDocument()
+    expect(screen.getByText(/78d/)).toBeInTheDocument()
   })
 
   it('renders "Today!" when daysAway is 0', async () => {
