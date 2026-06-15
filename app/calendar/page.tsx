@@ -368,7 +368,8 @@ function ContinuousWeeks({ navTarget, onWeekInView, ...week }: ContinuousWeeksPr
     const el = weekEls.current.get(target)
     const c = scrollRef.current
     if (el && c) {
-      c.scrollTop = Math.max(0, el.offsetTop - 4)
+      const relTop = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop
+      c.scrollTop = Math.max(0, relTop - 4)
       lastWeek.current = target
       pendingScrollTo.current = ''
     }
