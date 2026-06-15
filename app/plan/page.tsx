@@ -1297,17 +1297,18 @@ export default function PlanPage() {
           </div>
         )}
 
-        {showReviewModal && (
-          <PlanReviewModal
-            plan={reviewPlan}
-            loading={reviewLoading}
-            workoutsFound={reviewWorkoutsFound}
-            estimatedWorkouts={reviewEstimatedWorkouts}
-            onApprove={handleAdaptationApprove}
-            onReject={() => { setShowReviewModal(false); setReviewPlan(null) }}
-          />
-        )}
       </div>
+
+      {showReviewModal && (
+        <PlanReviewModal
+          plan={reviewPlan}
+          loading={reviewLoading}
+          workoutsFound={reviewWorkoutsFound}
+          estimatedWorkouts={reviewEstimatedWorkouts}
+          onApprove={handleAdaptationApprove}
+          onReject={() => { setShowReviewModal(false); setReviewPlan(null) }}
+        />
+      )}
     </div>
   )
 }
