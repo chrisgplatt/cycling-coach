@@ -35,7 +35,7 @@ export default function RideMapGraph({ streams, fit = false }: { streams: RideSt
   return (
     <div className={`flex flex-col ${fit ? 'h-full' : ''}`}>
       {/* `isolate` contains Leaflet's high z-index panes so the app nav/menu stays on top */}
-      <div className={`bg-slate-100 relative isolate ${fit ? 'flex-1 min-h-0' : 'h-[40vh] min-h-[220px]'}`}>
+      <div className={`bg-slate-100 relative isolate ${fit ? 'flex-1 min-h-[220px]' : 'h-[40vh] min-h-[220px]'}`}>
         {hasGps ? (
           // hasGps guarantees latlng is non-null and non-empty
           <RouteMap latlng={streams.latlng!} cursorIndex={cursor} />
