@@ -1,15 +1,24 @@
 'use client'
 import { useState, useEffect } from 'react'
-import type { ProgressMetrics, WeeklyProgress, EventCountdown } from '@/types'
+import type { ProgressMetrics, WeeklyProgress, EventCountdown, TrainingEvent } from '@/types'
 
 interface StatsData {
   metrics_snapshot: ProgressMetrics
+}
+
+const EVENT_ICON: Record<string, string> = {
+  race: '🏆',
+  sportive: '🚴',
+  holiday: '🌴',
+  fitness: '💪',
 }
 
 interface Props {
   syncVersion: number
   weeklyProgress?: WeeklyProgress | null
   eventCountdown?: EventCountdown | null
+  upcomingEvents?: TrainingEvent[]
+  weeksRemainingInPlan?: number | null
   form?: number | null
 }
 
@@ -17,7 +26,7 @@ function fmtH(mins: number) {
   return `${(mins / 60).toFixed(1)}h`
 }
 
-export default function ProgressStats({ syncVersion, weeklyProgress, eventCountdown, form }: Props) {
+export default function ProgressStats({ syncVersion, weeklyProgress, eventCountdown, upcomingEvents, weeksRemainingInPlan, form }: Props) {
   const [data, setData] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -36,23 +45,32 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
   const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || data.metrics_snapshot.streak != null)
   const hasWeek = weeklyProgress && weeklyProgress.sessionsTotal > 0
 
-  if (!hasSeasonStats && !hasWeek && !eventCountdown) return null
+  if (!hasSeasonStats && !hasWeek && !eventCountdown && !upcomingEvents?.length) return null
 
   const m = data?.metrics_snapshot
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-gray-200">
+      <div className="px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
         <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Progress</h2>
+        {weeksRemainingInPlan != null && (
+          <span className="text-[10px] font-semibold text-gray-400">{weeksRemainingInPlan}wk plan remaining</span>
+        )}
       </div>
-      {eventCountdown && (
-        <div className="px-4 py-1.5 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-blue-700 truncate">🏁 {eventCountdown.name}</span>
-          <span className="text-[11px] font-bold text-blue-700 ml-2 shrink-0">
-            {eventCountdown.daysAway === 0 ? 'Today!' : `${eventCountdown.daysAway}d`}
-          </span>
-        </div>
-      )}
+      {(upcomingEvents?.length ? upcomingEvents : eventCountdown ? [{ name: eventCountdown.name, date: '', type: 'race' as const, priority: 'A' as const, _daysAway: eventCountdown.daysAway }] : []).map((e, i) => {
+        const daysAway = '_daysAway' in e ? (e as { _daysAway: number })._daysAway : Math.ceil((new Date(e.date).getTime() - Date.now()) / 86400000)
+        const priorityColour = (e.priority === 'A') ? 'text-red-500' : (e.priority === 'B') ? 'text-amber-500' : 'text-slate-400'
+        const icon = EVENT_ICON[e.type] ?? '🏁'
+        return (
+          <div key={i} className="px-4 py-1.5 border-b border-gray-100 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold text-gray-700 truncate">{icon} {e.name}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-[10px] font-bold ${priorityColour}`}>{e.priority}</span>
+              <span className="text-[11px] font-bold text-gray-500">{daysAway <= 0 ? 'Today!' : `${daysAway}d`}</span>
+            </div>
+          </div>
+        )
+      })}
       {hasSeasonStats && m && (
         <div className="p-3 grid grid-cols-3 gap-2">
           {m.ftp && (

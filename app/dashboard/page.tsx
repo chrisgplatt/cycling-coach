@@ -421,6 +421,20 @@ export default function DashboardPage() {
     ),
   } : null
 
+  const upcomingEvents = events
+    .filter(e => {
+      const days = Math.ceil((new Date(e.date).getTime() - new Date(todayStr).getTime()) / 86400000)
+      return days >= 0 && days <= 84
+    })
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  const lastPlannedDate = futurePlanWorkouts.length > 0
+    ? futurePlanWorkouts.reduce((latest, w) => w.date > latest ? w.date : latest, futurePlanWorkouts[0].date)
+    : null
+  const weeksRemainingInPlan = lastPlannedDate
+    ? Math.ceil((new Date(lastPlannedDate).getTime() - new Date(todayStr).getTime()) / (7 * 86400000))
+    : null
+
   const todayWellness = syncData?.wellness.find(w => w.id === todayStr)
   const recentWellness = [...(syncData?.wellness ?? [])]
     .sort((a, b) => b.id.localeCompare(a.id))
@@ -508,6 +522,8 @@ export default function DashboardPage() {
         syncVersion={syncVersion}
         weeklyProgress={weeklyProgress}
         eventCountdown={eventCountdown}
+        upcomingEvents={upcomingEvents}
+        weeksRemainingInPlan={weeksRemainingInPlan}
         form={form}
       />
 
