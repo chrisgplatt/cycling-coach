@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import CtlTrendStrip from '@/components/CtlTrendStrip'
 import type { ChartsData } from '@/types'
@@ -22,6 +22,7 @@ const mockCharts: ChartsData = {
     { date: daysAgo(100), avgHr: 138, tss: 80, name: 'Century Ride', durationSecs: 14400 },
     { date: daysAgo(10),  avgHr: 142, tss: 95, name: 'Threshold Intervals', durationSecs: 5400 },
     { date: daysAgo(5),   avgHr: 143, tss: 60, name: 'Morning Endurance Ride', durationSecs: 6300 },
+    { date: daysAgo(5),   avgHr: 110, tss: 18, name: 'Evening Recovery Spin', durationSecs: 2400 },
   ],
 }
 
@@ -101,4 +102,42 @@ it('defaults to the 1m tab', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
   const btn = screen.getByRole('button', { name: /1m/i })
   expect(btn.className).toContain('bg-blue-600')
+})
+
+it('shows a ride breakdown tooltip when a 1m hit-target is tapped', async () => {
+  await act(async () => { render(<CtlTrendStrip />) })
+  // ctlPoints in the 1m window are [daysAgo(10), daysAgo(5)] in that order,
+  // so slot index 1 is nearest the daysAgo(5) session dot (the 2-ride day).
+  fireEvent.click(screen.getByTestId('ctl-hit-1'))
+  const tooltip = screen.getByTestId('ctl-ride-tooltip')
+  expect(tooltip).toBeInTheDocument()
+  expect(screen.getByText(/Morning Endurance Ride/)).toBeInTheDocument()
+  expect(screen.getByText(/60 TSS/)).toBeInTheDocument()
+  expect(screen.getByText(/1h 45m/)).toBeInTheDocument()
+  expect(screen.getByText(/Evening Recovery Spin/)).toBeInTheDocument()
+  expect(screen.getByText(/18 TSS/)).toBeInTheDocument()
+  expect(screen.getByText(/0h 40m/)).toBeInTheDocument()
+  expect(screen.getByText(/Total 78 TSS/)).toBeInTheDocument()
+  expect(screen.getByText(/CTL 68/)).toBeInTheDocument()
+  // "RHR 50" also appears in the header badge ("RHR 50 bpm"), so scope to the tooltip
+  expect(within(tooltip).getByText(/RHR 50/)).toBeInTheDocument()
+})
+
+it('clicking the same hit-target again closes the tooltip', async () => {
+  await act(async () => { render(<CtlTrendStrip />) })
+  const hit = screen.getByTestId('ctl-hit-1')
+  fireEvent.click(hit)
+  expect(screen.getByTestId('ctl-ride-tooltip')).toBeInTheDocument()
+  fireEvent.click(hit)
+  expect(screen.queryByTestId('ctl-ride-tooltip')).toBeNull()
+})
+
+it('has no hit-targets or tooltip on the 3m tab', async () => {
+  const user = userEvent.setup()
+  await act(async () => { render(<CtlTrendStrip />) })
+  fireEvent.click(screen.getByTestId('ctl-hit-1'))
+  expect(screen.getByTestId('ctl-ride-tooltip')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /3m/i }))
+  expect(screen.queryByTestId('ctl-ride-tooltip')).toBeNull()
+  expect(screen.queryAllByTestId(/^ctl-hit-/).length).toBe(0)
 })

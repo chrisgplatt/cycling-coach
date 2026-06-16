@@ -1,12 +1,19 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { ChartsData } from '@/types'
+import type { ChartsData, RidePoint } from '@/types'
+import { formatDuration } from '@/components/RideStats'
 
 type Range = '1m' | '3m' | '6m' | '12m'
 
 const RANGE_MONTHS: Record<Range, number> = { '1m': 1, '3m': 3, '6m': 6, '12m': 12 }
 const RANGES: Range[] = ['1m', '3m', '6m', '12m']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+
+function dotDateLabel(dateStr: string): string {
+  const d = new Date(dateStr)
+  return `${DOW[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`
+}
 
 const W = 320, H = 80
 const PAD_T = 4, PAD_B = 16, PAD_L = 28, PAD_R = 28
@@ -28,6 +35,7 @@ export default function CtlTrendStrip({
 }) {
   const [fetched, setFetched] = useState<ChartsData | null>(null)
   const [range, setRange] = useState<Range>('1m')
+  const [activeDotIdx, setActiveDotIdx] = useState<number | null>(null)
 
   useEffect(() => {
     if (chartsData !== undefined) return   // skip self-fetch when data is provided
@@ -38,6 +46,10 @@ export default function CtlTrendStrip({
   }, [chartsData])
 
   const data = chartsData ?? fetched
+
+  useEffect(() => {
+    setActiveDotIdx(null)
+  }, [range, data])
 
   if (!data) return null
 
@@ -69,20 +81,25 @@ export default function CtlTrendStrip({
 
   const ctlWindowStart = ctlPoints[0].id
 
-  // Session dots — one circle per training day, radius ∝ TSS
+  // Session dots — one circle per training day, radius ∝ total TSS that day.
+  // Rides are grouped (not just summed) so the tooltip can list each contributing ride.
   const ctlByDate = new Map(ctlPoints.map(w => [w.id, w.ctl as number]))
-  const dailyTss = new Map<string, number>()
+  const ridesByDate = new Map<string, RidePoint[]>()
   for (const r of (data.rides ?? []).filter(r => r.date >= ctlWindowStart && r.tss)) {
-    dailyTss.set(r.date, (dailyTss.get(r.date) ?? 0) + (r.tss as number))
+    const arr = ridesByDate.get(r.date) ?? []
+    arr.push(r)
+    ridesByDate.set(r.date, arr)
   }
-  const sessionDots = Array.from(dailyTss.entries()).flatMap(([date, tss]) => {
+  const sessionDots = Array.from(ridesByDate.entries()).flatMap(([date, dayRides]) => {
     const ctl = ctlByDate.get(date)
     if (ctl === undefined) return []
-    return [{ x: xOf(date), y: ctlY(ctl), r: Math.max(1.5, Math.min(tss / 25, 5)) }]
+    const totalTss = dayRides.reduce((s, r) => s + (r.tss as number), 0)
+    return [{ date, x: xOf(date), y: ctlY(ctl), r: Math.max(1.5, Math.min(totalTss / 25, 5)), rides: dayRides, totalTss }]
   })
 
   // Resting HR — daily values from wellness, same window as CTL
   const rhrPoints = ctlPoints.filter(w => w.resting_hr !== null)
+  const rhrByDate = new Map(rhrPoints.map(w => [w.id, w.resting_hr as number]))
   const rhrVals   = rhrPoints.map(w => w.resting_hr as number)
   const rhrMin    = rhrVals.length ? Math.min(...rhrVals) - 3 : 0
   const rhrMax    = rhrVals.length ? Math.max(...rhrVals) + 3 : 100
@@ -188,6 +205,35 @@ export default function CtlTrendStrip({
             strokeWidth="1"
           />
         ))}
+        {/* Ride hit-targets — 1m tab only, one slot per day, snapped to nearest session dot */}
+        {range === '1m' && sessionDots.length > 0 && (() => {
+          const nSlots = ctlPoints.length
+          const slotW = CW / nSlots
+          return ctlPoints.map((w, i) => {
+            const slotX = PAD_L + slotW * i + slotW / 2
+            let nearest = 0
+            let nearestDist = Infinity
+            sessionDots.forEach((dot, di) => {
+              const dist = Math.abs(dot.x - slotX)
+              if (dist < nearestDist) { nearestDist = dist; nearest = di }
+            })
+            return (
+              <rect
+                key={`hit-${w.id}`}
+                data-testid={`ctl-hit-${i}`}
+                x={(PAD_L + slotW * i).toFixed(1)}
+                y={PAD_T}
+                width={slotW.toFixed(1)}
+                height={CH}
+                fill="transparent"
+                onClick={() => setActiveDotIdx(cur => cur === nearest ? null : nearest)}
+                onMouseEnter={() => setActiveDotIdx(nearest)}
+                onMouseLeave={() => setActiveDotIdx(cur => cur === nearest ? null : cur)}
+                style={{ cursor: 'pointer' }}
+              />
+            )
+          })
+        })()}
       </svg>
 
       {/* HTML label overlay — font-size here is real CSS pixels, not SVG user units */}
@@ -240,6 +286,30 @@ export default function CtlTrendStrip({
             </span>
           </>
         )}
+        {/* Ride breakdown tooltip — 1m tab only */}
+        {activeDotIdx !== null && sessionDots[activeDotIdx] && (() => {
+          const dot = sessionDots[activeDotIdx]
+          const rhr = rhrByDate.get(dot.date)
+          const clampedPct = Math.min(82, Math.max(18, (dot.x / W) * 100))
+          return (
+            <div
+              data-testid="ctl-ride-tooltip"
+              className="absolute z-10 bg-gray-900 text-white text-[10px] leading-snug rounded-lg px-2.5 py-2 shadow-lg pointer-events-none whitespace-nowrap"
+              style={{ left: `${clampedPct}%`, top: yPct(dot.y), transform: 'translate(-50%, -100%) translateY(-8px)' }}
+            >
+              <div className="font-bold mb-1">
+                {dotDateLabel(dot.date)} · CTL {Math.round(ctlByDate.get(dot.date)!)}
+                {rhr !== undefined && ` · RHR ${Math.round(rhr)}`}
+              </div>
+              {dot.rides.map((r, i) => (
+                <div key={i}>{r.name} — {Math.round(r.tss as number)} TSS · {formatDuration(r.durationSecs)}</div>
+              ))}
+              {dot.rides.length > 1 && (
+                <div className="font-bold mt-1">Total {Math.round(dot.totalTss)} TSS</div>
+              )}
+            </div>
+          )
+        })()}
       </div>
     </div>
   )
