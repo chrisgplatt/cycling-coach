@@ -75,7 +75,16 @@ export async function GET() {
           w.sleep_secs,
         )
         if (!components) return null
-        return { date: w.id, workout: components.workoutPts, life: components.lifePts, total: components.total }
+        return {
+          date: w.id,
+          workout: components.workoutPts,
+          life: components.lifePts,
+          total: components.total,
+          workoutLoad: components.workoutLoad,
+          sleepScore: components.sleepScore,
+          sleepSecs: components.sleepSecs,
+          bodyBatteryHigh: components.bodyBatteryHigh,
+        }
       })
       .filter((p): p is DailyStrainPoint => p !== null && (p.total > 0 || p.life > 0 || p.workout > 0))
 

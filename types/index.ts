@@ -369,10 +369,14 @@ export interface RidePoint {
 }
 
 export interface DailyStrainPoint {
-  date: string    // YYYY-MM-DD
-  workout: number // workout contribution 0–14 (float)
-  life: number    // life signal contribution 0–7 (float)
-  total: number   // rounded combined strain score 0–21
+  date: string                       // YYYY-MM-DD
+  workout: number                    // workout contribution 0–14 (float)
+  life: number                       // life signal contribution 0–7 (float)
+  total: number                      // rounded combined strain score 0–21
+  workoutLoad: number                // raw activity load (TSS-equivalent) behind `workout`
+  sleepScore: number | null          // 0–100, null if not synced
+  sleepSecs: number | null           // seconds, null if not synced
+  bodyBatteryHigh: number | null     // 0–100 daily peak, null if not synced
 }
 
 export interface ChartsData {
