@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import type { ICUWellness, DailyStrainPoint } from '@/types'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { computeDailyStrain, computeDailyLifeLoad, strainLabel } from '@/lib/strain'
@@ -52,10 +52,32 @@ function localDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function dayLabel(d: Date): string {
+  const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]
+  return `${dow} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`
+}
+
+function avgOrNull(vals: Array<number | null>): number | null {
+  const present = vals.filter((v): v is number => v != null)
+  return present.length ? present.reduce((a, b) => a + b, 0) / present.length : null
+}
+
+interface StrainChartPoint {
+  label: string
+  workout: number
+  life: number
+  total: number
+  workoutLoad: number
+  sleepScore: number | null
+  sleepSecs: number | null
+  bodyBatteryHigh: number | null
+  dateLabel: string
+}
+
 function strainChartData(
   history: DailyStrainPoint[],
   tab: '1w' | '1m' | '3m',
-): Array<{ label: string; workout: number; life: number; total: number }> {
+): StrainChartPoint[] {
   if (tab === '3m') {
     const cutoff = new Date()
     cutoff.setMonth(cutoff.getMonth() - 3)
@@ -79,6 +101,11 @@ function strainChartData(
           workout: pts.reduce((s, p) => s + p.workout, 0) / n,
           life: pts.reduce((s, p) => s + p.life, 0) / n,
           total: Math.round(pts.reduce((s, p) => s + p.total, 0) / n),
+          workoutLoad: pts.reduce((s, p) => s + p.workoutLoad, 0) / n,
+          sleepScore: avgOrNull(pts.map(p => p.sleepScore)),
+          sleepSecs: avgOrNull(pts.map(p => p.sleepSecs)),
+          bodyBatteryHigh: avgOrNull(pts.map(p => p.bodyBatteryHigh)),
+          dateLabel: label,
         }
       })
   }
@@ -90,7 +117,7 @@ function strainChartData(
   const cutoffStr = localDateStr(cutoff)
   const filtered = history.filter(p => p.date >= cutoffStr)
 
-  const result: Array<{ label: string; workout: number; life: number; total: number }> = []
+  const result: StrainChartPoint[] = []
   for (let i = 0; i < days; i++) {
     const d = new Date(cutoff)
     d.setDate(cutoff.getDate() + i)
@@ -109,6 +136,11 @@ function strainChartData(
       workout: found?.workout ?? 0,
       life: found?.life ?? 0,
       total: found?.total ?? 0,
+      workoutLoad: found?.workoutLoad ?? 0,
+      sleepScore: found?.sleepScore ?? null,
+      sleepSecs: found?.sleepSecs ?? null,
+      bodyBatteryHigh: found?.bodyBatteryHigh ?? null,
+      dateLabel: dayLabel(d),
     })
   }
   return result
@@ -131,9 +163,15 @@ function StrainChart({
   data,
   tab,
 }: {
-  data: Array<{ label: string; workout: number; life: number; total: number }>
+  data: StrainChartPoint[]
   tab: '1w' | '1m' | '3m'
 }) {
+  const [activeIdx, setActiveIdx] = useState<number | null>(null)
+
+  useEffect(() => {
+    setActiveIdx(null)
+  }, [data])
+
   if (!data.length) return null
   const n = data.length
   const slot = CW / n
@@ -196,6 +234,22 @@ function StrainChart({
     )
   }) : null
 
+  const hitTargets = data.map((d, i) => (
+    <rect
+      key={`hit-${i}`}
+      data-testid={`strain-hit-${i}`}
+      x={(PAD_L + slot * i).toFixed(1)}
+      y={PAD_T}
+      width={slot.toFixed(1)}
+      height={CH}
+      fill="transparent"
+      onClick={() => setActiveIdx(cur => cur === i ? null : i)}
+      onMouseEnter={() => setActiveIdx(i)}
+      onMouseLeave={() => setActiveIdx(cur => cur === i ? null : cur)}
+      style={{ cursor: 'pointer' }}
+    />
+  ))
+
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${VW} ${VH}`} width="100%" style={{ display: 'block', overflow: 'visible' }}>
@@ -209,6 +263,7 @@ function StrainChart({
           />
         )}
         {dots}
+        {hitTargets}
       </svg>
       {/* HTML label overlay — font-size here is real CSS pixels, not SVG user units */}
       <div className="absolute inset-0 pointer-events-none">
@@ -236,6 +291,31 @@ function StrainChart({
             </span>
           )
         })}
+        {/* Tooltip */}
+        {activeIdx !== null && (() => {
+          const d = data[activeIdx]
+          const cx = PAD_L + (CW / n) * activeIdx + (CW / n) / 2
+          // Clamp so the tooltip box doesn't overflow the card's left/right edges
+          const clampedPct = Math.min(82, Math.max(18, (cx / VW) * 100))
+          return (
+            <div
+              data-testid="strain-tooltip"
+              className="absolute z-10 bg-gray-900 text-white text-[10px] leading-snug rounded-lg px-2.5 py-2 shadow-lg pointer-events-none whitespace-nowrap"
+              style={{ left: `${clampedPct}%`, top: yPct(yOf(d.total)), transform: 'translate(-50%, -100%) translateY(-8px)' }}
+            >
+              <div className="font-bold mb-1">{d.dateLabel}</div>
+              <div>
+                Workout <span className="text-blue-300">{(Math.round(d.workout * 10) / 10).toFixed(1)}/14</span>
+                {d.workoutLoad > 0 && ` (${Math.round(d.workoutLoad)} TSS)`}
+              </div>
+              <div>Wellbeing <span className="text-amber-300">{(Math.round(d.life * 10) / 10).toFixed(1)}/7</span></div>
+              {d.sleepScore != null && <div className="pl-2 text-gray-300">Sleep {Math.round(d.sleepScore)}/100</div>}
+              {d.sleepSecs != null && <div className="pl-2 text-gray-300">Duration {(d.sleepSecs / 3600).toFixed(1)}h</div>}
+              {d.bodyBatteryHigh != null && <div className="pl-2 text-gray-300">Battery {Math.round(d.bodyBatteryHigh)}%</div>}
+              <div className="font-bold mt-1">Total {d.total}/21</div>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )
