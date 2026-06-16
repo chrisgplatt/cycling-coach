@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { predictFTP } from '@/lib/claude/ftp'
+import { fitCriticalPower } from '@/lib/critical-power'
+import { findNearestPower } from '@/lib/stats-helpers'
+import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
+import type { ICUPowerCurvePoint } from '@/types'
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
@@ -39,35 +43,31 @@ export async function POST(req: NextRequest) {
   const oldest = new Date(Date.now() - 91 * 86400000).toISOString().split('T')[0]
 
   try {
-    const activities = await client.getActivities(oldest, newest)
+    const [activities, powerCurve] = await Promise.all([
+      client.getActivities(oldest, newest),
+      client.getPowerCurve(oldest, newest).catch((): ICUPowerCurvePoint[] => []),
+    ])
 
     const rides = activities.filter(a => a.type === 'Ride')
 
-    // Best NP by duration bucket (for Claude's context)
-    const bestNP = (minSecs: number, maxSecs = Infinity) => {
-      const best = rides
-        .filter(a => a.weighted_average_watts != null && a.moving_time != null &&
-                     a.moving_time >= minSecs && a.moving_time < maxSecs)
-        .reduce((max, a) => Math.max(max, a.weighted_average_watts!), 0)
-      return best > 0 ? best : null
-    }
-    const mins5  = bestNP(180, 900)
-    const mins20 = bestNP(900, 3600)
-    const mins60 = bestNP(3600)
+    // Real best-effort-within-a-ride power, sampled from the aggregate power curve —
+    // replaces the old whole-ride-NP-bucketed-by-duration approximation, which could
+    // mistake e.g. a hard 30-min time trial for a 20-min effort.
+    const mins5 = findNearestPower(powerCurve, 300)
+    const mins20 = findNearestPower(powerCurve, 1200)
+    const mins60 = findNearestPower(powerCurve, 3600)
+    const cpModel = fitCriticalPower(powerCurve)
 
     // intervals.icu's own rolling FTP is the best algorithmic estimate available.
-    // Fall back to NP-derived estimate if not present.
+    // Fall back to curve-derived estimates if not present.
     const latestRollingFTP = rides
       .filter(a => a.rolling_ftp != null)
       .sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))[0]?.rolling_ftp ?? null
-    const bestAnyNP = rides
-      .filter(a => a.weighted_average_watts != null)
-      .reduce((max, a) => Math.max(max, a.weighted_average_watts!), 0) || null
     const algorithmicEstimate =
       latestRollingFTP !== null ? latestRollingFTP :
       mins20 !== null ? Math.round(mins20 * 0.95) :
       mins60 !== null ? Math.round(mins60 * 0.97) :
-      bestAnyNP !== null ? Math.round(bestAnyNP * 0.90) : null
+      cpModel !== null ? cpModel.cp : null
 
     const buckets = new Map<string, { rideCount: number; peakNP: number; totalTSS: number }>()
     for (const act of activities.filter(a => a.type === 'Ride')) {
@@ -83,12 +83,44 @@ export async function POST(req: NextRequest) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, data]) => ({ month, ...data }))
 
+    // Qualitative context: the existing coach dossier, plus recent feedback specifically
+    // on threshold/intervals sessions — so a confident-but-wrong power number can be
+    // checked against how the athlete actually says hard efforts feel.
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString()
+    const [dossier, { data: recentWorkouts }, { data: recentFeedback }] = await Promise.all([
+      fetchDossier(supabase, user.id),
+      supabase.from('workouts')
+        .select('id, type')
+        .eq('user_id', user.id)
+        .gte('date', sixtyDaysAgo.slice(0, 10)),
+      supabase.from('session_feedback')
+        .select('created_at, workout_id, feedback_text, rpe, feel')
+        .eq('user_id', user.id)
+        .gte('created_at', sixtyDaysAgo)
+        .order('created_at', { ascending: false }),
+    ])
+    const thresholdWorkoutIds = new Set(
+      (recentWorkouts ?? []).filter(w => w.type === 'threshold' || w.type === 'intervals').map(w => w.id)
+    )
+    const recentThresholdFeedback = (recentFeedback ?? [])
+      .filter(f => f.workout_id && thresholdWorkoutIds.has(f.workout_id))
+      .slice(0, 8)
+      .map(f => ({
+        date: (f.created_at as string).slice(0, 10),
+        rpe: f.rpe as number | null,
+        feel: f.feel as number | null,
+        feedbackText: f.feedback_text as string,
+      }))
+
     const resolvedFTP = currentFTP ?? profileData.current_ftp ?? 200
 
     const result = await predictFTP({
       powerCurve: { mins5, mins20, mins60 },
+      cpModel,
       algorithmicEstimate,
       monthlyTrend,
+      dossierText: formatDossier(dossier),
+      recentThresholdFeedback,
       currentFTP: resolvedFTP,
     })
 
