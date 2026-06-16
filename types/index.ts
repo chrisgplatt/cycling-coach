@@ -366,6 +366,8 @@ export interface RidePoint {
   date: string          // YYYY-MM-DD
   avgHr: number | null
   tss: number | null
+  name: string                // activity name, for the ride breakdown tooltip
+  durationSecs: number        // from ICUActivity.moving_time
 }
 
 export interface DailyStrainPoint {

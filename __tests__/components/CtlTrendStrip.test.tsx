@@ -19,9 +19,9 @@ const mockCharts: ChartsData = {
   weeklyTss: [],
   dailyStrain: [],
   rides: [
-    { date: daysAgo(100), avgHr: 138, tss: 80 },
-    { date: daysAgo(10),  avgHr: 142, tss: 95 },
-    { date: daysAgo(5),   avgHr: 143, tss: 60 },
+    { date: daysAgo(100), avgHr: 138, tss: 80, name: 'Century Ride', durationSecs: 14400 },
+    { date: daysAgo(10),  avgHr: 142, tss: 95, name: 'Threshold Intervals', durationSecs: 5400 },
+    { date: daysAgo(5),   avgHr: 143, tss: 60, name: 'Morning Endurance Ride', durationSecs: 6300 },
   ],
 }
 

@@ -60,6 +60,8 @@ export async function GET() {
         date: a.start_date_local.slice(0, 10),
         avgHr: a.average_heartrate,
         tss: a.training_load ?? null,
+        name: a.name,
+        durationSecs: a.moving_time,
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
 
