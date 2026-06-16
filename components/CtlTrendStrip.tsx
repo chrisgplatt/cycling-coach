@@ -290,12 +290,23 @@ export default function CtlTrendStrip({
         {activeDotIdx !== null && sessionDots[activeDotIdx] && (() => {
           const dot = sessionDots[activeDotIdx]
           const rhr = rhrByDate.get(dot.date)
-          const clampedPct = Math.min(82, Math.max(18, (dot.x / W) * 100))
+          const pct = (dot.x / W) * 100
+          // Ride names are unbounded-length free text, so a centered, nowrap box can
+          // overflow the screen near the chart's edges. Anchor the box's near edge to
+          // the dot and grow inward instead — combined with the width cap below, the
+          // box never needs more horizontal room than is available on either side.
+          const growsRight = pct <= 50
           return (
             <div
               data-testid="ctl-ride-tooltip"
-              className="absolute z-10 bg-gray-900 text-white text-[10px] leading-snug rounded-lg px-2.5 py-2 shadow-lg pointer-events-none whitespace-nowrap"
-              style={{ left: `${clampedPct}%`, top: yPct(dot.y), transform: 'translate(-50%, -100%) translateY(-8px)' }}
+              className="absolute z-10 bg-gray-900 text-white text-[10px] leading-snug rounded-lg px-2.5 py-2 shadow-lg pointer-events-none whitespace-normal max-w-[130px]"
+              style={{
+                left: `${pct}%`,
+                top: yPct(dot.y),
+                transform: growsRight
+                  ? 'translate(0, -100%) translateY(-8px)'
+                  : 'translate(-100%, -100%) translateY(-8px)',
+              }}
             >
               <div className="font-bold mb-1">
                 {dotDateLabel(dot.date)} · CTL {Math.round(ctlByDate.get(dot.date)!)}

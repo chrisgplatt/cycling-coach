@@ -141,3 +141,20 @@ it('has no hit-targets or tooltip on the 3m tab', async () => {
   expect(screen.queryByTestId('ctl-ride-tooltip')).toBeNull()
   expect(screen.queryAllByTestId(/^ctl-hit-/).length).toBe(0)
 })
+
+it('grows the tooltip rightward (not centered) for the leftmost session dot', async () => {
+  await act(async () => { render(<CtlTrendStrip />) })
+  // ctl-hit-0 snaps to the daysAgo(10) dot, which sits at the chart's left edge.
+  fireEvent.click(screen.getByTestId('ctl-hit-0'))
+  const tooltip = screen.getByTestId('ctl-ride-tooltip')
+  expect(tooltip.style.transform).toContain('translate(0,')
+  expect(tooltip.className).toContain('max-w-[130px]')
+})
+
+it('grows the tooltip leftward (not centered) for the rightmost session dot', async () => {
+  await act(async () => { render(<CtlTrendStrip />) })
+  // ctl-hit-1 snaps to the daysAgo(5) dot, which sits at the chart's right edge.
+  fireEvent.click(screen.getByTestId('ctl-hit-1'))
+  const tooltip = screen.getByTestId('ctl-ride-tooltip')
+  expect(tooltip.style.transform).toContain('translate(-100%,')
+})
