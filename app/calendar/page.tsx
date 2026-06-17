@@ -176,7 +176,7 @@ function MonthStrip({
                     </span>
                   )}
                   {showMins > 0 && (
-                    <span className={`text-[9px] leading-tight ${dim ? 'text-slate-300' : 'text-slate-500'}`}>
+                    <span className={`text-[9px] leading-tight ${dim ? 'text-slate-300' : 'text-slate-600'}`}>
                       {formatDuration(showMins)}
                     </span>
                   )}
