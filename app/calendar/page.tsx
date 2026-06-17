@@ -22,7 +22,7 @@ import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import WorkoutCard from '@/components/WorkoutCard'
 import type { Workout, TrainingEvent, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry } from '@/types'
-import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr, weekStartsAround, weekStartsAfter } from '@/lib/calendar-helpers'
+import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr, weekStartsAround, weekStartsAfter, getDayWorkoutColor, getWeeklySummary } from '@/lib/calendar-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
 import { periodOverlapsWeek, coveredDaysInWeek, periodDurationDays } from '@/lib/utils/unavailability'
@@ -131,6 +131,11 @@ function MonthStrip({
   const selectedWeek = weekDates(selectedDateStr)
   const selectedWeekSet = new Set(selectedWeek)
 
+  const weeks: (string | null)[][] = []
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7))
+  }
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-3">
       {/* Month navigation */}
@@ -140,43 +145,78 @@ function MonthStrip({
         <button onClick={onNextMonth} aria-label="Next month" className="p-2 text-slate-400 hover:text-slate-700 text-lg leading-none min-h-[44px]">›</button>
       </div>
 
-      {/* Day-of-week headers */}
-      <div className="grid grid-cols-7 text-center mb-1">
-        {['M','T','W','T','F','S','S'].map((d, i) => (
-          <div key={i} className="text-[9px] text-slate-400 font-medium">{d}</div>
-        ))}
+      {/* Day-of-week headers — blank left cell keeps columns aligned with summary */}
+      <div className="flex mb-1">
+        <div className="w-10 shrink-0" />
+        <div className="grid grid-cols-7 flex-1 text-center">
+          {['M','T','W','T','F','S','S'].map((d, i) => (
+            <div key={i} className="text-[9px] text-slate-400 font-medium">{d}</div>
+          ))}
+        </div>
       </div>
 
-      {/* Date cells */}
-      <div className="grid grid-cols-7">
-        {cells.map((dateStr, i) => {
-          if (!dateStr) return <div key={`b${i}`} />
-          const inSelectedWeek = selectedWeekSet.has(dateStr)
-          const isToday = dateStr === todayStr
-          const dots: string[] = []
-          if (events.some(e => e.date === dateStr)) dots.push('bg-red-400')
-          if (workouts.some(w => w.date === dateStr)) dots.push('bg-blue-400')
-          if (unlinkedActivities.some(a => a.start_date_local.startsWith(dateStr))) dots.push('bg-sky-400')
-          return (
-            <button
-              key={dateStr}
-              onClick={() => onDateClick(dateStr)}
-              aria-label={dateStr}
-              className={`flex flex-col items-center justify-center min-h-[44px] w-full cursor-pointer rounded-sm ${inSelectedWeek ? 'bg-blue-50' : ''}`}
-            >
-              <span className={`text-[11px] w-6 h-6 flex items-center justify-center leading-none rounded-full
-                ${isToday ? 'bg-blue-500 text-white font-bold' : 'text-slate-600'}`}>
-                {parseInt(dateStr.split('-')[2], 10)}
-              </span>
-              <div className="flex gap-0.5 mt-0.5 h-1.5 items-center">
-                {dots.slice(0, 3).map((color, j) => (
-                  <div key={j} className={`w-1 h-1 rounded-full ${color}`} />
-                ))}
-              </div>
-            </button>
-          )
-        })}
-      </div>
+      {/* Week rows: [summary column] + [7 day cells] */}
+      {weeks.map((weekCells, weekIndex) => {
+        const weekDateStrs = weekCells.filter((d): d is string => d !== null)
+        const summary = getWeeklySummary(weekDateStrs, workouts)
+        const hasActual = summary.actualTss > 0 || summary.actualMins > 0
+        const hasPlanned = summary.plannedTss > 0 || summary.plannedMins > 0
+        const showTss = hasActual ? summary.actualTss : summary.plannedTss
+        const showMins = hasActual ? summary.actualMins : summary.plannedMins
+        const dim = !hasActual && hasPlanned
+        return (
+          <div key={weekIndex} className="flex">
+            {/* Weekly summary: actual = slate-600, planned = slate-300 */}
+            <div className="w-10 shrink-0 flex flex-col justify-center items-end pr-1.5">
+              {(showTss > 0 || showMins > 0) && (
+                <>
+                  {showTss > 0 && (
+                    <span className={`text-[9px] leading-tight ${dim ? 'text-slate-300' : 'text-slate-600'}`}>
+                      {Math.round(showTss)}
+                    </span>
+                  )}
+                  {showMins > 0 && (
+                    <span className={`text-[9px] leading-tight ${dim ? 'text-slate-300' : 'text-slate-500'}`}>
+                      {formatDuration(showMins)}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+            {/* Day cells */}
+            <div className="grid grid-cols-7 flex-1">
+              {weekCells.map((dateStr, i) => {
+                if (!dateStr) return <div key={`b${weekIndex}-${i}`} />
+                const inSelectedWeek = selectedWeekSet.has(dateStr)
+                const isToday = dateStr === todayStr
+                const workoutColor = getDayWorkoutColor(dateStr, workouts)
+                const dots: string[] = []
+                if (events.some(e => e.date === dateStr)) dots.push('bg-red-400')
+                if (workoutColor) dots.push(workoutColor)
+                if (unlinkedActivities.some(a => a.start_date_local.startsWith(dateStr))) dots.push('bg-sky-400')
+                return (
+                  <button
+                    key={dateStr}
+                    onClick={() => onDateClick(dateStr)}
+                    aria-label={dateStr}
+                    className={`flex flex-col items-center justify-center min-h-[44px] w-full cursor-pointer rounded-sm ${inSelectedWeek ? 'bg-blue-50' : ''}`}
+                  >
+                    <span className={`text-[11px] w-6 h-6 flex items-center justify-center leading-none rounded-full
+                      ${isToday ? 'bg-blue-500 text-white font-bold' : 'text-slate-600'}`}>
+                      {parseInt(dateStr.split('-')[2], 10)}
+                    </span>
+                    <div className="flex gap-0.5 mt-0.5 h-1.5 items-center">
+                      {dots.slice(0, 3).map((color, j) => (
+                        <div key={j} className={`w-1 h-1 rounded-full ${color}`} />
+                      ))}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
