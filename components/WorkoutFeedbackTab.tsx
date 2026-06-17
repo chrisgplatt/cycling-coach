@@ -88,51 +88,57 @@ export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', e
     if (!hasSignal) return
     setLoading(true)
     setError(null)
-    const res = await fetch('/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        workoutId,
-        activityId,
-        feedbackText,
-        adapt,
-        rpe, feel, completion, tags, mood,
-      }),
-    })
-    if (res.ok) {
-      const data = await res.json()
-      setCoachNote(data.feedback?.coach_note ?? null)
-      setSavedFeedbackId(data.feedback?.id ?? null)
-      if (adapt && data.proposed) {
-        setProposed({ feedbackId: data.feedback.id, adjustment: data.proposed })
-        setPhase('proposed')
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workoutId,
+          activityId,
+          feedbackText,
+          adapt,
+          rpe, feel, completion, tags, mood,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCoachNote(data.feedback?.coach_note ?? null)
+        setSavedFeedbackId(data.feedback?.id ?? null)
+        if (adapt && data.proposed) {
+          setProposed({ feedbackId: data.feedback.id, adjustment: data.proposed })
+          setPhase('proposed')
+        } else {
+          setPhase('saved')
+          onFeedbackSaved()
+        }
       } else {
-        setPhase('saved')
-        onFeedbackSaved()
+        setError('Failed to save feedback. Please try again.')
       }
-    } else {
-      setError('Failed to save feedback. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   async function approveAdjustment(approve: boolean) {
     if (!proposed) return
     setApproving(true)
     setError(null)
-    const res = await fetch('/api/feedback', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ feedbackId: proposed.feedbackId, approved: approve }),
-    })
-    if (res.ok) {
-      setProposed(null)
-      setPhase('saved')
-      onFeedbackSaved()
-    } else {
-      setError('Failed to save. Please try again.')
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedbackId: proposed.feedbackId, approved: approve }),
+      })
+      if (res.ok) {
+        setProposed(null)
+        setPhase('saved')
+        onFeedbackSaved()
+      } else {
+        setError('Failed to save. Please try again.')
+      }
+    } finally {
+      setApproving(false)
     }
-    setApproving(false)
   }
 
   if (existingFeedback === 'loading') {
@@ -215,6 +221,7 @@ export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', e
         <div>
           <p className="text-xs font-semibold text-gray-500 mb-1.5">Notes</p>
           <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)}
+            aria-label="Notes"
             placeholder="Anything else? (optional)" rows={3}
             className="w-full text-sm border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
