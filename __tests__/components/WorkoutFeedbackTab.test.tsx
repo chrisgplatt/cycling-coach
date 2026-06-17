@@ -7,7 +7,7 @@ const savedFeedback: SessionFeedback = {
   activity_tss: null, activity_avg_power: null, activity_avg_hr: null,
   proposed_adjustment: null, approved: null, created_at: '2026-06-17T18:00:00Z',
   rpe: 7, feel: 2, completion: 'as_planned', tags: ['weather'], mood: 2,
-  coach_note: null, coach_note_rating: null,
+  coach_note: null, coach_note_rating: null, recommend_adaptations: null,
 }
 
 beforeEach(() => {

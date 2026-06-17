@@ -172,6 +172,7 @@ export interface SessionFeedback {
   mood: number | null
   coach_note: string | null
   coach_note_rating: CoachNoteRating | null
+  recommend_adaptations: boolean | null
 }
 
 export type CoachNoteRating = 'helpful' | 'not_helpful'
