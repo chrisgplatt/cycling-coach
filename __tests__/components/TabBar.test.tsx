@@ -16,4 +16,22 @@ describe('TabBar', () => {
     expect(screen.getByRole('button', { name: 'Stats' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-selected', 'false')
   })
+
+  it('renders an amber dot when dot: true is set on a tab', () => {
+    const tabsWithDot = [
+      { id: 'a', label: 'Overview' },
+      { id: 'b', label: 'Feedback', dot: true },
+    ]
+    render(<TabBar tabs={tabsWithDot} activeId="a" onSelect={() => {}} />)
+    expect(screen.getByTestId('tab-dot-b')).toBeInTheDocument()
+  })
+
+  it('does not render a dot when dot is omitted or false', () => {
+    const tabsNoDot = [
+      { id: 'a', label: 'Overview' },
+      { id: 'b', label: 'Feedback' },
+    ]
+    render(<TabBar tabs={tabsNoDot} activeId="a" onSelect={() => {}} />)
+    expect(screen.queryByTestId('tab-dot-b')).not.toBeInTheDocument()
+  })
 })
