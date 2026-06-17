@@ -13,8 +13,8 @@ describe('ActivityDetailModal', () => {
   it('shows Stats and Map tabs and renders ride stats by default', () => {
     global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ streams: null }) })) as never
     render(<ActivityDetailModal activity={activity} onClose={() => {}} />)
-    expect(screen.getByRole('button', { name: 'Stats' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Map' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Stats' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Map' })).toBeInTheDocument()
     expect(screen.getByText('NP')).toBeInTheDocument()
     expect(screen.getByText('205')).toBeInTheDocument()
   })
@@ -37,7 +37,7 @@ describe('ActivityDetailModal', () => {
     const fetchMock = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ streams: { time: [0], power: [100], distance: [0], latlng: null, hr: null, altitude: null, cadence: null, velocity: null } }) }))
     global.fetch = fetchMock as never
     render(<ActivityDetailModal activity={activity} onClose={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Map' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Map' }))
     await waitFor(() => expect(fetchMock.mock.calls.some(c => String((c as unknown[])[0]).includes('/api/rides/activity/a1/streams'))).toBe(true))
   })
 })

@@ -8,10 +8,11 @@ export default function TabBar({ tabs, activeId, onSelect }: {
   tabs: TabDef[]; activeId: string; onSelect: (id: string) => void
 }) {
   return (
-    <div className="flex gap-1 border-b border-gray-200 overflow-x-auto scrollbar-none px-5 flex-shrink-0 min-h-[44px]" style={{ touchAction: 'pan-x' }}>
+    <div role="tablist" className="flex gap-1 border-b border-gray-200 overflow-x-auto scrollbar-none px-5 flex-shrink-0 min-h-[44px]" style={{ touchAction: 'pan-x' }}>
       {tabs.map(t => (
         <button
           key={t.id}
+          role="tab"
           onClick={() => onSelect(t.id)}
           aria-selected={activeId === t.id}
           className={`flex-shrink-0 px-4 min-h-[44px] text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1 ${
