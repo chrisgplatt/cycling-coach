@@ -53,6 +53,7 @@ export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', e
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [approving, setApproving] = useState(false)
+  const [recommendAdaptations, setRecommendAdaptations] = useState(false)
   const initialised = useRef(false)
 
   // Sync state once when existingFeedback resolves from 'loading' to a real value (or null).
@@ -75,6 +76,7 @@ export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', e
     setCoachNote(existingFeedback.coach_note ?? null)
     setCoachNoteRating(existingFeedback.coach_note_rating ?? null)
     setSavedFeedbackId(existingFeedback.id)
+    setRecommendAdaptations(existingFeedback.recommend_adaptations ?? false)
   }, [existingFeedback])
 
   const hasSignal =
@@ -103,6 +105,7 @@ export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', e
       if (res.ok) {
         const data = await res.json()
         setCoachNote(data.feedback?.coach_note ?? null)
+        setRecommendAdaptations(data.feedback?.recommend_adaptations ?? false)
         setSavedFeedbackId(data.feedback?.id ?? null)
         if (adapt && data.proposed) {
           setProposed({ feedbackId: data.feedback.id, adjustment: data.proposed })
@@ -311,6 +314,19 @@ export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', e
       <p className="text-xs text-green-600 font-medium">Feedback saved.</p>
       {coachNote && savedFeedbackId && (
         <CoachNotePanel feedbackId={savedFeedbackId} coachNote={coachNote} initialRating={coachNoteRating} />
+      )}
+      {recommendAdaptations && (
+        <div
+          data-testid="adapt-recommendation"
+          className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3"
+        >
+          <span className="text-amber-500 text-base leading-none mt-0.5" aria-hidden="true">💡</span>
+          <p className="text-sm text-amber-800 leading-relaxed">
+            Your coach thinks your upcoming sessions may benefit from adjustment.
+            Tap <strong>Edit &amp; re-submit</strong> below and enable{' '}
+            <em>Suggest adaptations</em> to explore changes.
+          </p>
+        </div>
       )}
       <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
         <input type="checkbox" checked={adapt} onChange={e => setAdapt(e.target.checked)}

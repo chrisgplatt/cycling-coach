@@ -81,4 +81,34 @@ describe('WorkoutFeedbackTab', () => {
     await screen.findByText('Feedback saved.')
     expect(onFeedbackSaved).toHaveBeenCalledTimes(1)
   })
+
+  it('shows adaptation callout when recommend_adaptations is true', async () => {
+    const feedbackWithRecommend: SessionFeedback = {
+      ...savedFeedback,
+      recommend_adaptations: true,
+    }
+    render(<WorkoutFeedbackTab workoutId="w1" existingFeedback={feedbackWithRecommend} onFeedbackSaved={() => {}} />)
+    await screen.findByText('Feedback saved.')
+    expect(screen.getByTestId('adapt-recommendation')).toBeInTheDocument()
+  })
+
+  it('does not show adaptation callout when recommend_adaptations is false', async () => {
+    const feedbackNoRecommend: SessionFeedback = {
+      ...savedFeedback,
+      recommend_adaptations: false,
+    }
+    render(<WorkoutFeedbackTab workoutId="w1" existingFeedback={feedbackNoRecommend} onFeedbackSaved={() => {}} />)
+    await screen.findByText('Feedback saved.')
+    expect(screen.queryByTestId('adapt-recommendation')).not.toBeInTheDocument()
+  })
+
+  it('does not show adaptation callout when recommend_adaptations is null', async () => {
+    const feedbackNull: SessionFeedback = {
+      ...savedFeedback,
+      recommend_adaptations: null,
+    }
+    render(<WorkoutFeedbackTab workoutId="w1" existingFeedback={feedbackNull} onFeedbackSaved={() => {}} />)
+    await screen.findByText('Feedback saved.')
+    expect(screen.queryByTestId('adapt-recommendation')).not.toBeInTheDocument()
+  })
 })
