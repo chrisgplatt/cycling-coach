@@ -1,4 +1,5 @@
 import { getWeekBounds } from '@/lib/week-bounds'
+import type { Workout } from '@/types'
 
 /**
  * Returns a Monday-start grid of YYYY-MM-DD strings for a calendar month.
@@ -82,4 +83,44 @@ export function formatMovingTime(seconds: number): string {
 // Formats a Date object as YYYY-MM-DD using local time.
 export function toLocalDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+const TYPE_PRIORITY: Record<string, number> = {
+  intervals: 4, threshold: 3, endurance: 2, recovery: 1,
+}
+const TYPE_COLOR: Record<string, string> = {
+  intervals: 'bg-orange-500', threshold: 'bg-red-500',
+  endurance: 'bg-blue-500',   recovery:  'bg-emerald-500',
+}
+
+// Returns the Tailwind background class for the hardest workout type on dateStr,
+// or null if no workouts fall on that date.
+export function getDayWorkoutColor(dateStr: string, workouts: Workout[]): string | null {
+  const dayWorkouts = workouts.filter(w => w.date === dateStr)
+  if (!dayWorkouts.length) return null
+  const hardest = dayWorkouts.reduce((best, curr) =>
+    (TYPE_PRIORITY[curr.type] ?? 0) > (TYPE_PRIORITY[best.type] ?? 0) ? curr : best
+  )
+  return TYPE_COLOR[hardest.type] ?? null
+}
+
+export interface WeeklySummary {
+  actualTss: number
+  actualMins: number
+  plannedTss: number
+  plannedMins: number
+}
+
+// Splits workouts in `dates` into actual (completed/needs_review) and planned
+// buckets and returns their TSS and duration sums.
+export function getWeeklySummary(dates: string[], workouts: Workout[]): WeeklySummary {
+  const week = workouts.filter(w => dates.includes(w.date))
+  const actual = week.filter(w => w.status === 'completed' || w.status === 'needs_review')
+  const planned = week.filter(w => w.status === 'planned')
+  return {
+    actualTss:  actual.reduce((sum, w)  => sum + (w.tss ?? 0), 0),
+    actualMins: actual.reduce((sum, w)  => sum + w.duration_minutes, 0),
+    plannedTss:  planned.reduce((sum, w) => sum + (w.tss ?? 0), 0),
+    plannedMins: planned.reduce((sum, w) => sum + w.duration_minutes, 0),
+  }
 }

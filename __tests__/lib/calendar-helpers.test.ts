@@ -8,7 +8,10 @@ import {
   labelDate,
   weekStartsAround,
   weekStartsAfter,
+  getDayWorkoutColor,
+  getWeeklySummary,
 } from '@/lib/calendar-helpers'
+import type { Workout } from '@/types'
 
 describe('calendarMonthDays', () => {
   it('returns null-padded grid for May 2026 (Friday 1st → 4 leading nulls)', () => {
@@ -121,5 +124,82 @@ describe('toLocalDateStr', () => {
     // May 1 2026 at local midnight
     const d = new Date(2026, 4, 1) // month 4 = May (local time)
     expect(toLocalDateStr(d)).toBe('2026-05-01')
+  })
+})
+
+// ─── getDayWorkoutColor ────────────────────────────────────────────────────────
+
+function w(overrides: Partial<Workout>): Workout {
+  return {
+    id: '1', plan_id: null, date: '2026-06-16', type: 'endurance',
+    duration_minutes: 60, description: '', target_zones: '',
+    intervals_icu_event_id: null, status: 'planned', icu_activity_id: null,
+    tss: 50, missed_reason: null, steps: null, activity_metrics: null,
+    coaching_notes: null, created_at: '2026-06-16T00:00:00Z',
+    ...overrides,
+  } as Workout
+}
+
+describe('getDayWorkoutColor', () => {
+  it('returns null when no workouts on that date', () => {
+    expect(getDayWorkoutColor('2026-06-16', [])).toBeNull()
+    expect(getDayWorkoutColor('2026-06-16', [w({ date: '2026-06-17' })])).toBeNull()
+  })
+
+  it('returns bg-blue-500 for a single endurance workout', () => {
+    expect(getDayWorkoutColor('2026-06-16', [w({ date: '2026-06-16', type: 'endurance' })])).toBe('bg-blue-500')
+  })
+
+  it('returns bg-red-500 when threshold and recovery are on the same day (threshold wins)', () => {
+    const workouts = [
+      w({ date: '2026-06-16', type: 'recovery' }),
+      w({ date: '2026-06-16', type: 'threshold' }),
+    ]
+    expect(getDayWorkoutColor('2026-06-16', workouts)).toBe('bg-red-500')
+  })
+
+  it('returns bg-orange-500 when intervals, threshold, and endurance are on the same day (intervals wins)', () => {
+    const workouts = [
+      w({ date: '2026-06-16', type: 'endurance' }),
+      w({ date: '2026-06-16', type: 'threshold' }),
+      w({ date: '2026-06-16', type: 'intervals' }),
+    ]
+    expect(getDayWorkoutColor('2026-06-16', workouts)).toBe('bg-orange-500')
+  })
+})
+
+// ─── getWeeklySummary ──────────────────────────────────────────────────────────
+
+describe('getWeeklySummary', () => {
+  const DATES = ['2026-06-16', '2026-06-17', '2026-06-18']
+
+  it('returns actual TSS and minutes from completed/needs_review; ignores planned', () => {
+    const workouts = [
+      w({ date: '2026-06-16', status: 'completed', tss: 80, duration_minutes: 60 }),
+      w({ date: '2026-06-17', status: 'needs_review', tss: 40, duration_minutes: 30 }),
+      w({ date: '2026-06-18', status: 'planned', tss: 50, duration_minutes: 45 }),
+    ]
+    const result = getWeeklySummary(DATES, workouts)
+    expect(result.actualTss).toBe(120)
+    expect(result.actualMins).toBe(90)
+    expect(result.plannedTss).toBe(50)
+    expect(result.plannedMins).toBe(45)
+  })
+
+  it('returns planned values when no completed workouts exist', () => {
+    const workouts = [
+      w({ date: '2026-06-16', status: 'planned', tss: 60, duration_minutes: 50 }),
+      w({ date: '2026-06-17', status: 'planned', tss: 40, duration_minutes: 35 }),
+    ]
+    const result = getWeeklySummary(DATES, workouts)
+    expect(result.actualTss).toBe(0)
+    expect(result.actualMins).toBe(0)
+    expect(result.plannedTss).toBe(100)
+    expect(result.plannedMins).toBe(85)
+  })
+
+  it('returns zeros for both buckets when week has no workouts', () => {
+    const result = getWeeklySummary(DATES, [])
+    expect(result).toEqual({ actualTss: 0, actualMins: 0, plannedTss: 0, plannedMins: 0 })
   })
 })
