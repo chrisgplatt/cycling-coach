@@ -13,7 +13,6 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import RescheduleConfirmModal from '@/components/RescheduleConfirmModal'
-import FeedbackModal from '@/components/FeedbackModal'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import SessionChatModal from '@/components/SessionChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
@@ -22,7 +21,7 @@ import PlanReviewModal from '@/components/PlanReviewModal'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import WorkoutCard from '@/components/WorkoutCard'
-import type { Workout, TrainingEvent, SessionFeedback, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry } from '@/types'
+import type { Workout, TrainingEvent, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry } from '@/types'
 import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr, weekStartsAround, weekStartsAfter } from '@/lib/calendar-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
@@ -432,8 +431,6 @@ export default function CalendarPage() {
   const [athleteId, setAthleteId] = useState('')
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
-  const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
-  const [initialFeedback, setInitialFeedback] = useState<SessionFeedback | null>(null)
   const [chatWorkout, setChatWorkout] = useState<Workout | null>(null)
   const [events, setEvents] = useState<TrainingEvent[]>([])
   const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(null)
@@ -731,11 +728,6 @@ export default function CalendarPage() {
           }
           weightLog={weightLog}
           onClose={() => setSelectedWorkout(null)}
-          onFeedback={(existingFeedback) => {
-            setInitialFeedback(existingFeedback ?? null)
-            setFeedbackWorkout(selectedWorkout)
-            setSelectedWorkout(null)
-          }}
           onChat={() => {
             setChatWorkout(selectedWorkout)
             setSelectedWorkout(null)
@@ -754,14 +746,6 @@ export default function CalendarPage() {
           onEventLinked={(updated) => {
             setEvents(prev => prev.map(e => e.name === updated.name && e.date === updated.date ? updated : e))
           }}
-        />
-      )}
-
-      {feedbackWorkout && (
-        <FeedbackModal
-          workout={feedbackWorkout}
-          initialFeedback={initialFeedback ?? undefined}
-          onClose={() => { setFeedbackWorkout(null); setInitialFeedback(null) }}
         />
       )}
 

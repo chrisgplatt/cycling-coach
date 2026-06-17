@@ -2,10 +2,9 @@
 import { useEffect, useRef, useState } from 'react'
 import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
-import FeedbackModal from '@/components/FeedbackModal'
 import CtlTrendStrip from '@/components/CtlTrendStrip'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, SessionFeedback, ICUActivity, WeightEntry, WeeklyProgress, EventCountdown } from '@/types'
+import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, ICUActivity, WeightEntry, WeeklyProgress, EventCountdown } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
@@ -85,8 +84,6 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState(false)
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
-  const [feedbackWorkout, setFeedbackWorkout] = useState<Workout | null>(null)
-  const [initialFeedback, setInitialFeedback] = useState<SessionFeedback | null>(null)
   const [events, setEvents] = useState<TrainingEvent[]>([])
   const [showReviewBanner, setShowReviewBanner] = useState(false)
   const [lastWeekStats, setLastWeekStats] = useState({ completed: 0, total: 0 })
@@ -675,11 +672,6 @@ export default function DashboardPage() {
           }
           weightLog={weightLog}
           onClose={() => setSelectedWorkout(null)}
-          onFeedback={(existingFeedback) => {
-            setInitialFeedback(existingFeedback ?? null)
-            setFeedbackWorkout(selectedWorkout)
-            setSelectedWorkout(null)
-          }}
           onChat={() => {
             setChatWorkout(selectedWorkout)
             setSelectedWorkout(null)
@@ -750,17 +742,6 @@ export default function DashboardPage() {
         <ActivityDetailModal
           activity={selectedActivity}
           onClose={() => setSelectedActivity(null)}
-        />
-      )}
-
-      {feedbackWorkout && (
-        <FeedbackModal
-          workout={feedbackWorkout}
-          initialFeedback={initialFeedback ?? undefined}
-          onClose={() => {
-            setFeedbackWorkout(null)
-            setInitialFeedback(null)
-          }}
         />
       )}
 
