@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const coachNote = await coachNotePromise
+  const coachNoteResult = await coachNotePromise
 
   const { data: feedback } = await supabase
     .from('session_feedback')
@@ -126,7 +126,8 @@ export async function POST(req: NextRequest) {
       completion: completion ?? null,
       tags: tags ?? null,
       mood: mood ?? null,
-      coach_note: coachNote,
+      coach_note: coachNoteResult?.note ?? null,
+      recommend_adaptations: coachNoteResult?.recommendAdaptations ?? null,
       proposed_adjustment: proposed,
       approved: null,
       user_id: user.id,
