@@ -270,16 +270,42 @@ export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', e
 
   return (
     <div className="space-y-4">
-      <div className="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-700 space-y-1.5">
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
-          {rpe != null && <span>RPE {rpe}/10</span>}
-          {feel != null && <span>Legs {FEEL_FACES[feel - 1]}</span>}
-          {completion && <span>{COMPLETIONS.find(c => c.value === completion)?.label}</span>}
-          {tags.length > 0 && <span>{tags.map(t => TAGS.find(x => x.value === t)?.label).join(', ')}</span>}
-          {mood != null && <span>{MOOD_FACES[mood - 1]}</span>}
-        </div>
+      <div className="bg-gray-50 border border-gray-200 rounded-xl divide-y divide-gray-100 text-sm">
+        {rpe != null && (
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Effort (RPE)</span>
+            <span className="font-medium text-gray-800">{rpe} / 10</span>
+          </div>
+        )}
+        {feel != null && (
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Legs / body</span>
+            <span className="text-xl">{FEEL_FACES[feel - 1]}</span>
+          </div>
+        )}
+        {completion && (
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Went</span>
+            <span className="font-medium text-gray-800 capitalize">{COMPLETIONS.find(c => c.value === completion)?.label}</span>
+          </div>
+        )}
+        {tags.length > 0 && (
+          <div className="flex items-start justify-between gap-4 px-4 py-3">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">Flags</span>
+            <span className="text-gray-800 text-right">{tags.map(t => TAGS.find(x => x.value === t)?.label).join(', ')}</span>
+          </div>
+        )}
+        {mood != null && (
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Mood</span>
+            <span className="text-xl">{MOOD_FACES[mood - 1]}</span>
+          </div>
+        )}
         {feedbackText.trim() && (
-          <p className="whitespace-pre-wrap leading-relaxed">{feedbackText}</p>
+          <div className="px-4 py-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Notes</p>
+            <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{feedbackText}</p>
+          </div>
         )}
       </div>
       <p className="text-xs text-green-600 font-medium">Feedback saved.</p>

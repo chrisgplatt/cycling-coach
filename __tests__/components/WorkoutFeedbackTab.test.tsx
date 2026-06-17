@@ -32,7 +32,7 @@ describe('WorkoutFeedbackTab', () => {
   it('renders saved state when existingFeedback is a SessionFeedback object', async () => {
     render(<WorkoutFeedbackTab workoutId="w1" existingFeedback={savedFeedback} onFeedbackSaved={() => {}} />)
     await screen.findByText('Feedback saved.')
-    expect(screen.getByText('RPE 7/10')).toBeInTheDocument()
+    expect(screen.getByText('7 / 10')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /edit.*re-submit/i })).toBeInTheDocument()
   })
 
