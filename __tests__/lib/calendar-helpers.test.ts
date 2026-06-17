@@ -202,4 +202,12 @@ describe('getWeeklySummary', () => {
     const result = getWeeklySummary(DATES, [])
     expect(result).toEqual({ actualTss: 0, actualMins: 0, plannedTss: 0, plannedMins: 0 })
   })
+
+  it('excludes skipped workouts from both actual and planned', () => {
+    const workouts = [
+      w({ date: '2026-06-16', status: 'skipped', tss: 50, duration_minutes: 45 }),
+    ]
+    const result = getWeeklySummary(DATES, workouts)
+    expect(result).toEqual({ actualTss: 0, actualMins: 0, plannedTss: 0, plannedMins: 0 })
+  })
 })
