@@ -159,24 +159,24 @@ function MonthStrip({
       {weeks.map((weekCells, weekIndex) => {
         const weekDateStrs = weekCells.filter((d): d is string => d !== null)
         const summary = getWeeklySummary(weekDateStrs, workouts)
-        const hasActual = summary.actualTss > 0 || summary.actualMins > 0
-        const hasPlanned = summary.plannedTss > 0 || summary.plannedMins > 0
-        const showTss = hasActual ? summary.actualTss : summary.plannedTss
-        const showMins = hasActual ? summary.actualMins : summary.plannedMins
-        const dim = !hasActual && hasPlanned
+        const isCurrentWeek = weekDateStrs.includes(todayStr)
+        const isPastWeek = !isCurrentWeek && weekDateStrs.length > 0 && weekDateStrs.every(d => d < todayStr)
+        const showTss = isPastWeek ? summary.actualTss : summary.plannedTss
+        const showMins = isPastWeek ? summary.actualMins : summary.plannedMins
+        const summaryColor = isPastWeek ? 'text-emerald-600' : isCurrentWeek ? 'text-orange-500' : 'text-slate-300'
         return (
           <div key={weekIndex} className="flex">
-            {/* Weekly summary: actual = slate-600, planned = slate-300 */}
+            {/* Weekly summary: past=green actual, current=orange planned, future=slate-300 planned */}
             <div className="w-10 shrink-0 flex flex-col justify-center items-end pr-1.5">
               {(showTss > 0 || showMins > 0) && (
                 <>
                   {showTss > 0 && (
-                    <span className={`text-[9px] leading-tight ${dim ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <span className={`text-[9px] leading-tight ${summaryColor}`}>
                       {Math.round(showTss)}
                     </span>
                   )}
                   {showMins > 0 && (
-                    <span className={`text-[9px] leading-tight ${dim ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <span className={`text-[9px] leading-tight ${summaryColor}`}>
                       {formatDuration(showMins)}
                     </span>
                   )}
