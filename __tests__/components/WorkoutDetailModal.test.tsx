@@ -113,26 +113,6 @@ describe('WorkoutDetailModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onFeedback when Log feedback is clicked for a completed workout', async () => {
-    const onFeedback = jest.fn()
-    render(
-      <WorkoutDetailModal
-        workout={matchedWorkout}
-        athleteId="i12345"
-        onClose={jest.fn()}
-        onFeedback={onFeedback}
-      />
-    )
-    // The button only appears once the existing-feedback fetch resolves.
-    fireEvent.click(await screen.findByRole('button', { name: /log feedback/i }))
-    expect(onFeedback).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not show Log feedback button for a planned workout', () => {
-    render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} onFeedback={jest.fn()} />)
-    expect(screen.queryByRole('button', { name: /log feedback/i })).not.toBeInTheDocument()
-  })
-
   it('renders date input for a planned workout with correct min and max', () => {
     render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)
     // workout.date = '2026-05-15' (Fri) → Mon 2026-05-11, Sun 2026-05-17
@@ -300,14 +280,58 @@ describe('WorkoutDetailModal tabs', () => {
     expect(screen.queryByRole('tab', { name: 'Map' })).toBeNull()
   })
 
-  it('shows Overview/Stats/Map tabs and a stats-unavailable note for a completed linked ride without metrics', async () => {
+  it('shows Overview/Stats/Map/Feedback tabs for a completed linked ride', async () => {
     global.fetch = jest.fn((url: string) =>
       String(url).includes('/streams')
         ? Promise.resolve({ ok: true, json: async () => ({ streams: { time: [0, 60], power: [100, 110] }, intervals: [] }) })
         : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
     ) as never
     render(<WorkoutDetailModal workout={completedLinked} athleteId="i1" ftp={250} onClose={() => {}} />)
-    fireEvent.click(await screen.findByRole('tab', { name: 'Stats' }))
+    expect(await screen.findByRole('tab', { name: 'Stats' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Map' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /feedback/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Stats' }))
     expect(screen.getByText(/ride stats not available yet/i)).toBeInTheDocument()
+  })
+
+  it('shows Feedback tab for a completed workout with no linked ride', async () => {
+    const completedNoRide = { ...plannedWorkout, status: 'completed' as const }
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ feedback: null }) })) as never
+    render(<WorkoutDetailModal workout={completedNoRide} athleteId="i1" ftp={250} onClose={() => {}} />)
+    expect(await screen.findByRole('tab', { name: /feedback/i })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Stats' })).not.toBeInTheDocument()
+  })
+
+  it('does not show Feedback tab for a planned workout', () => {
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({}) })) as never
+    render(<WorkoutDetailModal workout={plannedWorkout} athleteId="i1" ftp={250} onClose={() => {}} />)
+    expect(screen.queryByRole('tab', { name: /feedback/i })).not.toBeInTheDocument()
+  })
+
+  it('shows amber dot on Feedback tab when no feedback is logged', async () => {
+    const completedNoRide = { ...plannedWorkout, status: 'completed' as const }
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ feedback: null }) })) as never
+    render(<WorkoutDetailModal workout={completedNoRide} athleteId="i1" ftp={250} onClose={() => {}} />)
+    await screen.findByRole('tab', { name: /feedback/i })
+    expect(screen.getByTestId('tab-dot-feedback')).toBeInTheDocument()
+  })
+
+  it('hides amber dot on Feedback tab when feedback is already saved', async () => {
+    const completedNoRide = { ...plannedWorkout, status: 'completed' as const }
+    global.fetch = jest.fn(() => Promise.resolve({
+      ok: true,
+      json: async () => ({
+        feedback: {
+          id: 'f1', workout_id: 'w1', activity_id: 'a1', feedback_text: '',
+          activity_tss: null, activity_avg_power: null, activity_avg_hr: null,
+          proposed_adjustment: null, approved: null, created_at: '2026-06-17T18:00:00Z',
+          rpe: 7, feel: null, completion: null, tags: [], mood: null,
+          coach_note: null, coach_note_rating: null,
+        },
+      }),
+    })) as never
+    render(<WorkoutDetailModal workout={completedNoRide} athleteId="i1" ftp={250} onClose={() => {}} />)
+    await screen.findByRole('tab', { name: /feedback/i })
+    expect(screen.queryByTestId('tab-dot-feedback')).not.toBeInTheDocument()
   })
 })

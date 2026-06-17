@@ -10,8 +10,8 @@ import RideMapGraph from './ride/RideMapGraph'
 import TabBar from './TabBar'
 import PlannedVsActualChart from './PlannedVsActualChart'
 import PlannedVsActualList from './PlannedVsActualList'
-import CoachNotePanel from './CoachNotePanel'
 import { buildPlannedActual, type PlannedActual } from '@/lib/ride/planned-actual'
+import WorkoutFeedbackTab from './WorkoutFeedbackTab'
 import { deriveTargetZones } from '@/lib/claude/zones'
 
 const TYPE_COLOURS: Record<WorkoutType, string> = {
@@ -54,7 +54,6 @@ interface Props {
   nearbyEvents?: TrainingEvent[]
   weightLog?: WeightEntry[]
   onClose: () => void
-  onFeedback?: (existingFeedback?: SessionFeedback) => void
   onStatusChange?: () => void
   onDelete?: () => void
   onReschedule?: () => void
@@ -63,7 +62,7 @@ interface Props {
 }
 
 export default function WorkoutDetailModal({
-  workout, athleteId, ftp, activitiesOnDate, nearbyEvents, weightLog = [], onClose, onFeedback,
+  workout, athleteId, ftp, activitiesOnDate, nearbyEvents, weightLog = [], onClose,
   onStatusChange, onDelete, onReschedule, onChat, onEventLinked,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
@@ -87,7 +86,8 @@ export default function WorkoutDetailModal({
   const [actualUnavailable, setActualUnavailable] = useState(false)
   const [streams, setStreams] = useState<RideStreams | null>(null)
   const [streamsError, setStreamsError] = useState(false)
-  const [tab, setTab] = useState<'overview' | 'stats' | 'map'>('overview')
+  const [tab, setTab] = useState<'overview' | 'stats' | 'map' | 'feedback'>('overview')
+  const [feedbackSaved, setFeedbackSaved] = useState(false)
   const hasRide = (workout.status === 'completed' || workout.status === 'needs_review') && !!workout.icu_activity_id
 
   useEffect(() => {
@@ -376,19 +376,37 @@ export default function WorkoutDetailModal({
           )}
         </div>
 
-        {hasRide && (
-          <TabBar
-            tabs={[{ id: 'overview', label: 'Overview' }, { id: 'stats', label: 'Stats' }, { id: 'map', label: 'Map' }]}
-            activeId={tab}
-            onSelect={(id) => setTab(id as 'overview' | 'stats' | 'map')}
-          />
-        )}
+        {(() => {
+          const isCompleted = workout.status === 'completed' || workout.status === 'needs_review'
+          const hasFeedbackDot = isCompleted && existingFeedback === null && !feedbackSaved
+          const tabs = [
+            { id: 'overview', label: 'Overview' },
+            ...(hasRide ? [{ id: 'stats', label: 'Stats' }, { id: 'map', label: 'Map' }] : []),
+            ...(isCompleted ? [{ id: 'feedback', label: 'Feedback', dot: hasFeedbackDot }] : []),
+          ]
+          return tabs.length > 1 ? (
+            <TabBar
+              tabs={tabs}
+              activeId={tab}
+              onSelect={(id) => setTab(id as 'overview' | 'stats' | 'map' | 'feedback')}
+            />
+          ) : null
+        })()}
 
         {hasRide && tab === 'map' ? (
           <div className="flex-1 min-h-0 overflow-y-auto">
             {streams
               ? <RideMapGraph streams={streams} fit />
               : <p className="p-5 text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>}
+          </div>
+        ) : tab === 'feedback' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto p-5">
+            <WorkoutFeedbackTab
+              workoutId={workout.id}
+              activityId={workout.icu_activity_id ?? 'manual'}
+              existingFeedback={existingFeedback}
+              onFeedbackSaved={() => setFeedbackSaved(true)}
+            />
           </div>
         ) : (
         <div className="p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
@@ -474,56 +492,6 @@ export default function WorkoutDetailModal({
               </a>
             )}
           </div>
-
-          {(workout.status === 'completed' || workout.status === 'needs_review') && (
-            <details open className="group border border-slate-200 rounded-xl p-4 bg-slate-50">
-              <summary className="cursor-pointer list-none text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 select-none">
-                <svg width="10" height="10" viewBox="0 0 12 12" className="transition-transform group-open:rotate-90" fill="currentColor" aria-hidden="true">
-                  <path d="M4 2l4 4-4 4z" />
-                </svg>
-                Session feedback
-              </summary>
-              <div className="mt-2 space-y-2">
-                {existingFeedback === 'loading' && (
-                  <p className="text-sm text-slate-400">Loading…</p>
-                )}
-                {existingFeedback === null && (
-                  <p className="text-sm text-slate-400 italic">No feedback logged yet.</p>
-                )}
-                {existingFeedback && existingFeedback !== 'loading' && (
-                  <>
-                    <CoachNotePanel
-                      feedbackId={existingFeedback.id}
-                      coachNote={existingFeedback.coach_note}
-                      initialRating={existingFeedback.coach_note_rating}
-                    />
-                    {existingFeedback.feedback_text && (
-                      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                        {existingFeedback.feedback_text}
-                      </p>
-                    )}
-                    {existingFeedback.proposed_adjustment && existingFeedback.approved === true && (
-                      <p className="text-xs text-emerald-600 font-medium">Adaptations applied</p>
-                    )}
-                    {existingFeedback.proposed_adjustment && existingFeedback.approved === false && (
-                      <p className="text-xs text-slate-400">Adaptations suggested but not applied</p>
-                    )}
-                    {!existingFeedback.proposed_adjustment && (
-                      <p className="text-xs text-slate-400">Logged without adaptation analysis</p>
-                    )}
-                    {onFeedback && (
-                      <button
-                        onClick={() => onFeedback(existingFeedback)}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                      >
-                        Edit feedback
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            </details>
-          )}
 
           {workout.status === 'needs_review' && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
@@ -678,11 +646,6 @@ export default function WorkoutDetailModal({
                   <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
                 </svg>
                 Chat
-              </button>
-            )}
-            {(workout.status === 'completed' || workout.status === 'needs_review') && onFeedback && existingFeedback !== 'loading' && !existingFeedback && (
-              <button onClick={() => onFeedback()} className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
-                Log feedback
               </button>
             )}
             {workout.status === 'planned' && workout.intervals_icu_event_id && !markingMissed && (
