@@ -9,6 +9,7 @@ type Phase = 'input' | 'proposed' | 'saved'
 
 interface Props {
   workoutId: string
+  activityId?: string
   existingFeedback: SessionFeedback | null | 'loading'
   onFeedbackSaved: () => void
 }
@@ -36,7 +37,7 @@ function derivePhase(f: SessionFeedback | null | 'loading'): Phase {
   return 'saved'
 }
 
-export default function WorkoutFeedbackTab({ workoutId, existingFeedback, onFeedbackSaved }: Props) {
+export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', existingFeedback, onFeedbackSaved }: Props) {
   const [phase, setPhase] = useState<Phase>('input')
   const [feedbackText, setFeedbackText] = useState('')
   const [rpe, setRpe] = useState<number | null>(null)
@@ -48,8 +49,10 @@ export default function WorkoutFeedbackTab({ workoutId, existingFeedback, onFeed
   const [proposed, setProposed] = useState<{ feedbackId: string; adjustment: ProposedAdjustment } | null>(null)
   const [coachNote, setCoachNote] = useState<string | null>(null)
   const [savedFeedbackId, setSavedFeedbackId] = useState<string | null>(null)
-  const [coachNoteRating] = useState<CoachNoteRating | null>(null)
+  const [coachNoteRating, setCoachNoteRating] = useState<CoachNoteRating | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [approving, setApproving] = useState(false)
   const initialised = useRef(false)
 
   // Sync state once when existingFeedback resolves from 'loading' to a real value (or null).
@@ -70,6 +73,7 @@ export default function WorkoutFeedbackTab({ workoutId, existingFeedback, onFeed
       setProposed({ feedbackId: existingFeedback.id, adjustment: existingFeedback.proposed_adjustment })
     }
     setCoachNote(existingFeedback.coach_note ?? null)
+    setCoachNoteRating(existingFeedback.coach_note_rating ?? null)
     setSavedFeedbackId(existingFeedback.id)
   }, [existingFeedback])
 
@@ -83,12 +87,13 @@ export default function WorkoutFeedbackTab({ workoutId, existingFeedback, onFeed
   async function submitFeedback() {
     if (!hasSignal) return
     setLoading(true)
+    setError(null)
     const res = await fetch('/api/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         workoutId,
-        activityId: 'manual',
+        activityId,
         feedbackText,
         adapt,
         rpe, feel, completion, tags, mood,
@@ -105,12 +110,16 @@ export default function WorkoutFeedbackTab({ workoutId, existingFeedback, onFeed
         setPhase('saved')
         onFeedbackSaved()
       }
+    } else {
+      setError('Failed to save feedback. Please try again.')
     }
     setLoading(false)
   }
 
   async function approveAdjustment(approve: boolean) {
     if (!proposed) return
+    setApproving(true)
+    setError(null)
     const res = await fetch('/api/feedback', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -120,7 +129,10 @@ export default function WorkoutFeedbackTab({ workoutId, existingFeedback, onFeed
       setProposed(null)
       setPhase('saved')
       onFeedbackSaved()
+    } else {
+      setError('Failed to save. Please try again.')
     }
+    setApproving(false)
   }
 
   if (existingFeedback === 'loading') {
@@ -217,6 +229,7 @@ export default function WorkoutFeedbackTab({ workoutId, existingFeedback, onFeed
             {loading ? 'Saving…' : 'Save feedback'}
           </button>
         </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
     )
   }
@@ -234,15 +247,16 @@ export default function WorkoutFeedbackTab({ workoutId, existingFeedback, onFeed
           ))}
         </div>
         <div className="flex justify-end gap-2">
-          <button onClick={() => approveAdjustment(false)}
-            className="text-sm text-gray-500 hover:text-gray-700 px-2 py-2.5">
+          <button onClick={() => approveAdjustment(false)} disabled={approving}
+            className="text-sm text-gray-500 hover:text-gray-700 px-2 py-2.5 disabled:opacity-50">
             Reject
           </button>
-          <button onClick={() => approveAdjustment(true)}
-            className="bg-blue-600 text-white text-sm px-4 py-2.5 rounded hover:bg-blue-700">
-            Approve Changes
+          <button onClick={() => approveAdjustment(true)} disabled={approving}
+            className="bg-blue-600 text-white text-sm px-4 py-2.5 rounded hover:bg-blue-700 disabled:opacity-50">
+            {approving ? 'Saving…' : 'Approve Changes'}
           </button>
         </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
     )
   }

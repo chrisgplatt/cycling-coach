@@ -62,15 +62,16 @@ describe('WorkoutFeedbackTab', () => {
       ...savedFeedback,
       proposed_adjustment: {
         summary: 'Reduce next week load',
-        changes: [{ field: 'tss', old_value: 100, new_value: 80, reason: 'fatigue' }],
+        changes: [{ workout_id: 'w2', field: 'duration_minutes', old_value: 100, new_value: 80, reason: 'fatigue' }],
       },
       approved: null,
     }
     global.fetch = jest.fn().mockResolvedValue({
       ok: true, json: async () => ({}),
     }) as unknown as typeof fetch
+    const onFeedbackSaved = jest.fn()
 
-    render(<WorkoutFeedbackTab workoutId="w1" existingFeedback={feedbackWithProposal} onFeedbackSaved={jest.fn()} />)
+    render(<WorkoutFeedbackTab workoutId="w1" existingFeedback={feedbackWithProposal} onFeedbackSaved={onFeedbackSaved} />)
     const approveBtn = await screen.findByRole('button', { name: /approve changes/i })
     fireEvent.click(approveBtn)
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
@@ -78,5 +79,6 @@ describe('WorkoutFeedbackTab', () => {
     expect(url).toBe('/api/feedback')
     expect(JSON.parse(opts.body)).toMatchObject({ approved: true })
     await screen.findByText('Feedback saved.')
+    expect(onFeedbackSaved).toHaveBeenCalledTimes(1)
   })
 })
