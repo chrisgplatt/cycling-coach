@@ -158,11 +158,13 @@ function MonthStrip({
       {/* Week rows: [summary column] + [7 day cells] */}
       {weeks.map((weekCells, weekIndex) => {
         const weekDateStrs = weekCells.filter((d): d is string => d !== null)
-        const summary = getWeeklySummary(weekDateStrs, workouts)
+        const summary = getWeeklySummary(weekDateStrs, workouts, unlinkedActivities)
         const isCurrentWeek = weekDateStrs.includes(todayStr)
         const isPastWeek = !isCurrentWeek && weekDateStrs.length > 0 && weekDateStrs.every(d => d < todayStr)
-        const showTss = isPastWeek ? summary.actualTss : summary.plannedTss
-        const showMins = isPastWeek ? summary.actualMins : summary.plannedMins
+        const hasActual = summary.actualTss > 0 || summary.actualMins > 0
+        const showActual = isPastWeek || (isCurrentWeek && hasActual)
+        const showTss = showActual ? summary.actualTss : summary.plannedTss
+        const showMins = showActual ? summary.actualMins : summary.plannedMins
         const summaryColor = isPastWeek ? 'text-emerald-600' : isCurrentWeek ? 'text-orange-500' : 'text-slate-300'
         return (
           <div key={weekIndex} className="flex">

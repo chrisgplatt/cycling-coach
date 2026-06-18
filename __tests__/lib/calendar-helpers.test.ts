@@ -11,7 +11,7 @@ import {
   getDayWorkoutColor,
   getWeeklySummary,
 } from '@/lib/calendar-helpers'
-import type { Workout } from '@/types'
+import type { Workout, ICUActivity } from '@/types'
 
 describe('calendarMonthDays', () => {
   it('returns null-padded grid for May 2026 (Friday 1st → 4 leading nulls)', () => {
@@ -208,6 +208,49 @@ describe('getWeeklySummary', () => {
       w({ date: '2026-06-16', status: 'skipped', tss: 50, duration_minutes: 45 }),
     ]
     const result = getWeeklySummary(DATES, workouts)
+    expect(result).toEqual({ actualTss: 0, actualMins: 0, plannedTss: 0, plannedMins: 0 })
+  })
+
+  it('adds unlinked activities TSS and minutes to the actual bucket', () => {
+    const activity: ICUActivity = {
+      id: 'a1', start_date_local: '2026-06-16T07:00:00', type: 'Ride',
+      moving_time: 3600, name: 'Morning ride', training_load: 55,
+      average_watts: null, max_watts: null, weighted_average_watts: null,
+      average_heartrate: null, max_heartrate: null, rolling_ftp: null,
+      distance: null, total_elevation_gain: null, left_right_balance: null,
+    } as unknown as ICUActivity
+    const result = getWeeklySummary(DATES, [], [activity])
+    expect(result.actualTss).toBe(55)
+    expect(result.actualMins).toBe(60)
+    expect(result.plannedTss).toBe(0)
+    expect(result.plannedMins).toBe(0)
+  })
+
+  it('combines planned workout actuals with unlinked activity actuals', () => {
+    const workouts = [
+      w({ date: '2026-06-16', status: 'completed', tss: 80, duration_minutes: 60 }),
+    ]
+    const activity: ICUActivity = {
+      id: 'a1', start_date_local: '2026-06-17T08:00:00', type: 'Ride',
+      moving_time: 1800, name: 'Easy spin', training_load: 30,
+      average_watts: null, max_watts: null, weighted_average_watts: null,
+      average_heartrate: null, max_heartrate: null, rolling_ftp: null,
+      distance: null, total_elevation_gain: null, left_right_balance: null,
+    } as unknown as ICUActivity
+    const result = getWeeklySummary(DATES, workouts, [activity])
+    expect(result.actualTss).toBe(110)
+    expect(result.actualMins).toBe(90)
+  })
+
+  it('ignores unlinked activities outside the date range', () => {
+    const activity: ICUActivity = {
+      id: 'a1', start_date_local: '2026-06-19T07:00:00', type: 'Ride',
+      moving_time: 3600, name: 'Outside week', training_load: 60,
+      average_watts: null, max_watts: null, weighted_average_watts: null,
+      average_heartrate: null, max_heartrate: null, rolling_ftp: null,
+      distance: null, total_elevation_gain: null, left_right_balance: null,
+    } as unknown as ICUActivity
+    const result = getWeeklySummary(DATES, [], [activity])
     expect(result).toEqual({ actualTss: 0, actualMins: 0, plannedTss: 0, plannedMins: 0 })
   })
 })

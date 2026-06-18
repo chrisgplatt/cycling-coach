@@ -1,5 +1,5 @@
 import { getWeekBounds } from '@/lib/week-bounds'
-import type { Workout } from '@/types'
+import type { Workout, ICUActivity } from '@/types'
 
 /**
  * Returns a Monday-start grid of YYYY-MM-DD strings for a calendar month.
@@ -112,14 +112,18 @@ export interface WeeklySummary {
 }
 
 // Splits workouts in `dates` into actual (completed/needs_review) and planned
-// buckets and returns their TSS and duration sums.
-export function getWeeklySummary(dates: string[], workouts: Workout[]): WeeklySummary {
+// buckets and returns their TSS and duration sums. Unlinked activities (rides
+// not tied to a planned workout) are folded into the actual bucket.
+export function getWeeklySummary(dates: string[], workouts: Workout[], activities: ICUActivity[] = []): WeeklySummary {
   const week = workouts.filter(w => dates.includes(w.date))
   const actual = week.filter(w => w.status === 'completed' || w.status === 'needs_review')
   const planned = week.filter(w => w.status === 'planned')
+  const unlinked = activities.filter(a => dates.some(d => a.start_date_local.startsWith(d)))
   return {
-    actualTss:  actual.reduce((sum, w)  => sum + (w.tss ?? 0), 0),
-    actualMins: actual.reduce((sum, w)  => sum + w.duration_minutes, 0),
+    actualTss:  actual.reduce((sum, w) => sum + (w.tss ?? 0), 0)
+              + unlinked.reduce((sum, a) => sum + (a.training_load ?? 0), 0),
+    actualMins: actual.reduce((sum, w) => sum + w.duration_minutes, 0)
+              + unlinked.reduce((sum, a) => sum + Math.round(a.moving_time / 60), 0),
     plannedTss:  planned.reduce((sum, w) => sum + (w.tss ?? 0), 0),
     plannedMins: planned.reduce((sum, w) => sum + w.duration_minutes, 0),
   }
