@@ -321,6 +321,19 @@ export interface WeightEntry {
   weight_kg: number
 }
 
+export interface DailyWellness {
+  id: string
+  user_id: string
+  date: string           // YYYY-MM-DD
+  energy: number | null
+  leg_freshness: number | null
+  mood: number | null
+  stress: number | null
+  sleep_quality: number | null
+  created_at: string
+  updated_at: string
+}
+
 export interface ProgressDelta {
   current: number
   baseline: number
