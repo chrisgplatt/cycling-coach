@@ -1,16 +1,15 @@
 export const STRAIN_TRAINING_LOAD_MAX = 150
-export const STRAIN_NONPOWER_LOAD_MAX = 50  // ceiling for walks, runs, HR-only activities
+export const STRAIN_NONPOWER_LOAD_MAX = 50
 export const STRAIN_WORKOUT_WEIGHT = 14
 export const STRAIN_LIFE_WEIGHT = 7
 
-// Sub-weights within the 7-point life component
 export const STRAIN_SLEEP_WEIGHT = 2.0
 export const STRAIN_BATTERY_WEIGHT = 1.5
+export const STRAIN_BATTERY_DRAIN_WEIGHT = 1.5
 export const STRAIN_SLEEP_DURATION_WEIGHT = 1.0
-export const STRAIN_SLEEP_DURATION_TARGET_SECS = 27000  // 7.5h = no penalty
-export const STRAIN_SLEEP_DURATION_MIN_SECS = 18000     // 5h = max penalty
+export const STRAIN_SLEEP_DURATION_TARGET_SECS = 27000
+export const STRAIN_SLEEP_DURATION_MIN_SECS = 18000
 
-// 0–100 recovery score for sleep duration. 7.5h+ = 100, 5h = 0, linear between.
 function sleepDurationScore(secs: number): number {
   return Math.max(0, Math.min(100,
     ((secs - STRAIN_SLEEP_DURATION_MIN_SECS) /
@@ -18,15 +17,6 @@ function sleepDurationScore(secs: number): number {
   ))
 }
 
-// Sum activity load across all activities on a given date, normalised to the
-// power scale so computeDailyStrain can use a single ceiling (STRAIN_TRAINING_LOAD_MAX).
-//
-// Power-metered rides: load × IF (NP/FTP) — harder rides contribute more.
-// Non-power activities (walks, runs, HR-only): load is scaled up by
-// (STRAIN_TRAINING_LOAD_MAX / STRAIN_NONPOWER_LOAD_MAX) so that a "full"
-// non-power day (≈50 TSS) saturates the same workout component as a
-// "full" cycling day (≈150 TSS), meaning small walk loads register as 1–2/21
-// rather than rounding to zero.
 export function computeDailyActivityLoad(
   activities: Array<{
     start_date_local: string
@@ -53,18 +43,16 @@ export function computeDailyActivityLoad(
 }
 
 // Compute the life component of daily strain (0–7) from Garmin wellness signals.
-//
-// Blends sleep quality (2 pts), sleep duration (1 pt), and body battery daily
-// peak (1.5 pts). body_battery_high (post-sleep peak) used rather than
-// body_battery_low (midnight trough) because it reflects overnight recharge quality.
-// Missing signals are excluded from the denominator so the remaining signal
-// normalises back to 7 pts.
+// batteryDrain (BodyBatteryMax - BodyBatteryMin) is an optional fourth signal
+// representing in-day cardiovascular drain; only used when the reading is from a
+// post-8am live poll (caller's responsibility to enforce).
 export function computeDailyLifeLoad(
   sleepScore: number | null,
   bodyBatteryHigh: number | null,
   sleepSecs: number | null = null,
+  batteryDrain: number | null = null,
 ): number | null {
-  if (sleepScore == null && bodyBatteryHigh == null && sleepSecs == null) return null
+  if (sleepScore == null && bodyBatteryHigh == null && sleepSecs == null && batteryDrain == null) return null
   let rawScore = 0
   let availableWeight = 0
   if (sleepScore != null) {
@@ -79,20 +67,26 @@ export function computeDailyLifeLoad(
     rawScore += ((100 - bodyBatteryHigh) / 100) * STRAIN_BATTERY_WEIGHT
     availableWeight += STRAIN_BATTERY_WEIGHT
   }
+  if (batteryDrain != null) {
+    rawScore += (batteryDrain / 100) * STRAIN_BATTERY_DRAIN_WEIGHT
+    availableWeight += STRAIN_BATTERY_DRAIN_WEIGHT
+  }
   return availableWeight > 0 ? (rawScore / availableWeight) * STRAIN_LIFE_WEIGHT : null
 }
 
 export interface StrainComponents {
-  total: number             // final strain score 0–21
-  workoutPts: number        // 0–14 workout contribution
-  workoutLoad: number       // raw activity load (TSS-equivalent)
-  lifePts: number           // 0–7 normalised life contribution
-  sleepRawPts: number       // un-normalised sleep quality pts (for donut)
-  sleepDurationRawPts: number  // un-normalised sleep duration pts (for donut)
-  batteryRawPts: number     // un-normalised battery pts (for donut)
+  total: number
+  workoutPts: number
+  workoutLoad: number
+  lifePts: number
+  sleepRawPts: number
+  sleepDurationRawPts: number
+  batteryRawPts: number
+  batteryDrainRawPts: number
   sleepScore: number | null
   sleepSecs: number | null
-  bodyBatteryHigh: number | null  // daily peak battery (post-sleep), not the midnight trough
+  bodyBatteryHigh: number | null
+  batteryDrain: number | null
 }
 
 export function computeStrainComponents(
@@ -100,13 +94,15 @@ export function computeStrainComponents(
   sleepScore: number | null,
   bodyBatteryHigh: number | null,
   sleepSecs: number | null = null,
+  batteryDrain: number | null = null,
 ): StrainComponents | null {
-  if (activityLoad == null && sleepScore == null && bodyBatteryHigh == null && sleepSecs == null) return null
+  if (activityLoad == null && sleepScore == null && bodyBatteryHigh == null && sleepSecs == null && batteryDrain == null) return null
   const load = activityLoad ?? 0
   const workoutPts = Math.min(STRAIN_WORKOUT_WEIGHT, (load / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT)
   let sleepRawPts = 0
   let sleepDurationRawPts = 0
   let batteryRawPts = 0
+  let batteryDrainRawPts = 0
   let availableWeight = 0
   if (sleepScore != null) {
     sleepRawPts = ((100 - sleepScore) / 100) * STRAIN_SLEEP_WEIGHT
@@ -120,10 +116,18 @@ export function computeStrainComponents(
     batteryRawPts = ((100 - bodyBatteryHigh) / 100) * STRAIN_BATTERY_WEIGHT
     availableWeight += STRAIN_BATTERY_WEIGHT
   }
-  const rawLife = sleepRawPts + sleepDurationRawPts + batteryRawPts
+  if (batteryDrain != null) {
+    batteryDrainRawPts = (batteryDrain / 100) * STRAIN_BATTERY_DRAIN_WEIGHT
+    availableWeight += STRAIN_BATTERY_DRAIN_WEIGHT
+  }
+  const rawLife = sleepRawPts + sleepDurationRawPts + batteryRawPts + batteryDrainRawPts
   const lifePts = availableWeight > 0 ? (rawLife / availableWeight) * STRAIN_LIFE_WEIGHT : 0
   const total = Math.min(21, Math.round(workoutPts + lifePts))
-  return { total, workoutPts, workoutLoad: load, lifePts, sleepRawPts, sleepDurationRawPts, batteryRawPts, sleepScore, sleepSecs, bodyBatteryHigh }
+  return {
+    total, workoutPts, workoutLoad: load, lifePts,
+    sleepRawPts, sleepDurationRawPts, batteryRawPts, batteryDrainRawPts,
+    sleepScore, sleepSecs, bodyBatteryHigh, batteryDrain,
+  }
 }
 
 export function computeDailyStrain(
@@ -131,7 +135,6 @@ export function computeDailyStrain(
   lifeLoad: number | null,
 ): number | null {
   if (activityLoad == null && lifeLoad == null) return null
-  // No activity load and life signals not yet synced — nothing meaningful to show
   if ((activityLoad == null || activityLoad === 0) && lifeLoad == null) return null
   const workout = ((activityLoad ?? 0) / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT
   const life = lifeLoad ?? 0
@@ -167,7 +170,6 @@ export function formatStrainHistoryForPrompt(
   const valid = scores.filter((s): s is number => s != null)
   if (!valid.length) return ''
   const avg = Math.round(valid.reduce((a, b) => a + b, 0) / valid.length)
-  // Compare last 3 days vs first 4 days to detect trend
   const recent = scores.slice(-3).filter((s): s is number => s != null)
   const earlier = scores.slice(0, 4).filter((s): s is number => s != null)
   const recentAvg = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : 0
