@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
-import type { ChatMessage, TrainingPlan, Workout, ICUSyncData, TrainingEvent } from '@/types'
+import type { ChatMessage, TrainingPlan, Workout, ICUSyncData, TrainingEvent, DailyWellness } from '@/types'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { buildChatSystemPrompt } from '@/lib/claude/chat'
@@ -71,6 +71,16 @@ export async function POST(req: NextRequest) {
     try { hrvStatus = await fetchHrvStatus(hrvClient, hrvToday) } catch { /* optional */ }
   }
 
+  const sevenDaysAgo = new Date(Date.now() - 6 * 864e5).toISOString().split('T')[0]
+  const todayStr = new Date().toISOString().split('T')[0]
+  const { data: wellnessRows } = await supabase
+    .from('daily_wellness')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('date', sevenDaysAgo)
+    .lte('date', todayStr)
+    .order('date', { ascending: true })
+
   const systemPrompt = buildChatSystemPrompt(
     plan as TrainingPlan | null,
     (upcomingWorkouts ?? []) as Workout[],
@@ -81,6 +91,7 @@ export async function POST(req: NextRequest) {
     (recentRides ?? []) as import('@/lib/claude/chat').RecentRide[],
     hrvStatus,
     memoryBlock,
+    (wellnessRows ?? []) as DailyWellness[],
   )
 
   const stream = await anthropic.messages.stream({

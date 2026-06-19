@@ -1,10 +1,11 @@
-import type { TrainingPlan, Workout, ICUWellness, TrainingEvent, ActivityMetrics, WorkoutStep } from '@/types'
+import type { TrainingPlan, Workout, ICUWellness, TrainingEvent, ActivityMetrics, WorkoutStep, DailyWellness } from '@/types'
 import { formatZones } from './zones'
 import { formatActivityMetrics, formatRideExecution } from './activity-metrics'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { weekdayName, labelDate } from '@/lib/calendar-helpers'
 import { buildCoachContext } from './coach-memory'
+import { formatWellnessForPrompt } from '@/lib/claude/wellness-prompt'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -35,6 +36,7 @@ export function buildChatSystemPrompt(
   recentRides: RecentRide[] = [],
   hrvStatus?: HrvStatus | null,
   memoryBlock = '',
+  recentWellness: DailyWellness[] = [],
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = weekdayName(today)
@@ -59,6 +61,10 @@ export function buildChatSystemPrompt(
     ? `CTL: ${latestWellness.ctl ?? '?'}, ATL: ${latestWellness.atl ?? '?'}, Form: ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'}, Resting HR: ${latestWellness.resting_hr ?? '?'}`
     : 'No wellness data.')
     + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
+
+  const wellnessSection = recentWellness.length
+    ? formatWellnessForPrompt(recentWellness.slice(-7))
+    : null
 
   const upcomingEvents = events.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date))
   const eventsSection = upcomingEvents.length
@@ -87,6 +93,7 @@ ${workoutSection}
 
 Current fitness:
 ${fitnessSection}
+${wellnessSection ? '\n' + wellnessSection : ''}
 
 Recent rides (last ${recentRides.length} completed, most recent first):
 ${recentRidesSection}
