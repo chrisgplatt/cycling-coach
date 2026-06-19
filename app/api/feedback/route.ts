@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
 
   const coachNoteResult = await coachNotePromise
 
-  const { data: feedback } = await supabase
+  const { data: feedback, error: insertError } = await supabase
     .from('session_feedback')
     .insert({
       workout_id: workoutId,
@@ -134,6 +134,11 @@ export async function POST(req: NextRequest) {
     })
     .select()
     .single()
+
+  if (insertError || !feedback) {
+    console.error('session_feedback insert failed:', insertError)
+    return NextResponse.json({ error: 'Failed to save feedback' }, { status: 500 })
+  }
 
   // Push perceived effort + feel to the linked intervals.icu activity. Best-effort:
   // skipped for manual entries and silently ignored on any failure.
