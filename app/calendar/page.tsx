@@ -228,7 +228,7 @@ function MonthStrip({
 
 // ─── Week detail ─────────────────────────────────────────────────────────────
 
-type WeekDetailProps = {
+interface WeekDetailProps {
   selectedDateStr: string
   workouts: Workout[]
   events: TrainingEvent[]
@@ -672,6 +672,10 @@ export default function CalendarPage() {
     setWellnessSheetDate(null)
   }
 
+  function handleOpenWellness(date: string) {
+    setWellnessSheetDate(date)
+  }
+
   async function openEvent(event: TrainingEvent) {
     setSelectedEvent(event)
     setEventActivities([])
@@ -761,7 +765,7 @@ export default function CalendarPage() {
           onAddUnavailability={date => setAddUnavailDate(date)}
           ftp={currentFTP}
           dailyWellness={dailyWellness}
-          onOpenWellness={date => setWellnessSheetDate(date)}
+          onOpenWellness={handleOpenWellness}
         />
         <DragOverlay>
           {activeWorkout ? <WorkoutCard workout={activeWorkout} onClick={() => {}} ftp={currentFTP} /> : null}
