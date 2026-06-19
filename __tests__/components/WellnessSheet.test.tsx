@@ -54,4 +54,16 @@ describe('WellnessSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: /close/i }))
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('shows error message when save fails', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+    }) as never
+
+    render(<WellnessSheet date="2026-06-16" wellness={undefined} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.click(screen.getAllByRole('button', { name: '4' })[0])
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(screen.getByText(/failed to save/i)).toBeInTheDocument())
+  })
 })

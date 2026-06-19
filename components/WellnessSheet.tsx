@@ -45,10 +45,12 @@ export default function WellnessSheet({ date, wellness, onClose, onSaved }: Prop
     sleep_quality: wellness?.sleep_quality ?? null,
   }))
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const hasAnyValue = Object.values(values).some(v => v != null)
 
   async function handleSave() {
+    setError(null)
     setSaving(true)
     try {
       const res = await fetch('/api/wellness', {
@@ -56,9 +58,12 @@ export default function WellnessSheet({ date, wellness, onClose, onSaved }: Prop
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, ...values }),
       })
-      if (!res.ok) return
+      if (!res.ok) { setError('Failed to save. Please try again.'); return }
       const { wellness: saved } = await res.json()
       onSaved(saved)
+      onClose()
+    } catch {
+      setError('Failed to save. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -79,7 +84,7 @@ export default function WellnessSheet({ date, wellness, onClose, onSaved }: Prop
             <button
               aria-label="close"
               onClick={onClose}
-              className="text-slate-400 text-xl px-2 py-1 active:opacity-70"
+              className="text-slate-400 text-xl w-11 h-11 flex items-center justify-center active:opacity-70"
             >
               ×
             </button>
@@ -117,6 +122,7 @@ export default function WellnessSheet({ date, wellness, onClose, onSaved }: Prop
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
+          {error && <p className="mt-2 text-xs text-red-500 text-center">{error}</p>}
         </div>
       </div>
     </div>
