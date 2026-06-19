@@ -199,12 +199,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const threeDaysAgo = new Date(Date.now() - 3 * 864e5).toISOString().split('T')[0]
+  const twoDaysAgo = new Date(Date.now() - 2 * 864e5).toISOString().split('T')[0]
   const { data: wellnessRows } = await supabase
     .from('daily_wellness')
     .select('*')
     .eq('user_id', user.id)
-    .gte('date', threeDaysAgo)
+    .gte('date', twoDaysAgo)
     .lte('date', today)
     .order('date', { ascending: true })
 
