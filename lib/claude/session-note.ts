@@ -64,5 +64,7 @@ Assess this session and indicate whether the athlete should explore adaptations 
   const toolUse = response.content.find(b => b.type === 'tool_use')
   if (toolUse?.type !== 'tool_use') throw new Error('No tool_use block in response')
   const input = toolUse.input as { note: string; recommend_adaptations: boolean }
-  return { note: input.note.trim(), recommendAdaptations: input.recommend_adaptations }
+  // Strip any XML parameter tags the model occasionally leaks into the note value.
+  const note = input.note.replace(/<\/parameter>[\s\S]*$/, '').replace(/<\/?parameter[^>]*>/g, '').trim()
+  return { note, recommendAdaptations: input.recommend_adaptations }
 }
