@@ -1,5 +1,5 @@
 export const STRAIN_TRAINING_LOAD_MAX = 150
-export const STRAIN_NONPOWER_LOAD_MAX = 50
+export const STRAIN_NONPOWER_LOAD_MAX = 50 // ceiling for walks, runs, HR-only activities
 export const STRAIN_WORKOUT_WEIGHT = 14
 export const STRAIN_LIFE_WEIGHT = 7
 
@@ -17,6 +17,8 @@ function sleepDurationScore(secs: number): number {
   ))
 }
 
+// Non-power activities (runs, walks, HR-only rides) report training_load on a 0–50 scale.
+// Scale them up to the 0–150 power-based range so they're comparable to cycling TSS.
 export function computeDailyActivityLoad(
   activities: Array<{
     start_date_local: string
@@ -135,6 +137,7 @@ export function computeDailyStrain(
   lifeLoad: number | null,
 ): number | null {
   if (activityLoad == null && lifeLoad == null) return null
+  // No activity load and life signals not yet synced — nothing meaningful to show
   if ((activityLoad == null || activityLoad === 0) && lifeLoad == null) return null
   const workout = ((activityLoad ?? 0) / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT
   const life = lifeLoad ?? 0
@@ -172,6 +175,7 @@ export function formatStrainHistoryForPrompt(
   const avg = Math.round(valid.reduce((a, b) => a + b, 0) / valid.length)
   const recent = scores.slice(-3).filter((s): s is number => s != null)
   const earlier = scores.slice(0, 4).filter((s): s is number => s != null)
+  // Compare last 3 days vs first 4 days to detect trend
   const recentAvg = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : 0
   const earlierAvg = earlier.length ? earlier.reduce((a, b) => a + b, 0) / earlier.length : 0
   const trend = recentAvg > earlierAvg + 2 ? 'rising' : recentAvg < earlierAvg - 2 ? 'falling' : 'stable'
