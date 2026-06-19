@@ -7,9 +7,10 @@ export const STRAIN_SLEEP_WEIGHT = 2.0
 export const STRAIN_BATTERY_WEIGHT = 1.5
 export const STRAIN_BATTERY_DRAIN_WEIGHT = 1.5
 export const STRAIN_SLEEP_DURATION_WEIGHT = 1.0
-export const STRAIN_SLEEP_DURATION_TARGET_SECS = 27000
-export const STRAIN_SLEEP_DURATION_MIN_SECS = 18000
+export const STRAIN_SLEEP_DURATION_TARGET_SECS = 27000 // 7.5h = no penalty
+export const STRAIN_SLEEP_DURATION_MIN_SECS = 18000 // 5h = max penalty
 
+// 0–100 recovery score for sleep duration. 7.5h+ = 100, 5h = 0, linear between.
 function sleepDurationScore(secs: number): number {
   return Math.max(0, Math.min(100,
     ((secs - STRAIN_SLEEP_DURATION_MIN_SECS) /
@@ -45,6 +46,11 @@ export function computeDailyActivityLoad(
 }
 
 // Compute the life component of daily strain (0–7) from Garmin wellness signals.
+// Signals are combined using a weighted-average blending: each present signal
+// contributes its raw points and its weight to the denominator; absent signals are
+// excluded rather than counted as zero, so a missing value doesn't drag the score.
+// bodyBatteryHigh is the post-sleep peak (not the midnight trough before it) so
+// the score reflects true recovery state.
 // batteryDrain (BodyBatteryMax - BodyBatteryMin) is an optional fourth signal
 // representing in-day cardiovascular drain; only used when the reading is from a
 // post-8am live poll (caller's responsibility to enforce).
@@ -77,17 +83,17 @@ export function computeDailyLifeLoad(
 }
 
 export interface StrainComponents {
-  total: number
+  total: number             // final strain score 0–21
   workoutPts: number
   workoutLoad: number
   lifePts: number
-  sleepRawPts: number
+  sleepRawPts: number       // un-normalised sleep quality pts (for donut)
   sleepDurationRawPts: number
   batteryRawPts: number
   batteryDrainRawPts: number
   sleepScore: number | null
   sleepSecs: number | null
-  bodyBatteryHigh: number | null
+  bodyBatteryHigh: number | null  // daily peak battery (post-sleep), not the midnight trough
   batteryDrain: number | null
 }
 
