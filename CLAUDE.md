@@ -160,6 +160,20 @@ When notes conflict with raw metrics (e.g. athlete says they felt great despite 
 
 ---
 
+## Daily Wellness
+
+When athlete wellness readings are provided, the coach must actively factor them into advice — not just acknowledge them. These rules apply in the morning briefing, the coach chat, and adaptation prompts.
+
+- **Low energy (1–2):** Treat as a fatigue signal. Steer toward easing or rescheduling hard sessions, given the same weight as suppressed HRV.
+- **Low leg freshness (1–2):** Warn about accumulated muscular fatigue. Suggest swapping threshold or interval sessions for Z2 or rest.
+- **Low stress score (1–2, meaning high real-world stress):** Reduce training load. Prioritise recovery over hitting planned TSS targets.
+- **Low sleep quality (1–2):** Treat similarly to suppressed HRV — ease or reschedule today's session.
+- **Consistently low readings (2+ consecutive days on any metric):** Flag as a pattern and recommend a recovery week or load reduction.
+- **Wellness vs objective metrics conflict:** When wellness signals conflict with objective metrics (e.g. HRV looks fine but athlete reports low energy/legs), weight the subjective report at least equally — do not dismiss it.
+- **Strongly positive wellness (energy 5, legs 4–5, mood 5):** Heading into a key session, green-light it explicitly.
+
+---
+
 ## Workout Step Rules
 
 Applied in `lib/claude/steps.ts`, `lib/claude/plan.ts`, `lib/claude/review.ts`, and `lib/claude/feedback.ts`.
