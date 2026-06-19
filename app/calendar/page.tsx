@@ -26,6 +26,9 @@ import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr, weekStart
 import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
 import { periodOverlapsWeek, coveredDaysInWeek, periodDurationDays } from '@/lib/utils/unavailability'
+import WellnessCard from '@/components/WellnessCard'
+import WellnessSheet from '@/components/WellnessSheet'
+import type { DailyWellness } from '@/types'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -225,7 +228,7 @@ function MonthStrip({
 
 // ─── Week detail ─────────────────────────────────────────────────────────────
 
-interface WeekDetailProps {
+type WeekDetailProps = {
   selectedDateStr: string
   workouts: Workout[]
   events: TrainingEvent[]
@@ -237,11 +240,14 @@ interface WeekDetailProps {
   unavailability: UnavailabilityPeriod[]
   onAddUnavailability: (date: string) => void
   ftp?: number
+  dailyWellness: DailyWellness[]
+  onOpenWellness: (date: string) => void
 }
 
 function WeekDetail({
   selectedDateStr, workouts, events, unlinkedActivities, todayStr,
   onWorkoutClick, onEventClick, onActivityClick, unavailability, onAddUnavailability, ftp,
+  dailyWellness, onOpenWellness,
 }: WeekDetailProps) {
   const dates = weekDates(selectedDateStr)
   const overlappingPeriods = unavailability.filter(p => periodOverlapsWeek(p, dates))
@@ -339,6 +345,12 @@ function WeekDetail({
               {dayActivities.map(a => (
                 <ActivityCard key={a.id} activity={a} onClick={() => onActivityClick(a)} />
               ))}
+              <WellnessCard
+                date={dateStr}
+                wellness={dailyWellness.find(w => w.date === dateStr)}
+                onTap={() => onOpenWellness(dateStr)}
+                restDay={isEmpty}
+              />
             </DroppableDay>
           </div>
         )
@@ -505,6 +517,8 @@ export default function CalendarPage() {
   const [unavailability, setUnavailability] = useState<UnavailabilityPeriod[]>([])
   const [addUnavailDate, setAddUnavailDate] = useState<string | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
+  const [dailyWellness, setDailyWellness] = useState<DailyWellness[]>([])
+  const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
 
   // Drag-to-reschedule: a planned workout can be dragged onto another day.
   const sensors = useSensors(
@@ -614,6 +628,12 @@ export default function CalendarPage() {
         if (data) setUnavailability(data.unavailability ?? [])
       })
       .catch(() => {})
+    const wFrom = new Date(Date.now() - 45 * 864e5).toISOString().split('T')[0]
+    const wTo = new Date(Date.now() + 45 * 864e5).toISOString().split('T')[0]
+    fetch(`/api/wellness?from=${wFrom}&to=${wTo}`)
+      .then(r => r.json())
+      .then(({ wellness }) => { if (Array.isArray(wellness)) setDailyWellness(wellness) })
+      .catch(() => {})
   }, [])
 
   function prevMonth() {
@@ -637,6 +657,19 @@ export default function CalendarPage() {
       const note = period.notes ? `${label}: ${period.notes}` : label
       startAdaptation(`I've added a ${note} period from ${period.start_date} to ${period.end_date}. Please adapt my training plan around it.`)
     }
+  }
+
+  function handleWellnessSaved(w: DailyWellness) {
+    setDailyWellness(prev => {
+      const idx = prev.findIndex(e => e.date === w.date)
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = w
+        return next
+      }
+      return [...prev, w].sort((a, b) => a.date.localeCompare(b.date))
+    })
+    setWellnessSheetDate(null)
   }
 
   async function openEvent(event: TrainingEvent) {
@@ -727,6 +760,8 @@ export default function CalendarPage() {
           unavailability={unavailability}
           onAddUnavailability={date => setAddUnavailDate(date)}
           ftp={currentFTP}
+          dailyWellness={dailyWellness}
+          onOpenWellness={date => setWellnessSheetDate(date)}
         />
         <DragOverlay>
           {activeWorkout ? <WorkoutCard workout={activeWorkout} onClick={() => {}} ftp={currentFTP} /> : null}
@@ -839,6 +874,15 @@ export default function CalendarPage() {
           estimatedWorkouts={reviewEstimatedWorkouts}
           onApprove={() => { setShowReviewModal(false); setReviewPlan(null); loadPlan() }}
           onReject={() => { setShowReviewModal(false); setReviewPlan(null) }}
+        />
+      )}
+
+      {wellnessSheetDate && (
+        <WellnessSheet
+          date={wellnessSheetDate}
+          wellness={dailyWellness.find(w => w.date === wellnessSheetDate)}
+          onClose={() => setWellnessSheetDate(null)}
+          onSaved={handleWellnessSaved}
         />
       )}
     </div>
