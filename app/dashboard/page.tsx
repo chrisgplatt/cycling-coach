@@ -42,6 +42,7 @@ import ProgressStats from '@/components/ProgressStats'
 import WellnessCard from '@/components/WellnessCard'
 import WellnessSheet from '@/components/WellnessSheet'
 import type { DailyWellness } from '@/types'
+import { useIntradayWellness } from '@/hooks/useIntradayWellness'
 
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
@@ -115,6 +116,8 @@ export default function DashboardPage() {
   const [syncVersion, setSyncVersion] = useState(0)
   const [dailyWellness, setDailyWellness] = useState<DailyWellness[]>([])
   const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
+
+  const intradayWellness = useIntradayWellness()
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -826,6 +829,7 @@ export default function DashboardPage() {
           wellness={latestWellnessWithLoad}
           activitySummary={activitySummary}
           onClose={() => setStrainSheetOpen(false)}
+          liveOverride={intradayWellness}
         />
       )}
 
