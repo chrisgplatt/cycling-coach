@@ -567,6 +567,7 @@ export interface BriefingContext {
   athleteModel?: string  // pre-formatted formatAthleteModel() output; '' or undefined when empty
   currentPhase?: string | null       // e.g. 'base' | 'build' | 'peak' | 'taper'
   currentPhaseWeek?: number | null   // which week within the current phase (1-based)
+  recentWellness?: DailyWellness[]
 }
 
 export interface DailyBriefing {

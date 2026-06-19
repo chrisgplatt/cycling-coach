@@ -4,6 +4,7 @@ import { formatHrvForPrompt } from '@/lib/hrv/format'
 import { formatWeatherForPrompt } from '@/lib/weather/format'
 import { labelDate } from '@/lib/calendar-helpers'
 import { formatStrainForPrompt, formatStrainHistoryForPrompt } from '@/lib/strain'
+import { formatWellnessForPrompt } from '@/lib/claude/wellness-prompt'
 
 export type ReadinessVerdict = 'green' | 'amber' | 'red'
 
@@ -157,6 +158,10 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<BriefingRe
     ? `Training phase: ${ctx.currentPhase}${ctx.currentPhaseWeek ? ` (week ${ctx.currentPhaseWeek} of this phase)` : ''}`
     : null
 
+  const wellnessLine = ctx.recentWellness?.length
+    ? formatWellnessForPrompt(ctx.recentWellness.slice(-3))
+    : null
+
   const prompt = `Today's date: ${labelDate(ctx.today)}
 Today's plan: ${sessionLine}
 Training load: ${buildLoadString(ctx)}
@@ -165,6 +170,7 @@ Upcoming events: ${buildEventsString(ctx)}
 ${phaseContext ? phaseContext + '\n' : ''}${weatherLine ? weatherLine + '\n' : ''}${unavailLine ? `Current unavailability: ${unavailLine}` : ''}
 ${dossierLines.length ? '\nAthlete context:\n' + dossierLines.join('\n') : ''}
 ${ctx.athleteModel ? '\n' + ctx.athleteModel : ''}
+${wellnessLine ? '\n' + wellnessLine : ''}
 Write the morning briefing. Respond ONLY with a JSON object: {"verdict":"green|amber|red","headline":"<=4 words","note":"<the briefing prose>"}`
 
   const raw = await callClaude(SYSTEM_MORNING, prompt)

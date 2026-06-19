@@ -7,7 +7,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatus } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { computeDailyStrain, computeDailyActivityLoad, computeDailyLifeLoad } from '@/lib/strain'
-import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness } from '@/types'
+import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness, DailyWellness } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -199,6 +199,15 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const threeDaysAgo = new Date(Date.now() - 3 * 864e5).toISOString().split('T')[0]
+  const { data: wellnessRows } = await supabase
+    .from('daily_wellness')
+    .select('*')
+    .eq('user_id', user.id)
+    .gte('date', threeDaysAgo)
+    .lte('date', today)
+    .order('date', { ascending: true })
+
   const ctx: BriefingContext = {
     today,
     todayWorkout,
@@ -223,6 +232,7 @@ export async function GET(req: NextRequest) {
     strainHistory,
     currentPhase: currentPhaseFromPlan,
     currentPhaseWeek,
+    recentWellness: (wellnessRows ?? []) as DailyWellness[],
   }
 
   const { coach_note, verdict, headline } = await generateBriefing(ctx)
