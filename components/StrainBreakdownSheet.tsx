@@ -22,7 +22,9 @@ const BAND_BG: Record<string, string> = {
 }
 
 export default function StrainBreakdownSheet({ wellness, activitySummary, onClose, liveOverride }: Props) {
-  const liveDrain = liveOverride?.isPostWake ? (liveOverride.batteryDrain ?? null) : null
+  // Derive isPostWake at render time so stale poll-time flag can't persist past midnight
+  const isPostWake = new Date().getHours() >= 8
+  const liveDrain = isPostWake ? (liveOverride?.batteryDrain ?? null) : null
 
   const c = computeStrainComponents(
     wellness.garmin_training_load,
@@ -36,7 +38,7 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
   const totalStrain = c.total
   const label = strainLabel(totalStrain)
 
-  const asOfLabel = liveOverride?.asOf
+  const asOfLabel = isPostWake && liveOverride?.asOf
     ? liveOverride.asOf.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : null
 
@@ -166,7 +168,7 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
                 )}
               </div>
               {/* Battery drain — only shown when live post-wake reading available */}
-              {liveOverride?.isPostWake && liveOverride.batteryDrain !== null && (
+              {isPostWake && liveOverride != null && liveOverride.batteryDrain !== null && (
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-orange-400" />
                   <span className="text-xs text-gray-700">

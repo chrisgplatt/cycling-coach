@@ -60,7 +60,7 @@ export function computeDailyLifeLoad(
   sleepSecs: number | null = null,
   batteryDrain: number | null = null,
 ): number | null {
-  if (sleepScore == null && bodyBatteryHigh == null && sleepSecs == null && batteryDrain == null) return null
+  if (sleepScore == null && bodyBatteryHigh == null && sleepSecs == null && (batteryDrain == null || batteryDrain === 0)) return null
   let rawScore = 0
   let availableWeight = 0
   if (sleepScore != null) {
@@ -75,7 +75,7 @@ export function computeDailyLifeLoad(
     rawScore += ((100 - bodyBatteryHigh) / 100) * STRAIN_BATTERY_WEIGHT
     availableWeight += STRAIN_BATTERY_WEIGHT
   }
-  if (batteryDrain != null) {
+  if (batteryDrain !== null && batteryDrain > 0) {
     rawScore += (batteryDrain / 100) * STRAIN_BATTERY_DRAIN_WEIGHT
     availableWeight += STRAIN_BATTERY_DRAIN_WEIGHT
   }
@@ -104,7 +104,7 @@ export function computeStrainComponents(
   sleepSecs: number | null = null,
   batteryDrain: number | null = null,
 ): StrainComponents | null {
-  if (activityLoad == null && sleepScore == null && bodyBatteryHigh == null && sleepSecs == null && batteryDrain == null) return null
+  if (activityLoad == null && sleepScore == null && bodyBatteryHigh == null && sleepSecs == null && (batteryDrain == null || batteryDrain === 0)) return null
   const load = activityLoad ?? 0
   const workoutPts = Math.min(STRAIN_WORKOUT_WEIGHT, (load / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT)
   let sleepRawPts = 0
@@ -124,7 +124,7 @@ export function computeStrainComponents(
     batteryRawPts = ((100 - bodyBatteryHigh) / 100) * STRAIN_BATTERY_WEIGHT
     availableWeight += STRAIN_BATTERY_WEIGHT
   }
-  if (batteryDrain != null) {
+  if (batteryDrain !== null && batteryDrain > 0) {
     batteryDrainRawPts = (batteryDrain / 100) * STRAIN_BATTERY_DRAIN_WEIGHT
     availableWeight += STRAIN_BATTERY_DRAIN_WEIGHT
   }

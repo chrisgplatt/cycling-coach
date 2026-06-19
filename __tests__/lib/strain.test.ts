@@ -60,8 +60,8 @@ describe('computeDailyLifeLoad', () => {
   })
 
   test('zero drain contributes nothing', () => {
-    // drain=0 → 0, avail=1.5 → (0/1.5)*7=0
-    expect(computeDailyLifeLoad(null, null, null, 0)).toBeCloseTo(0, 4)
+    // drain=0 treated as absent — with all other signals null, returns null
+    expect(computeDailyLifeLoad(null, null, null, 0)).toBeNull()
   })
 
   test('all four null → null', () => {
@@ -145,6 +145,15 @@ describe('computeStrainComponents', () => {
     const c = computeStrainComponents(0, null, null, null, null)!
     expect(c.batteryDrainRawPts).toBe(0)
     expect(c.batteryDrain).toBeNull()
+  })
+
+  test('zero drain excluded from denominator in computeStrainComponents', () => {
+    // drain=0 treated as absent — same result as passing null
+    const withZeroDrain = computeStrainComponents(0, null, null, null, 0)!
+    const withNullDrain = computeStrainComponents(0, null, null, null, null)!
+    expect(withZeroDrain.batteryDrainRawPts).toBe(0)
+    expect(withZeroDrain.batteryDrain).toBe(0)
+    expect(withZeroDrain.total).toBe(withNullDrain.total)
   })
 
   test('drain adds to total strain', () => {
