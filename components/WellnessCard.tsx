@@ -28,12 +28,12 @@ function DotScale({ value }: { value: number }) {
   )
 }
 
-export default function WellnessCard({ wellness, onTap, restDay = false }: Props) {
+export default function WellnessCard({ date, wellness, onTap, restDay = false }: Props) {
   if (restDay && !wellness) {
     return (
       <button
         onClick={onTap}
-        className="text-[10px] text-slate-400 border border-dashed border-slate-200 rounded-md px-2 py-1 mt-1 active:opacity-70"
+        className="text-[10px] text-slate-400 border border-dashed border-slate-200 rounded-md px-2 min-h-[44px] flex items-center justify-center mt-1 active:opacity-70"
       >
         + wellness
       </button>
