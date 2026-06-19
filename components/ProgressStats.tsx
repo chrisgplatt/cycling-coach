@@ -132,11 +132,7 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
             />
             <Tile
               label="Elevation"
-              value={weeklyProgress.elevationM > 0
-                ? weeklyProgress.elevationM >= 1000
-                  ? `${(weeklyProgress.elevationM / 1000).toFixed(1)}km`
-                  : `${Math.floor(weeklyProgress.elevationM)}m`
-                : '—'}
+              value={weeklyProgress.elevationM > 0 ? `${Math.floor(weeklyProgress.elevationM)}m` : '—'}
             />
           </div>
         </>
