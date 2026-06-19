@@ -132,7 +132,7 @@ export default function RideStats({ data }: { data: RideStatsData }) {
       <SectionCard title="Ride Totals" accent="bg-blue-500">
         <div className="flex divide-x divide-gray-100">
           <StatCell label="Distance" value={data.distanceM !== null ? (Math.round(data.distanceM / 100) / 10).toFixed(1) : '—'} unit={data.distanceM !== null ? 'km' : undefined} valueClass="text-blue-600" />
-          <StatCell label="Elevation" value={num(data.elevationM)} unit={data.elevationM !== null ? 'm' : undefined} valueClass="text-emerald-600" />
+          <StatCell label="Elevation" value={data.elevationM !== null ? String(Math.floor(data.elevationM)) : '—'} unit={data.elevationM !== null ? 'm' : undefined} valueClass="text-emerald-600" />
           <StatCell label="Duration" value={formatDuration(data.durationSecs)} valueClass="text-violet-600" />
         </div>
       </SectionCard>

@@ -135,7 +135,7 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
               value={weeklyProgress.elevationM > 0
                 ? weeklyProgress.elevationM >= 1000
                   ? `${(weeklyProgress.elevationM / 1000).toFixed(1)}km`
-                  : `${Math.round(weeklyProgress.elevationM)}m`
+                  : `${Math.floor(weeklyProgress.elevationM)}m`
                 : '—'}
             />
           </div>
