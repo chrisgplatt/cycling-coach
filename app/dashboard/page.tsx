@@ -39,6 +39,9 @@ import ActivityDetailModal from '@/components/ActivityDetailModal'
 import HrvStatusChip from '@/components/HrvStatusChip'
 import StrainBreakdownSheet from '@/components/StrainBreakdownSheet'
 import ProgressStats from '@/components/ProgressStats'
+import WellnessCard from '@/components/WellnessCard'
+import WellnessSheet from '@/components/WellnessSheet'
+import type { DailyWellness } from '@/types'
 
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
@@ -110,6 +113,8 @@ export default function DashboardPage() {
   const [chartsData, setChartsData] = useState<import('@/types').ChartsData | null>(null)
   const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
   const [syncVersion, setSyncVersion] = useState(0)
+  const [dailyWellness, setDailyWellness] = useState<DailyWellness[]>([])
+  const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -315,6 +320,12 @@ export default function DashboardPage() {
       .then(r => r.json())
       .then(d => setWeightLog(d.entries ?? []))
       .catch(() => {})
+    const wFrom = new Date(Date.now() - 45 * 864e5).toISOString().split('T')[0]
+    const wTo = new Date(Date.now() + 45 * 864e5).toISOString().split('T')[0]
+    fetch(`/api/wellness?from=${wFrom}&to=${wTo}`)
+      .then(r => r.json())
+      .then(({ wellness }) => { if (Array.isArray(wellness)) setDailyWellness(wellness) })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -437,6 +448,23 @@ export default function DashboardPage() {
     .sort((a, b) => b.id.localeCompare(a.id))
     .find(w => w.form !== null)
   const form: number | null = todayWellness?.form ?? recentWellness?.form ?? null
+
+  function handleWellnessSaved(w: DailyWellness) {
+    setDailyWellness(prev => {
+      const idx = prev.findIndex(e => e.date === w.date)
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = w
+        return next
+      }
+      return [...prev, w].sort((a, b) => a.date.localeCompare(b.date))
+    })
+    setWellnessSheetDate(null)
+  }
+
+  function handleOpenWellness(date: string) {
+    setWellnessSheetDate(date)
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -649,6 +677,12 @@ export default function DashboardPage() {
                     {isEmpty && (
                       <div className="text-sm text-gray-300 italic py-3.5 pl-1">Rest day</div>
                     )}
+                    <WellnessCard
+                      date={date}
+                      wellness={dailyWellness.find(w => w.date === date)}
+                      onTap={() => handleOpenWellness(date)}
+                      restDay={isEmpty}
+                    />
                   </DroppableDay>
                 </div>
               )
@@ -792,6 +826,15 @@ export default function DashboardPage() {
           wellness={latestWellnessWithLoad}
           activitySummary={activitySummary}
           onClose={() => setStrainSheetOpen(false)}
+        />
+      )}
+
+      {wellnessSheetDate && (
+        <WellnessSheet
+          date={wellnessSheetDate}
+          wellness={dailyWellness.find(w => w.date === wellnessSheetDate)}
+          onClose={() => setWellnessSheetDate(null)}
+          onSaved={handleWellnessSaved}
         />
       )}
     </div>
