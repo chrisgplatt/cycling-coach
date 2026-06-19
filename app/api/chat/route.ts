@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return new Response('Message is required', { status: 400 })
   }
 
-  const [memoryBlock, { data: plan }, { data: recentMessages }, { data: upcomingWorkouts }, { data: profileData }, dossier, { data: recentRides }] = await Promise.all([
+  const [memoryBlock, { data: plan }, { data: recentMessages }, { data: upcomingWorkouts }, { data: profileData }, dossier, { data: recentRides }, wellnessData] = await Promise.all([
     loadCoachMemory(supabase, userId, { excludeSurface: 'coach' }),
     supabase.from('training_plans').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('chat_messages').select('*').order('created_at', { ascending: false }).limit(20),
@@ -47,6 +47,13 @@ export async function POST(req: NextRequest) {
       .not('activity_metrics', 'is', null)
       .order('date', { ascending: false })
       .limit(5),
+    supabase
+      .from('daily_wellness')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', new Date(Date.now() - 6 * 864e5).toISOString().split('T')[0])
+      .lte('date', new Date().toISOString().split('T')[0])
+      .order('date', { ascending: true }),
   ])
 
   const messages = ((recentMessages ?? []) as ChatMessage[])
@@ -71,16 +78,6 @@ export async function POST(req: NextRequest) {
     try { hrvStatus = await fetchHrvStatus(hrvClient, hrvToday) } catch { /* optional */ }
   }
 
-  const sevenDaysAgo = new Date(Date.now() - 6 * 864e5).toISOString().split('T')[0]
-  const todayStr = new Date().toISOString().split('T')[0]
-  const { data: wellnessRows } = await supabase
-    .from('daily_wellness')
-    .select('*')
-    .eq('user_id', userId)
-    .gte('date', sevenDaysAgo)
-    .lte('date', todayStr)
-    .order('date', { ascending: true })
-
   const systemPrompt = buildChatSystemPrompt(
     plan as TrainingPlan | null,
     (upcomingWorkouts ?? []) as Workout[],
@@ -91,7 +88,7 @@ export async function POST(req: NextRequest) {
     (recentRides ?? []) as import('@/lib/claude/chat').RecentRide[],
     hrvStatus,
     memoryBlock,
-    (wellnessRows ?? []) as DailyWellness[],
+    (wellnessData?.data ?? []) as DailyWellness[],
   )
 
   const stream = await anthropic.messages.stream({

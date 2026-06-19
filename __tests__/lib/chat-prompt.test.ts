@@ -2,7 +2,7 @@
 import { buildChatSystemPrompt } from '@/lib/claude/chat'
 import { formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
-import type { TrainingPlan, Workout, ICUWellness, TrainingEvent } from '@/types'
+import type { TrainingPlan, Workout, ICUWellness, TrainingEvent, DailyWellness } from '@/types'
 import { makeWorkout } from '../support/factories'
 
 const plan: TrainingPlan = {
@@ -107,5 +107,18 @@ describe('buildChatSystemPrompt', () => {
   it('omits memory block when empty string', () => {
     const p = buildChatSystemPrompt(plan, upcoming, wellness, 240, events, '', [], null, '')
     expect(p).not.toContain('RECENT CONVERSATIONS')
+  })
+
+  it('includes wellness section when recentWellness is provided', () => {
+    const recentWellness: DailyWellness[] = [{
+      id: 'w1', user_id: 'u1', date: '2026-06-16',
+      energy: 4, leg_freshness: 3, mood: 4, stress: 2, sleep_quality: 5,
+      created_at: '2026-06-16T08:00:00Z', updated_at: '2026-06-16T08:00:00Z',
+    }]
+    const result = buildChatSystemPrompt(
+      null, [], null, 250, [], '', [], null, '', recentWellness
+    )
+    expect(result).toContain('Athlete wellness')
+    expect(result).toContain('Energy 4')
   })
 })
