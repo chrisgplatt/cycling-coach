@@ -4,7 +4,75 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { importUnplannedRides } from '@/lib/intervals/import-rides'
 import { backfillActivityMetrics } from '@/lib/intervals/enrich'
 import { maybeGenerateProgressBrief } from '@/lib/progress/brief-generator'
-import type { ICUActivity } from '@/types'
+import { GarminClient } from '@/lib/garmin/client'
+import type { ICUActivity, GarminWellness } from '@/types'
+
+async function syncGarmin(
+  supabase: Awaited<ReturnType<typeof import('@/lib/supabase-server').createSupabaseServerClient>>,
+  userId: string,
+  garminEmail: string,
+  garminPassword: string,
+  cachedToken: object | null,
+  todayStr: string,
+): Promise<GarminWellness | null> {
+  let client: GarminClient
+  let freshToken: object
+
+  try {
+    if (cachedToken) {
+      client = await GarminClient.fromToken(cachedToken)
+    } else {
+      client = await GarminClient.fromCredentials(garminEmail, garminPassword)
+    }
+    freshToken = client.exportToken()
+  } catch {
+    // Token expired — try fresh login
+    try {
+      client = await GarminClient.fromCredentials(garminEmail, garminPassword)
+      freshToken = client.exportToken()
+    } catch (err) {
+      console.error('[sync] Garmin auth failed:', err)
+      return null
+    }
+  }
+
+  // Persist refreshed token (fire-and-forget, non-fatal)
+  supabase
+    .from('user_profile')
+    .update({ garmin_oauth_token: freshToken })
+    .eq('user_id', userId)
+    .then(() => {}, (err: unknown) => console.error('[sync] token save failed:', err))
+
+  const [readiness, status, battery, stress] = await Promise.all([
+    client.getTrainingReadiness(todayStr),
+    client.getTrainingStatus(todayStr),
+    client.getBodyBatteryCurrent(todayStr),
+    client.getDailyStressAvg(todayStr),
+  ])
+
+  const row = {
+    user_id: userId,
+    date: todayStr,
+    garmin_training_readiness: readiness,
+    garmin_training_status: status,
+    garmin_body_battery_current: battery,
+    garmin_stress_avg: stress,
+    synced_at: new Date().toISOString(),
+  }
+
+  await supabase
+    .from('garmin_wellness')
+    .upsert(row, { onConflict: 'user_id,date' })
+    .then(() => {}, (err: unknown) => console.error('[sync] garmin_wellness upsert failed:', err))
+
+  return {
+    date: todayStr,
+    garmin_training_readiness: readiness,
+    garmin_training_status: status,
+    garmin_body_battery_current: battery,
+    garmin_stress_avg: stress,
+  }
+}
 
 export async function POST(req: Request) {
   // ?deep=1 runs a one-time backfill over ALL completed history (not just 90 days),
@@ -17,7 +85,7 @@ export async function POST(req: Request) {
 
   const { data: profile } = await supabase
     .from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp, weight_kg, goals, min_sessions_per_week')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp, weight_kg, goals, min_sessions_per_week, garmin_email, garmin_password, garmin_oauth_token')
     .maybeSingle()
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
@@ -92,7 +160,31 @@ export async function POST(req: Request) {
       } catch { /* non-fatal — brief generation failure must not block sync */ }
     }
 
-    return NextResponse.json({ ...syncData, athlete_id: profile.intervals_icu_athlete_id, backfill })
+    const todayStr = new Date().toISOString().split('T')[0]
+
+    // Garmin sync (sequential after intervals.icu, non-fatal)
+    let garmin_today: GarminWellness | null = null
+    if (profile.garmin_email && profile.garmin_password) {
+      try {
+        garmin_today = await syncGarmin(
+          supabase,
+          user.id,
+          profile.garmin_email,
+          profile.garmin_password,
+          (profile.garmin_oauth_token as object | null) ?? null,
+          todayStr,
+        )
+      } catch (err) {
+        console.error('[sync] Garmin sync error:', err)
+      }
+    }
+
+    return NextResponse.json({
+      ...syncData,
+      athlete_id: profile.intervals_icu_athlete_id,
+      backfill,
+      ...(garmin_today ? { garmin_today } : {}),
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Sync failed'
     return NextResponse.json({ error: message }, { status: 502 })
