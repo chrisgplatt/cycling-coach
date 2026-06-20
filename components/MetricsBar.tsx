@@ -331,6 +331,14 @@ const BAND_LABEL: Record<string, string> = {
   low: 'Low', moderate: 'Moderate', high: 'High',
 }
 
+const TRAINING_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  PEAKING:        { label: 'Peaking',        bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  MAINTAINING:    { label: 'Maintaining',    bg: 'bg-blue-100',    text: 'text-blue-700' },
+  UNPRODUCTIVE:   { label: 'Unproductive',   bg: 'bg-amber-100',   text: 'text-amber-700' },
+  OVERREACHING:   { label: 'Overreaching',   bg: 'bg-orange-100',  text: 'text-orange-700' },
+  DETRAINING:     { label: 'Detraining',     bg: 'bg-red-100',     text: 'text-red-700' },
+}
+
 export default function MetricsBar({
   wellness,
   syncedAt = null,
@@ -440,6 +448,15 @@ export default function MetricsBar({
           <Metric label="Resting HR" value={wellness.resting_hr} valueClass="text-rose-500" unit="bpm" stale={stale.restingHr} />
         )}
       </div>
+
+      {wellness?.garmin_training_status && TRAINING_STATUS_CONFIG[wellness.garmin_training_status] && (
+        <div className="px-4 pb-2 flex items-center gap-1.5">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Training Status</span>
+          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${TRAINING_STATUS_CONFIG[wellness.garmin_training_status].bg} ${TRAINING_STATUS_CONFIG[wellness.garmin_training_status].text}`}>
+            {TRAINING_STATUS_CONFIG[wellness.garmin_training_status].label}
+          </span>
+        </div>
+      )}
 
       {hasStrainHistory && (
         <>
