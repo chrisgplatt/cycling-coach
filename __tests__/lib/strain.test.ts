@@ -49,24 +49,6 @@ describe('computeDailyLifeLoad', () => {
     expect(computeDailyLifeLoad(null, null, 21600)).toBeCloseTo(4.2, 1)
   })
 
-  test('battery drain alone contributes life load', () => {
-    // drain=50 → (50/100)*1.5=0.75, avail=1.5 → (0.75/1.5)*7=3.5
-    expect(computeDailyLifeLoad(null, null, null, 50)).toBeCloseTo(3.5, 1)
-  })
-
-  test('battery drain combined with sleep score', () => {
-    // sleep=85→(15/100)*2=0.3, drain=50→(50/100)*1.5=0.75; raw=1.05, avail=3.5 → (1.05/3.5)*7=2.1
-    expect(computeDailyLifeLoad(85, null, null, 50)).toBeCloseTo(2.1, 1)
-  })
-
-  test('zero drain contributes nothing', () => {
-    // drain=0 treated as absent — with all other signals null, returns null
-    expect(computeDailyLifeLoad(null, null, null, 0)).toBeNull()
-  })
-
-  test('all four null → null', () => {
-    expect(computeDailyLifeLoad(null, null, null, null)).toBeNull()
-  })
 })
 
 describe('computeStrainComponents', () => {
@@ -134,36 +116,6 @@ describe('computeStrainComponents', () => {
     expect(c.total).toBe(21)
   })
 
-  test('batteryDrainRawPts for 50pt drain', () => {
-    // drain=50 → (50/100)*1.5=0.75
-    const c = computeStrainComponents(0, null, null, null, 50)!
-    expect(c.batteryDrainRawPts).toBeCloseTo(0.75, 2)
-    expect(c.batteryDrain).toBe(50)
-  })
-
-  test('batteryDrainRawPts is 0 when drain is null', () => {
-    const c = computeStrainComponents(0, null, null, null, null)!
-    expect(c.batteryDrainRawPts).toBe(0)
-    expect(c.batteryDrain).toBeNull()
-  })
-
-  test('zero drain excluded from denominator in computeStrainComponents', () => {
-    // drain=0 treated as absent — same result as passing null
-    const withZeroDrain = computeStrainComponents(0, null, null, null, 0)!
-    const withNullDrain = computeStrainComponents(0, null, null, null, null)!
-    expect(withZeroDrain.batteryDrainRawPts).toBe(0)
-    expect(withZeroDrain.batteryDrain).toBe(0)
-    expect(withZeroDrain.total).toBe(withNullDrain.total)
-  })
-
-  test('drain adds to total strain', () => {
-    // sleep=85,battery=75 → lifePts≈1.35 without drain
-    // with drain=50 → sleep 0.3 + battery 0.375 + drain 0.75 = 1.425, avail=5.0 → (1.425/5.0)*7≈1.995
-    const withDrain = computeStrainComponents(75, 85, 75, null, 50)!
-    const withoutDrain = computeStrainComponents(75, 85, 75, null, null)!
-    expect(withDrain.total).toBeGreaterThanOrEqual(withoutDrain.total)
-    expect(withDrain.batteryDrainRawPts).toBeCloseTo(0.75, 2)
-  })
 })
 
 describe('computeDailyStrain', () => {

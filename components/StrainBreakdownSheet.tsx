@@ -2,17 +2,10 @@
 import { computeStrainComponents, strainLabel, STRAIN_WORKOUT_WEIGHT, STRAIN_LIFE_WEIGHT } from '@/lib/strain'
 import type { ICUWellness } from '@/types'
 
-interface LiveOverride {
-  batteryDrain: number | null
-  asOf: Date | null
-  isPostWake: boolean
-}
-
 interface Props {
   wellness: ICUWellness
   activitySummary?: string
   onClose: () => void
-  liveOverride?: LiveOverride
 }
 
 const BAND_BG: Record<string, string> = {
@@ -21,26 +14,17 @@ const BAND_BG: Record<string, string> = {
   high: 'bg-red-500',
 }
 
-export default function StrainBreakdownSheet({ wellness, activitySummary, onClose, liveOverride }: Props) {
-  // Derive isPostWake at render time so stale poll-time flag can't persist past midnight
-  const isPostWake = new Date().getHours() >= 8
-  const liveDrain = isPostWake ? (liveOverride?.batteryDrain ?? null) : null
-
+export default function StrainBreakdownSheet({ wellness, activitySummary, onClose }: Props) {
   const c = computeStrainComponents(
     wellness.garmin_training_load,
     wellness.sleep_score,
     wellness.body_battery_high,
     wellness.sleep_secs,
-    liveDrain,
   )
   if (!c) return null
 
   const totalStrain = c.total
   const label = strainLabel(totalStrain)
-
-  const asOfLabel = isPostWake && liveOverride?.asOf
-    ? liveOverride.asOf.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : null
 
   // Donut: use raw un-normalised pts as fractions of 21 for proportional arcs
   const d = 21
@@ -48,8 +32,7 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
   const sl = (c.sleepRawPts         / d) * 100
   const sd = (c.sleepDurationRawPts / d) * 100
   const b  = (c.batteryRawPts       / d) * 100
-  const dr = (c.batteryDrainRawPts  / d) * 100
-  const donut = `conic-gradient(#3b82f6 0% ${w}%, #8b5cf6 ${w}% ${w+sl}%, #a78bfa ${w+sl}% ${w+sl+sd}%, #10b981 ${w+sl+sd}% ${w+sl+sd+b}%, #f97316 ${w+sl+sd+b}% ${w+sl+sd+b+dr}%, #e2e8f0 ${w+sl+sd+b+dr}% 100%)`
+  const donut = `conic-gradient(#3b82f6 0% ${w}%, #8b5cf6 ${w}% ${w+sl}%, #a78bfa ${w+sl}% ${w+sl+sd}%, #10b981 ${w+sl+sd}% ${w+sl+sd+b}%, #e2e8f0 ${w+sl+sd+b}% 100%)`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -76,9 +59,6 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
                   {label.charAt(0).toUpperCase() + label.slice(1)}
                 </span>
               </div>
-              {asOfLabel && (
-                <p className="text-[10px] font-medium text-gray-400 mt-0.5">as of {asOfLabel}</p>
-              )}
             </div>
             {/* Donut ring */}
             <div
@@ -167,18 +147,6 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
                   <span className="text-xs text-gray-300">Body battery <em>not synced</em></span>
                 )}
               </div>
-              {/* Battery drain — only shown when live post-wake reading available */}
-              {isPostWake && liveOverride != null && liveOverride.batteryDrain !== null && (
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-orange-400" />
-                  <span className="text-xs text-gray-700">
-                    Battery drain{' '}
-                    <span className="text-gray-400">
-                      {liveOverride.batteryDrain === 0 ? 'no drain' : `${liveOverride.batteryDrain} pt drop`}
-                    </span>
-                  </span>
-                </div>
-              )}
             </div>
           </div>
 
