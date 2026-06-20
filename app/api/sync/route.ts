@@ -25,12 +25,14 @@ async function syncGarmin(
     return null
   }
 
+  console.log('[sync] garmin: fetching 4 signals for', todayStr)
   const [readiness, status, battery, stress] = await Promise.all([
     client.getTrainingReadiness(todayStr),
     client.getTrainingStatus(todayStr),
     client.getBodyBatteryCurrent(todayStr),
     client.getDailyStressAvg(todayStr),
   ])
+  console.log('[sync] garmin results:', { readiness, status, battery, stress })
 
   const row = {
     user_id: userId,
