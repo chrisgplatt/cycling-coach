@@ -1,6 +1,5 @@
 // Pure HRV baseline/status engine. No React, DOM, Anthropic, or Supabase imports —
 // runs identically on client (UI) and server (prompts), and is unit-testable.
-import type { ICUWellness } from '@/types'
 
 export type HrvStatusLabel = 'suppressed' | 'balanced' | 'elevated' | 'building' | 'no_data'
 export type HrvTrend = 'rising' | 'stable' | 'falling'
@@ -56,7 +55,7 @@ function empty(label: HrvStatusLabel, daysOfData: number): HrvStatus {
 }
 
 export function computeHrvBaseline(
-  wellness: ICUWellness[],
+  wellness: { id: string; hrv: number | null }[],
   opts: { asOf?: string } = {},
 ): HrvStatus {
   const sorted = [...wellness].sort((a, b) => a.id.localeCompare(b.id))
@@ -65,7 +64,7 @@ export function computeHrvBaseline(
   const start = new Date(startMs).toISOString().split('T')[0]
 
   const window = sorted.filter(w => w.id >= start && w.id <= asOf)
-  const readings = window.filter((w): w is ICUWellness & { hrv: number } => w.hrv !== null)
+  const readings = window.filter((w): w is { id: string; hrv: number } => w.hrv !== null)
   const values = readings.map(r => r.hrv)
   const daysOfData = values.length
 

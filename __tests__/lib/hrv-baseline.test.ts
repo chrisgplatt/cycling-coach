@@ -58,3 +58,13 @@ describe('computeHrvBaseline', () => {
     expect(s.baselineMean).toBeCloseTo(50, 0)
   })
 })
+
+test('accepts plain { id, hrv } objects (no ICUWellness)', () => {
+  const data = Array.from({ length: 30 }, (_, i) => ({
+    id: new Date(new Date('2026-06-01T00:00:00Z').getTime() - (29 - i) * 864e5).toISOString().split('T')[0],
+    hrv: 55 as number | null,
+  }))
+  const s = computeHrvBaseline(data, { asOf: '2026-06-01' })
+  expect(s.label).toBe('balanced')
+  expect(s.sufficient).toBe(true)
+})
