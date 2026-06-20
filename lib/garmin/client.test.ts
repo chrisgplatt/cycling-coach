@@ -174,3 +174,76 @@ describe('GarminClient.getDailyStress', () => {
     expect(result.max).toBeNull()
   })
 })
+
+describe('GarminClient.getSleepMetrics', () => {
+  it('returns all fields from a full sleep response', async () => {
+    const gc = makeMockGC({
+      getSleepData: jest.fn().mockResolvedValue({
+        avgOvernightHrv: 68.4,
+        hrvStatus: 'BALANCED',
+        restingHeartRate: 52,
+        bodyBatteryChange: 35,
+        dailySleepDTO: {
+          deepSleepSeconds: 6300,
+          lightSleepSeconds: 12120,
+          remSleepSeconds: 7800,
+          awakeSleepSeconds: 1260,
+          averageRespirationValue: 14.6,
+        },
+      }),
+    })
+    const client = await GarminClient.fromCredentials('a@b.com', 'p')
+    // @ts-expect-error
+    client['_gc'] = gc
+    const result = await client.getSleepMetrics('2026-06-20')
+    expect(result.overnightHrv).toBe(68)
+    expect(result.hrvGarminStatus).toBe('BALANCED')
+    expect(result.restingHr).toBe(52)
+    expect(result.deepSecs).toBe(6300)
+    expect(result.lightSecs).toBe(12120)
+    expect(result.remSecs).toBe(7800)
+    expect(result.awakeSecs).toBe(1260)
+    expect(result.respirationAvg).toBe(15)
+  })
+
+  it('returns all nulls when getSleepData throws', async () => {
+    const gc = makeMockGC({
+      getSleepData: jest.fn().mockRejectedValue(new Error('no data')),
+    })
+    const client = await GarminClient.fromCredentials('a@b.com', 'p')
+    // @ts-expect-error
+    client['_gc'] = gc
+    const result = await client.getSleepMetrics('2026-06-20')
+    expect(result.overnightHrv).toBeNull()
+    expect(result.restingHr).toBeNull()
+    expect(result.deepSecs).toBeNull()
+  })
+
+  it('returns nulls for missing HRV fields when dailySleepDTO is present', async () => {
+    const gc = makeMockGC({
+      getSleepData: jest.fn().mockResolvedValue({
+        dailySleepDTO: { deepSleepSeconds: 5400, lightSleepSeconds: 10800, remSleepSeconds: 6000, awakeSleepSeconds: 900, averageRespirationValue: 13 },
+        // avgOvernightHrv and hrvStatus absent
+      }),
+    })
+    const client = await GarminClient.fromCredentials('a@b.com', 'p')
+    // @ts-expect-error
+    client['_gc'] = gc
+    const result = await client.getSleepMetrics('2026-06-20')
+    expect(result.overnightHrv).toBeNull()
+    expect(result.hrvGarminStatus).toBeNull()
+    expect(result.deepSecs).toBe(5400)
+  })
+
+  it('returns nulls when getSleepData returns null', async () => {
+    const gc = makeMockGC({
+      getSleepData: jest.fn().mockResolvedValue(null),
+    })
+    const client = await GarminClient.fromCredentials('a@b.com', 'p')
+    // @ts-expect-error
+    client['_gc'] = gc
+    const result = await client.getSleepMetrics('2026-06-20')
+    expect(result.overnightHrv).toBeNull()
+    expect(result.deepSecs).toBeNull()
+  })
+})

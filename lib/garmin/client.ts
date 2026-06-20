@@ -1,5 +1,6 @@
 import { GarminConnect } from 'garmin-connect'
 import type { IGarminTokens } from 'garmin-connect/dist/garmin/types'
+import type { SleepData } from 'garmin-connect/dist/garmin/types/sleep'
 
 const GARMIN_API = 'https://connectapi.garmin.com'
 
@@ -17,6 +18,22 @@ export interface BodyBatteryData {
 export interface StressData {
   avg: number | null
   max: number | null
+}
+
+export interface SleepMetrics {
+  overnightHrv: number | null
+  hrvGarminStatus: string | null
+  restingHr: number | null
+  deepSecs: number | null
+  lightSecs: number | null
+  remSecs: number | null
+  awakeSecs: number | null
+  respirationAvg: number | null
+}
+
+const SLEEP_METRICS_NULL: SleepMetrics = {
+  overnightHrv: null, hrvGarminStatus: null, restingHr: null,
+  deepSecs: null, lightSecs: null, remSecs: null, awakeSecs: null, respirationAvg: null,
 }
 
 export class GarminClient {
@@ -100,6 +117,26 @@ export class GarminClient {
       return { avg, max }
     } catch {
       return { avg: null, max: null }
+    }
+  }
+
+  async getSleepMetrics(date: string): Promise<SleepMetrics> {
+    try {
+      const data = await this._gc.getSleepData(new Date(date)) as SleepData | null
+      if (!data) return SLEEP_METRICS_NULL
+      const dto = data.dailySleepDTO
+      return {
+        overnightHrv: typeof data.avgOvernightHrv === 'number' ? Math.round(data.avgOvernightHrv) : null,
+        hrvGarminStatus: typeof data.hrvStatus === 'string' && data.hrvStatus ? data.hrvStatus : null,
+        restingHr: typeof data.restingHeartRate === 'number' ? Math.round(data.restingHeartRate) : null,
+        deepSecs: typeof dto?.deepSleepSeconds === 'number' ? dto.deepSleepSeconds : null,
+        lightSecs: typeof dto?.lightSleepSeconds === 'number' ? dto.lightSleepSeconds : null,
+        remSecs: typeof dto?.remSleepSeconds === 'number' ? dto.remSleepSeconds : null,
+        awakeSecs: typeof dto?.awakeSleepSeconds === 'number' ? dto.awakeSleepSeconds : null,
+        respirationAvg: typeof dto?.averageRespirationValue === 'number' ? Math.round(dto.averageRespirationValue) : null,
+      }
+    } catch {
+      return SLEEP_METRICS_NULL
     }
   }
 }
