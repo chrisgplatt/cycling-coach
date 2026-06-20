@@ -26,13 +26,20 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
   const totalStrain = c.total
   const label = strainLabel(totalStrain)
 
+  // Derive battery drain and training readiness
+  const batteryDrain = (wellness.garmin_body_battery_current != null && wellness.body_battery_high != null)
+    ? Math.max(0, wellness.body_battery_high - wellness.garmin_body_battery_current)
+    : null
+  const trainingReadiness = wellness.garmin_training_readiness ?? null
+
   // Donut: use raw un-normalised pts as fractions of 21 for proportional arcs
   const d = 21
   const w  = (c.workoutPts          / d) * 100
   const sl = (c.sleepRawPts         / d) * 100
   const sd = (c.sleepDurationRawPts / d) * 100
   const b  = (c.batteryRawPts       / d) * 100
-  const donut = `conic-gradient(#3b82f6 0% ${w}%, #8b5cf6 ${w}% ${w+sl}%, #a78bfa ${w+sl}% ${w+sl+sd}%, #10b981 ${w+sl+sd}% ${w+sl+sd+b}%, #e2e8f0 ${w+sl+sd+b}% 100%)`
+  const dr = batteryDrain != null ? (Math.min(batteryDrain, 100) / 21) * 100 : 0
+  const donut = `conic-gradient(#3b82f6 0% ${w}%, #8b5cf6 ${w}% ${w+sl}%, #a78bfa ${w+sl}% ${w+sl+sd}%, #10b981 ${w+sl+sd}% ${w+sl+sd+b}%, #f97316 ${w+sl+sd+b}% ${Math.min(100, w+sl+sd+b+dr)}%, #e2e8f0 ${Math.min(100, w+sl+sd+b+dr)}% 100%)`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -147,6 +154,26 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
                   <span className="text-xs text-gray-300">Body battery <em>not synced</em></span>
                 )}
               </div>
+              {/* Battery drain (only when Garmin body battery current is available) */}
+              {batteryDrain != null && (
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-orange-400" />
+                  <span className="text-xs text-gray-700">
+                    Battery drain <span className="text-gray-400">
+                      {batteryDrain}% today ({wellness.body_battery_high}% → {wellness.garmin_body_battery_current}%)
+                    </span>
+                  </span>
+                </div>
+              )}
+              {/* Training Readiness (only when Garmin data available) */}
+              {trainingReadiness != null && (
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-sky-400" />
+                  <span className="text-xs text-gray-700">
+                    Training readiness <span className="text-gray-400">{trainingReadiness} / 100</span>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
