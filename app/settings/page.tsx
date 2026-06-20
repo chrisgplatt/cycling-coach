@@ -572,7 +572,7 @@ export default function SettingsPage() {
               {garminConnected && (
                 <button
                   onClick={disconnectGarmin}
-                  className="w-full text-xs text-red-500 hover:text-red-600 pt-1"
+                  className="w-full py-3 text-xs text-red-500 hover:text-red-600"
                 >
                   Disconnect Garmin
                 </button>
