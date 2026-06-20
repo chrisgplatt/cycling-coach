@@ -30,7 +30,7 @@ export async function GET() {
   if (!res.ok) return NextResponse.json({ error: `intervals.icu returned ${res.status}` }, { status: 502 })
 
   const raw = await res.json()
-  const w = Array.isArray(raw) ? (raw[0] ?? null) : null
+  const w = Array.isArray(raw) ? (raw.find((item: Record<string, unknown>) => item.id === today) ?? null) : null
 
   if (!w) return NextResponse.json({ today: null })
 
