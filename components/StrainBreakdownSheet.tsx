@@ -34,6 +34,11 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
   const trainingReadiness = wellness.garmin_training_readiness ?? null
   const recoveryTimeMins = wellness.garmin_recovery_time_mins ?? null
 
+  const deepSecs = wellness.garmin_sleep_deep_secs ?? null
+  const lightSecs = wellness.garmin_sleep_light_secs ?? null
+  const remSecs = wellness.garmin_sleep_rem_secs ?? null
+  const awakeSecs = wellness.garmin_sleep_awake_secs ?? null
+
   const d = 21
   const w  = (c.workoutPts          / d) * 100
   const sl = (c.sleepRawPts         / d) * 100
@@ -145,6 +150,21 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
                   <span className="text-xs text-gray-300">Sleep duration <em>not synced</em></span>
                 )}
               </div>
+              {/* Sleep stages (Garmin) */}
+              {deepSecs != null && (
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-violet-200" />
+                  <span className="text-xs text-gray-700">
+                    Sleep stages{' '}
+                    <span className="text-gray-400">
+                      {Math.round(deepSecs / 60)}m deep
+                      {remSecs != null && ` · ${Math.round(remSecs / 60)}m REM`}
+                      {lightSecs != null && ` · ${Math.round(lightSecs / 60)}m light`}
+                      {awakeSecs != null && ` · ${Math.round(awakeSecs / 60)}m awake`}
+                    </span>
+                  </span>
+                </div>
+              )}
               {/* Body battery peak */}
               <div className="flex items-center gap-2">
                 <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.bodyBatteryHigh != null ? 'bg-emerald-400' : 'bg-gray-200'}`} />
