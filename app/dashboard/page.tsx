@@ -42,7 +42,6 @@ import ProgressStats from '@/components/ProgressStats'
 import WellnessCard from '@/components/WellnessCard'
 import WellnessSheet from '@/components/WellnessSheet'
 import type { DailyWellness } from '@/types'
-import { useIntradayWellness } from '@/hooks/useIntradayWellness'
 
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
@@ -116,8 +115,7 @@ export default function DashboardPage() {
   const [syncVersion, setSyncVersion] = useState(0)
   const [dailyWellness, setDailyWellness] = useState<DailyWellness[]>([])
   const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
-
-  const intradayWellness = useIntradayWellness()
+  const [intradayWellness, setIntradayWellness] = useState<{ batteryDrain: number | null; asOf: Date | null; isPostWake: boolean } | undefined>(undefined)
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -145,6 +143,19 @@ export default function DashboardPage() {
     if (data.athlete_id) setAthleteId(data.athlete_id)
   }
 
+  async function fetchIntradayWellness() {
+    try {
+      const res = await fetch('/api/wellness/today')
+      if (!res.ok) return
+      const { today } = await res.json()
+      if (!today) return
+      const max: number | null = today.bodyBatteryMax
+      const min: number | null = today.bodyBatteryMin
+      const batteryDrain = (max != null && min != null) ? Math.max(0, max - min) : null
+      setIntradayWellness({ batteryDrain, asOf: new Date(), isPostWake: false })
+    } catch { /* silent — non-critical */ }
+  }
+
   async function doSync() {
     setSyncing(true)
     try {
@@ -162,6 +173,7 @@ export default function DashboardPage() {
     } finally {
       setSyncing(false)
     }
+    await fetchIntradayWellness()
   }
 
   async function loadPlan() {
@@ -311,6 +323,7 @@ export default function DashboardPage() {
       }
     } catch { /* ignore cache errors */ }
     if (needsSync) doSync()
+    else fetchIntradayWellness()
     loadPlan()
     fetch('/api/profile').then(r => r.json()).then(data => {
       const name: string = data?.full_name ?? ''
