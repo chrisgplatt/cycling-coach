@@ -374,7 +374,15 @@ export default function DashboardPage() {
   const todayStr = localDateStr(new Date())
   const todayActivityLoad = computeDailyActivityLoad(syncData?.activities ?? [], todayStr, currentFTP)
   const latestWellnessWithLoad: ICUWellness | null = latestWellness
-    ? { ...latestWellness, garmin_training_load: todayActivityLoad > 0 ? todayActivityLoad : null }
+    ? {
+        ...latestWellness,
+        garmin_training_load: todayActivityLoad > 0 ? todayActivityLoad : null,
+        // Merge Garmin data from today's sync if available
+        garmin_training_readiness: syncData?.garmin_today?.garmin_training_readiness ?? latestWellness.garmin_training_readiness,
+        garmin_training_status: syncData?.garmin_today?.garmin_training_status ?? latestWellness.garmin_training_status,
+        garmin_body_battery_current: syncData?.garmin_today?.garmin_body_battery_current ?? latestWellness.garmin_body_battery_current,
+        garmin_stress_avg_direct: syncData?.garmin_today?.garmin_stress_avg ?? latestWellness.garmin_stress_avg_direct,
+      }
     : null
   const todayActivities = (syncData?.activities ?? []).filter((a: ICUActivity) =>
     a.start_date_local.startsWith(todayStr)
