@@ -61,6 +61,14 @@ async function syncGarmin(
     garmin_body_battery_drained: batteryData.drained,
     garmin_stress_avg: stressData.avg,
     garmin_stress_max: stressData.max,
+    garmin_hrv_overnight: null,
+    garmin_hrv_status: null,
+    garmin_resting_hr: null,
+    garmin_sleep_deep_secs: null,
+    garmin_sleep_light_secs: null,
+    garmin_sleep_rem_secs: null,
+    garmin_sleep_awake_secs: null,
+    garmin_sleep_respiration_avg: null,
   }
 }
 

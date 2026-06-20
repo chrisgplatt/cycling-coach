@@ -282,6 +282,15 @@ export interface ICUWellness {
   garmin_body_battery_drained?: number | null
   garmin_stress_avg_direct?: number | null
   garmin_stress_max?: number | null
+  // Sleep/HRV data (from getSleepMetrics)
+  garmin_hrv_overnight?: number | null
+  garmin_hrv_status?: string | null
+  garmin_resting_hr?: number | null
+  garmin_sleep_deep_secs?: number | null
+  garmin_sleep_light_secs?: number | null
+  garmin_sleep_rem_secs?: number | null
+  garmin_sleep_awake_secs?: number | null
+  garmin_sleep_respiration_avg?: number | null
 }
 
 export interface GarminWellness {
@@ -294,6 +303,15 @@ export interface GarminWellness {
   garmin_body_battery_drained: number | null // drained by today's activity
   garmin_stress_avg: number | null
   garmin_stress_max: number | null           // peak stress of the day
+  // Sleep data (from getSleepMetrics)
+  garmin_hrv_overnight: number | null
+  garmin_hrv_status: string | null
+  garmin_resting_hr: number | null
+  garmin_sleep_deep_secs: number | null
+  garmin_sleep_light_secs: number | null
+  garmin_sleep_rem_secs: number | null
+  garmin_sleep_awake_secs: number | null
+  garmin_sleep_respiration_avg: number | null
 }
 
 export interface ICUEvent {
@@ -587,6 +605,11 @@ export interface BriefingContext {
   garminBodyBatteryDrained?: number | null
   garminStressAvg?: number | null
   garminStressMax?: number | null
+  garminRestingHr?: number | null
+  garminSleepDeepSecs?: number | null
+  garminSleepLightSecs?: number | null
+  garminSleepRemSecs?: number | null
+  garminSleepRespirationAvg?: number | null
   dossier?: {
     synthesized_at: string
     content: {
