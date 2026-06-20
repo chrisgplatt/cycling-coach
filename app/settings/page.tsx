@@ -55,6 +55,14 @@ export default function SettingsPage() {
   const [editingName, setEditingName] = useState(false)
   const [editingBriefing, setEditingBriefing] = useState(false)
   const [editingLocation, setEditingLocation] = useState(false)
+  const [garminEmail, setGarminEmail] = useState('')
+  const [savedGarminEmail, setSavedGarminEmail] = useState('')
+  const [garminPassword, setGarminPassword] = useState('')
+  const [garminConnected, setGarminConnected] = useState(false)
+  const [garminConnecting, setGarminConnecting] = useState(false)
+  const [garminError, setGarminError] = useState<string | null>(null)
+  const [garminSuccess, setGarminSuccess] = useState(false)
+  const [editingGarmin, setEditingGarmin] = useState(false)
 
   const inputClass = "w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   const labelClass = "text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5"
@@ -94,6 +102,9 @@ export default function SettingsPage() {
         const lng = typeof data.longitude === 'number' ? data.longitude : null
         setLatitude(lat); setSavedLatitude(lat)
         setLongitude(lng); setSavedLongitude(lng)
+        const ge = data.garmin_email ?? ''
+        setGarminEmail(ge); setSavedGarminEmail(ge)
+        setGarminConnected(!!ge)
       })
       .catch(() => {})
   }, [])
@@ -134,6 +145,65 @@ export default function SettingsPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function connectGarmin() {
+    if (!garminEmail.trim() || !garminPassword.trim()) return
+    setGarminConnecting(true)
+    setGarminError(null)
+    setGarminSuccess(false)
+    try {
+      const verifyRes = await fetch('/api/garmin/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: garminEmail.trim(), password: garminPassword }),
+      })
+      const verifyData = await verifyRes.json() as { ok: boolean; error?: string }
+      if (!verifyData.ok) {
+        setGarminError(verifyData.error ?? 'Verification failed')
+        return
+      }
+      // Save credentials and clear cached OAuth token
+      const saveRes = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          garmin_email: garminEmail.trim(),
+          garmin_password: garminPassword,
+          garmin_oauth_token: null,  // clear cached token so next sync does fresh SSO
+        }),
+      })
+      if (!saveRes.ok) {
+        const d = await saveRes.json().catch(() => ({})) as { error?: string }
+        setGarminError(d.error ?? 'Save failed')
+        return
+      }
+      setSavedGarminEmail(garminEmail.trim())
+      setGarminConnected(true)
+      setGarminPassword('')
+      setGarminSuccess(true)
+      setEditingGarmin(false)
+      setTimeout(() => setGarminSuccess(false), 3000)
+    } catch {
+      setGarminError('Network error')
+    } finally {
+      setGarminConnecting(false)
+    }
+  }
+
+  async function disconnectGarmin() {
+    try {
+      await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ garmin_email: null, garmin_password: null, garmin_oauth_token: null }),
+      })
+      setGarminEmail('')
+      setSavedGarminEmail('')
+      setGarminPassword('')
+      setGarminConnected(false)
+      setEditingGarmin(false)
+    } catch { /* ignore */ }
   }
 
   async function searchLocation() {
@@ -425,6 +495,97 @@ export default function SettingsPage() {
           </p>
         </div>
       </section>
+
+      {/* Garmin Connect */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Garmin Connect</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {garminConnected
+                ? `Connected as ${savedGarminEmail}`
+                : 'Connect for training readiness, training status & live body battery'}
+            </p>
+          </div>
+          {garminConnected && !editingGarmin && (
+            <button
+              onClick={() => setEditingGarmin(true)}
+              className="text-xs font-medium text-blue-600 hover:text-blue-700"
+            >
+              Change
+            </button>
+          )}
+        </div>
+        <div className="px-4 py-4">
+          {garminSuccess && (
+            <p className="text-xs text-emerald-600 font-medium mb-3">Garmin Connect linked successfully.</p>
+          )}
+          {(editingGarmin || !garminConnected) ? (
+            <div className="space-y-3">
+              <div>
+                <label className={labelClass}>Garmin email</label>
+                <input
+                  type="email"
+                  value={garminEmail}
+                  onChange={e => setGarminEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className={inputClass}
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Password</label>
+                <input
+                  type="password"
+                  value={garminPassword}
+                  onChange={e => setGarminPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className={inputClass}
+                  autoComplete="current-password"
+                />
+              </div>
+              {garminError && (
+                <p className="text-xs text-red-500">{garminError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={connectGarmin}
+                  disabled={garminConnecting || !garminEmail.trim() || !garminPassword.trim()}
+                  className="flex-1 py-2.5 text-sm font-semibold rounded-lg bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {garminConnecting ? 'Connecting…' : 'Connect'}
+                </button>
+                {(editingGarmin || garminConnected) && (
+                  <button
+                    onClick={() => {
+                      setEditingGarmin(false)
+                      setGarminEmail(savedGarminEmail)
+                      setGarminPassword('')
+                      setGarminError(null)
+                    }}
+                    className="py-2.5 px-4 text-sm font-medium text-gray-500 rounded-lg border border-gray-200"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+              {garminConnected && (
+                <button
+                  onClick={disconnectGarmin}
+                  className="w-full text-xs text-red-500 hover:text-red-600 pt-1"
+                >
+                  Disconnect Garmin
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+              <p className="text-sm text-gray-700">Syncs on each Sync tap</p>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Name */}
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-3">
