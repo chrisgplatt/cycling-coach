@@ -50,7 +50,7 @@ describe('MetricsBar strain trend tooltip', () => {
     const tooltip = screen.getByTestId('strain-tooltip')
     expect(tooltip).toHaveTextContent('Sleep 72/100')
     expect(tooltip).toHaveTextContent('Duration 7.2h')
-    expect(tooltip).toHaveTextContent('Battery 68%')
+    expect(tooltip).toHaveTextContent('Peak battery 68%')
     expect(tooltip).toHaveTextContent('45 TSS')
     expect(tooltip).toHaveTextContent('Total 11/21')
   })
