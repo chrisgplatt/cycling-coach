@@ -6,7 +6,7 @@ import { sendPush } from '@/lib/push'
 import { sendBriefingEmail } from '@/lib/email'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
-import { fetchHrvStatus } from '@/lib/hrv/server'
+import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import type { Workout, TrainingEvent, BriefingContext } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
 
   const { data: profiles, error: profilesError } = await supabase
     .from('user_profile')
-    .select('user_id, intervals_icu_athlete_id, intervals_icu_api_key, events, unavailability, notification_time, timezone, latitude, longitude')
+    .select('user_id, intervals_icu_athlete_id, intervals_icu_api_key, events, unavailability, notification_time, timezone, latitude, longitude, garmin_email')
     .eq('notifications_enabled', true)
 
   if (profilesError) {
@@ -140,7 +140,8 @@ export async function GET(req: NextRequest) {
 
     if (profile.intervals_icu_athlete_id && profile.intervals_icu_api_key) {
       const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
-      hrvStatus = await fetchHrvStatus(client, today).catch(() => null)
+      const garminParams = profile.garmin_email ? { supabase, userId: profile.user_id } : null
+      hrvStatus = await fetchHrvStatusBestSource(today, garminParams, client).catch(() => null)
       try {
         const sevenDaysAgo = new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0]
         const [wellness, activities] = await Promise.all([

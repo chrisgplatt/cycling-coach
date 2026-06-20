@@ -6,7 +6,7 @@ import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { ICUWellness, UserProfile } from '@/types'
-import { fetchHrvStatus } from '@/lib/hrv/server'
+import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { IntervalsClient } from '@/lib/intervals/client'
 
 export async function POST(req: NextRequest) {
@@ -38,13 +38,16 @@ export async function POST(req: NextRequest) {
 
   const hrvToday = new Date().toISOString().split('T')[0]
   let hrvStatus = null
-  if ((profile as unknown as UserProfile).intervals_icu_athlete_id && (profile as unknown as UserProfile).intervals_icu_api_key) {
-    const hrvClient = new IntervalsClient(
-      (profile as unknown as UserProfile).intervals_icu_athlete_id!,
-      (profile as unknown as UserProfile).intervals_icu_api_key!,
-    )
-    try { hrvStatus = await fetchHrvStatus(hrvClient, hrvToday) } catch { /* optional */ }
-  }
+  const garminParams = (profile as unknown as UserProfile).garmin_email
+    ? { supabase, userId: user.id }
+    : null
+  const icuClient = (profile as unknown as UserProfile).intervals_icu_athlete_id && (profile as unknown as UserProfile).intervals_icu_api_key
+    ? new IntervalsClient(
+        (profile as unknown as UserProfile).intervals_icu_athlete_id!,
+        (profile as unknown as UserProfile).intervals_icu_api_key!,
+      )
+    : null
+  try { hrvStatus = await fetchHrvStatusBestSource(hrvToday, garminParams, icuClient) } catch { /* optional */ }
 
   const systemPrompt = buildInterviewSystemPrompt(
     profile as unknown as UserProfile,

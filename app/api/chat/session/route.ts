@@ -6,7 +6,7 @@ import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { formatDossier, fetchDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
-import { fetchHrvStatus } from '@/lib/hrv/server'
+import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { IntervalsClient } from '@/lib/intervals/client'
 
 export async function POST(req: NextRequest) {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       .gt('date', new Date().toISOString().split('T')[0])
       .lte('date', new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0])
       .order('date'),
-    supabase.from('user_profile').select('current_ftp, events, intervals_icu_athlete_id, intervals_icu_api_key').maybeSingle(),
+    supabase.from('user_profile').select('current_ftp, events, intervals_icu_athlete_id, intervals_icu_api_key, garmin_email').maybeSingle(),
     fetchDossier(supabase, user.id),
   ])
 
@@ -59,11 +59,12 @@ export async function POST(req: NextRequest) {
 
   const hrvToday = new Date().toISOString().split('T')[0]
   let hrvStatus = null
-  const sessionProfile = profile as { current_ftp?: number; events?: TrainingEvent[]; intervals_icu_athlete_id?: string; intervals_icu_api_key?: string } | null
-  if (sessionProfile?.intervals_icu_athlete_id && sessionProfile?.intervals_icu_api_key) {
-    const hrvClient = new IntervalsClient(sessionProfile.intervals_icu_athlete_id, sessionProfile.intervals_icu_api_key)
-    try { hrvStatus = await fetchHrvStatus(hrvClient, hrvToday) } catch { /* optional */ }
-  }
+  const sessionProfile = profile as { current_ftp?: number; events?: TrainingEvent[]; intervals_icu_athlete_id?: string; intervals_icu_api_key?: string; garmin_email?: string } | null
+  const garminParams = sessionProfile?.garmin_email ? { supabase, userId: user.id } : null
+  const icuClient = sessionProfile?.intervals_icu_athlete_id && sessionProfile?.intervals_icu_api_key
+    ? new IntervalsClient(sessionProfile.intervals_icu_athlete_id, sessionProfile.intervals_icu_api_key)
+    : null
+  try { hrvStatus = await fetchHrvStatusBestSource(hrvToday, garminParams, icuClient) } catch { /* optional */ }
 
   const systemPrompt = buildSessionSystemPrompt(
     workout as Workout,

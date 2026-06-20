@@ -4,7 +4,7 @@ import { generateBriefing } from '@/lib/claude/briefing'
 import { fetchDossier } from '@/lib/claude/dossier'
 import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import { IntervalsClient } from '@/lib/intervals/client'
-import { fetchHrvStatus } from '@/lib/hrv/server'
+import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { computeDailyStrain, computeDailyActivityLoad, computeDailyLifeLoad } from '@/lib/strain'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness, DailyWellness, GarminWellness } from '@/types'
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch profile first so we can compute the user's local date from their stored timezone
   const { data: profile } = await supabase.from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key, events, timezone, latitude, longitude')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, events, timezone, latitude, longitude, garmin_email')
     .maybeSingle()
 
   const tz = (profile as { timezone?: string } | null)?.timezone ?? 'Europe/London'
@@ -92,7 +92,8 @@ export async function GET(req: NextRequest) {
 
   if (profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
     const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
-    try { hrvStatus = await fetchHrvStatus(client, today) } catch { /* HRV optional */ }
+    const garminParams = profile?.garmin_email ? { supabase, userId: user.id } : null
+    try { hrvStatus = await fetchHrvStatusBestSource(today, garminParams, client) } catch { /* HRV optional */ }
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0]
       const [wellness, activities] = await Promise.all([

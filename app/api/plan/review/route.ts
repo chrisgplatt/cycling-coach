@@ -4,7 +4,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { createReviewStream, parsePlanText } from '@/lib/claude/review'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
-import { fetchHrvStatus } from '@/lib/hrv/server'
+import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { isoWeek } from '@/lib/iso-week'
 import type { GeneratedPlan, ICUActivity, Workout, TrainingPhilosophy } from '@/types'
 
@@ -66,7 +66,8 @@ export async function POST(req: NextRequest) {
     ])
   } catch { /* proceed without live data */ }
 
-  const hrvStatus = await fetchHrvStatus(client, today).catch(() => null)
+  const garminParams = profile?.garmin_email ? { supabase, userId: user.id } : null
+  const hrvStatus = await fetchHrvStatusBestSource(today, garminParams, client).catch(() => null)
 
   let messageStream
   try {

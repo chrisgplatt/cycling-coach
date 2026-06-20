@@ -5,7 +5,7 @@ import { createPlanStream, parsePlanText, countPlannedWorkouts } from '@/lib/cla
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import type { AthleteDossier } from '@/lib/claude/dossier'
-import { fetchHrvStatus } from '@/lib/hrv/server'
+import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import type { GeneratedPlan, TrainingPhilosophy } from '@/types'
 
 export async function GET() {
@@ -62,10 +62,11 @@ export async function POST(req: NextRequest) {
 
   const hrvToday = new Date().toISOString().split('T')[0]
   let hrvStatus = null
-  if (profileData?.intervals_icu_athlete_id && profileData?.intervals_icu_api_key) {
-    const hrvClient = new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
-    try { hrvStatus = await fetchHrvStatus(hrvClient, hrvToday) } catch { /* optional */ }
-  }
+  const garminParams = profileData?.garmin_email ? { supabase, userId: user.id } : null
+  const icuClient = profileData?.intervals_icu_athlete_id && profileData?.intervals_icu_api_key
+    ? new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
+    : null
+  try { hrvStatus = await fetchHrvStatusBestSource(hrvToday, garminParams, icuClient) } catch { /* optional */ }
 
   let messageStream
   try {

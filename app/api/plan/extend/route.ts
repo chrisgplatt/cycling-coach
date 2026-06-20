@@ -5,7 +5,7 @@ import { createExtendStream, parsePlanText, countPlannedWorkouts } from '@/lib/c
 import { computeMethodology } from '@/lib/claude/methodology'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
-import { fetchHrvStatus } from '@/lib/hrv/server'
+import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { GeneratedPlan, TrainingPhilosophy } from '@/types'
 
@@ -91,10 +91,11 @@ export async function POST(req: NextRequest) {
   ])
 
   let hrvStatus = null
-  if (profileData.intervals_icu_athlete_id && profileData.intervals_icu_api_key) {
-    const hrvClient = new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
-    try { hrvStatus = await fetchHrvStatus(hrvClient, today) } catch { /* optional */ }
-  }
+  const garminParams = profileData.garmin_email ? { supabase, userId: user.id } : null
+  const icuClient = profileData.intervals_icu_athlete_id && profileData.intervals_icu_api_key
+    ? new IntervalsClient(profileData.intervals_icu_athlete_id, profileData.intervals_icu_api_key)
+    : null
+  try { hrvStatus = await fetchHrvStatusBestSource(today, garminParams, icuClient) } catch { /* optional */ }
 
   // Critical 3: Wrap createExtendStream in try/catch before any mutations
   let messageStream

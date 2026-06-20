@@ -53,6 +53,7 @@ export interface UserProfile {
   weight_kg: number
   intervals_icu_athlete_id: string
   intervals_icu_api_key: string
+  garmin_email?: string
   updated_at?: string
   notifications_enabled?: boolean
   notification_time?: string       // HH:MM 24h, e.g. "07:00"

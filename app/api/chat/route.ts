@@ -6,7 +6,7 @@ import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { buildChatSystemPrompt } from '@/lib/claude/chat'
 import { loadCoachMemory } from '@/lib/claude/coach-memory'
-import { fetchHrvStatus } from '@/lib/hrv/server'
+import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { IntervalsClient } from '@/lib/intervals/client'
 
 export async function POST(req: NextRequest) {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       .gte('date', new Date().toISOString().split('T')[0])
       .lte('date', new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0])
       .order('date'),
-    supabase.from('user_profile').select('events, intervals_icu_athlete_id, intervals_icu_api_key').maybeSingle(),
+    supabase.from('user_profile').select('events, intervals_icu_athlete_id, intervals_icu_api_key, garmin_email').maybeSingle(),
     fetchDossier(supabase, user.id),
     supabase.from('workouts')
       .select('date, type, duration_minutes, steps, activity_metrics')
@@ -72,11 +72,12 @@ export async function POST(req: NextRequest) {
 
   const hrvToday = new Date().toISOString().split('T')[0]
   let hrvStatus = null
-  const chatProfile = profileData as { events?: TrainingEvent[]; intervals_icu_athlete_id?: string; intervals_icu_api_key?: string } | null
-  if (chatProfile?.intervals_icu_athlete_id && chatProfile?.intervals_icu_api_key) {
-    const hrvClient = new IntervalsClient(chatProfile.intervals_icu_athlete_id, chatProfile.intervals_icu_api_key)
-    try { hrvStatus = await fetchHrvStatus(hrvClient, hrvToday) } catch { /* optional */ }
-  }
+  const chatProfile = profileData as { events?: TrainingEvent[]; intervals_icu_athlete_id?: string; intervals_icu_api_key?: string; garmin_email?: string } | null
+  const garminParams = chatProfile?.garmin_email ? { supabase, userId: user.id } : null
+  const icuClient = chatProfile?.intervals_icu_athlete_id && chatProfile?.intervals_icu_api_key
+    ? new IntervalsClient(chatProfile.intervals_icu_athlete_id, chatProfile.intervals_icu_api_key)
+    : null
+  try { hrvStatus = await fetchHrvStatusBestSource(hrvToday, garminParams, icuClient) } catch { /* optional */ }
 
   const systemPrompt = buildChatSystemPrompt(
     plan as TrainingPlan | null,
