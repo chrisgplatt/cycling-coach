@@ -304,14 +304,14 @@ export interface GarminWellness {
   garmin_stress_avg: number | null
   garmin_stress_max: number | null           // peak stress of the day
   // Sleep data (from getSleepMetrics)
-  garmin_hrv_overnight: number | null
-  garmin_hrv_status: string | null
-  garmin_resting_hr: number | null
-  garmin_sleep_deep_secs: number | null
-  garmin_sleep_light_secs: number | null
-  garmin_sleep_rem_secs: number | null
-  garmin_sleep_awake_secs: number | null
-  garmin_sleep_respiration_avg: number | null
+  garmin_hrv_overnight?: number | null
+  garmin_hrv_status?: string | null
+  garmin_resting_hr?: number | null
+  garmin_sleep_deep_secs?: number | null
+  garmin_sleep_light_secs?: number | null
+  garmin_sleep_rem_secs?: number | null
+  garmin_sleep_awake_secs?: number | null
+  garmin_sleep_respiration_avg?: number | null
 }
 
 export interface ICUEvent {
