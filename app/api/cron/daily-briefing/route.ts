@@ -140,8 +140,6 @@ export async function GET(req: NextRequest) {
 
     if (profile.intervals_icu_athlete_id && profile.intervals_icu_api_key) {
       const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
-      const garminParams = profile.garmin_email ? { supabase, userId: profile.user_id } : null
-      hrvStatus = await fetchHrvStatusBestSource(today, garminParams, client).catch(() => null)
       try {
         const sevenDaysAgo = new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0]
         const [wellness, activities] = await Promise.all([
@@ -171,6 +169,15 @@ export async function GET(req: NextRequest) {
     } else {
       console.log(`[cron] user ${profile.user_id}: no ICU credentials, skipping fitness data`)
     }
+
+    // HRV — Garmin-first, ICU fallback (runs regardless of ICU credential presence)
+    const garminParams = profile.garmin_email ? { supabase, userId: profile.user_id } : null
+    const icuClient = profile.intervals_icu_athlete_id && profile.intervals_icu_api_key
+      ? new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
+      : null
+    try {
+      hrvStatus = await fetchHrvStatusBestSource(today, garminParams, icuClient)
+    } catch { /* HRV optional */ }
 
     const activeUnavailability = ((profile.unavailability ?? []) as Array<{ type: string; start_date: string; end_date: string; notes?: string }>)
       .filter(u => u.start_date <= today && u.end_date >= today)
