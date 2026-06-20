@@ -147,11 +147,8 @@ export async function POST(req: Request) {
 
     // Garmin sync (sequential after intervals.icu, non-fatal)
     let garmin_today: GarminWellness | null = null
-    let garmin_debug: Record<string, unknown> | null = null
     if (profile.garmin_email && profile.garmin_password) {
       try {
-        const client = await GarminClient.fromCredentials(profile.garmin_email, profile.garmin_password)
-        garmin_debug = await client.debugRaw(todayStr)
         garmin_today = await syncGarmin(
           supabase,
           user.id,
@@ -170,7 +167,6 @@ export async function POST(req: Request) {
       athlete_id: profile.intervals_icu_athlete_id,
       backfill,
       ...(garmin_today ? { garmin_today } : {}),
-      ...(garmin_debug ? { garmin_debug } : {}),
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Sync failed'
