@@ -162,6 +162,13 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<BriefingRe
     ? formatWellnessForPrompt(ctx.recentWellness.slice(-3))
     : null
 
+  const garminLines: string[] = []
+  if (ctx.garminTrainingReadiness != null) garminLines.push(`Training Readiness: ${ctx.garminTrainingReadiness}/100`)
+  if (ctx.garminTrainingStatus) garminLines.push(`Training Status: ${ctx.garminTrainingStatus}`)
+  if (ctx.garminBodyBatteryCurrent != null) garminLines.push(`Body Battery: ${ctx.garminBodyBatteryCurrent}%`)
+  if (ctx.garminStressAvg != null) garminLines.push(`Stress avg: ${ctx.garminStressAvg}/100`)
+  const garminLine = garminLines.length ? garminLines.join(', ') : null
+
   const prompt = `Today's date: ${labelDate(ctx.today)}
 Today's plan: ${sessionLine}
 Training load: ${buildLoadString(ctx)}
@@ -170,7 +177,7 @@ Upcoming events: ${buildEventsString(ctx)}
 ${phaseContext ? phaseContext + '\n' : ''}${weatherLine ? weatherLine + '\n' : ''}${unavailLine ? `Current unavailability: ${unavailLine}` : ''}
 ${dossierLines.length ? '\nAthlete context:\n' + dossierLines.join('\n') : ''}
 ${ctx.athleteModel ? '\n' + ctx.athleteModel : ''}
-${wellnessLine ? '\n' + wellnessLine : ''}
+${wellnessLine ? '\n' + wellnessLine : ''}${garminLine ? '\nGarmin: ' + garminLine : ''}
 Write the morning briefing. Respond ONLY with a JSON object: {"verdict":"green|amber|red","headline":"<=4 words","note":"<the briefing prose>"}`
 
   const raw = await callClaude(SYSTEM_MORNING, prompt)

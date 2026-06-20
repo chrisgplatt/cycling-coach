@@ -7,7 +7,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatus } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { computeDailyStrain, computeDailyActivityLoad, computeDailyLifeLoad } from '@/lib/strain'
-import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness, DailyWellness } from '@/types'
+import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness, DailyWellness, GarminWellness } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -200,13 +200,22 @@ export async function GET(req: NextRequest) {
   }
 
   const twoDaysAgo = new Date(Date.now() - 2 * 864e5).toISOString().split('T')[0]
-  const { data: wellnessRows } = await supabase
-    .from('daily_wellness')
-    .select('*')
-    .eq('user_id', user.id)
-    .gte('date', twoDaysAgo)
-    .lte('date', today)
-    .order('date', { ascending: true })
+  const [{ data: wellnessRows }, { data: garminRow }] = await Promise.all([
+    supabase
+      .from('daily_wellness')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', twoDaysAgo)
+      .lte('date', today)
+      .order('date', { ascending: true }),
+    supabase
+      .from('garmin_wellness')
+      .select('garmin_training_readiness, garmin_training_status, garmin_body_battery_current, garmin_stress_avg')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .maybeSingle(),
+  ])
+  const todayGarmin = garminRow as Pick<GarminWellness, 'garmin_training_readiness' | 'garmin_training_status' | 'garmin_body_battery_current' | 'garmin_stress_avg'> | null
 
   const ctx: BriefingContext = {
     today,
@@ -233,6 +242,10 @@ export async function GET(req: NextRequest) {
     currentPhase: currentPhaseFromPlan,
     currentPhaseWeek,
     recentWellness: (wellnessRows ?? []) as DailyWellness[],
+    garminTrainingReadiness: todayGarmin?.garmin_training_readiness ?? null,
+    garminTrainingStatus: todayGarmin?.garmin_training_status ?? null,
+    garminBodyBatteryCurrent: todayGarmin?.garmin_body_battery_current ?? null,
+    garminStressAvg: todayGarmin?.garmin_stress_avg ?? null,
   }
 
   const { coach_note, verdict, headline } = await generateBriefing(ctx)

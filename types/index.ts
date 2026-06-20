@@ -565,6 +565,11 @@ export interface BriefingContext {
   activeUnavailability?: Array<{ type: string; end_date: string; notes?: string }>
   today: string  // YYYY-MM-DD in user's local timezone
   weather?: WeatherSummary | null
+  // Garmin Connect signals (all optional — absent when Garmin not connected)
+  garminTrainingReadiness?: number | null
+  garminTrainingStatus?: string | null
+  garminBodyBatteryCurrent?: number | null
+  garminStressAvg?: number | null
   dossier?: {
     synthesized_at: string
     content: {
