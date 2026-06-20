@@ -273,6 +273,19 @@ export interface ICUWellness {
   stress_high: number | null
   garmin_training_load: number | null
   sleep_score: number | null
+  // Direct Garmin Connect fields (populated when user connects Garmin in settings)
+  garmin_training_readiness?: number | null
+  garmin_training_status?: string | null
+  garmin_body_battery_current?: number | null
+  garmin_stress_avg_direct?: number | null  // renamed to avoid clash with intervals.icu stress_avg
+}
+
+export interface GarminWellness {
+  date: string                        // YYYY-MM-DD
+  garmin_training_readiness: number | null   // 0–100
+  garmin_training_status: string | null      // PEAKING | MAINTAINING | UNPRODUCTIVE | OVERREACHING | DETRAINING
+  garmin_body_battery_current: number | null // 0–100
+  garmin_stress_avg: number | null           // 0–100
 }
 
 export interface ICUEvent {
@@ -288,6 +301,7 @@ export interface ICUSyncData {
   athlete_ftp: number | null
   athlete_weight: number | null
   athlete_id?: string  // added by /api/sync route, not by IntervalsClient
+  garmin_today?: GarminWellness  // null when Garmin not configured or sync failed
 }
 
 export interface CrossTrainingGroup {
