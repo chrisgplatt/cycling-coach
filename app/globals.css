@@ -39,6 +39,16 @@ main {
   100% { transform: translateX(0); opacity: 1; }
 }
 
+/* Sync button: bike logo enters from left, exits to right. */
+@keyframes sync-bike-enter {
+  from { transform: translateX(-200%); }
+  to   { transform: translateX(0); }
+}
+@keyframes sync-bike-exit {
+  from { transform: translateX(0); }
+  to   { transform: translateX(300%); }
+}
+
 @keyframes splash-fade-up {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

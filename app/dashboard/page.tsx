@@ -86,6 +86,9 @@ export default function DashboardPage() {
   const [planName, setPlanName] = useState('')
   const [firstName, setFirstName] = useState('')
   const [syncing, setSyncing] = useState(false)
+  const [syncLogoVisible, setSyncLogoVisible] = useState(false)
+  const [syncLogoExiting, setSyncLogoExiting] = useState(false)
+  const syncExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [events, setEvents] = useState<TrainingEvent[]>([])
@@ -144,7 +147,10 @@ export default function DashboardPage() {
   }
 
   async function doSync() {
+    if (syncExitTimerRef.current) clearTimeout(syncExitTimerRef.current)
     setSyncing(true)
+    setSyncLogoVisible(true)
+    setSyncLogoExiting(false)
     try {
       const res = await fetch('/api/sync', { method: 'POST' })
       if (res.ok) {
@@ -159,6 +165,11 @@ export default function DashboardPage() {
       }
     } finally {
       setSyncing(false)
+      setSyncLogoExiting(true)
+      syncExitTimerRef.current = setTimeout(() => {
+        setSyncLogoVisible(false)
+        setSyncLogoExiting(false)
+      }, 400)
     }
   }
 
@@ -513,9 +524,19 @@ export default function DashboardPage() {
         <button
           onClick={doSync}
           disabled={syncing}
-          className={`bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 disabled:cursor-default transition-all shrink-0 ${syncing ? 'p-1' : 'text-sm font-semibold text-blue-600 px-4 py-1.5'}`}
+          className="relative overflow-hidden flex items-center justify-center gap-1.5 w-28 py-1.5 text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 disabled:cursor-default transition-colors shrink-0"
         >
-          {syncing ? <AnimatedLogo size={22} spin={true} /> : '↻ Sync'}
+          {syncLogoVisible && (
+            <span className={syncLogoExiting
+              ? 'animate-[sync-bike-exit_0.35s_ease-in_forwards]'
+              : 'animate-[sync-bike-enter_0.3s_ease-out_forwards]'
+            }>
+              <AnimatedLogo size={18} spin={!syncLogoExiting} />
+            </span>
+          )}
+          <span className={syncLogoExiting ? 'opacity-0 transition-opacity duration-200' : ''}>
+            {syncLogoVisible ? 'Syncing' : '↻ Sync'}
+          </span>
         </button>
       </div>
 
