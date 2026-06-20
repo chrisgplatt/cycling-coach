@@ -210,12 +210,12 @@ export async function GET(req: NextRequest) {
       .order('date', { ascending: true }),
     supabase
       .from('garmin_wellness')
-      .select('garmin_training_readiness, garmin_training_status, garmin_body_battery_current, garmin_stress_avg')
+      .select('garmin_training_readiness, garmin_recovery_time_mins, garmin_training_status, garmin_body_battery_current, garmin_body_battery_charged, garmin_body_battery_drained, garmin_stress_avg, garmin_stress_max')
       .eq('user_id', user.id)
       .eq('date', today)
       .maybeSingle(),
   ])
-  const todayGarmin = garminRow as Pick<GarminWellness, 'garmin_training_readiness' | 'garmin_training_status' | 'garmin_body_battery_current' | 'garmin_stress_avg'> | null
+  const todayGarmin = garminRow as Pick<GarminWellness, 'garmin_training_readiness' | 'garmin_recovery_time_mins' | 'garmin_training_status' | 'garmin_body_battery_current' | 'garmin_body_battery_charged' | 'garmin_body_battery_drained' | 'garmin_stress_avg' | 'garmin_stress_max'> | null
 
   const ctx: BriefingContext = {
     today,
@@ -243,9 +243,13 @@ export async function GET(req: NextRequest) {
     currentPhaseWeek,
     recentWellness: (wellnessRows ?? []) as DailyWellness[],
     garminTrainingReadiness: todayGarmin?.garmin_training_readiness ?? null,
+    garminRecoveryTimeMins: todayGarmin?.garmin_recovery_time_mins ?? null,
     garminTrainingStatus: todayGarmin?.garmin_training_status ?? null,
     garminBodyBatteryCurrent: todayGarmin?.garmin_body_battery_current ?? null,
+    garminBodyBatteryCharged: todayGarmin?.garmin_body_battery_charged ?? null,
+    garminBodyBatteryDrained: todayGarmin?.garmin_body_battery_drained ?? null,
     garminStressAvg: todayGarmin?.garmin_stress_avg ?? null,
+    garminStressMax: todayGarmin?.garmin_stress_max ?? null,
   }
 
   const { coach_note, verdict, headline } = await generateBriefing(ctx)

@@ -71,6 +71,10 @@ interface StrainChartPoint {
   sleepScore: number | null
   sleepSecs: number | null
   bodyBatteryHigh: number | null
+  garminReadiness: number | null
+  garminRecoveryTimeMins: number | null
+  garminBatteryCharged: number | null
+  garminBatteryDrained: number | null
   dateLabel: string
 }
 
@@ -105,6 +109,10 @@ function strainChartData(
           sleepScore: avgOrNull(pts.map(p => p.sleepScore)),
           sleepSecs: avgOrNull(pts.map(p => p.sleepSecs)),
           bodyBatteryHigh: avgOrNull(pts.map(p => p.bodyBatteryHigh)),
+          garminReadiness: avgOrNull(pts.map(p => p.garminReadiness ?? null)),
+          garminRecoveryTimeMins: avgOrNull(pts.map(p => p.garminRecoveryTimeMins ?? null)),
+          garminBatteryCharged: avgOrNull(pts.map(p => p.garminBatteryCharged ?? null)),
+          garminBatteryDrained: avgOrNull(pts.map(p => p.garminBatteryDrained ?? null)),
           dateLabel: label,
         }
       })
@@ -140,6 +148,10 @@ function strainChartData(
       sleepScore: found?.sleepScore ?? null,
       sleepSecs: found?.sleepSecs ?? null,
       bodyBatteryHigh: found?.bodyBatteryHigh ?? null,
+      garminReadiness: found?.garminReadiness ?? null,
+      garminRecoveryTimeMins: found?.garminRecoveryTimeMins ?? null,
+      garminBatteryCharged: found?.garminBatteryCharged ?? null,
+      garminBatteryDrained: found?.garminBatteryDrained ?? null,
       dateLabel: dayLabel(d),
     })
   }
@@ -311,7 +323,18 @@ function StrainChart({
               <div>Wellbeing <span className="text-amber-300">{(Math.round(d.life * 10) / 10).toFixed(1)}/7</span></div>
               {d.sleepScore != null && <div className="pl-2 text-gray-300">Sleep {Math.round(d.sleepScore)}/100</div>}
               {d.sleepSecs != null && <div className="pl-2 text-gray-300">Duration {(d.sleepSecs / 3600).toFixed(1)}h</div>}
-              {d.bodyBatteryHigh != null && <div className="pl-2 text-gray-300">Battery {Math.round(d.bodyBatteryHigh)}%</div>}
+              {d.garminBatteryCharged != null || d.garminBatteryDrained != null
+                ? <div className="pl-2 text-gray-300">Battery ↑{d.garminBatteryCharged ?? '?'} / ↓{d.garminBatteryDrained ?? '?'}</div>
+                : d.bodyBatteryHigh != null
+                  ? <div className="pl-2 text-gray-300">Peak battery {Math.round(d.bodyBatteryHigh)}%</div>
+                  : null
+              }
+              {d.garminReadiness != null && (
+                <div className="pl-2 text-gray-300">
+                  Readiness {d.garminReadiness}/100
+                  {d.garminRecoveryTimeMins != null && ` · recover in ${(d.garminRecoveryTimeMins / 60).toFixed(1)}h`}
+                </div>
+              )}
               <div className="font-bold mt-1">Total {d.total}/21</div>
             </div>
           )

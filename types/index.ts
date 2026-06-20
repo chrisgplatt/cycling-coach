@@ -275,17 +275,25 @@ export interface ICUWellness {
   sleep_score: number | null
   // Direct Garmin Connect fields (populated when user connects Garmin in settings)
   garmin_training_readiness?: number | null
+  garmin_recovery_time_mins?: number | null
   garmin_training_status?: string | null
   garmin_body_battery_current?: number | null
-  garmin_stress_avg_direct?: number | null  // Stress avg from Garmin — not surfaced in UI; flows to coach prompt via briefing API
+  garmin_body_battery_charged?: number | null
+  garmin_body_battery_drained?: number | null
+  garmin_stress_avg_direct?: number | null
+  garmin_stress_max?: number | null
 }
 
 export interface GarminWellness {
-  date: string                        // YYYY-MM-DD
-  garmin_training_readiness: number | null   // 0–100
-  garmin_training_status: string | null      // PEAKING | MAINTAINING | UNPRODUCTIVE | OVERREACHING | DETRAINING
-  garmin_body_battery_current: number | null // 0–100
-  garmin_stress_avg: number | null           // 0–100
+  date: string
+  garmin_training_readiness: number | null
+  garmin_recovery_time_mins: number | null   // minutes until fully recovered
+  garmin_training_status: string | null
+  garmin_body_battery_current: number | null
+  garmin_body_battery_charged: number | null // recharged during sleep
+  garmin_body_battery_drained: number | null // drained by today's activity
+  garmin_stress_avg: number | null
+  garmin_stress_max: number | null           // peak stress of the day
 }
 
 export interface ICUEvent {
@@ -399,14 +407,19 @@ export interface RidePoint {
 }
 
 export interface DailyStrainPoint {
-  date: string                       // YYYY-MM-DD
-  workout: number                    // workout contribution 0–14 (float)
-  life: number                       // life signal contribution 0–7 (float)
-  total: number                      // rounded combined strain score 0–21
-  workoutLoad: number                // raw activity load (TSS-equivalent) behind `workout`
-  sleepScore: number | null          // 0–100, null if not synced
-  sleepSecs: number | null           // seconds, null if not synced
-  bodyBatteryHigh: number | null     // 0–100 daily peak, null if not synced
+  date: string
+  workout: number
+  life: number
+  total: number
+  workoutLoad: number
+  sleepScore: number | null
+  sleepSecs: number | null
+  bodyBatteryHigh: number | null
+  garminReadiness?: number | null
+  garminRecoveryTimeMins?: number | null
+  garminBatteryCharged?: number | null
+  garminBatteryDrained?: number | null
+  garminStressMax?: number | null
 }
 
 export interface ChartsData {
@@ -567,9 +580,13 @@ export interface BriefingContext {
   weather?: WeatherSummary | null
   // Garmin Connect signals (all optional — absent when Garmin not connected)
   garminTrainingReadiness?: number | null
+  garminRecoveryTimeMins?: number | null
   garminTrainingStatus?: string | null
   garminBodyBatteryCurrent?: number | null
+  garminBodyBatteryCharged?: number | null
+  garminBodyBatteryDrained?: number | null
   garminStressAvg?: number | null
+  garminStressMax?: number | null
   dossier?: {
     synthesized_at: string
     content: {

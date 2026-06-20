@@ -1,7 +1,6 @@
 /** @jest-environment node */
 import { GarminClient } from './client'
 
-// All tests mock the garmin-connect package
 jest.mock('garmin-connect', () => ({
   GarminConnect: jest.fn().mockImplementation(() => ({
     login: jest.fn().mockResolvedValue(undefined),
@@ -59,31 +58,41 @@ describe('GarminClient.exportToken', () => {
 })
 
 describe('GarminClient.getTrainingReadiness', () => {
-  it('returns score from API response', async () => {
+  it('returns score and recoveryTimeMins from API response', async () => {
     const gc = makeMockGC({
-      get: jest.fn().mockResolvedValue([{ score: 72, level: 'GOOD', calendarDate: '2026-06-20' }]),
+      get: jest.fn().mockResolvedValue([{
+        score: 72,
+        recoveryTime: 360,
+        level: 'GOOD',
+        calendarDate: '2026-06-20',
+      }]),
     })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error replace internal gc for test
     client['_gc'] = gc
     const result = await client.getTrainingReadiness('2026-06-20')
-    expect(result).toBe(72)
+    expect(result.score).toBe(72)
+    expect(result.recoveryTimeMins).toBe(360)
   })
 
-  it('returns null on empty array', async () => {
+  it('returns nulls on empty array', async () => {
     const gc = makeMockGC({ get: jest.fn().mockResolvedValue([]) })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error
     client['_gc'] = gc
-    expect(await client.getTrainingReadiness('2026-06-20')).toBeNull()
+    const result = await client.getTrainingReadiness('2026-06-20')
+    expect(result.score).toBeNull()
+    expect(result.recoveryTimeMins).toBeNull()
   })
 
-  it('returns null on network error', async () => {
+  it('returns nulls on network error', async () => {
     const gc = makeMockGC({ get: jest.fn().mockRejectedValue(new Error('net fail')) })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error
     client['_gc'] = gc
-    expect(await client.getTrainingReadiness('2026-06-20')).toBeNull()
+    const result = await client.getTrainingReadiness('2026-06-20')
+    expect(result.score).toBeNull()
+    expect(result.recoveryTimeMins).toBeNull()
   })
 })
 
@@ -107,11 +116,13 @@ describe('GarminClient.getTrainingStatus', () => {
   })
 })
 
-describe('GarminClient.getBodyBatteryCurrent', () => {
-  it('returns the last battery level in the time series', async () => {
+describe('GarminClient.getBodyBattery', () => {
+  it('returns current, charged, and drained', async () => {
     const gc = makeMockGC({
       get: jest.fn().mockResolvedValue([{
         date: '2026-06-20',
+        charged: 35,
+        drained: 21,
         bodyBatteryValuesArray: [
           [1000000, 80],
           [2000000, 55],
@@ -122,36 +133,44 @@ describe('GarminClient.getBodyBatteryCurrent', () => {
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error
     client['_gc'] = gc
-    expect(await client.getBodyBatteryCurrent('2026-06-20')).toBe(48)
+    const result = await client.getBodyBattery('2026-06-20')
+    expect(result.current).toBe(48)
+    expect(result.charged).toBe(35)
+    expect(result.drained).toBe(21)
   })
 
-  it('returns null for empty time series', async () => {
+  it('returns nulls for empty time series', async () => {
     const gc = makeMockGC({
       get: jest.fn().mockResolvedValue([{ date: '2026-06-20', bodyBatteryValuesArray: [] }]),
     })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error
     client['_gc'] = gc
-    expect(await client.getBodyBatteryCurrent('2026-06-20')).toBeNull()
+    const result = await client.getBodyBattery('2026-06-20')
+    expect(result.current).toBeNull()
   })
 })
 
-describe('GarminClient.getDailyStressAvg', () => {
-  it('returns avg stress value', async () => {
+describe('GarminClient.getDailyStress', () => {
+  it('returns avg and max stress', async () => {
     const gc = makeMockGC({
-      get: jest.fn().mockResolvedValue({ avgStressLevel: 42 }),
+      get: jest.fn().mockResolvedValue({ avgStressLevel: 42, maxStressLevel: 87 }),
     })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error
     client['_gc'] = gc
-    expect(await client.getDailyStressAvg('2026-06-20')).toBe(42)
+    const result = await client.getDailyStress('2026-06-20')
+    expect(result.avg).toBe(42)
+    expect(result.max).toBe(87)
   })
 
-  it('returns null on missing field', async () => {
+  it('returns nulls on missing fields', async () => {
     const gc = makeMockGC({ get: jest.fn().mockResolvedValue({}) })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error
     client['_gc'] = gc
-    expect(await client.getDailyStressAvg('2026-06-20')).toBeNull()
+    const result = await client.getDailyStress('2026-06-20')
+    expect(result.avg).toBeNull()
+    expect(result.max).toBeNull()
   })
 })

@@ -25,21 +25,24 @@ async function syncGarmin(
     return null
   }
 
-  const [readiness, status, battery, stress] = await Promise.all([
+  const [readinessData, status, batteryData, stressData] = await Promise.all([
     client.getTrainingReadiness(todayStr),
     client.getTrainingStatus(todayStr),
-    client.getBodyBatteryCurrent(todayStr),
-    client.getDailyStressAvg(todayStr),
+    client.getBodyBattery(todayStr),
+    client.getDailyStress(todayStr),
   ])
-  console.log(`GR:r=${readiness},s=${status},b=${battery},st=${stress}`)
 
   const row = {
     user_id: userId,
     date: todayStr,
-    garmin_training_readiness: readiness,
+    garmin_training_readiness: readinessData.score,
+    garmin_recovery_time_mins: readinessData.recoveryTimeMins,
     garmin_training_status: status,
-    garmin_body_battery_current: battery,
-    garmin_stress_avg: stress,
+    garmin_body_battery_current: batteryData.current,
+    garmin_body_battery_charged: batteryData.charged,
+    garmin_body_battery_drained: batteryData.drained,
+    garmin_stress_avg: stressData.avg,
+    garmin_stress_max: stressData.max,
     synced_at: new Date().toISOString(),
   }
 
@@ -50,10 +53,14 @@ async function syncGarmin(
 
   return {
     date: todayStr,
-    garmin_training_readiness: readiness,
+    garmin_training_readiness: readinessData.score,
+    garmin_recovery_time_mins: readinessData.recoveryTimeMins,
     garmin_training_status: status,
-    garmin_body_battery_current: battery,
-    garmin_stress_avg: stress,
+    garmin_body_battery_current: batteryData.current,
+    garmin_body_battery_charged: batteryData.charged,
+    garmin_body_battery_drained: batteryData.drained,
+    garmin_stress_avg: stressData.avg,
+    garmin_stress_max: stressData.max,
   }
 }
 

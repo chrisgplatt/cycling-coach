@@ -163,10 +163,24 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<BriefingRe
     : null
 
   const garminLines: string[] = []
-  if (ctx.garminTrainingReadiness != null) garminLines.push(`Training Readiness: ${ctx.garminTrainingReadiness}/100`)
+  if (ctx.garminTrainingReadiness != null) {
+    const recov = ctx.garminRecoveryTimeMins != null
+      ? ` (recover in ${(ctx.garminRecoveryTimeMins / 60).toFixed(1)}h)`
+      : ''
+    garminLines.push(`Training Readiness: ${ctx.garminTrainingReadiness}/100${recov}`)
+  }
   if (ctx.garminTrainingStatus) garminLines.push(`Training Status: ${ctx.garminTrainingStatus}`)
-  if (ctx.garminBodyBatteryCurrent != null) garminLines.push(`Body Battery: ${ctx.garminBodyBatteryCurrent}%`)
-  if (ctx.garminStressAvg != null) garminLines.push(`Stress avg: ${ctx.garminStressAvg}/100`)
+  if (ctx.garminBodyBatteryCurrent != null) {
+    const chg = ctx.garminBodyBatteryCharged != null ? ` ↑${ctx.garminBodyBatteryCharged} charged` : ''
+    const drn = ctx.garminBodyBatteryDrained != null ? ` ↓${ctx.garminBodyBatteryDrained} drained` : ''
+    garminLines.push(`Body Battery: ${ctx.garminBodyBatteryCurrent}%${chg}${drn}`)
+  }
+  if (ctx.garminStressAvg != null || ctx.garminStressMax != null) {
+    const parts = []
+    if (ctx.garminStressAvg != null) parts.push(`avg ${ctx.garminStressAvg}`)
+    if (ctx.garminStressMax != null) parts.push(`peak ${ctx.garminStressMax}`)
+    garminLines.push(`Stress: ${parts.join(', ')}/100`)
+  }
   const garminLine = garminLines.length ? garminLines.join(', ') : null
 
   const prompt = `Today's date: ${labelDate(ctx.today)}

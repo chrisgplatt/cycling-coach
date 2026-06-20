@@ -38,10 +38,16 @@ export async function GET() {
   )
 
   try {
-    const [wellness, activities] = await Promise.all([
+    const [wellness, activities, { data: garminHistory }] = await Promise.all([
       client.getWellness(oldest, newest),
       client.getActivities(oldest, newest),
+      supabase
+        .from('garmin_wellness')
+        .select('date, garmin_training_readiness, garmin_recovery_time_mins, garmin_body_battery_charged, garmin_body_battery_drained, garmin_stress_max')
+        .gte('date', oldest)
+        .lte('date', newest),
     ])
+    const garminByDate = new Map((garminHistory ?? []).map(g => [g.date as string, g]))
 
     // Weekly TSS — cycling only
     const cyclingRides = activities.filter(a => /ride/i.test(a.type))
@@ -68,7 +74,7 @@ export async function GET() {
     // Daily strain — combine per-day activity load with wellness life signals
     const ftp: number | null = (profile as { current_ftp?: number | null }).current_ftp ?? null
     const dailyStrain: DailyStrainPoint[] = wellness
-      .map(w => {
+      .map((w): DailyStrainPoint | null => {
         const activityLoad = computeDailyActivityLoad(activities, w.id, ftp)
         const components = computeStrainComponents(
           activityLoad > 0 ? activityLoad : null,
@@ -77,6 +83,7 @@ export async function GET() {
           w.sleep_secs,
         )
         if (!components) return null
+        const g = garminByDate.get(w.id)
         return {
           date: w.id,
           workout: components.workoutPts,
@@ -86,6 +93,11 @@ export async function GET() {
           sleepScore: components.sleepScore,
           sleepSecs: components.sleepSecs,
           bodyBatteryHigh: components.bodyBatteryHigh,
+          garminReadiness: g?.garmin_training_readiness ?? null,
+          garminRecoveryTimeMins: g?.garmin_recovery_time_mins ?? null,
+          garminBatteryCharged: g?.garmin_body_battery_charged ?? null,
+          garminBatteryDrained: g?.garmin_body_battery_drained ?? null,
+          garminStressMax: g?.garmin_stress_max ?? null,
         }
       })
       .filter((p): p is DailyStrainPoint => p !== null && (p.total > 0 || p.life > 0 || p.workout > 0))

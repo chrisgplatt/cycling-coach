@@ -3,6 +3,22 @@ import type { IGarminTokens } from 'garmin-connect/dist/garmin/types'
 
 const GARMIN_API = 'https://connectapi.garmin.com'
 
+export interface TrainingReadinessData {
+  score: number | null
+  recoveryTimeMins: number | null
+}
+
+export interface BodyBatteryData {
+  current: number | null
+  charged: number | null
+  drained: number | null
+}
+
+export interface StressData {
+  avg: number | null
+  max: number | null
+}
+
 export class GarminClient {
   private _gc: GarminConnect
 
@@ -27,16 +43,17 @@ export class GarminClient {
     return this._gc.exportToken()
   }
 
-  async getTrainingReadiness(date: string): Promise<number | null> {
+  async getTrainingReadiness(date: string): Promise<TrainingReadinessData> {
     try {
       const url = `${GARMIN_API}/metrics-service/metrics/trainingreadiness/${date}`
       const data = await this._gc.get(url) as unknown
-      if (!Array.isArray(data) || data.length === 0) return null
+      if (!Array.isArray(data) || data.length === 0) return { score: null, recoveryTimeMins: null }
       const first = data[0] as Record<string, unknown>
-      const score = first.score
-      return typeof score === 'number' ? score : null
+      const score = typeof first.score === 'number' ? first.score : null
+      const recoveryTimeMins = typeof first.recoveryTime === 'number' ? first.recoveryTime : null
+      return { score, recoveryTimeMins }
     } catch {
-      return null
+      return { score: null, recoveryTimeMins: null }
     }
   }
 
@@ -56,29 +73,33 @@ export class GarminClient {
     }
   }
 
-  async getBodyBatteryCurrent(date: string): Promise<number | null> {
+  async getBodyBattery(date: string): Promise<BodyBatteryData> {
     try {
       const url = `${GARMIN_API}/wellness-service/wellness/bodyBattery/reports/daily`
       const data = await this._gc.get(url, { params: { startDate: date, endDate: date } }) as unknown
-      if (!Array.isArray(data) || data.length === 0) return null
+      if (!Array.isArray(data) || data.length === 0) return { current: null, charged: null, drained: null }
       const day = data[0] as Record<string, unknown>
       const arr = day?.bodyBatteryValuesArray as Array<[number, number]> | undefined
-      if (!Array.isArray(arr) || arr.length === 0) return null
-      const last = arr[arr.length - 1]
-      return typeof last[1] === 'number' ? last[1] : null
+      const current = Array.isArray(arr) && arr.length > 0
+        ? (typeof arr[arr.length - 1][1] === 'number' ? arr[arr.length - 1][1] : null)
+        : null
+      const charged = typeof day.charged === 'number' ? day.charged : null
+      const drained = typeof day.drained === 'number' ? Math.abs(day.drained) : null
+      return { current, charged, drained }
     } catch {
-      return null
+      return { current: null, charged: null, drained: null }
     }
   }
 
-  async getDailyStressAvg(date: string): Promise<number | null> {
+  async getDailyStress(date: string): Promise<StressData> {
     try {
       const url = `${GARMIN_API}/wellness-service/wellness/dailyStress/${date}`
       const data = await this._gc.get(url) as Record<string, unknown>
-      const val = data?.avgStressLevel
-      return typeof val === 'number' ? val : null
+      const avg = typeof data?.avgStressLevel === 'number' ? data.avgStressLevel : null
+      const max = typeof data?.maxStressLevel === 'number' ? data.maxStressLevel : null
+      return { avg, max }
     } catch {
-      return null
+      return { avg: null, max: null }
     }
   }
 }

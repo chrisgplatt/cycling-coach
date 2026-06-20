@@ -26,19 +26,21 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
   const totalStrain = c.total
   const label = strainLabel(totalStrain)
 
-  // Derive battery drain and training readiness
-  const batteryDrain = (wellness.garmin_body_battery_current != null && wellness.body_battery_high != null)
+  const batteryCharged = wellness.garmin_body_battery_charged ?? null
+  const batteryDrained = wellness.garmin_body_battery_drained ?? null
+  const batteryDrainFallback = (wellness.garmin_body_battery_current != null && wellness.body_battery_high != null)
     ? Math.max(0, wellness.body_battery_high - wellness.garmin_body_battery_current)
     : null
   const trainingReadiness = wellness.garmin_training_readiness ?? null
+  const recoveryTimeMins = wellness.garmin_recovery_time_mins ?? null
 
-  // Donut: use raw un-normalised pts as fractions of 21 for proportional arcs
   const d = 21
   const w  = (c.workoutPts          / d) * 100
   const sl = (c.sleepRawPts         / d) * 100
   const sd = (c.sleepDurationRawPts / d) * 100
   const b  = (c.batteryRawPts       / d) * 100
-  const dr = batteryDrain != null ? (Math.min(batteryDrain, 100) / 21) * 100 : 0
+  const drainForDonut = batteryDrained ?? batteryDrainFallback
+  const dr = drainForDonut != null ? (Math.min(drainForDonut, 100) / 21) * 100 : 0
   const donut = `conic-gradient(#3b82f6 0% ${w}%, #8b5cf6 ${w}% ${w+sl}%, #a78bfa ${w+sl}% ${w+sl+sd}%, #10b981 ${w+sl+sd}% ${w+sl+sd+b}%, #f97316 ${w+sl+sd+b}% ${Math.min(100, w+sl+sd+b+dr)}%, #e2e8f0 ${Math.min(100, w+sl+sd+b+dr)}% 100%)`
 
   return (
@@ -154,23 +156,38 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
                   <span className="text-xs text-gray-300">Body battery <em>not synced</em></span>
                 )}
               </div>
-              {/* Battery drain (only when Garmin body battery current is available) */}
-              {batteryDrain != null && (
+              {/* Battery charged / drained */}
+              {batteryCharged != null || batteryDrained != null ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-orange-400" />
+                  <span className="text-xs text-gray-700">
+                    Body battery{' '}
+                    <span className="text-gray-400">
+                      {batteryCharged != null && `↑${batteryCharged} charged`}
+                      {batteryCharged != null && batteryDrained != null && ' / '}
+                      {batteryDrained != null && `↓${batteryDrained} drained`}
+                    </span>
+                  </span>
+                </div>
+              ) : batteryDrainFallback != null ? (
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-orange-400" />
                   <span className="text-xs text-gray-700">
                     Battery drain <span className="text-gray-400">
-                      {batteryDrain}% today ({wellness.body_battery_high}% → {wellness.garmin_body_battery_current}%)
+                      {batteryDrainFallback}% today ({wellness.body_battery_high}% → {wellness.garmin_body_battery_current}%)
                     </span>
                   </span>
                 </div>
-              )}
-              {/* Training Readiness (only when Garmin data available) */}
+              ) : null}
+              {/* Training readiness + recovery time */}
               {trainingReadiness != null && (
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-sky-400" />
                   <span className="text-xs text-gray-700">
                     Training readiness <span className="text-gray-400">{trainingReadiness} / 100</span>
+                    {recoveryTimeMins != null && (
+                      <span className="text-gray-400"> · full recovery in {(recoveryTimeMins / 60).toFixed(1)}h</span>
+                    )}
                   </span>
                 </div>
               )}
