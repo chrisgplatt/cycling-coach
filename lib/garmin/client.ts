@@ -46,13 +46,14 @@ export class GarminClient {
     try {
       const url = `${GARMIN_API}/metrics-service/metrics/trainingreadiness/${date}`
       const data = await this._gc.get(url) as unknown
-      console.log('[garmin] trainingReadiness raw:', JSON.stringify(data)?.slice(0, 300))
+      const keys = data && typeof data === 'object' ? Object.keys(data as object) : typeof data
+      console.log(`GR-readiness:keys=${JSON.stringify(keys)},raw=${JSON.stringify(data)?.slice(0,200)}`)
       if (!Array.isArray(data) || data.length === 0) return null
       const first = data[0] as Record<string, unknown>
       const score = first.trainingReadinessScore
       return typeof score === 'number' ? score : null
     } catch (e) {
-      console.error('[garmin] trainingReadiness error:', e)
+      console.error(`GR-readiness-err:${String(e)?.slice(0,150)}`)
       return null
     }
   }
@@ -61,12 +62,13 @@ export class GarminClient {
     try {
       const url = `${GARMIN_API}/metrics-service/metrics/trainingstatus/aggregated/${date}`
       const data = await this._gc.get(url) as Record<string, unknown>
-      console.log('[garmin] trainingStatus raw:', JSON.stringify(data)?.slice(0, 300))
+      const keys = data && typeof data === 'object' ? Object.keys(data) : typeof data
+      console.log(`GR-status:keys=${JSON.stringify(keys)},raw=${JSON.stringify(data)?.slice(0,200)}`)
       const summary = data?.trainingStatusLatestSummary as Record<string, unknown> | undefined
       const status = summary?.trainingStatus
       return typeof status === 'string' ? status : null
     } catch (e) {
-      console.error('[garmin] trainingStatus error:', e)
+      console.error(`GR-status-err:${String(e)?.slice(0,150)}`)
       return null
     }
   }
@@ -75,14 +77,15 @@ export class GarminClient {
     try {
       const url = `${GARMIN_API}/wellness-service/wellness/bodyBattery/reports/daily`
       const data = await this._gc.get(url, { params: { startDate: date, endDate: date } }) as unknown
-      console.log('[garmin] bodyBattery raw:', JSON.stringify(data)?.slice(0, 300))
+      const keys = data && typeof data === 'object' ? Object.keys(data as object) : typeof data
+      console.log(`GR-battery:keys=${JSON.stringify(keys)},raw=${JSON.stringify(data)?.slice(0,200)}`)
       const dto = (data as Record<string, unknown>)?.dailyBodyBatteryDTO as Record<string, unknown> | undefined
       const arr = dto?.bodyBatteryValuesArray as Array<[number, number, string]> | undefined
       if (!Array.isArray(arr) || arr.length === 0) return null
       const last = arr[arr.length - 1]
       return typeof last[1] === 'number' ? last[1] : null
     } catch (e) {
-      console.error('[garmin] bodyBattery error:', e)
+      console.error(`GR-battery-err:${String(e)?.slice(0,150)}`)
       return null
     }
   }
@@ -91,11 +94,12 @@ export class GarminClient {
     try {
       const url = `${GARMIN_API}/wellness-service/wellness/dailyStress/${date}`
       const data = await this._gc.get(url) as Record<string, unknown>
-      console.log('[garmin] dailyStress raw:', JSON.stringify(data)?.slice(0, 300))
+      const keys = data && typeof data === 'object' ? Object.keys(data) : typeof data
+      console.log(`GR-stress:keys=${JSON.stringify(keys)},raw=${JSON.stringify(data)?.slice(0,200)}`)
       const val = data?.overallStressLevel
       return typeof val === 'number' ? val : null
     } catch (e) {
-      console.error('[garmin] dailyStress error:', e)
+      console.error(`GR-stress-err:${String(e)?.slice(0,150)}`)
       return null
     }
   }
