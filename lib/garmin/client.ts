@@ -32,11 +32,34 @@ export class GarminClient {
     return new GarminClient(gc)
   }
 
-  /**
-   * Export the current OAuth tokens for storage and later restoration via fromToken().
-   */
   exportToken(): object {
     return this._gc.exportToken()
+  }
+
+  async debugRaw(date: string): Promise<Record<string, unknown>> {
+    const out: Record<string, unknown> = {}
+    const endpoints = [
+      ['readiness', `${GARMIN_API}/metrics-service/metrics/trainingreadiness/${date}`, undefined],
+      ['status', `${GARMIN_API}/metrics-service/metrics/trainingstatus/aggregated/${date}`, undefined],
+      ['battery', `${GARMIN_API}/wellness-service/wellness/bodyBattery/reports/daily`, { params: { startDate: date, endDate: date } }],
+      ['stress', `${GARMIN_API}/wellness-service/wellness/dailyStress/${date}`, undefined],
+    ] as const
+    for (const [key, url, cfg] of endpoints) {
+      try {
+        const data = await this._gc.get(url, cfg as object)
+        const d = data as Record<string, unknown> | unknown[]
+        if (Array.isArray(d)) {
+          out[key] = { _isArray: true, length: d.length, first: d[0] }
+        } else if (d && typeof d === 'object') {
+          out[key] = { _keys: Object.keys(d as object), _preview: JSON.stringify(d)?.slice(0, 400) }
+        } else {
+          out[key] = { _raw: d }
+        }
+      } catch (e) {
+        out[`${key}_err`] = String(e)?.slice(0, 200)
+      }
+    }
+    return out
   }
 
   /**
