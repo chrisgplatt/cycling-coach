@@ -25,11 +25,12 @@ async function syncGarmin(
     return null
   }
 
-  const [readinessData, status, batteryData, stressData] = await Promise.all([
+  const [readinessData, status, batteryData, stressData, sleepData] = await Promise.all([
     client.getTrainingReadiness(todayStr),
     client.getTrainingStatus(todayStr),
     client.getBodyBattery(todayStr),
     client.getDailyStress(todayStr),
+    client.getSleepMetrics(todayStr),
   ])
 
   const row = {
@@ -43,6 +44,14 @@ async function syncGarmin(
     garmin_body_battery_drained: batteryData.drained,
     garmin_stress_avg: stressData.avg,
     garmin_stress_max: stressData.max,
+    garmin_hrv_overnight: sleepData.overnightHrv,
+    garmin_hrv_status: sleepData.hrvGarminStatus,
+    garmin_resting_hr: sleepData.restingHr,
+    garmin_sleep_deep_secs: sleepData.deepSecs,
+    garmin_sleep_light_secs: sleepData.lightSecs,
+    garmin_sleep_rem_secs: sleepData.remSecs,
+    garmin_sleep_awake_secs: sleepData.awakeSecs,
+    garmin_sleep_respiration_avg: sleepData.respirationAvg,
     synced_at: new Date().toISOString(),
   }
 
@@ -61,6 +70,14 @@ async function syncGarmin(
     garmin_body_battery_drained: batteryData.drained,
     garmin_stress_avg: stressData.avg,
     garmin_stress_max: stressData.max,
+    garmin_hrv_overnight: sleepData.overnightHrv,
+    garmin_hrv_status: sleepData.hrvGarminStatus,
+    garmin_resting_hr: sleepData.restingHr,
+    garmin_sleep_deep_secs: sleepData.deepSecs,
+    garmin_sleep_light_secs: sleepData.lightSecs,
+    garmin_sleep_rem_secs: sleepData.remSecs,
+    garmin_sleep_awake_secs: sleepData.awakeSecs,
+    garmin_sleep_respiration_avg: sleepData.respirationAvg,
   }
 }
 

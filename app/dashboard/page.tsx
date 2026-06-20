@@ -394,6 +394,14 @@ export default function DashboardPage() {
         garmin_training_status: syncData?.garmin_today?.garmin_training_status ?? latestWellness.garmin_training_status,
         garmin_body_battery_current: syncData?.garmin_today?.garmin_body_battery_current ?? latestWellness.garmin_body_battery_current,
         garmin_stress_avg_direct: syncData?.garmin_today?.garmin_stress_avg ?? latestWellness.garmin_stress_avg_direct,
+        garmin_hrv_overnight: syncData?.garmin_today?.garmin_hrv_overnight ?? latestWellness.garmin_hrv_overnight,
+        garmin_hrv_status: syncData?.garmin_today?.garmin_hrv_status ?? latestWellness.garmin_hrv_status,
+        garmin_resting_hr: syncData?.garmin_today?.garmin_resting_hr ?? latestWellness.garmin_resting_hr,
+        garmin_sleep_deep_secs: syncData?.garmin_today?.garmin_sleep_deep_secs ?? latestWellness.garmin_sleep_deep_secs,
+        garmin_sleep_light_secs: syncData?.garmin_today?.garmin_sleep_light_secs ?? latestWellness.garmin_sleep_light_secs,
+        garmin_sleep_rem_secs: syncData?.garmin_today?.garmin_sleep_rem_secs ?? latestWellness.garmin_sleep_rem_secs,
+        garmin_sleep_awake_secs: syncData?.garmin_today?.garmin_sleep_awake_secs ?? latestWellness.garmin_sleep_awake_secs,
+        garmin_sleep_respiration_avg: syncData?.garmin_today?.garmin_sleep_respiration_avg ?? latestWellness.garmin_sleep_respiration_avg,
       }
     : null
   const todayActivities = (syncData?.activities ?? []).filter((a: ICUActivity) =>
