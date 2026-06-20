@@ -1,8 +1,7 @@
 import { GarminConnect } from 'garmin-connect'
 import type { IGarminTokens } from 'garmin-connect/dist/garmin/types'
 
-const METRICS_BASE = 'https://connectapi.garmin.com'
-const WELLNESS_BASE = 'https://connect.garmin.com'
+const GARMIN_API = 'https://connectapi.garmin.com'
 
 export class GarminClient {
   private _gc: GarminConnect
@@ -45,61 +44,58 @@ export class GarminClient {
    */
   async getTrainingReadiness(date: string): Promise<number | null> {
     try {
-      const url = `${METRICS_BASE}/metrics-service/metrics/trainingreadiness/${date}`
-      const data = await this._gc.get(url) as unknown[]
+      const url = `${GARMIN_API}/metrics-service/metrics/trainingreadiness/${date}`
+      const data = await this._gc.get(url) as unknown
+      console.log('[garmin] trainingReadiness raw:', JSON.stringify(data)?.slice(0, 300))
       if (!Array.isArray(data) || data.length === 0) return null
       const first = data[0] as Record<string, unknown>
       const score = first.trainingReadinessScore
       return typeof score === 'number' ? score : null
-    } catch {
+    } catch (e) {
+      console.error('[garmin] trainingReadiness error:', e)
       return null
     }
   }
 
-  /**
-   * Returns the training status string (e.g. 'MAINTAINING', 'PRODUCTIVE') for the
-   * given date, or null on error.
-   */
   async getTrainingStatus(date: string): Promise<string | null> {
     try {
-      const url = `${METRICS_BASE}/metrics-service/metrics/trainingstatus/aggregated/${date}`
+      const url = `${GARMIN_API}/metrics-service/metrics/trainingstatus/aggregated/${date}`
       const data = await this._gc.get(url) as Record<string, unknown>
+      console.log('[garmin] trainingStatus raw:', JSON.stringify(data)?.slice(0, 300))
       const summary = data?.trainingStatusLatestSummary as Record<string, unknown> | undefined
       const status = summary?.trainingStatus
       return typeof status === 'string' ? status : null
-    } catch {
+    } catch (e) {
+      console.error('[garmin] trainingStatus error:', e)
       return null
     }
   }
 
-  /**
-   * Returns the most recent Body Battery level (0–100) for the given date,
-   * derived from the last entry in the daily time series, or null on error.
-   */
   async getBodyBatteryCurrent(date: string): Promise<number | null> {
     try {
-      const url = `${WELLNESS_BASE}/wellness-service/wellness/bodyBattery/reports/daily`
-      const data = await this._gc.get(url, { startDate: date, endDate: date }) as Record<string, unknown>
-      const dto = data?.dailyBodyBatteryDTO as Record<string, unknown> | undefined
+      const url = `${GARMIN_API}/wellness-service/wellness/bodyBattery/reports/daily`
+      const data = await this._gc.get(url, { params: { startDate: date, endDate: date } }) as unknown
+      console.log('[garmin] bodyBattery raw:', JSON.stringify(data)?.slice(0, 300))
+      const dto = (data as Record<string, unknown>)?.dailyBodyBatteryDTO as Record<string, unknown> | undefined
       const arr = dto?.bodyBatteryValuesArray as Array<[number, number, string]> | undefined
       if (!Array.isArray(arr) || arr.length === 0) return null
       const last = arr[arr.length - 1]
       return typeof last[1] === 'number' ? last[1] : null
-    } catch {
+    } catch (e) {
+      console.error('[garmin] bodyBattery error:', e)
       return null
     }
   }
 
-  /**
-   * Returns the overall (average) stress level for the given date, or null on error.
-   */
   async getDailyStressAvg(date: string): Promise<number | null> {
     try {
-      const url = `${WELLNESS_BASE}/wellness-service/wellness/dailyStress/${date}`
+      const url = `${GARMIN_API}/wellness-service/wellness/dailyStress/${date}`
       const data = await this._gc.get(url) as Record<string, unknown>
+      console.log('[garmin] dailyStress raw:', JSON.stringify(data)?.slice(0, 300))
       const val = data?.overallStressLevel
       return typeof val === 'number' ? val : null
-    } catch {
+    } catch (e) {
+      console.error('[garmin] dailyStress error:', e)
       return null
     }
   }
