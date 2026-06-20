@@ -92,8 +92,6 @@ export async function GET(req: NextRequest) {
 
   if (profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
     const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
-    const garminParams = profile?.garmin_email ? { supabase, userId: user.id } : null
-    try { hrvStatus = await fetchHrvStatusBestSource(today, garminParams, client) } catch { /* HRV optional */ }
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0]
       const [wellness, activities] = await Promise.all([
@@ -134,6 +132,15 @@ export async function GET(req: NextRequest) {
         }))
     } catch { /* ICU unavailable — briefing proceeds without metrics */ }
   }
+
+  // HRV — Garmin-first, ICU fallback
+  const garminParams = profile?.garmin_email ? { supabase, userId: user.id } : null
+  const icuClient = profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key
+    ? new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
+    : null
+  try {
+    hrvStatus = await fetchHrvStatusBestSource(today, garminParams, icuClient)
+  } catch { /* HRV optional */ }
 
   const anyWorkoutCompleted = todayWorkouts.some(w => w.status === 'completed')
   const raceResultRecorded = todayEvent != null && todayEvent.result_tss != null
@@ -211,12 +218,18 @@ export async function GET(req: NextRequest) {
       .order('date', { ascending: true }),
     supabase
       .from('garmin_wellness')
-      .select('garmin_training_readiness, garmin_recovery_time_mins, garmin_training_status, garmin_body_battery_current, garmin_body_battery_charged, garmin_body_battery_drained, garmin_stress_avg, garmin_stress_max')
+      .select('garmin_training_readiness, garmin_recovery_time_mins, garmin_training_status, garmin_body_battery_current, garmin_body_battery_charged, garmin_body_battery_drained, garmin_stress_avg, garmin_stress_max, garmin_resting_hr, garmin_sleep_deep_secs, garmin_sleep_light_secs, garmin_sleep_rem_secs, garmin_sleep_respiration_avg')
       .eq('user_id', user.id)
       .eq('date', today)
       .maybeSingle(),
   ])
-  const todayGarmin = garminRow as Pick<GarminWellness, 'garmin_training_readiness' | 'garmin_recovery_time_mins' | 'garmin_training_status' | 'garmin_body_battery_current' | 'garmin_body_battery_charged' | 'garmin_body_battery_drained' | 'garmin_stress_avg' | 'garmin_stress_max'> | null
+  const todayGarmin = garminRow as Pick<GarminWellness,
+    | 'garmin_training_readiness' | 'garmin_recovery_time_mins' | 'garmin_training_status'
+    | 'garmin_body_battery_current' | 'garmin_body_battery_charged' | 'garmin_body_battery_drained'
+    | 'garmin_stress_avg' | 'garmin_stress_max'
+    | 'garmin_resting_hr' | 'garmin_sleep_deep_secs' | 'garmin_sleep_light_secs'
+    | 'garmin_sleep_rem_secs' | 'garmin_sleep_respiration_avg'
+  > | null
 
   const ctx: BriefingContext = {
     today,
@@ -251,6 +264,11 @@ export async function GET(req: NextRequest) {
     garminBodyBatteryDrained: todayGarmin?.garmin_body_battery_drained ?? null,
     garminStressAvg: todayGarmin?.garmin_stress_avg ?? null,
     garminStressMax: todayGarmin?.garmin_stress_max ?? null,
+    garminRestingHr: todayGarmin?.garmin_resting_hr ?? null,
+    garminSleepDeepSecs: todayGarmin?.garmin_sleep_deep_secs ?? null,
+    garminSleepLightSecs: todayGarmin?.garmin_sleep_light_secs ?? null,
+    garminSleepRemSecs: todayGarmin?.garmin_sleep_rem_secs ?? null,
+    garminSleepRespirationAvg: todayGarmin?.garmin_sleep_respiration_avg ?? null,
   }
 
   const { coach_note, verdict, headline } = await generateBriefing(ctx)
