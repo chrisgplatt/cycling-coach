@@ -193,17 +193,24 @@ export default function SettingsPage() {
 
   async function disconnectGarmin() {
     try {
-      await fetch('/api/profile', {
+      const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ garmin_email: null, garmin_password: null, garmin_oauth_token: null }),
       })
+      if (!res.ok) {
+        setGarminError('Failed to disconnect. Please try again.')
+        return
+      }
       setGarminEmail('')
       setSavedGarminEmail('')
       setGarminPassword('')
       setGarminConnected(false)
       setEditingGarmin(false)
-    } catch { /* ignore */ }
+      setGarminError(null)
+    } catch {
+      setGarminError('Failed to disconnect. Please try again.')
+    }
   }
 
   async function searchLocation() {
@@ -510,7 +517,7 @@ export default function SettingsPage() {
           {garminConnected && !editingGarmin && (
             <button
               onClick={() => setEditingGarmin(true)}
-              className="text-xs font-medium text-blue-600 hover:text-blue-700"
+              className="text-xs font-medium text-blue-600 hover:text-blue-700 -m-2 p-2"
             >
               Change
             </button>

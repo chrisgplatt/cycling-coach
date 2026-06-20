@@ -277,7 +277,7 @@ export interface ICUWellness {
   garmin_training_readiness?: number | null
   garmin_training_status?: string | null
   garmin_body_battery_current?: number | null
-  garmin_stress_avg_direct?: number | null  // renamed to avoid clash with intervals.icu stress_avg
+  garmin_stress_avg_direct?: number | null  // Stress avg from Garmin — not surfaced in UI; flows to coach prompt via briefing API
 }
 
 export interface GarminWellness {
