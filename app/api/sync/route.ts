@@ -12,36 +12,18 @@ async function syncGarmin(
   userId: string,
   garminEmail: string,
   garminPassword: string,
-  cachedToken: object | null,
+  _cachedToken: object | null,
   todayStr: string,
 ): Promise<GarminWellness | null> {
+  // Always do a fresh SSO login — the wellness endpoints (connect.garmin.com) require
+  // session cookies established by gc.login(), which are not preserved by loadToken().
   let client: GarminClient
-  let freshToken: object
-
   try {
-    if (cachedToken) {
-      client = await GarminClient.fromToken(cachedToken)
-    } else {
-      client = await GarminClient.fromCredentials(garminEmail, garminPassword)
-    }
-    freshToken = client.exportToken()
-  } catch {
-    // Token expired — try fresh login
-    try {
-      client = await GarminClient.fromCredentials(garminEmail, garminPassword)
-      freshToken = client.exportToken()
-    } catch (err) {
-      console.error('[sync] Garmin auth failed:', err)
-      return null
-    }
+    client = await GarminClient.fromCredentials(garminEmail, garminPassword)
+  } catch (err) {
+    console.error('[sync] Garmin auth failed:', err)
+    return null
   }
-
-  // Persist refreshed token (fire-and-forget, non-fatal)
-  supabase
-    .from('user_profile')
-    .update({ garmin_oauth_token: freshToken })
-    .eq('user_id', userId)
-    .then(() => {}, (err: unknown) => console.error('[sync] token save failed:', err))
 
   const [readiness, status, battery, stress] = await Promise.all([
     client.getTrainingReadiness(todayStr),
@@ -85,7 +67,7 @@ export async function POST(req: Request) {
 
   const { data: profile } = await supabase
     .from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp, weight_kg, goals, min_sessions_per_week, garmin_email, garmin_password, garmin_oauth_token')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp, weight_kg, goals, min_sessions_per_week, garmin_email, garmin_password')
     .maybeSingle()
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
@@ -171,7 +153,7 @@ export async function POST(req: Request) {
           user.id,
           profile.garmin_email,
           profile.garmin_password,
-          (profile.garmin_oauth_token as object | null) ?? null,
+          null,
           todayStr,
         )
       } catch (err) {
