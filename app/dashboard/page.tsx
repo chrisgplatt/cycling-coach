@@ -42,6 +42,7 @@ import ProgressStats from '@/components/ProgressStats'
 import WellnessCard from '@/components/WellnessCard'
 import WellnessSheet from '@/components/WellnessSheet'
 import type { DailyWellness } from '@/types'
+import AnimatedLogo from '@/components/AnimatedLogo'
 
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
@@ -512,9 +513,9 @@ export default function DashboardPage() {
         <button
           onClick={doSync}
           disabled={syncing}
-          className="text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-4 py-1.5 hover:bg-blue-100 disabled:opacity-50 transition-colors shrink-0"
+          className={`bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 disabled:cursor-default transition-all shrink-0 ${syncing ? 'p-1' : 'text-sm font-semibold text-blue-600 px-4 py-1.5'}`}
         >
-          {syncing ? 'Syncing…' : '↻ Sync'}
+          {syncing ? <AnimatedLogo size={22} spin={true} /> : '↻ Sync'}
         </button>
       </div>
 
