@@ -610,6 +610,7 @@ export interface BriefingContext {
   garminSleepDeepSecs?: number | null
   garminSleepLightSecs?: number | null
   garminSleepRemSecs?: number | null
+  garminSleepAwakeSecs?: number | null
   garminSleepRespirationAvg?: number | null
   dossier?: {
     synthesized_at: string

@@ -218,7 +218,7 @@ export async function GET(req: NextRequest) {
       .order('date', { ascending: true }),
     supabase
       .from('garmin_wellness')
-      .select('garmin_training_readiness, garmin_recovery_time_mins, garmin_training_status, garmin_body_battery_current, garmin_body_battery_charged, garmin_body_battery_drained, garmin_stress_avg, garmin_stress_max, garmin_resting_hr, garmin_sleep_deep_secs, garmin_sleep_light_secs, garmin_sleep_rem_secs, garmin_sleep_respiration_avg')
+      .select('garmin_training_readiness, garmin_recovery_time_mins, garmin_training_status, garmin_body_battery_current, garmin_body_battery_charged, garmin_body_battery_drained, garmin_stress_avg, garmin_stress_max, garmin_resting_hr, garmin_sleep_deep_secs, garmin_sleep_light_secs, garmin_sleep_rem_secs, garmin_sleep_awake_secs, garmin_sleep_respiration_avg')
       .eq('user_id', user.id)
       .eq('date', today)
       .maybeSingle(),
@@ -228,7 +228,7 @@ export async function GET(req: NextRequest) {
     | 'garmin_body_battery_current' | 'garmin_body_battery_charged' | 'garmin_body_battery_drained'
     | 'garmin_stress_avg' | 'garmin_stress_max'
     | 'garmin_resting_hr' | 'garmin_sleep_deep_secs' | 'garmin_sleep_light_secs'
-    | 'garmin_sleep_rem_secs' | 'garmin_sleep_respiration_avg'
+    | 'garmin_sleep_rem_secs' | 'garmin_sleep_awake_secs' | 'garmin_sleep_respiration_avg'
   > | null
 
   const ctx: BriefingContext = {
@@ -268,6 +268,7 @@ export async function GET(req: NextRequest) {
     garminSleepDeepSecs: todayGarmin?.garmin_sleep_deep_secs ?? null,
     garminSleepLightSecs: todayGarmin?.garmin_sleep_light_secs ?? null,
     garminSleepRemSecs: todayGarmin?.garmin_sleep_rem_secs ?? null,
+    garminSleepAwakeSecs: todayGarmin?.garmin_sleep_awake_secs ?? null,
     garminSleepRespirationAvg: todayGarmin?.garmin_sleep_respiration_avg ?? null,
   }
 

@@ -189,6 +189,7 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<BriefingRe
     if (ctx.garminSleepDeepSecs != null) parts.push(`${Math.round(ctx.garminSleepDeepSecs / 60)}m deep`)
     if (ctx.garminSleepRemSecs != null) parts.push(`${Math.round(ctx.garminSleepRemSecs / 60)}m REM`)
     if (ctx.garminSleepLightSecs != null) parts.push(`${Math.round(ctx.garminSleepLightSecs / 60)}m light`)
+    if (ctx.garminSleepAwakeSecs != null) parts.push(`${Math.round(ctx.garminSleepAwakeSecs / 60)}m awake`)
     let stageLine = `Sleep stages: ${parts.join(' · ')}`
     if (ctx.garminSleepRespirationAvg != null) stageLine += ` (resp ${ctx.garminSleepRespirationAvg} brpm)`
     garminLines.push(stageLine)
