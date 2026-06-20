@@ -61,7 +61,7 @@ describe('GarminClient.exportToken', () => {
 describe('GarminClient.getTrainingReadiness', () => {
   it('returns score from API response', async () => {
     const gc = makeMockGC({
-      get: jest.fn().mockResolvedValue([{ trainingReadinessScore: 72 }]),
+      get: jest.fn().mockResolvedValue([{ score: 72, level: 'GOOD', calendarDate: '2026-06-20' }]),
     })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error replace internal gc for test
@@ -90,7 +90,7 @@ describe('GarminClient.getTrainingReadiness', () => {
 describe('GarminClient.getTrainingStatus', () => {
   it('returns status string', async () => {
     const gc = makeMockGC({
-      get: jest.fn().mockResolvedValue({ trainingStatusLatestSummary: { trainingStatus: 'MAINTAINING' } }),
+      get: jest.fn().mockResolvedValue({ mostRecentTrainingStatus: 'MAINTAINING' }),
     })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error
@@ -110,15 +110,14 @@ describe('GarminClient.getTrainingStatus', () => {
 describe('GarminClient.getBodyBatteryCurrent', () => {
   it('returns the last battery level in the time series', async () => {
     const gc = makeMockGC({
-      get: jest.fn().mockResolvedValue({
-        dailyBodyBatteryDTO: {
-          bodyBatteryValuesArray: [
-            [1000000, 80, 'CHARGING'],
-            [2000000, 55, 'DRAINING'],
-            [3000000, 48, 'DRAINING'],
-          ],
-        },
-      }),
+      get: jest.fn().mockResolvedValue([{
+        date: '2026-06-20',
+        bodyBatteryValuesArray: [
+          [1000000, 80],
+          [2000000, 55],
+          [3000000, 48],
+        ],
+      }]),
     })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error
@@ -128,7 +127,7 @@ describe('GarminClient.getBodyBatteryCurrent', () => {
 
   it('returns null for empty time series', async () => {
     const gc = makeMockGC({
-      get: jest.fn().mockResolvedValue({ dailyBodyBatteryDTO: { bodyBatteryValuesArray: [] } }),
+      get: jest.fn().mockResolvedValue([{ date: '2026-06-20', bodyBatteryValuesArray: [] }]),
     })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error
@@ -140,7 +139,7 @@ describe('GarminClient.getBodyBatteryCurrent', () => {
 describe('GarminClient.getDailyStressAvg', () => {
   it('returns avg stress value', async () => {
     const gc = makeMockGC({
-      get: jest.fn().mockResolvedValue({ overallStressLevel: 42 }),
+      get: jest.fn().mockResolvedValue({ avgStressLevel: 42 }),
     })
     const client = await GarminClient.fromCredentials('a@b.com', 'p')
     // @ts-expect-error
