@@ -307,13 +307,18 @@ function StrainChart({
         {activeIdx !== null && (() => {
           const d = data[activeIdx]
           const cx = PAD_L + (CW / n) * activeIdx + (CW / n) / 2
-          // Clamp so the tooltip box doesn't overflow the card's left/right edges
-          const clampedPct = Math.min(82, Math.max(18, (cx / VW) * 100))
+          const pct = (cx / VW) * 100
+          // Past 55% of chart width, anchor from the right so the tooltip grows
+          // leftward and never clips the right screen edge (Sunday bar sits at ~92%).
+          const anchorRight = pct > 55
+          const posStyle = anchorRight
+            ? { right: `${100 - pct}%`, transform: 'translate(0, -100%) translateY(-8px)' }
+            : { left: `${Math.max(18, pct)}%`, transform: 'translate(-50%, -100%) translateY(-8px)' }
           return (
             <div
               data-testid="strain-tooltip"
               className="absolute z-10 bg-gray-900 text-white text-[10px] leading-snug rounded-lg px-2.5 py-2 shadow-lg pointer-events-none whitespace-nowrap"
-              style={{ left: `${clampedPct}%`, top: yPct(yOf(d.total)), transform: 'translate(-50%, -100%) translateY(-8px)' }}
+              style={{ top: yPct(yOf(d.total)), ...posStyle }}
             >
               <div className="font-bold mb-1">{d.dateLabel}</div>
               <div>
