@@ -74,6 +74,15 @@ export async function GET(req: NextRequest) {
       monthly,
     }
 
+    const debug = new URL(req.url).searchParams.get('debug')
+    if (debug) {
+      const client2 = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
+      const raw = await (client2 as unknown as { request: (p: string) => Promise<Record<string, unknown>[]> })
+        .request(`/athlete/${profile.intervals_icu_athlete_id}/activities?oldest=${start}&newest=${end}&limit=2000`)
+      const unknown15 = raw.filter(a => !a.type).slice(0, 3)
+      return NextResponse.json({ ...stats, _debug: { sample_undefined: unknown15 } })
+    }
+
     return NextResponse.json(stats)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
