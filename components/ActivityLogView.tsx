@@ -22,16 +22,18 @@ function formatActivityDate(iso: string): string {
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
-type ActivityFilter = 'All' | 'Ride' | 'Run'
+type ActivityFilter = 'All' | 'Ride' | 'Run' | 'Walk'
 
 function matchesFilter(type: string, filter: ActivityFilter): boolean {
   if (filter === 'All') return true
   if (filter === 'Ride') return /ride/i.test(type)
-  return /run/i.test(type)
+  if (filter === 'Run') return /run/i.test(type)
+  return /walk|hike/i.test(type)
 }
 
 const FILTERS: { id: ActivityFilter; label: string }[] = [
   { id: 'Ride', label: 'Rides' },
+  { id: 'Walk', label: 'Walks' },
   { id: 'Run', label: 'Runs' },
   { id: 'All', label: 'All' },
 ]
