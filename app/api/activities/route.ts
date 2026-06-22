@@ -20,8 +20,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
   }
 
-  const pageParam = new URL(req.url).searchParams.get('page')
-  const page = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1
+  const searchParams = new URL(req.url).searchParams
+  const dateParam = searchParams.get('date')
+  const pageParam = searchParams.get('page')
+  const parsedPage = parseInt(pageParam ?? '', 10)
+  const page = isNaN(parsedPage) ? 1 : Math.max(1, parsedPage)
 
   const today = new Date()
   const oldest = `${today.getFullYear() - 4}-01-01`
@@ -32,6 +35,12 @@ export async function GET(req: NextRequest) {
   try {
     const all = await client.getActivities(oldest, newest)
     const sorted = [...all].sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))
+
+    if (dateParam) {
+      const activities = sorted.filter(a => a.start_date_local.startsWith(dateParam))
+      return NextResponse.json({ activities })
+    }
+
     const total = sorted.length
     const start = (page - 1) * PAGE_SIZE
     const activities = sorted.slice(start, start + PAGE_SIZE)

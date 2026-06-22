@@ -32,8 +32,8 @@ function MonthlyBarChart({ monthly, year }: { monthly: MonthlyBucket[]; year: nu
 
   return (
     <svg viewBox="0 0 360 104" className="w-full">
-      {ticks.map(v => (
-        <g key={v}>
+      {ticks.map((v, i) => (
+        <g key={`tick-${i}`}>
           <line x1={svgLeft - 2} y1={yOf(v)} x2={svgRight} y2={yOf(v)} stroke="#f1f5f9" strokeWidth="1" />
           <text x={svgLeft - 4} y={yOf(v)} textAnchor="end" dominantBaseline="middle" fontSize="8" fill="#9ca3af">
             {v}
