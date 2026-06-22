@@ -28,6 +28,7 @@ global.fetch = jest.fn()
 function mockPage1(hasMore = false, count = 2) {
   const activities = Array.from({ length: count }, (_, i) => makeActivity(`a${i + 1}`))
   ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+    ok: true,
     json: async () => ({ activities, hasMore, total: count }),
   })
   return activities
@@ -68,6 +69,7 @@ describe('ActivityLogView', () => {
     // Page 1: 30 activities, hasMore true
     const page1 = Array.from({ length: 30 }, (_, i) => makeActivity(`p1-${i + 1}`))
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({ activities: page1, hasMore: true, total: 35 }),
     })
     render(<ActivityLogView />)
@@ -76,6 +78,7 @@ describe('ActivityLogView', () => {
     // Page 2: 5 activities, hasMore false
     const page2 = Array.from({ length: 5 }, (_, i) => makeActivity(`p2-${i + 1}`))
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: async () => ({ activities: page2, hasMore: false, total: 35 }),
     })
     fireEvent.click(screen.getByRole('button', { name: /load more/i }))
@@ -98,6 +101,7 @@ describe('ActivityLogView', () => {
 
   it('shows empty state when no activities returned', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
       json: async () => ({ activities: [], hasMore: false, total: 0 }),
     })
     render(<ActivityLogView />)
@@ -106,6 +110,7 @@ describe('ActivityLogView', () => {
 
   it('shows error message on fetch failure', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
       json: async () => ({ error: 'intervals.icu not configured' }),
     })
     render(<ActivityLogView />)

@@ -72,7 +72,7 @@ export default function ActivityLogView(): JSX.Element {
   useEffect(() => {
     setLoading(true)
     fetch('/api/activities?page=1')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then((d: ActivitiesResponse) => {
         if (d.error) throw new Error(d.error)
         setActivities(d.activities)
@@ -87,7 +87,7 @@ export default function ActivityLogView(): JSX.Element {
     const nextPage = page + 1
     setLoadingMore(true)
     fetch(`/api/activities?page=${nextPage}`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then((d: ActivitiesResponse) => {
         if (d.error) throw new Error(d.error)
         setActivities(prev => [...prev, ...d.activities])
@@ -121,7 +121,7 @@ export default function ActivityLogView(): JSX.Element {
             <button
               onClick={loadMore}
               disabled={loadingMore}
-              className="w-full py-2.5 text-sm font-semibold text-blue-600 disabled:opacity-50"
+              className="w-full py-2.5 min-h-[44px] text-sm font-semibold text-blue-600 disabled:opacity-50"
             >
               {loadingMore ? 'Loading…' : 'Load more'}
             </button>
