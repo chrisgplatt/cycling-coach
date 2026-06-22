@@ -4,6 +4,8 @@ import type { RidingStats, CrossTrainingGroup, WeightEntry } from '@/types'
 import RideStats, { rideStatsFromActivity, StatCell, SectionCard, formatDuration } from '@/components/RideStats'
 import { weightAtDate } from '@/lib/weight-helpers'
 import AnimatedLogo from '@/components/AnimatedLogo'
+import YearView from '@/components/YearView'
+import ActivityLogView from '@/components/ActivityLogView'
 
 function formatRideTabLabel(dateStr: string): string {
   const d = new Date(dateStr)
@@ -154,7 +156,7 @@ export default function StatsPage() {
   const [stats, setStats] = useState<RidingStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<number>(0)
+  const [activeTab, setActiveTab] = useState<'year' | 'log' | '28d' | number>('year')
   const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
 
   useEffect(() => {
@@ -192,57 +194,68 @@ export default function StatsPage() {
   if (!stats) return null
 
   const rides = stats.recent_rides ?? []
-  const tabs = [
-    { id: 0, label: '28 Days' },
-    ...rides.map((r, i) => ({ id: i + 1, label: formatRideTabLabel(r.start_date_local) })),
+
+  type TabId = 'year' | 'log' | '28d' | number
+  const tabs: { id: TabId; label: string }[] = [
+    { id: 'year', label: 'This Year' },
+    { id: 'log', label: 'Activity Log' },
+    { id: '28d', label: '28 Days' },
+    ...rides.map((r, i) => ({ id: i as TabId, label: formatRideTabLabel(r.start_date_local) })),
   ]
+
+  const subtitle = activeTab === 'year'
+    ? 'All activities this year'
+    : activeTab === 'log'
+    ? 'All activities'
+    : activeTab === '28d'
+    ? `Last 28 days · ${stats.ride_count} ride${stats.ride_count !== 1 ? 's' : ''}`
+    : formatRideTabLabel((stats.recent_rides ?? [])[activeTab as number]?.start_date_local ?? '')
 
   return (
     <main className="max-w-xl mx-auto px-4 py-6 space-y-4">
       <div>
         <h1 className="text-xl font-bold text-gray-900">Stats</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {activeTab === 0
-            ? `Last 28 days · ${stats.ride_count} ride${stats.ride_count !== 1 ? 's' : ''}`
-            : formatRideTabLabel((stats.recent_rides ?? [])[activeTab - 1]?.start_date_local ?? '')}
-        </p>
+        <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
       </div>
 
-      {tabs.length > 1 && (
-        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto scrollbar-none" style={{ touchAction: 'pan-x' }}>
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-shrink-0 px-4 py-2 text-sm font-semibold transition-colors border-b-2 -mb-px ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto scrollbar-none" style={{ touchAction: 'pan-x' }}>
+        {tabs.map(tab => (
+          <button
+            key={String(tab.id)}
+            role="tab"
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-shrink-0 px-4 py-2 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+              activeTab === tab.id
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {activeTab === 0 ? (
+      {activeTab === 'year' ? (
+        <YearView />
+      ) : activeTab === 'log' ? (
+        <ActivityLogView />
+      ) : activeTab === '28d' ? (
         <>
           <AggregateView stats={stats} />
           <CrossTrainingSummary groups={stats.cross_training} />
         </>
       ) : (
         <div className="space-y-4">
-          <p className="text-sm text-gray-500 font-medium truncate">{rides[activeTab - 1].name}</p>
+          <p className="text-sm text-gray-500 font-medium truncate">{rides[activeTab as number].name}</p>
           {(() => {
-            const ride = rides[activeTab - 1]
-            const stats = rideStatsFromActivity(ride)
+            const ride = rides[activeTab as number]
+            const rideStats = rideStatsFromActivity(ride)
             const w = weightAtDate(weightLog, ride.start_date_local.split('T')[0], null)
             if (w) {
-              stats.avgWkg = stats.avgWatts !== null ? parseFloat((stats.avgWatts / w).toFixed(2)) : null
-              stats.npWkg = stats.np !== null ? parseFloat((stats.np / w).toFixed(2)) : null
+              rideStats.avgWkg = rideStats.avgWatts !== null ? parseFloat((rideStats.avgWatts / w).toFixed(2)) : null
+              rideStats.npWkg = rideStats.np !== null ? parseFloat((rideStats.np / w).toFixed(2)) : null
             }
-            return <RideStats data={stats} />
+            return <RideStats data={rideStats} />
           })()}
         </div>
       )}
