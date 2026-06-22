@@ -74,13 +74,6 @@ export async function GET(req: NextRequest) {
       monthly,
     }
 
-    const debug = new URL(req.url).searchParams.get('debug')
-    if (debug) {
-      const typeCounts: Record<string, number> = {}
-      for (const a of activities) typeCounts[a.type] = (typeCounts[a.type] ?? 0) + 1
-      return NextResponse.json({ ...stats, _debug: { totalRaw: activities.length, typeCounts } })
-    }
-
     return NextResponse.json(stats)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
