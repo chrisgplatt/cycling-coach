@@ -54,10 +54,11 @@ export async function GET(req: NextRequest) {
     let totalMovingTimeSecs = 0
 
     for (const a of activities) {
+      if (!/ride/i.test(a.type)) continue
       totalRides++
       totalKm += (a.distance ?? 0) / 1000
       totalElevationM += a.total_elevation_gain ?? 0
-      totalMovingTimeSecs += a.moving_time
+      totalMovingTimeSecs += a.moving_time ?? 0
       const month = parseInt(a.start_date_local.slice(5, 7), 10)
       monthly[month - 1].km += (a.distance ?? 0) / 1000
     }

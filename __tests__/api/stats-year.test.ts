@@ -101,6 +101,19 @@ describe('GET /api/stats/year', () => {
     expect(feb.km).toBe(0)
   })
 
+  it('excludes non-ride activity types from totals', async () => {
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ id: 'u1' }, PROFILE))
+    mockGetActivities.mockResolvedValue([
+      makeActivity({ start_date_local: `${currentYear}-01-10T08:00:00`, distance: 50000, moving_time: 3600 }),
+      makeActivity({ start_date_local: `${currentYear}-01-10T09:00:00`, type: 'Run', distance: 10000, moving_time: 1800 }),
+      makeActivity({ start_date_local: `${currentYear}-01-10T10:00:00`, type: 'WeightTraining', distance: null, moving_time: 3600 }),
+    ])
+    const res = await GET(makeRequest(String(currentYear)))
+    const body = await res.json()
+    expect(body.totalRides).toBe(1)
+    expect(body.totalKm).toBeCloseTo(50, 0)
+  })
+
   it('returns 502 when intervals.icu throws', async () => {
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ id: 'u1' }, PROFILE))
     mockGetActivities.mockRejectedValue(new Error('ICU down'))
