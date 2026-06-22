@@ -217,7 +217,7 @@ export class IntervalsClient {
     return {
       id: a.id as string,
       start_date_local: a.start_date_local as string,
-      type: (a.type as string | null | undefined) ?? 'Ride',
+      type: (a.type as string | null | undefined) ?? '',
       moving_time: a.moving_time as number,
       name: a.name as string,
       average_watts: (a.icu_average_watts ?? null) as number | null,
