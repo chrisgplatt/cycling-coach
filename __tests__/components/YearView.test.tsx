@@ -3,18 +3,26 @@ import YearView from '@/components/YearView'
 
 const currentYear = new Date().getFullYear()
 
-function makeYearStats(year = currentYear) {
+function makeRideGroup(overrides: Partial<{
+  totalActivities: number; totalKm: number; totalElevationM: number; totalMovingTimeSecs: number
+}> = {}) {
   return {
-    year,
-    totalRides: 48,
+    key: 'ride', label: 'Rides', emoji: '🚴', chartMetric: 'km' as const,
+    totalActivities: 48,
     totalKm: 1842.5,
     totalElevationM: 21300,
     totalMovingTimeSecs: 226800,  // 63h 0m
     monthly: Array.from({ length: 12 }, (_, i) => ({
       month: i + 1,
-      km: i < 6 ? (i + 1) * 20.0 : 0,  // Jan-Jun have data, rest empty
+      km: i < 6 ? (i + 1) * 20.0 : 0,
+      count: i < 6 ? 1 : 0,
     })),
+    ...overrides,
   }
+}
+
+function makeYearStats(year = currentYear) {
+  return { year, groups: [makeRideGroup()] }
 }
 
 global.fetch = jest.fn()
@@ -64,11 +72,7 @@ describe('YearView', () => {
     for (let i = 0; i <= 4; i++) {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          year: currentYear - i,
-          totalRides: 0, totalKm: 0, totalElevationM: 0, totalMovingTimeSecs: 0,
-          monthly: Array.from({ length: 12 }, (_, m) => ({ month: m + 1, km: 0 })),
-        }),
+        json: async () => ({ year: currentYear - i, groups: [] }),
       })
     }
     render(<YearView />)

@@ -34,8 +34,11 @@ const mockStats = makeRidingStats({
 // Minimal valid YearStats — returned by default for /api/stats/year
 const minimalYearStats = {
   year: new Date().getFullYear(),
-  totalRides: 99, totalKm: 0, totalElevationM: 0, totalMovingTimeSecs: 0,
-  monthly: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, km: 0 })),
+  groups: [{
+    key: 'ride', label: 'Rides', emoji: '🚴', chartMetric: 'km',
+    totalActivities: 99, totalKm: 0, totalElevationM: 0, totalMovingTimeSecs: 0,
+    monthly: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, km: 0, count: 0 })),
+  }],
 }
 
 // Mock fetch with URL routing: year endpoint returns minimalYearStats; stats returns
@@ -199,14 +202,17 @@ describe('StatsPage', () => {
       if (String(url).includes('/api/stats/year')) {
         return Promise.resolve({ ok: true, json: async () => ({
           year: new Date().getFullYear(),
-          totalRides: 42, totalKm: 1500, totalElevationM: 15000, totalMovingTimeSecs: 180000,
-          monthly: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, km: 0 })),
+          groups: [{
+            key: 'ride', label: 'Rides', emoji: '🚴', chartMetric: 'km',
+            totalActivities: 42, totalKm: 1500, totalElevationM: 15000, totalMovingTimeSecs: 180000,
+            monthly: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, km: 0, count: 0 })),
+          }],
         }) })
       }
       return Promise.resolve({ ok: true, json: async () => ({ stats: mockStats }) })
     })
     render(<StatsPage />)
-    expect(await screen.findByText('42')).toBeInTheDocument()  // totalRides from YearView
+    expect(await screen.findByText('42')).toBeInTheDocument()  // totalActivities from YearView
   })
 
   it('shows "Activity Log" tab and renders activities when clicked', async () => {
