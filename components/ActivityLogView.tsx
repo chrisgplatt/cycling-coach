@@ -60,7 +60,7 @@ function ActivityRow({ activity, onClick }: { activity: ICUActivity; onClick: ()
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold text-gray-900 truncate">{activity.name || activity.type}</p>
           <div className="text-right shrink-0">
-            {distKm && <p className="text-sm font-semibold text-blue-600">{distKm}</p>}
+            {distKm && <p className="text-sm font-semibold text-blue-600">{distKm}<span className="text-xs font-normal ml-0.5">km</span></p>}
             {elevM != null && elevM > 0 && <p className="text-xs text-emerald-600">↑ {elevM}m</p>}
           </div>
         </div>
