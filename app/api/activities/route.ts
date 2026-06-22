@@ -2,43 +2,43 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 
+export const dynamic = 'force-dynamic'
+
+const PAGE_SIZE = 30
+
 export async function GET(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const date = searchParams.get('date')
-  const start = searchParams.get('start') ?? date
-  const end = searchParams.get('end') ?? date
-
-  if (!start || !end) {
-    return NextResponse.json({ error: 'date or start+end required' }, { status: 400 })
-  }
-
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile } = await supabase
     .from('user_profile')
     .select('intervals_icu_athlete_id, intervals_icu_api_key')
     .maybeSingle()
 
-  if (profileError) {
-    return NextResponse.json({ error: profileError.message }, { status: 500 })
+  if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
+    return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
   }
 
-  if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
-    return NextResponse.json({ activities: [] })
-  }
+  const pageParam = new URL(req.url).searchParams.get('page')
+  const page = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1
+
+  const today = new Date()
+  const oldest = `${today.getFullYear() - 4}-01-01`
+  const newest = today.toISOString().split('T')[0]
+
+  const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
 
   try {
-    const client = new IntervalsClient(
-      profile.intervals_icu_athlete_id,
-      profile.intervals_icu_api_key,
-    )
-    const all = await client.getActivities(start, end)
-    const rides = all.filter(a => /ride/i.test(a.type))
-    return NextResponse.json({ activities: rides })
+    const all = await client.getActivities(oldest, newest)
+    const sorted = [...all].sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))
+    const total = sorted.length
+    const start = (page - 1) * PAGE_SIZE
+    const activities = sorted.slice(start, start + PAGE_SIZE)
+    const hasMore = start + PAGE_SIZE < total
+    return NextResponse.json({ activities, hasMore, total })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch activities'
-    return NextResponse.json({ error: message }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ error: message }, { status: 502 })
   }
 }
