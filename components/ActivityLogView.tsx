@@ -60,7 +60,7 @@ function ActivityRow({ activity, onClick }: { activity: ICUActivity; onClick: ()
   )
 }
 
-export default function ActivityLogView(): JSX.Element {
+export default function ActivityLogView() {
   const [activities, setActivities] = useState<ICUActivity[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
