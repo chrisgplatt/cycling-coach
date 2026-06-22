@@ -35,7 +35,7 @@ function makeActivity(id: string, date = '2026-01-01T08:00:00') {
 }
 
 function makeRequest(page?: number) {
-  return new Request(`http://localhost/api/activities${page ? `?page=${page}` : ''}`)
+  return new Request(`http://localhost/api/activities${page ? `?page=${page}` : ''}`) as never
 }
 
 const PROFILE = { intervals_icu_athlete_id: 'ath1', intervals_icu_api_key: 'key1' }

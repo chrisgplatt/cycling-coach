@@ -41,7 +41,7 @@ function makeActivity(overrides: Partial<{
 }
 
 function makeRequest(year?: string) {
-  return new Request(`http://localhost/api/stats/year${year ? `?year=${year}` : ''}`)
+  return new Request(`http://localhost/api/stats/year${year ? `?year=${year}` : ''}`) as never
 }
 
 const PROFILE = { intervals_icu_athlete_id: 'ath1', intervals_icu_api_key: 'key1' }
@@ -111,7 +111,7 @@ describe('GET /api/stats/year', () => {
   it('defaults to current year when no year param is provided', async () => {
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ id: 'u1' }, PROFILE))
     mockGetActivities.mockResolvedValue([])
-    const res = await GET(new Request('http://localhost/api/stats/year'))
+    const res = await GET(new Request('http://localhost/api/stats/year') as never)
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.year).toBe(new Date().getFullYear())
