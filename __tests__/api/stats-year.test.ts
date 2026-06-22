@@ -107,4 +107,15 @@ describe('GET /api/stats/year', () => {
     const res = await GET(makeRequest(String(currentYear)))
     expect(res.status).toBe(502)
   })
+
+  it('defaults to current year when no year param is provided', async () => {
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ id: 'u1' }, PROFILE))
+    mockGetActivities.mockResolvedValue([])
+    const res = await GET(new Request('http://localhost/api/stats/year'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.year).toBe(new Date().getFullYear())
+    expect(body.totalRides).toBe(0)
+    expect(body.monthly).toHaveLength(12)
+  })
 })

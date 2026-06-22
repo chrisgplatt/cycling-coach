@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
       totalKm += (a.distance ?? 0) / 1000
       totalElevationM += a.total_elevation_gain ?? 0
       totalMovingTimeSecs += a.moving_time
-      const month = new Date(a.start_date_local).getMonth() + 1
+      const month = parseInt(a.start_date_local.slice(5, 7), 10)
       monthly[month - 1].km += (a.distance ?? 0) / 1000
     }
 
