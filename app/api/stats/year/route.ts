@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     let totalMovingTimeSecs = 0
 
     for (const a of activities) {
-      if (!/ride/i.test(a.type)) continue
+      if (!/ride|cycl|bike/i.test(a.type)) continue
       totalRides++
       totalKm += (a.distance ?? 0) / 1000
       totalElevationM += a.total_elevation_gain ?? 0

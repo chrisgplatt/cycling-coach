@@ -26,7 +26,7 @@ type ActivityFilter = 'All' | 'Ride' | 'Run' | 'Walk'
 
 function matchesFilter(type: string, filter: ActivityFilter): boolean {
   if (filter === 'All') return true
-  if (filter === 'Ride') return /ride/i.test(type)
+  if (filter === 'Ride') return /ride|cycl|bike/i.test(type)
   if (filter === 'Run') return /run/i.test(type)
   return /walk|hike/i.test(type)
 }
