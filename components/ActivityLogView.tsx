@@ -22,6 +22,20 @@ function formatActivityDate(iso: string): string {
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
+type ActivityFilter = 'All' | 'Ride' | 'Run'
+
+function matchesFilter(type: string, filter: ActivityFilter): boolean {
+  if (filter === 'All') return true
+  if (filter === 'Ride') return /ride/i.test(type)
+  return /run/i.test(type)
+}
+
+const FILTERS: { id: ActivityFilter; label: string }[] = [
+  { id: 'Ride', label: 'Rides' },
+  { id: 'Run', label: 'Runs' },
+  { id: 'All', label: 'All' },
+]
+
 interface ActivitiesResponse {
   activities: ICUActivity[]
   hasMore: boolean
@@ -68,6 +82,7 @@ export default function ActivityLogView() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<ICUActivity | null>(null)
+  const [filter, setFilter] = useState<ActivityFilter>('Ride')
 
   useEffect(() => {
     setLoading(true)
@@ -110,12 +125,33 @@ export default function ActivityLogView() {
 
   if (!activities.length) return <p className="text-sm text-gray-400 p-4">No activities found.</p>
 
+  const filtered = activities.filter(a => matchesFilter(a.type, filter))
+
   return (
     <>
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        {activities.map(a => (
-          <ActivityRow key={a.id} activity={a} onClick={() => setSelected(a)} />
+      <div className="flex gap-2 mb-3 px-1">
+        {FILTERS.map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => setFilter(id)}
+            className={`px-4 min-h-[44px] rounded-full text-sm font-medium transition-colors ${
+              filter === id
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {label}
+          </button>
         ))}
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        {filtered.length === 0 ? (
+          <p className="text-sm text-gray-400 p-4">No {filter.toLowerCase()} activities in loaded data.</p>
+        ) : (
+          filtered.map(a => (
+            <ActivityRow key={a.id} activity={a} onClick={() => setSelected(a)} />
+          ))
+        )}
         {hasMore && (
           <div className="px-4 py-3 border-t border-gray-100">
             <button
