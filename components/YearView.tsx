@@ -83,12 +83,15 @@ export default function YearView() {
     setError(null)
     setData(null)
     fetch(`/api/stats/year?year=${year}`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`Request failed: ${r.status}`)
+        return r.json()
+      })
       .then((d: YearStats & { error?: string }) => {
         if (d.error) throw new Error(d.error)
         setData(d)
       })
-      .catch((e: Error) => setError(e.message))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false))
   }, [year])
 

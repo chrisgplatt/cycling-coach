@@ -30,6 +30,7 @@ describe('YearView', () => {
 
   it('renders headline stats after successful fetch', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
       json: async () => makeYearStats(),
     })
     render(<YearView />)
@@ -41,6 +42,7 @@ describe('YearView', () => {
 
   it('shows error message on fetch failure', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
       json: async () => ({ error: 'intervals.icu not configured' }),
     })
     render(<YearView />)
@@ -48,7 +50,7 @@ describe('YearView', () => {
   })
 
   it('renders year selector showing current year', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => makeYearStats() })
+    ;(global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => makeYearStats() })
     render(<YearView />)
     await screen.findByText('48')
     expect(screen.getByText(String(currentYear))).toBeInTheDocument()
@@ -57,19 +59,42 @@ describe('YearView', () => {
   })
 
   it('disables previous-year button at minimum year (current - 4)', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({ json: async () => makeYearStats(currentYear) })
+    const currentYear = new Date().getFullYear()
+    // Set up mocks: one for initial load, then four more for each year click
+    for (let i = 0; i <= 4; i++) {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          year: currentYear - i,
+          totalRides: 0, totalKm: 0, totalElevationM: 0, totalMovingTimeSecs: 0,
+          monthly: Array.from({ length: 12 }, (_, m) => ({ month: m + 1, km: 0 })),
+        }),
+      })
+    }
     render(<YearView />)
-    const prevBtn = await screen.findByRole('button', { name: 'Previous year' })
-    // Verify previous button is enabled when at current year (not at minimum)
-    expect(prevBtn).not.toBeDisabled()
-    // The button will be disabled when year <= (currentYear - 4)
-    // We verify the disabled state changes as we navigate in other tests
+    // Wait for initial load to complete
+    await screen.findByRole('button', { name: 'Previous year' })
+    expect(screen.getByRole('button', { name: 'Previous year' })).not.toBeDisabled()
+
+    // Click back 4 times to reach minYear; wait for each re-fetch to settle
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(screen.getByRole('button', { name: 'Previous year' }))
+      // Wait for the next fetch call to complete (button re-appears after loading)
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(i + 2))
+      // Wait for loading to clear so the nav buttons are visible again
+      if (i < 3) {
+        await screen.findByRole('button', { name: 'Previous year' })
+      }
+    }
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Previous year' })).toBeDisabled()
+    )
   })
 
   it('re-fetches when previous year button is clicked', async () => {
     ;(global.fetch as jest.Mock)
-      .mockResolvedValueOnce({ json: async () => makeYearStats(currentYear) })
-      .mockResolvedValueOnce({ json: async () => makeYearStats(currentYear - 1) })
+      .mockResolvedValueOnce({ ok: true, json: async () => makeYearStats(currentYear) })
+      .mockResolvedValueOnce({ ok: true, json: async () => makeYearStats(currentYear - 1) })
     render(<YearView />)
     await screen.findByText('48')
     fireEvent.click(screen.getByRole('button', { name: 'Previous year' }))
