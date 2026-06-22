@@ -77,7 +77,7 @@ describe('GET /api/stats/year', () => {
     expect(res.status).toBe(400)
   })
 
-  it('computes totals and monthly breakdown from activities', async () => {
+  it('computes totals and monthly breakdown grouped by activity type', async () => {
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ id: 'u1' }, PROFILE))
     mockGetActivities.mockResolvedValue([
       makeActivity({ start_date_local: `${currentYear}-01-10T08:00:00`, distance: 50000, total_elevation_gain: 500, moving_time: 5400 }),
@@ -88,30 +88,41 @@ describe('GET /api/stats/year', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.year).toBe(currentYear)
-    expect(body.totalRides).toBe(3)
-    expect(body.totalKm).toBeCloseTo(150, 0)
-    expect(body.totalElevationM).toBe(1400)
-    expect(body.totalMovingTimeSecs).toBe(16200)
-    expect(body.monthly).toHaveLength(12)
-    const jan = body.monthly.find((m: { month: number }) => m.month === 1)
+    expect(body.groups).toHaveLength(1)
+    const rides = body.groups.find((g: { key: string }) => g.key === 'ride')
+    expect(rides).toBeDefined()
+    expect(rides.totalActivities).toBe(3)
+    expect(rides.totalKm).toBeCloseTo(150, 0)
+    expect(rides.totalElevationM).toBe(1400)
+    expect(rides.totalMovingTimeSecs).toBe(16200)
+    expect(rides.monthly).toHaveLength(12)
+    const jan = rides.monthly.find((m: { month: number }) => m.month === 1)
     expect(jan.km).toBeCloseTo(90, 0)
-    const mar = body.monthly.find((m: { month: number }) => m.month === 3)
+    const mar = rides.monthly.find((m: { month: number }) => m.month === 3)
     expect(mar.km).toBeCloseTo(60, 0)
-    const feb = body.monthly.find((m: { month: number }) => m.month === 2)
+    const feb = rides.monthly.find((m: { month: number }) => m.month === 2)
     expect(feb.km).toBe(0)
   })
 
-  it('excludes non-ride activity types from totals', async () => {
+  it('separates activity types into distinct groups', async () => {
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ id: 'u1' }, PROFILE))
     mockGetActivities.mockResolvedValue([
-      makeActivity({ start_date_local: `${currentYear}-01-10T08:00:00`, distance: 50000, moving_time: 3600 }),
+      makeActivity({ start_date_local: `${currentYear}-01-10T08:00:00`, type: 'Ride', distance: 50000, moving_time: 3600 }),
       makeActivity({ start_date_local: `${currentYear}-01-10T09:00:00`, type: 'Run', distance: 10000, moving_time: 1800 }),
       makeActivity({ start_date_local: `${currentYear}-01-10T10:00:00`, type: 'WeightTraining', distance: null, moving_time: 3600 }),
     ])
     const res = await GET(makeRequest(String(currentYear)))
     const body = await res.json()
-    expect(body.totalRides).toBe(1)
-    expect(body.totalKm).toBeCloseTo(50, 0)
+    expect(body.groups).toHaveLength(3)
+    const ride = body.groups.find((g: { key: string }) => g.key === 'ride')
+    expect(ride.totalActivities).toBe(1)
+    expect(ride.totalKm).toBeCloseTo(50, 0)
+    const run = body.groups.find((g: { key: string }) => g.key === 'run')
+    expect(run.totalActivities).toBe(1)
+    expect(run.totalKm).toBeCloseTo(10, 0)
+    const other = body.groups.find((g: { key: string }) => g.key === 'other')
+    expect(other.totalActivities).toBe(1)
+    expect(other.totalKm).toBe(0)
   })
 
   it('returns 502 when intervals.icu throws', async () => {
@@ -128,7 +139,6 @@ describe('GET /api/stats/year', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.year).toBe(new Date().getFullYear())
-    expect(body.totalRides).toBe(0)
-    expect(body.monthly).toHaveLength(12)
+    expect(body.groups).toHaveLength(0)
   })
 })
