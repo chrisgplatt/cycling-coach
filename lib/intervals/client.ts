@@ -235,7 +235,7 @@ export class IntervalsClient {
 
   async getActivities(oldest: string, newest: string): Promise<ICUActivity[]> {
     const raw = await this.request<Record<string, unknown>[]>(
-      `/athlete/${this.athleteId}/activities?oldest=${oldest}&newest=${newest}`
+      `/athlete/${this.athleteId}/activities?oldest=${oldest}&newest=${newest}&limit=2000`
     )
     return raw.map(a => this.mapActivity(a))
   }
