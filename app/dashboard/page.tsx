@@ -4,7 +4,7 @@ import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
 import CtlTrendStrip from '@/components/CtlTrendStrip'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, ICUActivity, WeightEntry, WeeklyProgress, EventCountdown, WeatherSummary } from '@/types'
+import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, ICUActivity, WeightEntry, WeeklyProgress, EventCountdown, WeatherSummary, ActivityWeather } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
@@ -48,7 +48,7 @@ import DayWeatherChip from '@/components/DayWeatherChip'
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
 
-function DraggableWorkoutCard({ workout, onClick, ftp }: { workout: Workout; onClick: () => void; ftp?: number }) {
+function DraggableWorkoutCard({ workout, onClick, ftp, weather }: { workout: Workout; onClick: () => void; ftp?: number; weather?: ActivityWeather | null }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: workout.id })
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
@@ -56,7 +56,7 @@ function DraggableWorkoutCard({ workout, onClick, ftp }: { workout: Workout; onC
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="relative">
       <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-16 h-0.5 rounded-full bg-slate-300 pointer-events-none z-10" />
-      <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} />
+      <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} weather={weather} />
       {/* Drag zone sits between the two grip bars; relays quick taps as card-open */}
       <div
         {...listeners}
@@ -121,6 +121,7 @@ export default function DashboardPage() {
   const [dailyWellness, setDailyWellness] = useState<DailyWellness[]>([])
   const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
   const [weatherByDate, setWeatherByDate] = useState<Map<string, WeatherSummary>>(new Map())
+  const [weatherByActivity, setWeatherByActivity] = useState<Map<string, ActivityWeather>>(new Map())
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -362,6 +363,31 @@ export default function DashboardPage() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    const completedIds = workouts
+      .filter(w => w.status === 'completed' && w.icu_activity_id)
+      .map(w => w.icu_activity_id!)
+
+    if (!completedIds.length) return
+
+    let cancelled = false
+    Promise.all(
+      completedIds.map(id =>
+        fetch(`/api/weather/activity/${id}`)
+          .then(r => r.ok ? r.json() : null)
+          .then((d: ActivityWeather | null) => d ? [id, d] as const : null)
+          .catch(() => null)
+      )
+    ).then(results => {
+      if (cancelled) return
+      const map = new Map<string, ActivityWeather>()
+      for (const r of results) { if (r) map.set(r[0], r[1]) }
+      setWeatherByActivity(map)
+    })
+
+    return () => { cancelled = true }
+  }, [workouts])
 
   const wellnessArr = syncData?.wellness ?? []
   const latestEntry = wellnessArr.length > 0 ? wellnessArr[wellnessArr.length - 1] : null
@@ -689,9 +715,9 @@ export default function DashboardPage() {
                       return (
                         <div key={w.id}>
                           {w.status === 'planned' ? (
-                            <DraggableWorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} ftp={currentFTP} />
+                            <DraggableWorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} ftp={currentFTP} weather={w.icu_activity_id ? weatherByActivity.get(w.icu_activity_id) ?? null : null} />
                           ) : (
-                            <WorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} ftp={currentFTP} />
+                            <WorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} ftp={currentFTP} weather={w.icu_activity_id ? weatherByActivity.get(w.icu_activity_id) ?? null : null} />
                           )}
                           {linkedEvent && (
                             <div className="relative ml-4 mt-1.5">

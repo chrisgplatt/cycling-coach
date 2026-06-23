@@ -21,7 +21,7 @@ import PlanReviewModal from '@/components/PlanReviewModal'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import WorkoutCard from '@/components/WorkoutCard'
-import type { Workout, TrainingEvent, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry, WeatherSummary } from '@/types'
+import type { Workout, TrainingEvent, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry, WeatherSummary, ActivityWeather } from '@/types'
 import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr, weekStartsAround, weekStartsAfter, getDayWorkoutColor, getWeeklySummary } from '@/lib/calendar-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
@@ -40,7 +40,7 @@ const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
 // Planned workouts are draggable. TouchSensor requires a 200ms press before activating
 // so scrolling past cards never triggers a drag accidentally.
-function DraggableWorkoutCard({ workout, onClick, ftp }: { workout: Workout; onClick: () => void; ftp?: number }) {
+function DraggableWorkoutCard({ workout, onClick, ftp, weather }: { workout: Workout; onClick: () => void; ftp?: number; weather?: ActivityWeather | null }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: workout.id })
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
@@ -48,7 +48,7 @@ function DraggableWorkoutCard({ workout, onClick, ftp }: { workout: Workout; onC
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="relative">
       <div className="absolute top-3 left-1/2 -translate-x-1/2 w-16 h-0.5 rounded-full bg-slate-300 pointer-events-none z-10" />
-      <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} />
+      <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} weather={weather} />
       {/* Drag zone sits between the two grip bars; relays quick taps as card-open */}
       <div
         {...listeners}
@@ -253,12 +253,13 @@ interface WeekDetailProps {
   dailyWellness: DailyWellness[]
   onOpenWellness: (date: string) => void
   weatherByDate?: Map<string, WeatherSummary>
+  weatherByActivity?: Map<string, ActivityWeather>
 }
 
 function WeekDetail({
   selectedDateStr, workouts, events, unlinkedActivities, todayStr,
   onWorkoutClick, onEventClick, onActivityClick, unavailability, onAddUnavailability, ftp, weatherByDate,
-  dailyWellness, onOpenWellness,
+  dailyWellness, onOpenWellness, weatherByActivity,
 }: WeekDetailProps) {
   const dates = weekDates(selectedDateStr)
   const overlappingPeriods = unavailability.filter(p => periodOverlapsWeek(p, dates))
@@ -340,8 +341,8 @@ function WeekDetail({
                 return (
                   <div key={w.id}>
                     {w.status === 'planned'
-                      ? <DraggableWorkoutCard workout={w} onClick={() => onWorkoutClick(w)} ftp={ftp} />
-                      : <WorkoutCard workout={w} onClick={() => onWorkoutClick(w)} ftp={ftp} />}
+                      ? <DraggableWorkoutCard workout={w} onClick={() => onWorkoutClick(w)} ftp={ftp} weather={w.icu_activity_id ? weatherByActivity?.get(w.icu_activity_id) ?? null : null} />
+                      : <WorkoutCard workout={w} onClick={() => onWorkoutClick(w)} ftp={ftp} weather={w.icu_activity_id ? weatherByActivity?.get(w.icu_activity_id) ?? null : null} />}
                     {linkedEvent && (
                       <div className="relative ml-4 mt-1">
                         <div className="absolute -top-2 -left-3 h-6 w-3 border-l-2 border-b-2 border-gray-200 rounded-bl-md" />
@@ -532,6 +533,7 @@ export default function CalendarPage() {
   const [dailyWellness, setDailyWellness] = useState<DailyWellness[]>([])
   const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
   const [weatherByDate, setWeatherByDate] = useState<Map<string, WeatherSummary>>(new Map())
+  const [weatherByActivity, setWeatherByActivity] = useState<Map<string, ActivityWeather>>(new Map())
 
   // Drag-to-reschedule: a planned workout can be dragged onto another day.
   const sensors = useSensors(
@@ -659,6 +661,31 @@ export default function CalendarPage() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    const completedIds = workouts
+      .filter(w => w.status === 'completed' && w.icu_activity_id)
+      .map(w => w.icu_activity_id!)
+
+    if (!completedIds.length) return
+
+    let cancelled = false
+    Promise.all(
+      completedIds.map(id =>
+        fetch(`/api/weather/activity/${id}`)
+          .then(r => r.ok ? r.json() : null)
+          .then((d: ActivityWeather | null) => d ? [id, d] as const : null)
+          .catch(() => null)
+      )
+    ).then(results => {
+      if (cancelled) return
+      const map = new Map<string, ActivityWeather>()
+      for (const r of results) { if (r) map.set(r[0], r[1]) }
+      setWeatherByActivity(map)
+    })
+
+    return () => { cancelled = true }
+  }, [workouts])
 
   function prevMonth() {
     if (displayMonth === 0) { setDisplayMonth(11); setDisplayYear(y => y - 1) }
@@ -791,6 +818,7 @@ export default function CalendarPage() {
           dailyWellness={dailyWellness}
           onOpenWellness={handleOpenWellness}
           weatherByDate={weatherByDate}
+          weatherByActivity={weatherByActivity}
         />
         <DragOverlay>
           {activeWorkout ? <WorkoutCard workout={activeWorkout} onClick={() => {}} ftp={currentFTP} /> : null}
