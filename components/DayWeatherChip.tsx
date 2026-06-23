@@ -28,8 +28,11 @@ export default function DayWeatherChip({ weather }: { weather: WeatherSummary | 
       <span className="text-[10px] font-medium text-slate-500">
         {Math.round(weather.temp_max_c)}°
       </span>
+      <span className="text-[10px] text-blue-400 tabular-nums">
+        {Math.round(weather.precip_prob_pct)}%
+      </span>
       <span className="text-[10px] text-slate-400 tabular-nums">
-        {weather.wind_direction_deg != null ? windArrow(weather.wind_direction_deg) : ''}
+        {weather.wind_direction_deg != null ? `${windArrow(weather.wind_direction_deg)} ` : ''}
         {Math.round(weather.wind_max_kph)}
       </span>
     </div>
