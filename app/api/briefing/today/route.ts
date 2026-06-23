@@ -176,6 +176,23 @@ export async function GET(req: NextRequest) {
     } catch { /* if ICU unavailable, proceed without ride data */ }
   }
 
+  // Fetch weather for the most recent completed ride — used in post-ride briefing
+  let completedRideWeather: import('@/types').ActivityWeather | null = null
+  if (completedRide && todayWorkouts.length > 0) {
+    const matchedWorkout = todayWorkouts.find(w => w.status === 'completed' && w.icu_activity_id)
+    if (matchedWorkout?.icu_activity_id) {
+      try {
+        const { data: cachedWeather } = await supabase
+          .from('activity_weather')
+          .select('activity_id,temp_min_c,temp_max_c,precip_mm,wind_avg_kph,wind_dir_deg,headwind_pct,tailwind_pct,crosswind_pct,air_speed_kph,weather_impact_pct')
+          .eq('activity_id', matchedWorkout.icu_activity_id)
+          .eq('user_id', user.id)
+          .maybeSingle()
+        completedRideWeather = cachedWeather ?? null
+      } catch { /* non-fatal */ }
+    }
+  }
+
   const lat = (profile as { latitude?: number } | null)?.latitude
   const lon = (profile as { longitude?: number } | null)?.longitude
   let weather: BriefingContext['weather'] = null
@@ -239,6 +256,7 @@ export async function GET(req: NextRequest) {
     workoutCompleted,
     completedRide,
     completedRides,
+    completedRideWeather,
     ctl,
     atl,
     tsb,
