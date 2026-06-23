@@ -106,15 +106,113 @@ export function computeHeadwindAnalysis(params: {
   }
 }
 
-// Placeholder stubs — implemented in Task 3
+interface HistoricalWeatherResult {
+  temp_min_c: number
+  temp_max_c: number
+  precip_mm: number
+  wind_avg_kph: number
+  wind_dir_deg: number
+}
+
 export async function fetchHistoricalWeather(
-  _lat: number, _lon: number, _dateStr: string, _rideHour: number,
-): Promise<{ temp_min_c: number; temp_max_c: number; precip_mm: number; wind_avg_kph: number; wind_dir_deg: number } | null> {
-  throw new Error('not yet implemented')
+  lat: number,
+  lon: number,
+  dateStr: string,
+  rideHour: number,
+): Promise<HistoricalWeatherResult | null> {
+  const params = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    start_date: dateStr,
+    end_date: dateStr,
+    hourly: 'temperature_2m,wind_speed_10m,wind_direction_10m,precipitation',
+    wind_speed_unit: 'kmh',
+    timezone: 'auto',
+  })
+  try {
+    const res = await fetch(`https://archive-api.open-meteo.com/v1/archive?${params}`)
+    if (!res.ok) return null
+    const data = await res.json() as {
+      hourly?: {
+        time?: string[]
+        temperature_2m?: (number | null)[]
+        wind_speed_10m?: (number | null)[]
+        wind_direction_10m?: (number | null)[]
+        precipitation?: (number | null)[]
+      }
+    }
+    const h = data.hourly
+    if (!h?.time?.length) return null
+
+    // Find the index of the matching hour in the time array (archive API returns
+    // 24 hourly entries in normal use, so rideHour aligns with the array index,
+    // but we search explicitly to be safe with sparse responses).
+    const hourIdx = h.time.findIndex(t => {
+      const h24 = parseInt(t.split('T')[1]?.split(':')[0] ?? '-1', 10)
+      return h24 === rideHour
+    })
+    if (hourIdx === -1) return null
+    // Temp range: cover up to 3 hours of ride duration
+    const endIdx = Math.min(hourIdx + 3, h.time.length - 1)
+    const temps = (h.temperature_2m ?? [])
+      .slice(hourIdx, endIdx + 1)
+      .filter((v): v is number => v != null)
+
+    return {
+      temp_min_c: temps.length ? Math.min(...temps) : (h.temperature_2m?.[hourIdx] ?? 0),
+      temp_max_c: temps.length ? Math.max(...temps) : (h.temperature_2m?.[hourIdx] ?? 0),
+      precip_mm:  h.precipitation?.[hourIdx] ?? 0,
+      wind_avg_kph:  h.wind_speed_10m?.[hourIdx] ?? 0,
+      wind_dir_deg:  h.wind_direction_10m?.[hourIdx] ?? 0,
+    }
+  } catch {
+    return null
+  }
 }
 
 export async function fetchActivityWeather(
-  _activityId: string, _userId: string, _client: IntervalsClient, _supabase: SupabaseClient,
+  activityId: string,
+  userId: string,
+  client: IntervalsClient,
+  supabase: SupabaseClient,
 ): Promise<ActivityWeather | null> {
-  throw new Error('not yet implemented')
+  // 1. GPS track (null = indoor ride)
+  const { latlngs } = await client.getActivityMap(activityId)
+  if (!latlngs || latlngs.length < 2) return null
+
+  // 2. Activity metadata for timing + speed
+  const activity = await client.getActivity(activityId)
+  const dateStr = activity.start_date_local.split('T')[0]
+  // Parse hour from local datetime string (e.g. "2026-06-20T12:21:00")
+  const rideHour = parseInt(activity.start_date_local.split('T')[1]?.split(':')[0] ?? '12', 10)
+  const avgSpeedKph = activity.distance != null && activity.moving_time > 0
+    ? (activity.distance / 1000) / (activity.moving_time / 3600)
+    : 20  // fallback if no GPS distance
+
+  // 3. Historical weather at start location
+  const [startLat, startLon] = latlngs[0]
+  const historicalWeather = await fetchHistoricalWeather(startLat, startLon, dateStr, rideHour)
+  if (!historicalWeather) return null
+
+  // 4. Headwind analysis
+  const analysis = computeHeadwindAnalysis({
+    latlngs,
+    windDirDeg: historicalWeather.wind_dir_deg,
+    windSpeedKph: historicalWeather.wind_avg_kph,
+    avgSpeedKph,
+  })
+
+  // 5. Assemble + cache
+  const result: ActivityWeather = {
+    activity_id: activityId,
+    ...historicalWeather,
+    ...analysis,
+  }
+
+  await supabase.from('activity_weather').upsert(
+    { ...result, user_id: userId, computed_at: new Date().toISOString() },
+    { onConflict: 'activity_id' },
+  )
+
+  return result
 }
