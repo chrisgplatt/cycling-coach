@@ -74,7 +74,9 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
           rows.push({ kind: 'event', date: e.date, label: e.name, icon: EVENT_ICON[e.type] ?? '🏁', priority: e.priority, priorityColour })
         }
         for (const t of upcomingTests ?? []) {
-          rows.push({ kind: 'test', date: t.date, label: t.description || 'Test session' })
+          const raw = t.description || 'Test session'
+          const label = raw.split(/[,.]/)[ 0].trim() || raw
+          rows.push({ kind: 'test', date: t.date, label })
         }
 
         rows.sort((a, b) => a.date.localeCompare(b.date))
