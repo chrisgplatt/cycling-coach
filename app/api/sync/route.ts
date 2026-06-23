@@ -186,6 +186,43 @@ export async function POST(req: Request) {
       }
     }
 
+    // Pre-warm weather cache for up to 5 recently-completed outdoor rides that
+    // don't yet have a cached row. Fire-and-forget — sync response is not delayed.
+    void (async () => {
+      try {
+        const { fetchActivityWeather } = await import('@/lib/weather/activity-weather')
+        // Get the IDs of completed workouts with an icu_activity_id
+        const { data: completedWorkouts } = await supabase
+          .from('workouts')
+          .select('icu_activity_id')
+          .eq('status', 'completed')
+          .not('icu_activity_id', 'is', null)
+          .order('date', { ascending: false })
+          .limit(20)
+
+        if (!completedWorkouts?.length) return
+
+        const allIds = completedWorkouts.map(w => w.icu_activity_id as string)
+
+        // Filter to IDs not yet cached
+        const { data: cached } = await supabase
+          .from('activity_weather')
+          .select('activity_id')
+          .in('activity_id', allIds)
+
+        const cachedSet = new Set((cached ?? []).map(r => r.activity_id as string))
+        const uncached = allIds.filter(id => !cachedSet.has(id)).slice(0, 5)
+
+        if (!uncached.length) return
+
+        for (const activityId of uncached) {
+          try {
+            await fetchActivityWeather(activityId, user.id, client, supabase)
+          } catch { /* non-fatal — individual failures must not abort the loop */ }
+        }
+      } catch { /* non-fatal — pre-warm must not affect sync response */ }
+    })()
+
     return NextResponse.json({
       ...syncData,
       athlete_id: profile.intervals_icu_athlete_id,
