@@ -21,7 +21,7 @@ import PlanReviewModal from '@/components/PlanReviewModal'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import WorkoutCard from '@/components/WorkoutCard'
-import type { Workout, TrainingEvent, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry } from '@/types'
+import type { Workout, TrainingEvent, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry, WeatherSummary } from '@/types'
 import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr, weekStartsAround, weekStartsAfter, getDayWorkoutColor, getWeeklySummary } from '@/lib/calendar-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
@@ -29,6 +29,7 @@ import { periodOverlapsWeek, coveredDaysInWeek, periodDurationDays } from '@/lib
 import WellnessCard from '@/components/WellnessCard'
 import WellnessSheet from '@/components/WellnessSheet'
 import type { DailyWellness } from '@/types'
+import DayWeatherChip from '@/components/DayWeatherChip'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -242,11 +243,12 @@ interface WeekDetailProps {
   ftp?: number
   dailyWellness: DailyWellness[]
   onOpenWellness: (date: string) => void
+  weatherByDate?: Map<string, WeatherSummary>
 }
 
 function WeekDetail({
   selectedDateStr, workouts, events, unlinkedActivities, todayStr,
-  onWorkoutClick, onEventClick, onActivityClick, unavailability, onAddUnavailability, ftp,
+  onWorkoutClick, onEventClick, onActivityClick, unavailability, onAddUnavailability, ftp, weatherByDate,
   dailyWellness, onOpenWellness,
 }: WeekDetailProps) {
   const dates = weekDates(selectedDateStr)
@@ -319,6 +321,7 @@ function WeekDetail({
               >
                 {dayNum}
               </button>
+              <DayWeatherChip weather={weatherByDate?.get(dateStr)} />
             </div>
             {/* Sessions column — droppable target for rescheduling */}
             <DroppableDay date={dateStr}>
@@ -519,6 +522,7 @@ export default function CalendarPage() {
   const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
   const [dailyWellness, setDailyWellness] = useState<DailyWellness[]>([])
   const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
+  const [weatherByDate, setWeatherByDate] = useState<Map<string, WeatherSummary>>(new Map())
 
   // Drag-to-reschedule: a planned workout can be dragged onto another day.
   const sensors = useSensors(
@@ -633,6 +637,17 @@ export default function CalendarPage() {
     fetch(`/api/wellness?from=${wFrom}&to=${wTo}`)
       .then(r => r.json())
       .then(({ wellness }) => { if (Array.isArray(wellness)) setDailyWellness(wellness) })
+      .catch(() => {})
+    fetch('/api/weather/week')
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { dates?: Array<{ date: string; weather: WeatherSummary | null }> } | null) => {
+        if (!d?.dates) return
+        const map = new Map<string, WeatherSummary>()
+        for (const { date, weather } of d.dates) {
+          if (weather) map.set(date, weather)
+        }
+        setWeatherByDate(map)
+      })
       .catch(() => {})
   }, [])
 
@@ -766,6 +781,7 @@ export default function CalendarPage() {
           ftp={currentFTP}
           dailyWellness={dailyWellness}
           onOpenWellness={handleOpenWellness}
+          weatherByDate={weatherByDate}
         />
         <DragOverlay>
           {activeWorkout ? <WorkoutCard workout={activeWorkout} onClick={() => {}} ftp={currentFTP} /> : null}

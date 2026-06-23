@@ -4,7 +4,7 @@ import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
 import CtlTrendStrip from '@/components/CtlTrendStrip'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, ICUActivity, WeightEntry, WeeklyProgress, EventCountdown } from '@/types'
+import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, ICUActivity, WeightEntry, WeeklyProgress, EventCountdown, WeatherSummary } from '@/types'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
@@ -43,6 +43,7 @@ import WellnessCard from '@/components/WellnessCard'
 import WellnessSheet from '@/components/WellnessSheet'
 import type { DailyWellness } from '@/types'
 import AnimatedLogo from '@/components/AnimatedLogo'
+import DayWeatherChip from '@/components/DayWeatherChip'
 
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
@@ -119,6 +120,7 @@ export default function DashboardPage() {
   const [syncVersion, setSyncVersion] = useState(0)
   const [dailyWellness, setDailyWellness] = useState<DailyWellness[]>([])
   const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
+  const [weatherByDate, setWeatherByDate] = useState<Map<string, WeatherSummary>>(new Map())
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -345,6 +347,20 @@ export default function DashboardPage() {
       .then(r => r.ok ? r.json() : null)
       .then(d => setChartsData(d?.charts ?? null))
       .catch(() => setChartsData(null))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/weather/week')
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { dates?: Array<{ date: string; weather: WeatherSummary | null }> } | null) => {
+        if (!d?.dates) return
+        const map = new Map<string, WeatherSummary>()
+        for (const { date, weather } of d.dates) {
+          if (weather) map.set(date, weather)
+        }
+        setWeatherByDate(map)
+      })
+      .catch(() => {})
   }, [])
 
   const wellnessArr = syncData?.wellness ?? []
@@ -657,6 +673,7 @@ export default function DashboardPage() {
                   <div className="w-10 text-center pt-3">
                     <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{days[i]}</div>
                     <div className={`text-xl font-extrabold tracking-tight mt-0.5 ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>{date.slice(8)}</div>
+                    <DayWeatherChip weather={weatherByDate.get(date)} />
                   </div>
                   <DroppableDay date={date}>
                     {dayWorkouts.map(w => {

@@ -70,6 +70,59 @@ interface GeocodeApiResult {
   longitude?: number
 }
 
+export async function fetchWeekForecast(
+  lat: number,
+  lon: number,
+  startDate: string,
+  endDate: string,
+  tz: string,
+): Promise<Array<{ date: string; weather: WeatherSummary | null }>> {
+  const params = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,weather_code,wind_direction_10m_dominant',
+    timezone: tz,
+    start_date: startDate,
+    end_date: endDate,
+  })
+  try {
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+    if (!res.ok) return []
+    const data = await res.json() as { daily?: Record<string, unknown> }
+    const d = data.daily
+    if (!d || !Array.isArray(d.time)) return []
+    const times = d.time as string[]
+    const tempMax = d.temperature_2m_max as (number | null)[]
+    const tempMin = d.temperature_2m_min as (number | null)[]
+    const maxKph = d.wind_speed_10m_max as (number | null)[]
+    const gustKph = d.wind_gusts_10m_max as (number | null)[]
+    const codes = d.weather_code as (number | null)[]
+    const precipProb = d.precipitation_probability_max as (number | null)[]
+    const windDir = d.wind_direction_10m_dominant as (number | null)[]
+    return times.map((date, i) => {
+      const temp_max_c = tempMax[i] ?? null
+      const temp_min_c = tempMin[i] ?? null
+      const wind_max_kph = maxKph[i] ?? null
+      const gust_max_kph = gustKph[i] ?? null
+      const weather_code = codes[i] ?? null
+      if (temp_max_c == null || temp_min_c == null || wind_max_kph == null
+        || gust_max_kph == null || weather_code == null) return { date, weather: null }
+      return {
+        date,
+        weather: {
+          temp_min_c, temp_max_c,
+          precip_prob_pct: precipProb[i] ?? 0,
+          wind_max_kph, gust_max_kph, weather_code,
+          description: describeWeatherCode(weather_code),
+          wind_direction_deg: windDir?.[i] ?? undefined,
+        },
+      }
+    })
+  } catch {
+    return []
+  }
+}
+
 export async function geocodeLocation(query: string): Promise<GeocodeMatch[]> {
   const params = new URLSearchParams({
     name: query,

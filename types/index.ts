@@ -534,6 +534,7 @@ export interface WeatherSummary {
   gust_max_kph: number      // daily max wind gust
   weather_code: number      // WMO weather interpretation code
   description: string        // human label derived from weather_code
+  wind_direction_deg?: number // dominant daily wind direction (meteorological: where wind comes FROM)
 }
 
 export interface GeocodeMatch {
