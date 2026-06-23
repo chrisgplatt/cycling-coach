@@ -30,7 +30,9 @@ describe('WorkoutDetailModal planned-vs-actual', () => {
     const fetchMock = jest.fn((url: string) =>
       String(url).includes('/streams')
         ? Promise.resolve({ ok: true, json: async () => ({ streams: { time: [0, 60], power: null }, intervals: [] }) })
-        : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
+        : String(url).includes('/weather/')
+          ? Promise.resolve({ ok: false })
+          : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
     )
     global.fetch = fetchMock as never
     render(<WorkoutDetailModal workout={completed} athleteId="i1" ftp={250} onClose={() => {}} />)
@@ -66,7 +68,12 @@ const activity: ICUActivity = {
 describe('WorkoutDetailModal', () => {
   beforeEach(() => {
     // Completed / needs_review workouts fetch existing feedback on mount.
-    ;(global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ feedback: null }) })
+    // Weather URLs return ok:false so the weather panel stays hidden (no air_speed_kph to crash on).
+    ;(global.fetch as jest.Mock).mockImplementation((url: string) =>
+      String(url).includes('/weather/')
+        ? Promise.resolve({ ok: false })
+        : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
+    )
   })
   afterEach(() => { jest.restoreAllMocks() })
 
