@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent, RideStreams, WeightEntry } from '@/types'
+import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent, RideStreams, WeightEntry, ActivityWeather } from '@/types'
+import ActivityWeatherPanel from '@/components/ActivityWeatherPanel'
 import { weightAtDate } from '@/lib/weight-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import WorkoutProfileChart, { WorkoutStepList } from './WorkoutProfileChart'
@@ -89,6 +90,8 @@ export default function WorkoutDetailModal({
   const [streamsError, setStreamsError] = useState(false)
   const [tab, setTab] = useState<'overview' | 'stats' | 'map' | 'feedback'>('overview')
   const [feedbackSaved, setFeedbackSaved] = useState(false)
+  const [weather, setWeather] = useState<ActivityWeather | null>(null)
+  const [weatherLoading, setWeatherLoading] = useState(false)
   const hasRide = (workout.status === 'completed' || workout.status === 'needs_review') && !!workout.icu_activity_id
 
   useEffect(() => {
@@ -129,6 +132,16 @@ export default function WorkoutDetailModal({
       .catch(() => { if (!cancelled) { setActualUnavailable(true); setStreamsError(true) } })
     return () => { cancelled = true }
   }, [workout.id, workout.status, workout.icu_activity_id, ftp, workout.steps])
+
+  useEffect(() => {
+    const activityId = workout.icu_activity_id
+    if (!activityId || workout.status !== 'completed') return
+    setWeatherLoading(true)
+    fetch(`/api/weather/activity/${activityId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: ActivityWeather | null) => { setWeather(d); setWeatherLoading(false) })
+      .catch(() => setWeatherLoading(false))
+  }, [workout.icu_activity_id, workout.status])
 
   async function handleDelete() {
     setDeleting(true)
@@ -478,6 +491,31 @@ export default function WorkoutDetailModal({
                   )}
                 </div>
               </details>
+            </div>
+          )}
+
+          {/* Weather impact panel — shown for completed GPS rides */}
+          {workout.status === 'completed' && (weather || weatherLoading) && (
+            <div className="px-4 py-3 border-t border-gray-100">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.06em] mb-2">Wind Impact</p>
+              {weatherLoading ? (
+                <div className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+              ) : weather ? (
+                <ActivityWeatherPanel
+                  weather={weather}
+                  groundSpeedKph={
+                    workout.activity_metrics
+                      ? (() => {
+                          const m = workout.activity_metrics
+                          // distance_m is in metres; convert to km and divide by hours
+                          return m.distance_m != null && workout.duration_minutes > 0
+                            ? ((m.distance_m / 1000) / (workout.duration_minutes / 60))
+                            : null
+                        })()
+                      : null
+                  }
+                />
+              ) : null}
             </div>
           )}
 
