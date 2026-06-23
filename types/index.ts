@@ -537,6 +537,20 @@ export interface WeatherSummary {
   wind_direction_deg?: number // dominant daily wind direction (meteorological: where wind comes FROM)
 }
 
+export interface ActivityWeather {
+  activity_id:        string
+  temp_min_c:         number
+  temp_max_c:         number
+  precip_mm:          number
+  wind_avg_kph:       number
+  wind_dir_deg:       number
+  headwind_pct:       number
+  tailwind_pct:       number
+  crosswind_pct:      number
+  air_speed_kph:      number
+  weather_impact_pct: number
+}
+
 export interface GeocodeMatch {
   label: string
   latitude: number
@@ -579,6 +593,7 @@ export interface BriefingContext {
   workoutCompleted: boolean
   completedRide: CompletedRideData | null
   completedRides?: CompletedRideData[] | null  // all completed rides today
+  completedRideWeather?: ActivityWeather | null
   ctl: number | null
   atl: number | null
   tsb: number | null
