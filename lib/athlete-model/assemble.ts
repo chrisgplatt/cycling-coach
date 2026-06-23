@@ -28,6 +28,7 @@ export const TYPE_TARGET_PCT: Record<WorkoutType, number> = {
   endurance: 68,
   threshold: 98,
   intervals: 112,
+  test: 100,
 }
 
 export function rpeSessionsFromFeedback(

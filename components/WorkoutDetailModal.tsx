@@ -18,11 +18,12 @@ const TYPE_COLOURS: Record<WorkoutType, string> = {
   endurance: 'bg-blue-100 text-blue-700',
   threshold: 'bg-orange-100 text-orange-700',
   intervals: 'bg-red-100 text-red-700',
-  recovery: 'bg-emerald-100 text-emerald-700',
+  recovery:  'bg-emerald-100 text-emerald-700',
+  test:      'bg-violet-100 text-violet-700',
 }
 
 const IF_BY_TYPE: Record<WorkoutType, number> = {
-  recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90,
+  recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90, test: 0.90,
 }
 
 const STATUS_CHIP: Partial<Record<string, string>> = {

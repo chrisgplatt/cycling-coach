@@ -210,6 +210,7 @@ STEP RULES:
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
 - Sessions >45min must include a warm-up (10-15min at Z1-Z2) and cool-down (10min at Z1)
 - For interval sessions, list each rep and each recovery period as a separate step (do not group)
+- Use type: test for FTP tests, ramp tests, and any fitness assessment sessions — not intervals
 
 ${coachingNotesGuidance()}
 
@@ -225,7 +226,7 @@ Return ONLY this JSON:
   "workouts": [
     {
       "date": "YYYY-MM-DD",
-      "type": "endurance|threshold|intervals|recovery",
+      "type": "endurance|threshold|intervals|recovery|test",
       "duration_minutes": 90,
       "description": "what to do",
       "target_zones": "Zone 2 (55-75% FTP)",

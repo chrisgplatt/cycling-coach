@@ -1,4 +1,4 @@
-export type WorkoutType = 'endurance' | 'threshold' | 'intervals' | 'recovery'
+export type WorkoutType = 'endurance' | 'threshold' | 'intervals' | 'recovery' | 'test'
 export type WorkoutStatus = 'planned' | 'completed' | 'skipped' | 'needs_review'
 export type PlanStatus = 'active' | 'archived'
 export type EventPriority = 'A' | 'B' | 'C'

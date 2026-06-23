@@ -2,7 +2,7 @@ import type { Workout, WorkoutType } from '@/types'
 import { deriveTargetZones } from '@/lib/claude/zones'
 
 const IF_BY_TYPE: Record<WorkoutType, number> = {
-  recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90,
+  recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90, test: 0.90,
 }
 
 function getTss(workout: Workout): { value: number; estimated: boolean } | null {
@@ -19,6 +19,7 @@ const TYPE_CHIPS: Record<WorkoutType, string> = {
   threshold: 'bg-orange-50 text-orange-600 border border-orange-200',
   intervals: 'bg-red-50 text-red-600 border border-red-200',
   recovery:  'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  test:      'bg-violet-50 text-violet-700 border border-violet-200',
 }
 
 const TYPE_BAR: Record<WorkoutType, string> = {
@@ -26,6 +27,7 @@ const TYPE_BAR: Record<WorkoutType, string> = {
   threshold: 'bg-red-500',
   intervals: 'bg-orange-500',
   recovery:  'bg-emerald-500',
+  test:      'bg-violet-500',
 }
 
 const STATUS_CHIPS = {

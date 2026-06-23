@@ -196,6 +196,7 @@ function MonthStrip({
                 const inSelectedWeek = selectedWeekSet.has(dateStr)
                 const isToday = dateStr === todayStr
                 const workoutColor = getDayWorkoutColor(dateStr, workouts)
+                const isRaceDay = events.some(e => e.date === dateStr && (e.type === 'race' || e.type === 'sportive'))
                 const dots: string[] = []
                 if (events.some(e => e.date === dateStr)) dots.push('bg-red-400')
                 if (workoutColor) dots.push(workoutColor)
@@ -208,7 +209,12 @@ function MonthStrip({
                     className={`flex flex-col items-center justify-center min-h-[44px] w-full cursor-pointer rounded-sm ${inSelectedWeek ? 'bg-blue-50' : ''}`}
                   >
                     <span className={`text-[11px] w-6 h-6 flex items-center justify-center leading-none rounded-full
-                      ${isToday ? 'bg-blue-500 text-white font-bold' : 'text-slate-600'}`}>
+                      ${isToday
+                        ? 'bg-blue-500 text-white font-bold'
+                        : isRaceDay
+                          ? 'bg-red-500 text-white font-semibold'
+                          : 'text-slate-600'
+                      }`}>
                       {parseInt(dateStr.split('-')[2], 10)}
                     </span>
                     <div className="flex gap-0.5 mt-0.5 h-1.5 items-center">

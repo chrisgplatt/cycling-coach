@@ -86,11 +86,11 @@ export function toLocalDateStr(date: Date): string {
 }
 
 const TYPE_PRIORITY: Record<string, number> = {
-  intervals: 4, threshold: 3, endurance: 2, recovery: 1,
+  intervals: 4, threshold: 3, test: 2, endurance: 2, recovery: 1,
 }
 const TYPE_COLOR: Record<string, string> = {
   intervals: 'bg-orange-500', threshold: 'bg-red-500',
-  endurance: 'bg-blue-500',   recovery:  'bg-emerald-500',
+  test:      'bg-violet-500', endurance: 'bg-blue-500', recovery: 'bg-emerald-500',
 }
 
 // Returns the Tailwind background class for the hardest workout type on dateStr,

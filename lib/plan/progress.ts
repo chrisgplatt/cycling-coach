@@ -16,6 +16,7 @@ const IF_BY_TYPE: Record<WorkoutType, number> = {
   endurance: 0.68,
   threshold: 0.95,
   intervals: 1.0,
+  test: 1.0,
 }
 
 function isDone(status: Workout['status']): boolean {
