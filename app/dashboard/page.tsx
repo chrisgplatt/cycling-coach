@@ -480,6 +480,13 @@ export default function DashboardPage() {
     })
     .sort((a, b) => a.date.localeCompare(b.date))
 
+  const upcomingTests = workouts
+    .filter(w => {
+      const days = Math.ceil((new Date(w.date).getTime() - new Date(todayStr).getTime()) / 86400000)
+      return w.type === 'test' && days >= 0 && days <= 84 && w.status !== 'skipped'
+    })
+    .sort((a, b) => a.date.localeCompare(b.date))
+
   const lastPlannedDate = futurePlanWorkouts.length > 0
     ? futurePlanWorkouts.reduce((latest, w) => w.date > latest ? w.date : latest, futurePlanWorkouts[0].date)
     : null
@@ -602,6 +609,7 @@ export default function DashboardPage() {
         weeklyProgress={weeklyProgress}
         eventCountdown={eventCountdown}
         upcomingEvents={upcomingEvents}
+        upcomingTests={upcomingTests}
         weeksRemainingInPlan={weeksRemainingInPlan}
         form={form}
       />

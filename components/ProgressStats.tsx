@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import type { ProgressMetrics, WeeklyProgress, EventCountdown, TrainingEvent } from '@/types'
+import type { ProgressMetrics, WeeklyProgress, EventCountdown, TrainingEvent, Workout } from '@/types'
 
 interface StatsData {
   metrics_snapshot: ProgressMetrics
@@ -18,6 +18,7 @@ interface Props {
   weeklyProgress?: WeeklyProgress | null
   eventCountdown?: EventCountdown | null
   upcomingEvents?: TrainingEvent[]
+  upcomingTests?: Workout[]
   weeksRemainingInPlan?: number | null
   form?: number | null
 }
@@ -26,7 +27,7 @@ function fmtH(mins: number) {
   return `${(mins / 60).toFixed(1)}h`
 }
 
-export default function ProgressStats({ syncVersion, weeklyProgress, eventCountdown, upcomingEvents, weeksRemainingInPlan, form }: Props) {
+export default function ProgressStats({ syncVersion, weeklyProgress, eventCountdown, upcomingEvents, upcomingTests, weeksRemainingInPlan, form }: Props) {
   const [data, setData] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -45,7 +46,7 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
   const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || data.metrics_snapshot.streak != null)
   const hasWeek = weeklyProgress && weeklyProgress.sessionsTotal > 0
 
-  if (!hasSeasonStats && !hasWeek && !eventCountdown && !upcomingEvents?.length) return null
+  if (!hasSeasonStats && !hasWeek && !eventCountdown && !upcomingEvents?.length && !upcomingTests?.length) return null
 
   const m = data?.metrics_snapshot
 
@@ -57,22 +58,47 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
           <span className="text-[10px] font-semibold text-gray-400">{weeksRemainingInPlan}wk plan remaining</span>
         )}
       </div>
-      {(upcomingEvents?.length ? upcomingEvents : eventCountdown ? [{ name: eventCountdown.name, date: '', type: 'race' as const, priority: 'A' as const, _daysAway: eventCountdown.daysAway }] : []).map((e, i) => {
-        const daysAway = '_daysAway' in e ? (e as { _daysAway: number })._daysAway : Math.ceil((new Date(e.date).getTime() - Date.now()) / 86400000)
-        const priorityColour = (e.priority === 'A') ? 'text-red-500' : (e.priority === 'B') ? 'text-amber-500' : 'text-slate-400'
-        const icon = EVENT_ICON[e.type] ?? '🏁'
-        return (
-          <div key={i} className="px-4 py-1.5 border-b border-gray-100 flex items-center justify-between gap-2">
-            <span className="text-[11px] font-semibold text-gray-700 truncate">{icon} {e.name}</span>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className={`text-[10px] font-bold ${priorityColour}`}>{e.priority}</span>
-              <span className="text-[11px] font-bold text-gray-500">
-                {daysAway <= 0 ? 'Today!' : daysAway < 7 ? `${daysAway}d` : `${daysAway}d / ${Math.round(daysAway / 7)}w`}
+      {(() => {
+        type EventRow = { kind: 'event'; date: string; label: string; icon: string; priority: string; priorityColour: string }
+        type TestRow  = { kind: 'test';  date: string; label: string }
+        const rows: (EventRow | TestRow)[] = []
+
+        const eventList = upcomingEvents?.length
+          ? upcomingEvents
+          : eventCountdown
+            ? [{ name: eventCountdown.name, date: '', type: 'race' as const, priority: 'A' as const, _daysAway: eventCountdown.daysAway }]
+            : []
+
+        for (const e of eventList) {
+          const priorityColour = e.priority === 'A' ? 'text-red-500' : e.priority === 'B' ? 'text-amber-500' : 'text-slate-400'
+          rows.push({ kind: 'event', date: e.date, label: e.name, icon: EVENT_ICON[e.type] ?? '🏁', priority: e.priority, priorityColour })
+        }
+        for (const t of upcomingTests ?? []) {
+          rows.push({ kind: 'test', date: t.date, label: t.description || 'Test session' })
+        }
+
+        rows.sort((a, b) => a.date.localeCompare(b.date))
+
+        return rows.map((row, i) => {
+          const daysAway = row.date
+            ? Math.ceil((new Date(row.date).getTime() - Date.now()) / 86400000)
+            : (eventCountdown?.daysAway ?? 0)
+          const daysLabel = daysAway <= 0 ? 'Today!' : daysAway < 7 ? `${daysAway}d` : `${daysAway}d / ${Math.round(daysAway / 7)}w`
+          return (
+            <div key={i} className="px-4 py-1.5 border-b border-gray-100 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold text-gray-700 truncate">
+                {row.kind === 'event' ? `${row.icon} ${row.label}` : `🧪 ${row.label}`}
               </span>
+              <div className="flex items-center gap-2 shrink-0">
+                {row.kind === 'event' && (
+                  <span className={`text-[10px] font-bold ${row.priorityColour}`}>{row.priority}</span>
+                )}
+                <span className="text-[11px] font-bold text-gray-500">{daysLabel}</span>
+              </div>
             </div>
-          </div>
-        )
-      })}
+          )
+        })
+      })()}
       {hasSeasonStats && m && (
         <div className="p-3 grid grid-cols-3 gap-2">
           {m.ftp && (
