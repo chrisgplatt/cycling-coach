@@ -480,10 +480,10 @@ export default function DashboardPage() {
     })
     .sort((a, b) => a.date.localeCompare(b.date))
 
-  const upcomingTests = workouts
+  const upcomingTests = futurePlanWorkouts
     .filter(w => {
       const days = Math.ceil((new Date(w.date).getTime() - new Date(todayStr).getTime()) / 86400000)
-      return w.type === 'test' && days >= 0 && days <= 84 && w.status !== 'skipped'
+      return w.type === 'test' && days <= 84
     })
     .sort((a, b) => a.date.localeCompare(b.date))
 
