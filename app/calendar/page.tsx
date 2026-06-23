@@ -197,6 +197,7 @@ function MonthStrip({
                 const isToday = dateStr === todayStr
                 const workoutColor = getDayWorkoutColor(dateStr, workouts)
                 const isRaceDay = events.some(e => e.date === dateStr && (e.type === 'race' || e.type === 'sportive'))
+                const isTestDay = workouts.some(w => w.date === dateStr && w.type === 'test')
                 const dots: string[] = []
                 if (events.some(e => e.date === dateStr)) dots.push('bg-red-400')
                 if (workoutColor) dots.push(workoutColor)
@@ -213,7 +214,9 @@ function MonthStrip({
                         ? 'bg-blue-500 text-white font-bold'
                         : isRaceDay
                           ? 'bg-red-500 text-white font-semibold'
-                          : 'text-slate-600'
+                          : isTestDay
+                            ? 'bg-violet-500 text-white font-semibold'
+                            : 'text-slate-600'
                       }`}>
                       {parseInt(dateStr.split('-')[2], 10)}
                     </span>
