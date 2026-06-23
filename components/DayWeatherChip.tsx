@@ -21,14 +21,14 @@ function windArrow(deg: number): string {
 export default function DayWeatherChip({ weather }: { weather: WeatherSummary | null | undefined }) {
   if (!weather) return null
   return (
-    <div className="mt-1 flex flex-col items-center gap-0 leading-none">
-      <span className="text-base leading-none" aria-hidden="true">
+    <div className="mt-2 flex flex-col items-center gap-1 leading-none">
+      <span className="text-lg leading-none" aria-hidden="true">
         {weatherGlyph(weather.weather_code)}
       </span>
-      <span className="text-[9px] font-medium text-slate-500 mt-0.5">
+      <span className="text-[10px] font-medium text-slate-500">
         {Math.round(weather.temp_max_c)}°
       </span>
-      <span className="text-[9px] text-slate-400 tabular-nums">
+      <span className="text-[10px] text-slate-400 tabular-nums">
         {weather.wind_direction_deg != null ? windArrow(weather.wind_direction_deg) : ''}
         {Math.round(weather.wind_max_kph)}
       </span>
