@@ -48,9 +48,15 @@ interface Props {
   workout: Workout
   onClick?: () => void
   ftp?: number
+  weather?: import('@/types').ActivityWeather | null
 }
 
-export default function WorkoutCard({ workout, onClick, ftp }: Props) {
+const WIND_ARROWS_CARD = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'] as const
+function cardWindArrow(deg: number): string {
+  return WIND_ARROWS_CARD[Math.round(((deg + 180) % 360) / 45) % 8]
+}
+
+export default function WorkoutCard({ workout, onClick, ftp, weather }: Props) {
   return (
     <div
       onClick={onClick}
@@ -84,6 +90,24 @@ export default function WorkoutCard({ workout, onClick, ftp }: Props) {
       <div className="px-4 py-3">
         <p className="text-sm text-gray-700 leading-snug mb-1">{workout.description}</p>
         <p className="text-xs text-gray-400 font-medium">{deriveTargetZones(workout.steps, ftp) ?? workout.target_zones}</p>
+        {workout.status === 'completed' && weather && (
+          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-slate-400 flex-wrap">
+            <span>💨</span>
+            <span>{weather.headwind_pct}% headwind</span>
+            <span className="text-slate-300">·</span>
+            <span>{Math.round(weather.temp_max_c)}°C</span>
+            <span className="text-slate-300">·</span>
+            <span className={
+              Math.abs(weather.weather_impact_pct) < 1 ? 'text-slate-400'
+              : weather.weather_impact_pct > 1 ? 'text-red-500'
+              : 'text-emerald-600'
+            }>
+              {weather.weather_impact_pct > 0 ? '+' : ''}{weather.weather_impact_pct.toFixed(1)}%
+            </span>
+            <span className="text-slate-300">·</span>
+            <span>{cardWindArrow(weather.wind_dir_deg)} {Math.round(weather.wind_avg_kph)} km/h</span>
+          </div>
+        )}
       </div>
     </div>
   )
