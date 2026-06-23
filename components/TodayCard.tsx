@@ -23,13 +23,6 @@ function readinessLabel(tsb: number | null): { label: string; colour: string } {
   return { label: 'Fatigued', colour: 'text-red-500' }
 }
 
-function tsbColour(tsb: number | null): string {
-  if (tsb === null) return 'text-slate-400'
-  if (tsb > 0) return 'text-emerald-600'
-  if (tsb >= -30) return 'text-amber-500'
-  return 'text-red-500'
-}
-
 const BRIEFING_CACHE_KEY = 'cycling_coach_briefing'
 
 export default function TodayCard({ workout, wellness, todayEvent, extraSessionCount, ftp, onWorkoutClick, onChatWithCoach }: Props) {
@@ -134,9 +127,15 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
       {/* Header */}
-      <div>
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Today</p>
-        <p className="text-sm font-medium text-slate-700 mt-0.5">{dateLabel} · {dayType}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Today</p>
+          <p className="text-sm font-medium text-slate-700 mt-0.5">{dateLabel} · {dayType}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-slate-400 mb-0.5">Readiness</p>
+          <p className={`text-sm font-semibold ${readiness.colour}`}>{readiness.label}</p>
+        </div>
       </div>
 
       {/* Today's workout or event */}
@@ -172,32 +171,6 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
           <p className="text-sm text-slate-500">No session planned — rest and recover.</p>
         </div>
       )}
-
-      {/* Training state strip */}
-      <div className="flex items-center gap-6 text-sm border-t border-slate-100 pt-3">
-        <div>
-          <p className="text-xs text-slate-400 mb-0.5">Readiness</p>
-          <p className={`font-semibold ${readiness.colour}`}>{readiness.label}</p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-400 mb-0.5">Form (TSB)</p>
-          <p className={`font-semibold ${tsbColour(tsb)}`}>
-            {tsb !== null ? (tsb > 0 ? `+${Math.round(tsb)}` : Math.round(tsb).toString()) : '—'}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-400 mb-0.5">Fitness (CTL)</p>
-          <p className="font-semibold text-slate-700">
-            {wellness?.ctl !== null && wellness?.ctl !== undefined ? Math.round(wellness.ctl) : '—'}
-          </p>
-        </div>
-        {wellness?.hrv !== null && wellness?.hrv !== undefined && (
-          <div>
-            <p className="text-xs text-slate-400 mb-0.5">HRV</p>
-            <p className="font-semibold text-slate-700">{Math.round(wellness.hrv)} ms</p>
-          </div>
-        )}
-      </div>
 
       {/* Coach note */}
       <div className="border-t border-slate-100">
