@@ -135,7 +135,12 @@ export default function WorkoutDetailModal({
 
   useEffect(() => {
     const activityId = workout.icu_activity_id
-    if (!activityId || workout.status !== 'completed') return
+    if (!activityId || workout.status !== 'completed') {
+      setWeather(null)
+      setWeatherLoading(false)
+      return
+    }
+    setWeather(null)
     setWeatherLoading(true)
     fetch(`/api/weather/activity/${activityId}`)
       .then(r => r.ok ? r.json() : null)

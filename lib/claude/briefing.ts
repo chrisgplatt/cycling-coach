@@ -255,7 +255,8 @@ async function generatePostRideNote(ctx: BriefingContext): Promise<string> {
         const w = ctx.completedRideWeather!
         const impactSign = w.weather_impact_pct > 0 ? '+' : ''
         const windDirs: Record<number, string> = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' }
-        const windDirLabel = windDirs[Math.round(w.wind_dir_deg / 45) * 45] ?? `${Math.round(w.wind_dir_deg)}°`
+        const windDirKey = (Math.round(w.wind_dir_deg / 45) * 45) % 360
+        const windDirLabel = windDirs[windDirKey] ?? `${Math.round(w.wind_dir_deg)}°`
         return `Ride conditions: ${w.headwind_pct}% headwind (avg ${Math.round(w.wind_avg_kph)} km/h from ${windDirLabel}), ${Math.round(w.temp_max_c)}°C, net ${impactSign}${w.weather_impact_pct.toFixed(1)}% harder than still air.`
       })()
     : null

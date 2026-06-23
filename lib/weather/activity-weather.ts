@@ -92,7 +92,6 @@ export function computeHeadwindAnalysis(params: {
              air_speed_kph: Math.round(avgSpeedKph * 10) / 10, weather_impact_pct: 0 }
   }
 
-  const crosswindDist = totalDist - headwindDist - tailwindDist
   const hw = Math.round((headwindDist / totalDist) * 100)
   const tw = Math.round((tailwindDist / totalDist) * 100)
   const cw = 100 - hw - tw  // guarantees sum === 100

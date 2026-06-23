@@ -7,13 +7,13 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { activityId: string } },
+  { params }: { params: Promise<{ activityId: string }> },
 ) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { activityId } = params
+  const { activityId } = await params
 
   // Cache hit — return instantly
   const { data: cached } = await supabase
