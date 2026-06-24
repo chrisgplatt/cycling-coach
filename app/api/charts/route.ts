@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { isoWeekStart } from '@/lib/chart-helpers'
-import type { ChartsData, WeeklyTss, RidePoint, DailyStrainPoint } from '@/types'
+import type { ChartsData, WeeklyTss, RidePoint, DailyStrainPoint, ActivitySummary } from '@/types'
 import {
   computeDailyActivityLoad,
   computeStrainComponents,
@@ -71,6 +71,15 @@ export async function GET() {
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
 
+    // Activity summaries — all-type activities for last 365 days
+    const activitySummaries: ActivitySummary[] = activities.map(a => ({
+      date: a.start_date_local.slice(0, 10),
+      type: a.type,
+      distanceM: a.distance ?? null,
+      elevationM: a.total_elevation_gain ?? null,
+      movingTimeSecs: a.moving_time,
+    }))
+
     // Daily strain — combine per-day activity load with wellness life signals
     const ftp: number | null = (profile as { current_ftp?: number | null }).current_ftp ?? null
     const dailyStrain: DailyStrainPoint[] = wellness
@@ -102,7 +111,7 @@ export async function GET() {
       })
       .filter((p): p is DailyStrainPoint => p !== null && (p.total > 0 || p.life > 0 || p.workout > 0))
 
-    const charts: ChartsData = { wellness, weeklyTss, rides, dailyStrain }
+    const charts: ChartsData = { wellness, weeklyTss, rides, dailyStrain, activities: activitySummaries }
     return NextResponse.json({ charts })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

@@ -24,6 +24,7 @@ const mockCharts: ChartsData = {
     { date: daysAgo(5),   avgHr: 143, tss: 60, name: 'Morning Endurance Ride', durationSecs: 6300 },
     { date: daysAgo(5),   avgHr: 110, tss: 18, name: 'Evening Recovery Spin', durationSecs: 2400 },
   ],
+  activities: [],
 }
 
 beforeEach(() => {

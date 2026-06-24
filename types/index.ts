@@ -441,11 +441,20 @@ export interface DailyStrainPoint {
   garminStressMax?: number | null
 }
 
+export interface ActivitySummary {
+  date: string           // YYYY-MM-DD
+  type: string           // raw intervals.icu type, e.g. "Ride", "Run", "Walk", "WeightTraining"
+  distanceM: number | null
+  elevationM: number | null
+  movingTimeSecs: number
+}
+
 export interface ChartsData {
   wellness: ICUWellness[]
   weeklyTss: WeeklyTss[]
   rides: RidePoint[]
   dailyStrain: DailyStrainPoint[]
+  activities: ActivitySummary[]   // all-type activities for last 365 days
 }
 
 export interface ICUPowerCurvePoint {
