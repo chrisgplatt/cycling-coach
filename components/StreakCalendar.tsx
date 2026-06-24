@@ -13,6 +13,47 @@ function addDays(dateStr: string, n: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+interface WeekStatusProps {
+  monday: string
+  today: string
+  dateSet: Set<string>
+  streakWeeks: number
+}
+
+function WeekStatus({ monday, today, dateSet, streakWeeks }: WeekStatusProps) {
+  const sunday = addDays(monday, 6)
+  const isCurrentWeek = monday === isoWeekStart(today)
+  const isComplete = sunday < today
+
+  const hasActivity = (() => {
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(monday, i)
+      if (d > today) break
+      if (dateSet.has(d)) return true
+    }
+    return false
+  })()
+
+  if (isCurrentWeek && hasActivity && streakWeeks > 0) {
+    return (
+      <div data-testid="week-flame" className="flex items-center gap-0.5">
+        <span className="text-orange-500 text-sm leading-none">🔥</span>
+        <span className="text-[10px] font-bold text-orange-500">{streakWeeks}</span>
+      </div>
+    )
+  }
+  if (isComplete && hasActivity) {
+    return (
+      <div data-testid="week-check" className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
+        <svg viewBox="0 0 10 10" className="w-3 h-3">
+          <path d="M2 5 L4 7.5 L8 3" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+    )
+  }
+  return <div className="w-5 h-5 rounded-full border border-gray-200"/>
+}
+
 function getMonthGrid(year: number, month: number): string[][] {
   // month is 1-indexed
   const firstDay = new Date(Date.UTC(year, month - 1, 1))
@@ -107,40 +148,6 @@ export default function StreakCalendar({ activities, today }: Props) {
     else setViewMonth(m => m + 1)
   }
 
-  function WeekStatus({ monday }: { monday: string }) {
-    const sunday = addDays(monday, 6)
-    const isCurrentWeek = monday === isoWeekStart(today)
-    const isComplete = sunday < today
-
-    const hasActivity = (() => {
-      for (let i = 0; i < 7; i++) {
-        const d = addDays(monday, i)
-        if (d > today) break
-        if (dateSet.has(d)) return true
-      }
-      return false
-    })()
-
-    if (isCurrentWeek && hasActivity && streakWeeks > 0) {
-      return (
-        <div data-testid="week-flame" className="flex items-center gap-0.5">
-          <span className="text-orange-500 text-sm leading-none">🔥</span>
-          <span className="text-[10px] font-bold text-orange-500">{streakWeeks}</span>
-        </div>
-      )
-    }
-    if (isComplete && hasActivity) {
-      return (
-        <div data-testid="week-check" className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
-          <svg viewBox="0 0 10 10" className="w-3 h-3">
-            <path d="M2 5 L4 7.5 L8 3" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-      )
-    }
-    return <div className="w-5 h-5 rounded-full border border-gray-200"/>
-  }
-
   return (
     <div className="px-4 py-3">
       {/* Month nav + stats */}
@@ -148,7 +155,7 @@ export default function StreakCalendar({ activities, today }: Props) {
         <button
           aria-label="Previous month"
           onClick={prevMonth}
-          className="p-1 text-gray-400 hover:text-gray-600"
+          className="p-3 text-gray-400 hover:text-gray-600"
         >
           ‹
         </button>
@@ -158,7 +165,7 @@ export default function StreakCalendar({ activities, today }: Props) {
         <button
           aria-label="Next month"
           onClick={nextMonth}
-          className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+          className="p-3 text-gray-400 hover:text-gray-600 disabled:opacity-30"
           disabled={viewYear > todayYear || (viewYear === todayYear && viewMonth >= todayMonth)}
         >
           ›
@@ -242,7 +249,7 @@ export default function StreakCalendar({ activities, today }: Props) {
               )
             })}
             <div className="flex items-center justify-center">
-              <WeekStatus monday={monday} />
+              <WeekStatus monday={monday} today={today} dateSet={dateSet} streakWeeks={streakWeeks} />
             </div>
           </div>
         )
