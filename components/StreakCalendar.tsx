@@ -155,7 +155,7 @@ export default function StreakCalendar({ activities, today }: Props) {
         <button
           aria-label="Previous month"
           onClick={prevMonth}
-          className="p-3 text-gray-400 hover:text-gray-600"
+          className="p-3 min-h-[44px] text-gray-400 hover:text-gray-600"
         >
           ‹
         </button>
@@ -165,7 +165,7 @@ export default function StreakCalendar({ activities, today }: Props) {
         <button
           aria-label="Next month"
           onClick={nextMonth}
-          className="p-3 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+          className="p-3 min-h-[44px] text-gray-400 hover:text-gray-600 disabled:opacity-30"
           disabled={viewYear > todayYear || (viewYear === todayYear && viewMonth >= todayMonth)}
         >
           ›
