@@ -638,6 +638,7 @@ export default function DashboardPage() {
         upcomingTests={upcomingTests}
         weeksRemainingInPlan={weeksRemainingInPlan}
         form={form}
+        activities={chartsData?.activities}
       />
 
       <div>

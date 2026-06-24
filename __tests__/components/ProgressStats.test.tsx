@@ -115,4 +115,25 @@ it('does not render the coaching narrative text', async () => {
     expect(screen.getByText('-20')).toBeInTheDocument()
     expect(screen.getByText('tired')).toBeInTheDocument()
   })
+
+  it('renders streak collapsible row when activities provided with streak > 0', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
+    const activities = [
+      { date: '2026-06-22', type: 'Ride', distanceM: 40000, elevationM: 500, movingTimeSecs: 7200 },
+    ]
+    render(<ProgressStats syncVersion={0} activities={activities} />)
+    await screen.findByText('245W')
+    // Streak header row should be present (contains "Streak")
+    expect(screen.getAllByText(/Streak/).length).toBeGreaterThan(0)
+  })
+
+  it('renders activity stats collapsible row when activities provided', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
+    const activities = [
+      { date: '2026-06-22', type: 'Ride', distanceM: 40000, elevationM: 500, movingTimeSecs: 7200 },
+    ]
+    render(<ProgressStats syncVersion={0} activities={activities} />)
+    await screen.findByText('245W')
+    expect(screen.getByText(/Activity/)).toBeInTheDocument()
+  })
 })

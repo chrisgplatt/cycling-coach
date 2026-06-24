@@ -1,6 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { ProgressMetrics, WeeklyProgress, EventCountdown, TrainingEvent, Workout } from '@/types'
+import StreakCalendar from '@/components/StreakCalendar'
+import ActivityStatsPanel from '@/components/ActivityStatsPanel'
+import { computeWeeklyStreak, classifyTab, type ActivityTab } from '@/lib/streak'
+import { isoWeekStart } from '@/lib/chart-helpers'
+import { localDateStr } from '@/lib/local-date'
+import type { ActivitySummary } from '@/types'
 
 interface StatsData {
   metrics_snapshot: ProgressMetrics
@@ -21,15 +27,18 @@ interface Props {
   upcomingTests?: Workout[]
   weeksRemainingInPlan?: number | null
   form?: number | null
+  activities?: ActivitySummary[]
 }
 
 function fmtH(mins: number) {
   return `${(mins / 60).toFixed(1)}h`
 }
 
-export default function ProgressStats({ syncVersion, weeklyProgress, eventCountdown, upcomingEvents, upcomingTests, weeksRemainingInPlan, form }: Props) {
+export default function ProgressStats({ syncVersion, weeklyProgress, eventCountdown, upcomingEvents, upcomingTests, weeksRemainingInPlan, form, activities }: Props) {
   const [data, setData] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [streakOpen, setStreakOpen] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
 
   useEffect(() => {
     const ac = new AbortController()
@@ -46,9 +55,39 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
   const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || data.metrics_snapshot.streak != null)
   const hasWeek = weeklyProgress && weeklyProgress.sessionsTotal > 0
 
-  if (!hasSeasonStats && !hasWeek && !eventCountdown && !upcomingEvents?.length && !upcomingTests?.length) return null
+  if (!hasSeasonStats && !hasWeek && !eventCountdown && !upcomingEvents?.length && !upcomingTests?.length && !activities?.length) return null
 
   const m = data?.metrics_snapshot
+
+  const todayStr = localDateStr(new Date())
+  const streakWeeks = activities?.length ? computeWeeklyStreak(activities, todayStr) : 0
+
+  const activityHeaderSummary = (() => {
+    if (!activities?.length) return null
+    const monday = isoWeekStart(todayStr)
+    const TABS: ActivityTab[] = ['Ride', 'Run', 'Walk', 'Other']
+    const defaultTab = TABS.find(tab =>
+      activities.some(a => {
+        const d = new Date(monday + 'T00:00:00Z')
+        d.setUTCDate(d.getUTCDate() - 11 * 7)
+        return classifyTab(a.type) === tab && a.date >= d.toISOString().slice(0, 10)
+      })
+    ) ?? 'Ride'
+    const thisWeek = activities.filter(a =>
+      classifyTab(a.type) === defaultTab && a.date >= monday && a.date <= todayStr
+    )
+    if (defaultTab === 'Other') {
+      const secs = thisWeek.reduce((s, a) => s + a.movingTimeSecs, 0)
+      const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60)
+      const t = h > 0 ? `${h}h ${m}m` : `${m}m`
+      return thisWeek.length > 0 ? `${thisWeek.length} sessions · ${t}` : null
+    }
+    const km = thisWeek.reduce((s, a) => s + (a.distanceM ?? 0), 0) / 1000
+    const secs = thisWeek.reduce((s, a) => s + a.movingTimeSecs, 0)
+    const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60)
+    const t = h > 0 ? `${h}h ${m}m` : `${m}m`
+    return km > 0 ? `${km.toFixed(1)} km · ${t}` : null
+  })()
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -162,6 +201,49 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
               label="Elevation"
               value={weeklyProgress.elevationM > 0 ? `${Math.floor(weeklyProgress.elevationM)}m` : '—'}
             />
+          </div>
+        </>
+      )}
+      {activities && activities.length > 0 && (
+        <>
+          {/* Streak collapsible */}
+          <div className="border-t border-gray-100">
+            <button
+              onClick={() => setStreakOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-2.5 min-h-[44px]"
+            >
+              <span className="text-[12px] font-semibold text-gray-700">
+                🔥 Streak{streakWeeks > 0 ? ` · ${streakWeeks} wks` : ''}
+              </span>
+              <svg
+                viewBox="0 0 10 6"
+                className={`w-3 h-3 text-gray-400 transition-transform ${streakOpen ? 'rotate-180' : ''}`}
+                fill="none" stroke="currentColor" strokeWidth="1.5"
+              >
+                <path d="M1 1 L5 5 L9 1"/>
+              </svg>
+            </button>
+            {streakOpen && <StreakCalendar activities={activities} today={todayStr} />}
+          </div>
+
+          {/* Activity stats collapsible */}
+          <div className="border-t border-gray-100">
+            <button
+              onClick={() => setActivityOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-2.5 min-h-[44px]"
+            >
+              <span className="text-[12px] font-semibold text-gray-700">
+                Activity{activityHeaderSummary ? ` · ${activityHeaderSummary}` : ''}
+              </span>
+              <svg
+                viewBox="0 0 10 6"
+                className={`w-3 h-3 text-gray-400 transition-transform ${activityOpen ? 'rotate-180' : ''}`}
+                fill="none" stroke="currentColor" strokeWidth="1.5"
+              >
+                <path d="M1 1 L5 5 L9 1"/>
+              </svg>
+            </button>
+            {activityOpen && <ActivityStatsPanel activities={activities} today={todayStr} />}
           </div>
         </>
       )}
