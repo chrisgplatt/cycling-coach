@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import ActivityStatsPanel from '@/components/ActivityStatsPanel'
 import type { ActivitySummary } from '@/types'
 
-function act(date: string, type: string, distanceM = 40000, elevationM = 500, movingTimeSecs = 7200): ActivitySummary {
+function act(date: string, type: string, distanceM: number | null = 40000, elevationM: number | null = 500, movingTimeSecs = 7200): ActivitySummary {
   return { date, type, distanceM, elevationM, movingTimeSecs }
 }
 

@@ -4,6 +4,10 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Before committing
+
+Always run `npm run typecheck` before committing. Jest does not surface TypeScript type errors — `tsc --noEmit` is required. The CI pipeline runs typecheck separately and will fail if you skip it. The `npm run test:ci` script runs both in sequence.
+
 # Mobile-first UI
 
 This is a PWA used primarily on mobile. Every UI change must be mobile-compatible:
