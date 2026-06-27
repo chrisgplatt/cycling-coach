@@ -9,9 +9,16 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 const TAB_ICONS: Record<ActivityTab, string> = {
   Ride: '🚲',
-  Run: '👟',
   Walk: '🚶',
+  Run: '👟',
   Other: '●',
+}
+
+const TAB_LABELS: Record<ActivityTab, string> = {
+  Ride: 'Rides',
+  Walk: 'Walks',
+  Run: 'Runs',
+  Other: 'Other',
 }
 
 function addDays(dateStr: string, n: number): string {
@@ -57,29 +64,20 @@ function buildBuckets(activities: ActivitySummary[], tab: ActivityTab, today: st
   })
 }
 
-// Chart dimensions — extra PAD_T for callout text; PAD_L for y-axis labels
 const W = 320, H = 82
 const PAD_T = 16, PAD_B = 18, PAD_L = 30, PAD_R = 4
 const CW = W - PAD_L - PAD_R
 const CH = H - PAD_T - PAD_B
 
-interface Props {
-  activities: ActivitySummary[]
-  today: string  // YYYY-MM-DD
+interface TypePanelProps {
+  tab: ActivityTab
+  buckets: WeekBucket[]
+  today: string
 }
 
-export default function ActivityStatsPanel({ activities, today }: Props) {
-  const defaultTab = TABS.find(tab =>
-    activities.some(a => {
-      const monday = isoWeekStart(today)
-      return classifyTab(a.type) === tab && a.date >= addDays(monday, -11 * 7)
-    })
-  ) ?? 'Ride'
-
-  const [tab, setTab] = useState<ActivityTab>(defaultTab)
+function TypePanel({ tab, buckets, today }: TypePanelProps) {
   const [selectedIdx, setSelectedIdx] = useState(11)
 
-  const buckets = buildBuckets(activities, tab, today)
   const vals = buckets.map(b => tab === 'Other' ? b.sessions : b.distanceKm)
   const maxVal = Math.max(...vals, 1)
   const hasData = maxVal > 1
@@ -113,26 +111,22 @@ export default function ActivityStatsPanel({ activities, today }: Props) {
     ? `${sel.sessions}`
     : sel.distanceKm > 0 ? `${sel.distanceKm.toFixed(1)}` : '0'
 
+  // Current-week headline for the panel header
+  const currentBucket = buckets[11]
+  const headline = tab === 'Other'
+    ? currentBucket.sessions > 0 ? `${currentBucket.sessions} ${currentBucket.sessions === 1 ? 'session' : 'sessions'}` : null
+    : currentBucket.distanceKm > 0 ? `${currentBucket.distanceKm.toFixed(1)} km` : null
+
   return (
-    <div className="px-4 py-3">
-      {/* Tab row */}
-      <div className="flex gap-2 mb-3 overflow-x-auto">
-        {TABS.map(t => (
-          <button
-            key={t}
-            role="button"
-            aria-label={t}
-            onClick={() => { setTab(t); setSelectedIdx(11) }}
-            className={`flex items-center gap-1 px-3 py-2.5 rounded-full text-[12px] font-semibold border shrink-0 min-h-[44px] ${
-              tab === t
-                ? 'border-orange-400 text-orange-500 bg-orange-50'
-                : 'border-gray-200 text-gray-500 bg-white'
-            }`}
-          >
-            <span>{TAB_ICONS[t]}</span>
-            <span>{t}</span>
-          </button>
-        ))}
+    <div className="px-4 pt-3 pb-2">
+      {/* Panel header */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[13px] font-semibold text-gray-700">
+          {TAB_ICONS[tab]} {TAB_LABELS[tab]}
+        </span>
+        {headline && (
+          <span className="text-[11px] text-gray-400">{headline} this week</span>
+        )}
       </div>
 
       {/* Week label */}
@@ -140,7 +134,7 @@ export default function ActivityStatsPanel({ activities, today }: Props) {
         {selIsCurrentWeek ? 'This week' : `w/c ${fmtDate(sel.weekStart)}`}
       </p>
 
-      {/* Stats row — reflects selected week */}
+      {/* Stats row */}
       <div className={`grid gap-2 mb-3 ${tab === 'Other' ? 'grid-cols-2' : 'grid-cols-3'}`}>
         {tab === 'Other' ? (
           <>
@@ -173,7 +167,7 @@ export default function ActivityStatsPanel({ activities, today }: Props) {
         )}
       </div>
 
-      {/* Line chart */}
+      {/* Chart */}
       <div className="relative w-full">
         <svg
           data-testid="activity-chart"
@@ -181,99 +175,81 @@ export default function ActivityStatsPanel({ activities, today }: Props) {
           className="w-full"
           style={{ height: H }}
         >
-          {/* Y-axis */}
           {hasData && (
             <>
-              <line
-                x1={PAD_L - 1} y1={PAD_T}
-                x2={PAD_L - 1} y2={PAD_T + CH}
-                stroke="#e5e7eb" strokeWidth="1"
-              />
-              <text x={PAD_L - 4} y={PAD_T + 3} textAnchor="end" fontSize="8" fill="#9ca3af">
-                {fmtAxisVal(maxVal)}
-              </text>
-              <text x={PAD_L - 4} y={PAD_T + CH} textAnchor="end" fontSize="8" fill="#9ca3af">
-                0
-              </text>
+              <line x1={PAD_L - 1} y1={PAD_T} x2={PAD_L - 1} y2={PAD_T + CH} stroke="#e5e7eb" strokeWidth="1"/>
+              <text x={PAD_L - 4} y={PAD_T + 3} textAnchor="end" fontSize="8" fill="#9ca3af">{fmtAxisVal(maxVal)}</text>
+              <text x={PAD_L - 4} y={PAD_T + CH} textAnchor="end" fontSize="8" fill="#9ca3af">0</text>
             </>
           )}
-
-          {/* Area fill */}
           <path d={areaD} fill="rgb(255 237 213)" opacity="0.8"/>
-
-          {/* Line */}
           <path d={lineD} fill="none" stroke="#f97316" strokeWidth="1.5"/>
-
-          {/* Points */}
           {vals.map((v, i) => {
             const isCurrentWeek = i === 11
             const isSelected = i === selectedIdx
             const cx = xOf(i)
             const cy = yOf(v)
-            // Callout text: keep within SVG left/right bounds
             const calloutAnchor = i <= 1 ? 'start' : i >= 10 ? 'end' : 'middle'
-            // Hit area: spans from midpoint-to-prev to midpoint-to-next
             const hitX = i === 0 ? PAD_L : (xOf(i - 1) + cx) / 2
             const hitRight = i === 11 ? PAD_L + CW : (cx + xOf(i + 1)) / 2
             return (
               <g key={i}>
                 {isCurrentWeek && (
-                  <line
-                    x1={cx.toFixed(1)} y1={PAD_T}
-                    x2={cx.toFixed(1)} y2={PAD_T + CH}
-                    stroke="#f97316" strokeWidth="1" strokeDasharray="2 2"
-                  />
+                  <line x1={cx.toFixed(1)} y1={PAD_T} x2={cx.toFixed(1)} y2={PAD_T + CH}
+                    stroke="#f97316" strokeWidth="1" strokeDasharray="2 2"/>
                 )}
-                <circle
-                  cx={cx} cy={cy}
-                  r={isSelected ? 5 : 3}
+                <circle cx={cx} cy={cy} r={isSelected ? 5 : 3}
                   fill={isSelected || isCurrentWeek ? '#f97316' : 'white'}
-                  stroke="#f97316"
-                  strokeWidth={isSelected ? 0 : 1.2}
-                />
+                  stroke="#f97316" strokeWidth={isSelected ? 0 : 1.2}/>
                 {isSelected && (
-                  <text
-                    x={cx}
-                    y={Math.max(cy - 7, PAD_T - 2)}
-                    textAnchor={calloutAnchor}
-                    fontSize="9"
-                    fontWeight="600"
-                    fill="#f97316"
-                  >
+                  <text x={cx} y={Math.max(cy - 7, PAD_T - 2)}
+                    textAnchor={calloutAnchor} fontSize="9" fontWeight="600" fill="#f97316">
                     {selCallout}
                   </text>
                 )}
-                {/* Transparent hit area covering the full vertical strip */}
-                <rect
-                  x={hitX}
-                  y={PAD_T}
-                  width={hitRight - hitX}
-                  height={CH}
-                  fill="transparent"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setSelectedIdx(i)}
-                />
+                <rect x={hitX} y={PAD_T} width={hitRight - hitX} height={CH}
+                  fill="transparent" style={{ cursor: 'pointer' }} onClick={() => setSelectedIdx(i)}/>
               </g>
             )
           })}
-
-          {/* X-axis month labels */}
           {xLabels.map((label, i) =>
             label ? (
-              <text
-                key={i}
-                x={xOf(i)}
-                y={H - 4}
-                textAnchor="middle"
-                fontSize="9"
-                fill="#9ca3af"
-              >
-                {label}
-              </text>
+              <text key={i} x={xOf(i)} y={H - 4} textAnchor="middle" fontSize="9" fill="#9ca3af">{label}</text>
             ) : null
           )}
         </svg>
       </div>
+    </div>
+  )
+}
+
+interface Props {
+  activities: ActivitySummary[]
+  today: string
+}
+
+export default function ActivityStatsPanel({ activities, today }: Props) {
+  const allBuckets = Object.fromEntries(
+    TABS.map(tab => [tab, buildBuckets(activities, tab, today)])
+  ) as Record<ActivityTab, WeekBucket[]>
+
+  const activeTabs = TABS.filter(tab =>
+    allBuckets[tab].some(b => tab === 'Other' ? b.sessions > 0 : b.distanceKm > 0)
+  )
+
+  if (activeTabs.length === 0) {
+    return (
+      <div className="px-4 py-4 text-[13px] text-gray-400 text-center">
+        No activities in the last 12 weeks
+      </div>
+    )
+  }
+
+  return (
+    <div className="divide-y divide-gray-100">
+      {activeTabs.map(tab => (
+        <TypePanel key={tab} tab={tab} buckets={allBuckets[tab]} today={today} />
+      ))}
     </div>
   )
 }

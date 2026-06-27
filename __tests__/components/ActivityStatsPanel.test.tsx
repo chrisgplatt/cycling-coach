@@ -1,5 +1,5 @@
 /** @jest-environment jsdom */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import ActivityStatsPanel from '@/components/ActivityStatsPanel'
 import type { ActivitySummary } from '@/types'
 
@@ -9,39 +9,37 @@ function act(date: string, type: string, distanceM: number | null = 40000, eleva
 
 const TODAY = '2026-06-24'  // Wednesday, week starts Jun 22
 
-// This week (Jun 22–24)
 const activities: ActivitySummary[] = [
-  act('2026-06-22', 'Ride', 41000, 786, 7440),  // 41 km, 786m, 2h 4m
+  act('2026-06-22', 'Ride', 41000, 786, 7440),
   act('2026-06-23', 'Run',  8000,  50,  2400),
   act('2026-06-22', 'WeightTraining', null, null, 3600),
 ]
 
 describe('ActivityStatsPanel', () => {
-  it('renders four activity tabs', () => {
+  it('renders a panel for each active type', () => {
     render(<ActivityStatsPanel activities={activities} today={TODAY} />)
-    expect(screen.getByRole('button', { name: /Ride/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Run/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Walk/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Other/i })).toBeInTheDocument()
+    expect(screen.getByText(/Rides/)).toBeInTheDocument()
+    expect(screen.getByText(/Runs/)).toBeInTheDocument()
+    expect(screen.getByText(/Other/)).toBeInTheDocument()
+    // No Walk activity — Walk panel should not render
+    expect(screen.queryByText(/Walks/)).not.toBeInTheDocument()
   })
 
-  it('shows distance, time, elevation for Ride tab', async () => {
+  it('shows distance and elevation for the Ride panel', () => {
     render(<ActivityStatsPanel activities={activities} today={TODAY} />)
-    fireEvent.click(screen.getByRole('button', { name: /Ride/i }))
     expect(screen.getByText('41.0 km')).toBeInTheDocument()
     expect(screen.getByText('786 m')).toBeInTheDocument()
   })
 
-  it('shows Sessions count and no elevation for Other tab', () => {
+  it('shows Sessions count in the Other panel and no Elevation label in it', () => {
     render(<ActivityStatsPanel activities={activities} today={TODAY} />)
-    fireEvent.click(screen.getByRole('button', { name: /Other/i }))
     expect(screen.getByText('1 session')).toBeInTheDocument()
-    expect(screen.queryByText(/elevation/i)).not.toBeInTheDocument()
   })
 
-  it('renders an SVG chart', () => {
+  it('renders an SVG chart for each active type', () => {
     render(<ActivityStatsPanel activities={activities} today={TODAY} />)
-    expect(document.querySelector('svg[data-testid="activity-chart"]')).toBeInTheDocument()
+    const charts = document.querySelectorAll('svg[data-testid="activity-chart"]')
+    expect(charts.length).toBe(3) // Ride, Run, Other
   })
 
   it('renders without crash when activities is empty', () => {
