@@ -109,32 +109,27 @@ function MonthlyBarChart({
 function GroupPanel({ group, year }: { group: ActivityGroupStats; year: number }) {
   const cfg = getConfig(group.key)
   return (
-    <div className="space-y-3">
-      <SectionCard title={`${year} ${group.label}`} accent={cfg.accent}>
-        <div className="flex divide-x divide-gray-100">
-          <StatCell label={group.label} value={String(group.totalActivities)} valueClass={cfg.valueClass} />
-          {group.totalKm > 0 && (
-            <StatCell label="Distance" value={group.totalKm.toFixed(1)} unit="km" valueClass={cfg.valueClass} />
-          )}
-          {group.totalElevationM > 0 && (
-            <StatCell label="Elevation" value={String(group.totalElevationM)} unit="m" valueClass="text-emerald-600" />
-          )}
-          <StatCell label="Hours" value={formatDuration(group.totalMovingTimeSecs)} valueClass="text-violet-600" />
-        </div>
-      </SectionCard>
-
-      <SectionCard title={`${group.label} by Month (${cfg.chartLabel})`} accent={cfg.accent}>
-        <div className="px-3 py-3">
-          <MonthlyBarChart
-            monthly={group.monthly}
-            year={year}
-            metric={group.chartMetric}
-            barActive={cfg.barActive}
-            barInactive={cfg.barInactive}
-          />
-        </div>
-      </SectionCard>
-    </div>
+    <SectionCard title={`${year} ${group.label}`} accent={cfg.accent}>
+      <div className="flex divide-x divide-gray-100">
+        <StatCell label={group.label} value={String(group.totalActivities)} valueClass={cfg.valueClass} />
+        {group.totalKm > 0 && (
+          <StatCell label="Distance" value={group.totalKm.toFixed(1)} unit="km" valueClass={cfg.valueClass} />
+        )}
+        {group.totalElevationM > 0 && (
+          <StatCell label="Elevation" value={String(group.totalElevationM)} unit="m" valueClass="text-emerald-600" />
+        )}
+        <StatCell label="Hours" value={formatDuration(group.totalMovingTimeSecs)} valueClass="text-violet-600" />
+      </div>
+      <div className="px-3 pb-3 pt-2 border-t border-gray-100">
+        <MonthlyBarChart
+          monthly={group.monthly}
+          year={year}
+          metric={group.chartMetric}
+          barActive={cfg.barActive}
+          barInactive={cfg.barInactive}
+        />
+      </div>
+    </SectionCard>
   )
 }
 
