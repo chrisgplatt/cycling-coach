@@ -4,7 +4,7 @@ import type { ActivitySummary } from '@/types'
 import { classifyTab, type ActivityTab } from '@/lib/streak'
 import { isoWeekStart } from '@/lib/chart-helpers'
 
-const TABS: ActivityTab[] = ['Ride', 'Run', 'Walk', 'Other']
+const TABS: ActivityTab[] = ['Ride', 'Walk', 'Run', 'Other']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 const TAB_ICONS: Record<ActivityTab, string> = {
