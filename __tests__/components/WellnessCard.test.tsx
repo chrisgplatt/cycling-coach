@@ -8,29 +8,38 @@ const logged: DailyWellness = {
   created_at: '2026-06-16T08:00:00Z', updated_at: '2026-06-16T08:00:00Z',
 }
 
+const TODAY = '2026-06-29'
+
 describe('WellnessCard', () => {
   it('shows tap-to-log prompt when no wellness logged', () => {
-    render(<WellnessCard date="2026-06-16" wellness={undefined} onTap={() => {}} />)
+    render(<WellnessCard date="2026-06-16" today={TODAY} wellness={undefined} onTap={() => {}} />)
     expect(screen.getByText(/tap to log/i)).toBeInTheDocument()
   })
 
   it('shows dot summary when wellness is logged', () => {
-    render(<WellnessCard date="2026-06-16" wellness={logged} onTap={() => {}} />)
+    render(<WellnessCard date="2026-06-16" today={TODAY} wellness={logged} onTap={() => {}} />)
     expect(screen.getByText(/wellness logged/i)).toBeInTheDocument()
     expect(screen.getByText(/Energy/i)).toBeInTheDocument()
   })
 
   it('calls onTap when clicked', () => {
     const onTap = jest.fn()
-    render(<WellnessCard date="2026-06-16" wellness={undefined} onTap={onTap} />)
+    render(<WellnessCard date="2026-06-16" today={TODAY} wellness={undefined} onTap={onTap} />)
     fireEvent.click(screen.getByRole('button'))
     expect(onTap).toHaveBeenCalledTimes(1)
   })
 
   it('calls onTap when logged entry is clicked', () => {
     const onTap = jest.fn()
-    render(<WellnessCard date="2026-06-16" wellness={logged} onTap={onTap} />)
+    render(<WellnessCard date="2026-06-16" today={TODAY} wellness={logged} onTap={onTap} />)
     fireEvent.click(screen.getByRole('button'))
     expect(onTap).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders nothing for a future date with no wellness', () => {
+    const { container } = render(
+      <WellnessCard date="2026-07-15" today={TODAY} wellness={undefined} onTap={() => {}} />
+    )
+    expect(container.firstChild).toBeNull()
   })
 })

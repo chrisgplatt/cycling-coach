@@ -2,6 +2,7 @@ import type { DailyWellness } from '@/types'
 
 interface Props {
   date: string
+  today: string
   wellness: DailyWellness | undefined
   onTap: () => void
   restDay?: boolean
@@ -28,7 +29,9 @@ function DotScale({ value }: { value: number }) {
   )
 }
 
-export default function WellnessCard({ date, wellness, onTap, restDay = false }: Props) {
+export default function WellnessCard({ date, today, wellness, onTap, restDay = false }: Props) {
+  if (date > today && !wellness) return null
+
   if (restDay && !wellness) {
     return (
       <button

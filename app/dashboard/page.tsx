@@ -540,6 +540,7 @@ export default function DashboardPage() {
   }
 
   function handleOpenWellness(date: string) {
+    if (date > todayStr) return
     setWellnessSheetDate(date)
   }
 
@@ -769,6 +770,7 @@ export default function DashboardPage() {
                     )}
                     <WellnessCard
                       date={date}
+                      today={todayStr}
                       wellness={dailyWellness.find(w => w.date === date)}
                       onTap={() => handleOpenWellness(date)}
                       restDay={isEmpty}

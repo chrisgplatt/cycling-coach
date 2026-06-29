@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
 
   if (typeof date !== 'string') return NextResponse.json({ error: 'date required' }, { status: 400 })
 
+  const todayUTC = new Date().toISOString().slice(0, 10)
+  if (date > todayUTC) return NextResponse.json({ error: 'Cannot log wellness for a future date' }, { status: 400 })
+
   const { data, error } = await supabase
     .from('daily_wellness')
     .upsert(

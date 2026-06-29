@@ -360,6 +360,7 @@ function WeekDetail({
               ))}
               <WellnessCard
                 date={dateStr}
+                today={todayStr}
                 wellness={dailyWellness.find(w => w.date === dateStr)}
                 onTap={() => onOpenWellness(dateStr)}
                 restDay={isEmpty}
@@ -724,6 +725,7 @@ export default function CalendarPage() {
   }
 
   function handleOpenWellness(date: string) {
+    if (date > todayStr) return
     setWellnessSheetDate(date)
   }
 
