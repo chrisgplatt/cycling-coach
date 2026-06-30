@@ -544,6 +544,11 @@ export default function DashboardPage() {
     setWellnessSheetDate(date)
   }
 
+  const todayDailyWellnessEntry = dailyWellness.find(w => w.date === todayStr)
+  const todayDailyWellnessForCard = todayDailyWellnessEntry
+    ? { energy: todayDailyWellnessEntry.energy, leg_freshness: todayDailyWellnessEntry.leg_freshness }
+    : undefined
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {showReviewBanner && (
@@ -609,6 +614,8 @@ export default function DashboardPage() {
           todayEvent={events.find(e => e.date === todayStr) ?? null}
           extraSessionCount={todaySessionCount - 1}
           ftp={currentFTP}
+          hrvBaseline={hrvStatus.baselineMean}
+          todayDailyWellness={todayDailyWellnessForCard}
           onWorkoutClick={w => setSelectedWorkout(w)}
           onChatWithCoach={todayWorkout ? () => setChatWorkout(todayWorkout) : undefined}
         />

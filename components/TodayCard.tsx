@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import WorkoutCard from '@/components/WorkoutCard'
 import ReadinessBadge from '@/components/ReadinessBadge'
 import WeatherStrip from '@/components/WeatherStrip'
+import { computeRecoveryScore } from '@/lib/recovery-score'
 import type { Workout, ICUWellness, TrainingEvent, WeatherSummary } from '@/types'
 import type { ReadinessVerdict } from '@/lib/claude/briefing'
 
@@ -12,20 +13,31 @@ interface Props {
   todayEvent?: TrainingEvent | null
   extraSessionCount?: number
   ftp?: number
+  hrvBaseline?: number | null
+  todayDailyWellness?: { energy: number | null; leg_freshness: number | null }
   onWorkoutClick?: (workout: Workout) => void
   onChatWithCoach?: () => void
 }
 
-function readinessLabel(tsb: number | null): { label: string; colour: string } {
-  if (tsb === null) return { label: '—', colour: 'text-slate-400' }
-  if (tsb > 0) return { label: 'Ready', colour: 'text-emerald-600' }
-  if (tsb >= -30) return { label: 'Moderate', colour: 'text-amber-500' }
-  return { label: 'Fatigued', colour: 'text-red-500' }
-}
+const BAND_COLOUR = {
+  high: 'text-emerald-600',
+  moderate: 'text-amber-500',
+  low: 'text-red-500',
+} as const
+
+const BAND_DOT = {
+  high: 'bg-emerald-500',
+  moderate: 'bg-amber-500',
+  low: 'bg-red-500',
+} as const
 
 const BRIEFING_CACHE_KEY = 'cycling_coach_briefing'
 
-export default function TodayCard({ workout, wellness, todayEvent, extraSessionCount, ftp, onWorkoutClick, onChatWithCoach }: Props) {
+export default function TodayCard({
+  workout, wellness, todayEvent, extraSessionCount, ftp,
+  hrvBaseline, todayDailyWellness,
+  onWorkoutClick, onChatWithCoach,
+}: Props) {
   const [coachNote, setCoachNote] = useState<string | null>(null)
   const [verdict, setVerdict] = useState<ReadinessVerdict | null>(null)
   const [headline, setHeadline] = useState<string | null>(null)
@@ -33,9 +45,7 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
-  // workoutCompleted state recorded when the cached note was last generated
   const [cacheWorkoutCompleted, setCacheWorkoutCompleted] = useState<boolean | null>(null)
-  // prevent the auto-refresh from firing more than once per session
   const hasAutoRefreshed = useRef(false)
 
   async function fetchNote(refresh = false) {
@@ -87,11 +97,8 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
     }
   }
 
-  // Initial load — reads from localStorage cache if available, otherwise fetches
   useEffect(() => { fetchNote() }, [])
 
-  // Auto-refresh when a ride is completed or a race result is recorded, but cache still has morning note.
-  // Only triggers once per session (hasAutoRefreshed ref).
   useEffect(() => {
     if (cacheWorkoutCompleted !== false) return
     if (hasAutoRefreshed.current) return
@@ -114,7 +121,19 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
       ? wellness.ctl - wellness.atl
       : null
   )
-  const readiness = readinessLabel(tsb)
+
+  const recovery = computeRecoveryScore({
+    hrv: wellness?.hrv ?? null,
+    hrvBaseline: hrvBaseline ?? null,
+    garmin_sleep_deep_secs: wellness?.garmin_sleep_deep_secs ?? null,
+    garmin_sleep_light_secs: wellness?.garmin_sleep_light_secs ?? null,
+    garmin_sleep_rem_secs: wellness?.garmin_sleep_rem_secs ?? null,
+    garmin_sleep_awake_secs: wellness?.garmin_sleep_awake_secs ?? null,
+    body_battery_high: wellness?.body_battery_high ?? null,
+    energy: todayDailyWellness?.energy ?? null,
+    leg_freshness: todayDailyWellness?.leg_freshness ?? null,
+    tsb,
+  })
 
   const today = new Date()
   const dateLabel = today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -133,8 +152,16 @@ export default function TodayCard({ workout, wellness, todayEvent, extraSessionC
           <p className="text-sm font-medium text-slate-700 mt-0.5">{dateLabel} · {dayType}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-slate-400 mb-0.5">Readiness</p>
-          <p className={`text-sm font-semibold ${readiness.colour}`}>{readiness.label}</p>
+          <p className="text-xs text-slate-400 mb-0.5">Recovery</p>
+          <div className="flex items-center justify-end gap-1.5" data-testid="recovery-score">
+            <span className={`w-2 h-2 rounded-full ${BAND_DOT[recovery.band]}`} aria-hidden="true" />
+            <span className={`text-sm font-semibold ${BAND_COLOUR[recovery.band]}`}>
+              {recovery.score} <span className="capitalize">{recovery.band}</span>
+            </span>
+          </div>
+          {recovery.explanation ? (
+            <p className="text-[11px] text-slate-400 mt-0.5 max-w-[140px] text-right">{recovery.explanation}</p>
+          ) : null}
         </div>
       </div>
 
