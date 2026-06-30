@@ -312,6 +312,175 @@ function HrvImprovementSection() {
   )
 }
 
+const SLEEP_RANGES: { label: string; days: number }[] = [
+  { label: '14d', days: 14 },
+  { label: '30d', days: 30 },
+]
+
+function SleepSection({ wellness }: { wellness: ICUWellness[] }) {
+  const [rangeDays, setRangeDays] = useState(14)
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
+
+  const cutoff = new Date(Date.now() - rangeDays * 864e5).toISOString().split('T')[0]
+  const data = wellness.filter(w => w.id >= cutoff).sort((a, b) => a.id.localeCompare(b.id))
+
+  const latest = [...data].reverse().find(w =>
+    w.garmin_sleep_deep_secs !== null || w.garmin_sleep_light_secs !== null ||
+    w.garmin_sleep_rem_secs !== null || w.garmin_sleep_awake_secs !== null
+  )
+
+  if (!latest && data.every(w =>
+    w.garmin_sleep_deep_secs == null && w.garmin_sleep_light_secs == null &&
+    w.garmin_sleep_rem_secs == null && w.garmin_sleep_awake_secs == null
+  )) {
+    return null
+  }
+
+  const totalSecs = latest
+    ? (latest.garmin_sleep_deep_secs ?? 0) + (latest.garmin_sleep_light_secs ?? 0) +
+      (latest.garmin_sleep_rem_secs ?? 0) + (latest.garmin_sleep_awake_secs ?? 0)
+    : 0
+  const totalHours = totalSecs > 0 ? (totalSecs / 3600).toFixed(1) : null
+
+  const svgLeft = 30, svgRight = 420, svgTop = 10, svgBottom = 90
+  const chartW = svgRight - svgLeft
+  const n = data.length
+  const gap = 2
+  const barW = n > 0 ? Math.max(4, Math.floor(chartW / n) - gap) : 10
+  const TARGET_SECS = 8 * 3600
+
+  const maxSecs = Math.max(TARGET_SECS, ...data.map(w =>
+    (w.garmin_sleep_deep_secs ?? 0) + (w.garmin_sleep_light_secs ?? 0) +
+    (w.garmin_sleep_rem_secs ?? 0) + (w.garmin_sleep_awake_secs ?? 0)
+  ))
+
+  const xOf = (i: number) => svgLeft + (i / n) * chartW + gap / 2
+  const yOf = (secs: number) => normalizeY(secs, 0, maxSecs, svgTop, svgBottom)
+  const targetY = yOf(TARGET_SECS)
+
+  const displayed = selectedIdx !== null ? data[selectedIdx] : null
+
+  return (
+    <SectionCard title="Sleep" accent="bg-indigo-500">
+      {/* Today header */}
+      <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100">
+        <div>
+          {totalHours ? (
+            <>
+              <div className="text-sm font-semibold text-indigo-600">{totalHours}h last night</div>
+              {latest && totalSecs > 0 && (
+                <div className="w-full h-2 rounded-full overflow-hidden bg-gray-100 mt-1.5 flex" style={{ maxWidth: 200 }}>
+                  {latest.garmin_sleep_deep_secs != null && (
+                    <div className="bg-violet-500 h-full" style={{ width: `${(latest.garmin_sleep_deep_secs / totalSecs) * 100}%` }} />
+                  )}
+                  {latest.garmin_sleep_rem_secs != null && (
+                    <div className="bg-indigo-400 h-full" style={{ width: `${(latest.garmin_sleep_rem_secs / totalSecs) * 100}%` }} />
+                  )}
+                  {latest.garmin_sleep_light_secs != null && (
+                    <div className="bg-slate-300 h-full" style={{ width: `${(latest.garmin_sleep_light_secs / totalSecs) * 100}%` }} />
+                  )}
+                  {latest.garmin_sleep_awake_secs != null && (
+                    <div className="bg-gray-200 h-full" style={{ width: `${(latest.garmin_sleep_awake_secs / totalSecs) * 100}%` }} />
+                  )}
+                </div>
+              )}
+              {latest && (
+                <div className="text-[10px] text-slate-400 mt-1 space-x-2">
+                  {latest.garmin_sleep_deep_secs != null && (
+                    <span>Deep {(latest.garmin_sleep_deep_secs / 3600).toFixed(1)}h</span>
+                  )}
+                  {latest.garmin_sleep_rem_secs != null && (
+                    <span>REM {(latest.garmin_sleep_rem_secs / 3600).toFixed(1)}h</span>
+                  )}
+                  {latest.garmin_sleep_light_secs != null && (
+                    <span>Light {(latest.garmin_sleep_light_secs / 3600).toFixed(1)}h</span>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-sm text-gray-400">No sleep data</div>
+          )}
+        </div>
+        <div className="flex gap-1">
+          {SLEEP_RANGES.map(r => (
+            <button
+              key={r.label}
+              onClick={() => setRangeDays(r.days)}
+              className={`text-[11px] font-semibold px-2 py-1.5 rounded min-h-[44px] ${
+                rangeDays === r.days ? 'bg-indigo-100 text-indigo-700' : 'text-gray-400'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Selected night detail */}
+      {displayed && (
+        <div className="px-4 py-2 text-[11px] text-slate-500 border-b border-gray-100 flex gap-3 flex-wrap">
+          <span className="font-medium text-slate-600">{displayed.id}</span>
+          {displayed.garmin_sleep_deep_secs != null && <span>Deep {(displayed.garmin_sleep_deep_secs / 3600).toFixed(1)}h</span>}
+          {displayed.garmin_sleep_rem_secs != null && <span>REM {(displayed.garmin_sleep_rem_secs / 3600).toFixed(1)}h</span>}
+          {displayed.garmin_sleep_light_secs != null && <span>Light {(displayed.garmin_sleep_light_secs / 3600).toFixed(1)}h</span>}
+          {displayed.garmin_sleep_awake_secs != null && <span>Awake {(displayed.garmin_sleep_awake_secs / 60).toFixed(0)}m</span>}
+        </div>
+      )}
+
+      {/* Trend chart */}
+      <svg viewBox={`0 0 ${svgRight + 10} 115`} className="w-full">
+        {/* 8h target line */}
+        <line x1={svgLeft} y1={targetY} x2={svgRight} y2={targetY}
+          stroke="#e0e7ff" strokeWidth="1" strokeDasharray="4,3" />
+        <text x={svgLeft - 4} y={targetY + 4} fontSize="8" fill="#c7d2fe" textAnchor="end">8h</text>
+
+        {data.map((w, i) => {
+          const total = (w.garmin_sleep_deep_secs ?? 0) + (w.garmin_sleep_light_secs ?? 0) +
+            (w.garmin_sleep_rem_secs ?? 0) + (w.garmin_sleep_awake_secs ?? 0)
+          if (total === 0) return null
+          const x = xOf(i)
+          const topY = yOf(total)
+          const isSelected = selectedIdx === i
+          // Stacked bars: deep (bottom of stack in visual = top in SVG)
+          let stackY = svgBottom
+          const segments: { color: string; secs: number }[] = [
+            { color: isSelected ? '#7c3aed' : '#8b5cf6', secs: w.garmin_sleep_awake_secs ?? 0 },
+            { color: isSelected ? '#818cf8' : '#a5b4fc', secs: w.garmin_sleep_light_secs ?? 0 },
+            { color: isSelected ? '#6366f1' : '#818cf8', secs: w.garmin_sleep_rem_secs ?? 0 },
+            { color: isSelected ? '#4f46e5' : '#6d28d9', secs: w.garmin_sleep_deep_secs ?? 0 },
+          ]
+          const rects = segments.map((seg, si) => {
+            if (seg.secs === 0) return null
+            const segH = (seg.secs / maxSecs) * (svgBottom - svgTop)
+            const y = stackY - segH
+            stackY = y
+            return <rect key={si} x={x} y={y} width={barW} height={segH} fill={seg.color} />
+          })
+          return (
+            <g key={w.id}>
+              {rects}
+              {/* Invisible hit area */}
+              <rect
+                x={x} y={topY} width={Math.max(barW, 12)} height={Math.max(svgBottom - topY, 12)}
+                fill="transparent"
+                onClick={() => setSelectedIdx(selectedIdx === i ? null : i)}
+                className="cursor-pointer"
+              />
+            </g>
+          )
+        })}
+      </svg>
+      <div className="flex gap-3 px-3 pb-3 text-[11px] text-gray-500">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm inline-block bg-violet-600" />Deep</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm inline-block bg-indigo-400" />REM</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm inline-block bg-slate-300" />Light</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm inline-block bg-gray-200" />Awake</span>
+      </div>
+    </SectionCard>
+  )
+}
+
 function FTPHistoryChart({ predictions }: { predictions: FTPPrediction[] }) {
   const threeMonthsAgo = new Date(Date.now() - 91 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   const points = predictions
@@ -689,6 +858,8 @@ export default function FitnessPage() {
           <HrvSection wellness={charts.wellness} />
 
           <HrvImprovementSection />
+
+          <SleepSection wellness={charts.wellness} />
 
           <SectionCard title="Weekly Training Load" accent="bg-violet-500">
             <WeeklyTssChart weeklyTss={charts.weeklyTss} />
