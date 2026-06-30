@@ -5,6 +5,7 @@ import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss, WeightEntry } f
 import WeightHistoryChart from '@/components/WeightHistoryChart'
 import type { HrvImprovement } from '@/lib/hrv/improvement'
 import { computeHrvBaseline, type HrvStatus } from '@/lib/hrv/baseline'
+import { computeRecoveryScore } from '@/lib/recovery-score'
 import AnimatedLogo from '@/components/AnimatedLogo'
 
 const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000
@@ -481,6 +482,141 @@ function SleepSection({ wellness }: { wellness: ICUWellness[] }) {
   )
 }
 
+const RECOVERY_RANGES: { label: string; days: number }[] = [
+  { label: '14d', days: 14 },
+  { label: '30d', days: 30 },
+]
+
+const BAND_COLOUR_MAP = {
+  high: '#10b981',
+  moderate: '#f59e0b',
+  low: '#ef4444',
+} as const
+
+function RecoverySection({ wellness }: { wellness: ICUWellness[] }) {
+  const [rangeDays, setRangeDays] = useState(14)
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
+
+  const hrvStatus = computeHrvBaseline(wellness)
+  const hrvBaseline = hrvStatus.baselineMean
+
+  const cutoff = new Date(Date.now() - rangeDays * 864e5).toISOString().split('T')[0]
+  const data = wellness.filter(w => w.id >= cutoff).sort((a, b) => a.id.localeCompare(b.id))
+
+  const scored = data.map(w => ({
+    id: w.id,
+    result: computeRecoveryScore({
+      hrv: w.hrv ?? null,
+      hrvBaseline,
+      garmin_sleep_deep_secs: w.garmin_sleep_deep_secs ?? null,
+      garmin_sleep_light_secs: w.garmin_sleep_light_secs ?? null,
+      garmin_sleep_rem_secs: w.garmin_sleep_rem_secs ?? null,
+      garmin_sleep_awake_secs: w.garmin_sleep_awake_secs ?? null,
+      body_battery_high: w.body_battery_high ?? null,
+      energy: null,
+      leg_freshness: null,
+      tsb: w.form ?? null,
+    }),
+  }))
+
+  const latest = scored.at(-1)
+
+  if (!scored.length) return null
+
+  const svgLeft = 30, svgRight = 420, svgTop = 10, svgBottom = 90
+  const chartW = svgRight - svgLeft
+  const n = scored.length
+
+  const xOf = (i: number) => svgLeft + (i / Math.max(n - 1, 1)) * chartW
+  const yOf = (v: number) => normalizeY(v, 0, 100, svgTop, svgBottom)
+
+  const linePts = scored.map((s, i) => `${xOf(i)},${yOf(s.result.score)}`).join(' ')
+  const highY = yOf(75)
+  const lowY = yOf(50)
+
+  const displayed = selectedIdx !== null ? scored[selectedIdx] : null
+
+  return (
+    <SectionCard title="Recovery" accent="bg-emerald-500">
+      {/* Today header */}
+      <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100">
+        <div>
+          {latest && (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-extrabold" style={{ color: BAND_COLOUR_MAP[latest.result.band] }}>
+                  {latest.result.score}
+                </span>
+                <span className="text-sm font-semibold capitalize" style={{ color: BAND_COLOUR_MAP[latest.result.band] }}>
+                  {latest.result.band}
+                </span>
+              </div>
+              {latest.result.explanation ? (
+                <div className="text-xs text-gray-400 mt-0.5">{latest.result.explanation}</div>
+              ) : null}
+            </>
+          )}
+        </div>
+        <div className="flex gap-1">
+          {RECOVERY_RANGES.map(r => (
+            <button
+              key={r.label}
+              onClick={() => setRangeDays(r.days)}
+              className={`text-[11px] font-semibold px-2 py-1.5 rounded min-h-[44px] ${
+                rangeDays === r.days ? 'bg-emerald-100 text-emerald-700' : 'text-gray-400'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Selected point detail */}
+      {displayed && (
+        <div className="px-4 py-2 text-[11px] text-slate-500 border-b border-gray-100 flex gap-3 flex-wrap">
+          <span className="font-medium text-slate-600">{displayed.id}</span>
+          {displayed.result.components.sleep != null && <span>Sleep {Math.round(displayed.result.components.sleep)}</span>}
+          {displayed.result.components.hrv != null && <span>HRV {Math.round(displayed.result.components.hrv)}</span>}
+          {displayed.result.components.wellness != null && <span>Wellness {Math.round(displayed.result.components.wellness)}</span>}
+          {displayed.result.components.tsb != null && <span>Load {Math.round(displayed.result.components.tsb)}</span>}
+          {displayed.result.components.bodyBattery != null && <span>Battery {Math.round(displayed.result.components.bodyBattery)}</span>}
+        </div>
+      )}
+
+      {/* Trend chart */}
+      <svg viewBox={`0 0 ${svgRight + 10} 115`} className="w-full">
+        {/* Band fills */}
+        <rect x={svgLeft} y={svgTop} width={chartW} height={Math.max(0, highY - svgTop)} fill="#f0fdf4" opacity="0.8" />
+        <rect x={svgLeft} y={lowY} width={chartW} height={Math.max(0, svgBottom - lowY)} fill="#fef2f2" opacity="0.8" />
+        {/* Band lines */}
+        <line x1={svgLeft} y1={highY} x2={svgRight} y2={highY} stroke="#bbf7d0" strokeWidth="1" />
+        <line x1={svgLeft} y1={lowY} x2={svgRight} y2={lowY} stroke="#fecaca" strokeWidth="1" />
+        <text x={svgLeft - 4} y={highY + 4} fontSize="8" fill="#86efac" textAnchor="end">75</text>
+        <text x={svgLeft - 4} y={lowY + 4} fontSize="8" fill="#fca5a5" textAnchor="end">50</text>
+        {/* Line */}
+        <polyline points={linePts} fill="none" stroke="#10b981" strokeWidth="2" strokeLinejoin="round" />
+        {/* Points */}
+        {scored.map((s, i) => (
+          <g key={s.id}>
+            <circle
+              cx={xOf(i)} cy={yOf(s.result.score)} r="4"
+              fill={BAND_COLOUR_MAP[s.result.band]}
+              stroke="white" strokeWidth="1.5"
+            />
+            <rect
+              x={xOf(i) - 8} y={yOf(s.result.score) - 8} width={16} height={16}
+              fill="transparent"
+              onClick={() => setSelectedIdx(selectedIdx === i ? null : i)}
+              className="cursor-pointer"
+            />
+          </g>
+        ))}
+      </svg>
+    </SectionCard>
+  )
+}
+
 function FTPHistoryChart({ predictions }: { predictions: FTPPrediction[] }) {
   const threeMonthsAgo = new Date(Date.now() - 91 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   const points = predictions
@@ -860,6 +996,8 @@ export default function FitnessPage() {
           <HrvImprovementSection />
 
           <SleepSection wellness={charts.wellness} />
+
+          <RecoverySection wellness={charts.wellness} />
 
           <SectionCard title="Weekly Training Load" accent="bg-violet-500">
             <WeeklyTssChart weeklyTss={charts.weeklyTss} />

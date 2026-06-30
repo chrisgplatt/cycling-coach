@@ -38,3 +38,10 @@ it('renders Sleep section when garmin sleep data is present', async () => {
   await screen.findByText('Sleep')
   expect(screen.getByText('Sleep')).toBeInTheDocument()
 })
+
+it('renders Recovery section when wellness data is present', async () => {
+  const { default: FitnessPage } = await import('@/app/fitness/page')
+  render(<FitnessPage />)
+  await screen.findByText('Sleep')
+  expect(screen.getByText('Recovery')).toBeInTheDocument()
+})
