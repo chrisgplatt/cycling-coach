@@ -7,6 +7,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { computeDailyStrain, computeDailyActivityLoad, computeDailyLifeLoad } from '@/lib/strain'
+import { computeRecoveryScore } from '@/lib/recovery-score'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness, DailyWellness, GarminWellness } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -85,6 +86,7 @@ export async function GET(req: NextRequest) {
   let atl: number | null = null
   let tsb: number | null = null
   let hrv: number | null = null
+  let bodyBatteryHigh: number | null = null
   let hrvStatus: BriefingContext['hrvStatus'] = null
   let recentWorkouts: BriefingContext['recentWorkouts'] = []
   let dailyStrain: number | null = null
@@ -103,6 +105,7 @@ export async function GET(req: NextRequest) {
       atl = latest?.atl ?? null
       tsb = latest?.form ?? (ctl !== null && atl !== null ? ctl - atl : null)
       hrv = latest?.hrv ?? null
+      bodyBatteryHigh = latest?.body_battery_high ?? null
       const todayLoad = computeDailyActivityLoad(activities, today)
       const todayLifeLoad = computeDailyLifeLoad(
         latest?.sleep_score ?? null,
@@ -248,6 +251,22 @@ export async function GET(req: NextRequest) {
     | 'garmin_sleep_rem_secs' | 'garmin_sleep_awake_secs' | 'garmin_sleep_respiration_avg'
   > | null
 
+  const todayDailyWellness = (wellnessRows ?? []).find(
+    (w): w is DailyWellness => (w as DailyWellness).date === today
+  )
+  const recoveryResult = computeRecoveryScore({
+    hrv,
+    hrvBaseline: hrvStatus?.baselineMean ?? null,
+    garmin_sleep_deep_secs: todayGarmin?.garmin_sleep_deep_secs ?? null,
+    garmin_sleep_light_secs: todayGarmin?.garmin_sleep_light_secs ?? null,
+    garmin_sleep_rem_secs: todayGarmin?.garmin_sleep_rem_secs ?? null,
+    garmin_sleep_awake_secs: todayGarmin?.garmin_sleep_awake_secs ?? null,
+    body_battery_high: bodyBatteryHigh,
+    energy: todayDailyWellness?.energy ?? null,
+    leg_freshness: todayDailyWellness?.leg_freshness ?? null,
+    tsb,
+  })
+
   const ctx: BriefingContext = {
     today,
     todayWorkout,
@@ -288,6 +307,9 @@ export async function GET(req: NextRequest) {
     garminSleepRemSecs: todayGarmin?.garmin_sleep_rem_secs ?? null,
     garminSleepAwakeSecs: todayGarmin?.garmin_sleep_awake_secs ?? null,
     garminSleepRespirationAvg: todayGarmin?.garmin_sleep_respiration_avg ?? null,
+    recoveryScore: recoveryResult.score,
+    recoveryBand: recoveryResult.band,
+    recoveryExplanation: recoveryResult.explanation,
   }
 
   const { coach_note, verdict, headline } = await generateBriefing(ctx)

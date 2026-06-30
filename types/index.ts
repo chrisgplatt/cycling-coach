@@ -637,6 +637,10 @@ export interface BriefingContext {
   garminSleepRemSecs?: number | null
   garminSleepAwakeSecs?: number | null
   garminSleepRespirationAvg?: number | null
+  // Composite recovery score (computed from HRV + sleep + wellness + TSB + body battery)
+  recoveryScore?: number | null
+  recoveryBand?: 'high' | 'moderate' | 'low' | null
+  recoveryExplanation?: string
   dossier?: {
     synthesized_at: string
     content: {
