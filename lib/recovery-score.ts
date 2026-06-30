@@ -89,7 +89,7 @@ export function computeRecoveryScore(inputs: RecoveryInputs): RecoveryScore {
     hrv: computeHrvIndex(inputs),
     wellness: computeWellnessIndex(inputs),
     tsb: computeTsbIndex(inputs),
-    bodyBattery: inputs.body_battery_high,
+    bodyBattery: inputs.body_battery_high == null ? null : Math.min(100, Math.max(0, inputs.body_battery_high)),
   }
 
   const available = (Object.keys(components) as ComponentKey[]).filter(k => components[k] !== null)

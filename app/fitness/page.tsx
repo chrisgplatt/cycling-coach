@@ -407,7 +407,7 @@ function SleepSection({ wellness }: { wellness: ICUWellness[] }) {
           {SLEEP_RANGES.map(r => (
             <button
               key={r.label}
-              onClick={() => setRangeDays(r.days)}
+              onClick={() => { setRangeDays(r.days); setSelectedIdx(null) }}
               className={`text-[11px] font-semibold px-2 py-1.5 rounded min-h-[44px] ${
                 rangeDays === r.days ? 'bg-indigo-100 text-indigo-700' : 'text-gray-400'
               }`}
@@ -503,6 +503,8 @@ function RecoverySection({ wellness }: { wellness: ICUWellness[] }) {
   const cutoff = new Date(Date.now() - rangeDays * 864e5).toISOString().split('T')[0]
   const data = wellness.filter(w => w.id >= cutoff).sort((a, b) => a.id.localeCompare(b.id))
 
+  // energy/leg_freshness unavailable in ICUWellness — today's trend score will differ
+  // from the Dashboard chip which includes logged subjective wellness (by design).
   const scored = data.map(w => ({
     id: w.id,
     result: computeRecoveryScore({
@@ -561,7 +563,7 @@ function RecoverySection({ wellness }: { wellness: ICUWellness[] }) {
           {RECOVERY_RANGES.map(r => (
             <button
               key={r.label}
-              onClick={() => setRangeDays(r.days)}
+              onClick={() => { setRangeDays(r.days); setSelectedIdx(null) }}
               className={`text-[11px] font-semibold px-2 py-1.5 rounded min-h-[44px] ${
                 rangeDays === r.days ? 'bg-emerald-100 text-emerald-700' : 'text-gray-400'
               }`}

@@ -206,4 +206,18 @@ describe('buildTodayBriefingPrompt with recovery score', () => {
     expect(ctx.recoveryBand).toBe('moderate')
     expect(ctx.recoveryExplanation).toBe('HRV suppressed')
   })
+
+  it('passes recovery score line to the Claude prompt', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text:
+      '{"verdict":"amber","headline":"Take it easy","note":"Recovery is moderate today."}' }] })
+    const ctx: BriefingContext = {
+      ...baseMorningCtx,
+      recoveryScore: 68,
+      recoveryBand: 'moderate',
+      recoveryExplanation: 'HRV suppressed',
+    }
+    await generateBriefing(ctx)
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toContain('Recovery score: 68/100 (moderate) — HRV suppressed')
+  })
 })
