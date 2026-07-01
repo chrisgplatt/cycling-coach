@@ -65,42 +65,41 @@ it('renders Recovery section when wellness data is present', async () => {
   expect(screen.getByText('Recovery')).toBeInTheDocument()
 })
 
-it('shows component breakdown when a mouse hovers a Recovery graph point, and hides it on leave', async () => {
+it('shows component breakdown when a mouse hovers anywhere in a Recovery graph day-slot, and hides it on leave', async () => {
   render(<FitnessPage />)
   await screen.findByText('Recovery')
-  const section = screen.getByText('Recovery').closest('.rounded-xl') as HTMLElement
-  const point = section.querySelector('.cursor-pointer') as Element
+  const point = screen.getByTestId('recovery-hit-0')
 
+  // The hit-slot spans the full chart height, not just the plotted dot's exact
+  // y-coordinate — this is what makes hover actually easy to trigger.
   hoverIn(point, 'mouse')
-  expect(section).toHaveTextContent(/Sleep \d+/)
+  expect(screen.getByText('Recovery').closest('.rounded-xl')).toHaveTextContent(/Sleep \d+/)
 
   hoverOut(point, 'mouse')
-  expect(section).not.toHaveTextContent(/Sleep \d+/)
+  expect(screen.getByText('Recovery').closest('.rounded-xl')).not.toHaveTextContent(/Sleep \d+/)
 })
 
 it('does not show component breakdown on touch hover-in (avoids intercepting a tap-to-select)', async () => {
   render(<FitnessPage />)
   await screen.findByText('Recovery')
-  const section = screen.getByText('Recovery').closest('.rounded-xl') as HTMLElement
-  const point = section.querySelector('.cursor-pointer') as Element
+  const point = screen.getByTestId('recovery-hit-0')
 
   hoverIn(point, 'touch')
-  expect(section).not.toHaveTextContent(/Sleep \d+/)
+  expect(screen.getByText('Recovery').closest('.rounded-xl')).not.toHaveTextContent(/Sleep \d+/)
 })
 
 it('tap-to-select still toggles the breakdown on and off (mobile has no hover)', async () => {
   render(<FitnessPage />)
   await screen.findByText('Recovery')
-  const section = screen.getByText('Recovery').closest('.rounded-xl') as HTMLElement
-  const point = section.querySelector('.cursor-pointer') as Element
+  const point = screen.getByTestId('recovery-hit-0')
 
   // Real touch devices fire a synthetic pointerenter/mouseenter just before click;
   // simulate that ordering to guard against the regression where hover-priming
   // made the very next click's toggle see "already selected" and turn it back off.
   hoverIn(point, 'touch')
   fireEvent.click(point)
-  expect(section).toHaveTextContent(/Sleep \d+/)
+  expect(screen.getByText('Recovery').closest('.rounded-xl')).toHaveTextContent(/Sleep \d+/)
 
   fireEvent.click(point)
-  expect(section).not.toHaveTextContent(/Sleep \d+/)
+  expect(screen.getByText('Recovery').closest('.rounded-xl')).not.toHaveTextContent(/Sleep \d+/)
 })

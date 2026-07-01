@@ -600,22 +600,32 @@ function RecoverySection({ wellness }: { wellness: ICUWellness[] }) {
         <polyline points={linePts} fill="none" stroke="#10b981" strokeWidth="2" strokeLinejoin="round" />
         {/* Points */}
         {scored.map((s, i) => (
-          <g key={s.id}>
-            <circle
-              cx={xOf(i)} cy={yOf(s.result.score)} r="4"
-              fill={BAND_COLOUR_MAP[s.result.band]}
-              stroke="white" strokeWidth="1.5"
-            />
+          <circle
+            key={s.id}
+            cx={xOf(i)} cy={yOf(s.result.score)} r="4"
+            fill={BAND_COLOUR_MAP[s.result.band]}
+            stroke="white" strokeWidth="1.5"
+          />
+        ))}
+        {/* Hit-slots — one full-height column per day, same pattern as CtlTrendStrip's
+            ride hit-targets, so hovering anywhere above/below the plotted dot still
+            selects it instead of requiring pixel-perfect precision on a tiny target. */}
+        {scored.map((s, i) => {
+          const slotW = chartW / n
+          const slotX = svgLeft + i * slotW
+          return (
             <rect
-              x={xOf(i) - 8} y={yOf(s.result.score) - 8} width={16} height={16}
+              key={`hit-${s.id}`}
+              data-testid={`recovery-hit-${i}`}
+              x={slotX} y={svgTop} width={slotW} height={svgBottom - svgTop}
               fill="transparent"
-              onClick={() => setSelectedIdx(selectedIdx === i ? null : i)}
+              onClick={() => setSelectedIdx(cur => cur === i ? null : i)}
               onPointerEnter={e => { if (e.pointerType === 'mouse') setSelectedIdx(i) }}
-              onPointerLeave={e => { if (e.pointerType === 'mouse') setSelectedIdx(null) }}
+              onPointerLeave={e => { if (e.pointerType === 'mouse') setSelectedIdx(cur => cur === i ? null : cur) }}
               className="cursor-pointer"
             />
-          </g>
-        ))}
+          )
+        })}
       </svg>
     </SectionCard>
   )
