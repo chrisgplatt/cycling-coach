@@ -610,7 +610,7 @@ export default function DashboardPage() {
         )}
         <TodayCard
           workout={todayWorkout}
-          wellness={latestWellness}
+          wellness={latestWellnessWithLoad}
           todayEvent={events.find(e => e.date === todayStr) ?? null}
           extraSessionCount={todaySessionCount - 1}
           ftp={currentFTP}

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { isoWeekStart } from '@/lib/chart-helpers'
+import { mergeGarminIntoWellness } from '@/lib/garmin-wellness-merge'
 import type { ChartsData, WeeklyTss, RidePoint, DailyStrainPoint, ActivitySummary } from '@/types'
 import {
   computeDailyActivityLoad,
@@ -38,16 +39,19 @@ export async function GET() {
   )
 
   try {
-    const [wellness, activities, { data: garminHistory }] = await Promise.all([
+    const [rawWellness, activities, { data: garminHistory }] = await Promise.all([
       client.getWellness(oldest, newest),
       client.getActivities(oldest, newest),
       supabase
         .from('garmin_wellness')
-        .select('date, garmin_training_readiness, garmin_recovery_time_mins, garmin_body_battery_charged, garmin_body_battery_drained, garmin_stress_max')
+        .select('date, garmin_training_readiness, garmin_recovery_time_mins, garmin_training_status, garmin_body_battery_current, garmin_body_battery_charged, garmin_body_battery_drained, garmin_stress_avg, garmin_stress_max, garmin_hrv_overnight, garmin_hrv_status, garmin_resting_hr, garmin_sleep_deep_secs, garmin_sleep_light_secs, garmin_sleep_rem_secs, garmin_sleep_awake_secs, garmin_sleep_respiration_avg')
         .gte('date', oldest)
         .lte('date', newest),
     ])
     const garminByDate = new Map((garminHistory ?? []).map(g => [g.date as string, g]))
+    // Garmin sleep stages, HRV overnight, and training readiness live only in garmin_wellness —
+    // intervals.icu's wellness endpoint never returns them (lib/intervals/client.ts getWellness()).
+    const wellness = mergeGarminIntoWellness(rawWellness, garminHistory ?? [])
 
     // Weekly TSS — cycling only
     const cyclingRides = activities.filter(a => /ride/i.test(a.type))

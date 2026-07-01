@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import FitnessPage from '@/app/fitness/page'
 
 // Minimal fetch mock — the page fetches /api/ftp, /api/profile, /api/charts, /api/weight-log, /api/hrv/improvement
@@ -27,6 +27,9 @@ beforeEach(() => {
     if (url.includes('/api/weight-log')) {
       return Promise.resolve({ ok: true, json: async () => ({ entries: [] }) })
     }
+    if (url.includes('/api/hrv/improvement')) {
+      return Promise.resolve({ ok: true, json: async () => ({ improvement: { hasEnoughHistory: false }, coachNote: null }) })
+    }
     return Promise.resolve({ ok: true, json: async () => ([]) })
   })
 })
@@ -44,4 +47,17 @@ it('renders Recovery section when wellness data is present', async () => {
   render(<FitnessPage />)
   await screen.findByText('Sleep')
   expect(screen.getByText('Recovery')).toBeInTheDocument()
+})
+
+it('shows component breakdown on hover over a Recovery graph point, and hides it on mouse leave', async () => {
+  render(<FitnessPage />)
+  await screen.findByText('Recovery')
+  const section = screen.getByText('Recovery').closest('.rounded-xl') as HTMLElement
+  const point = section.querySelector('.cursor-pointer') as Element
+
+  fireEvent.mouseEnter(point)
+  expect(section).toHaveTextContent(/Sleep \d+/)
+
+  fireEvent.mouseLeave(point)
+  expect(section).not.toHaveTextContent(/Sleep \d+/)
 })

@@ -610,6 +610,8 @@ function RecoverySection({ wellness }: { wellness: ICUWellness[] }) {
               x={xOf(i) - 8} y={yOf(s.result.score) - 8} width={16} height={16}
               fill="transparent"
               onClick={() => setSelectedIdx(selectedIdx === i ? null : i)}
+              onMouseEnter={() => setSelectedIdx(i)}
+              onMouseLeave={() => setSelectedIdx(null)}
               className="cursor-pointer"
             />
           </g>
