@@ -35,6 +35,22 @@ beforeEach(() => {
 })
 afterEach(() => jest.clearAllMocks())
 
+// jsdom has no PointerEvent implementation (jsdom/jsdom#1888): fireEvent.pointerEnter/Leave
+// silently drop `pointerType`, AND React synthesizes onPointerEnter/onPointerLeave from the
+// bubbling pointerover/pointerout events (enter/leave don't bubble), not from enter/leave
+// events directly. Dispatch pointerover/pointerout with pointerType attached manually so the
+// component's handlers see the same pointerType a real browser would deliver.
+function hoverIn(el: Element, pointerType: 'mouse' | 'touch') {
+  const event = new Event('pointerover', { bubbles: true })
+  Object.defineProperty(event, 'pointerType', { value: pointerType })
+  fireEvent(el, event)
+}
+function hoverOut(el: Element, pointerType: 'mouse' | 'touch') {
+  const event = new Event('pointerout', { bubbles: true })
+  Object.defineProperty(event, 'pointerType', { value: pointerType })
+  fireEvent(el, event)
+}
+
 it('renders Sleep section when garmin sleep data is present', async () => {
   render(<FitnessPage />)
   // Section heading appears after charts load
@@ -49,15 +65,42 @@ it('renders Recovery section when wellness data is present', async () => {
   expect(screen.getByText('Recovery')).toBeInTheDocument()
 })
 
-it('shows component breakdown on hover over a Recovery graph point, and hides it on mouse leave', async () => {
+it('shows component breakdown when a mouse hovers a Recovery graph point, and hides it on leave', async () => {
   render(<FitnessPage />)
   await screen.findByText('Recovery')
   const section = screen.getByText('Recovery').closest('.rounded-xl') as HTMLElement
   const point = section.querySelector('.cursor-pointer') as Element
 
-  fireEvent.mouseEnter(point)
+  hoverIn(point, 'mouse')
   expect(section).toHaveTextContent(/Sleep \d+/)
 
-  fireEvent.mouseLeave(point)
+  hoverOut(point, 'mouse')
+  expect(section).not.toHaveTextContent(/Sleep \d+/)
+})
+
+it('does not show component breakdown on touch hover-in (avoids intercepting a tap-to-select)', async () => {
+  render(<FitnessPage />)
+  await screen.findByText('Recovery')
+  const section = screen.getByText('Recovery').closest('.rounded-xl') as HTMLElement
+  const point = section.querySelector('.cursor-pointer') as Element
+
+  hoverIn(point, 'touch')
+  expect(section).not.toHaveTextContent(/Sleep \d+/)
+})
+
+it('tap-to-select still toggles the breakdown on and off (mobile has no hover)', async () => {
+  render(<FitnessPage />)
+  await screen.findByText('Recovery')
+  const section = screen.getByText('Recovery').closest('.rounded-xl') as HTMLElement
+  const point = section.querySelector('.cursor-pointer') as Element
+
+  // Real touch devices fire a synthetic pointerenter/mouseenter just before click;
+  // simulate that ordering to guard against the regression where hover-priming
+  // made the very next click's toggle see "already selected" and turn it back off.
+  hoverIn(point, 'touch')
+  fireEvent.click(point)
+  expect(section).toHaveTextContent(/Sleep \d+/)
+
+  fireEvent.click(point)
   expect(section).not.toHaveTextContent(/Sleep \d+/)
 })
