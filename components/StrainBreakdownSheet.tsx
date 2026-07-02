@@ -50,14 +50,7 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/40"
-        role="button"
-        tabIndex={0}
-        aria-label="Close"
-        onClick={onClose}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose() }}
-      />
+      <div className="absolute inset-0 bg-black/40" />
       <div className="relative bg-white w-full max-w-sm rounded-2xl max-h-[92vh] overflow-y-auto">
         <div className="px-5 pb-5 pt-5">
           {/* Header */}

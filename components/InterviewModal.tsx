@@ -114,7 +114,7 @@ export default function InterviewModal({ wellness, currentFTP, onComplete, onClo
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" />
       <div className="relative bg-white rounded-t-2xl sm:rounded-2xl flex flex-col w-full max-w-lg max-h-[92vh] sm:max-h-[85vh]">
 
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">

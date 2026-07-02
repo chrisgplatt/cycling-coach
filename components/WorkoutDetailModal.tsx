@@ -92,7 +92,23 @@ export default function WorkoutDetailModal({
   const [feedbackSaved, setFeedbackSaved] = useState(false)
   const [weather, setWeather] = useState<ActivityWeather | null>(null)
   const [weatherLoading, setWeatherLoading] = useState(false)
+  const [feedbackDirty, setFeedbackDirty] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const hasRide = (workout.status === 'completed' || workout.status === 'needs_review') && !!workout.icu_activity_id
+
+  // Guards against losing in-progress, unsubmitted feedback if the tab or PWA
+  // gets backgrounded/reloaded — the in-app Close button has its own confirm.
+  useEffect(() => {
+    if (!feedbackDirty) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [feedbackDirty])
+
+  function attemptClose() {
+    if (feedbackDirty) { setConfirmDiscard(true); return }
+    onClose()
+  }
 
   useEffect(() => {
     if (workout.status !== 'completed' && workout.status !== 'needs_review') {
@@ -425,6 +441,7 @@ export default function WorkoutDetailModal({
               activityId={workout.icu_activity_id ?? 'manual'}
               existingFeedback={existingFeedback}
               onFeedbackSaved={() => setFeedbackSaved(true)}
+              onDirtyChange={setFeedbackDirty}
             />
           </div>
         ) : (
@@ -736,11 +753,38 @@ export default function WorkoutDetailModal({
               </div>
             )}
           </div>
-          <button onClick={onClose} className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+          <button onClick={attemptClose} className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
             Close
           </button>
         </div>
       </div>
+
+      {confirmDiscard && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Discard feedback?</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                You've entered feedback for this session that hasn't been saved yet. Closing now will lose it.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDiscard(false)}
+                className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Keep editing
+              </button>
+              <button
+                onClick={() => { setConfirmDiscard(false); onClose() }}
+                className="bg-red-600 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-red-700 transition-colors shadow-sm"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

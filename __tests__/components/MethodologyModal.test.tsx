@@ -60,10 +60,16 @@ describe('MethodologyModal', () => {
     )
   })
 
-  it('backdrop click calls onClose', () => {
+  it('backdrop click does not call onClose (must use the close button)', () => {
     render(<MethodologyModal recommendation={recommendation} onConfirm={onConfirm} onClose={onClose} />)
     fireEvent.click(document.querySelector('.bg-black\\/40')!)
-    expect(onClose).toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('close button calls onClose', () => {
+    render(<MethodologyModal recommendation={recommendation} onConfirm={onConfirm} onClose={onClose} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
   it('does not render Peak row when peak weeks is 0', () => {

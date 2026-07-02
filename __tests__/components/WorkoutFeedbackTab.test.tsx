@@ -111,4 +111,29 @@ describe('WorkoutFeedbackTab', () => {
     await screen.findByText('Feedback saved.')
     expect(screen.queryByTestId('adapt-recommendation')).not.toBeInTheDocument()
   })
+
+  it('reports dirty=true once any field is set, and dirty=false with no signal', () => {
+    const onDirtyChange = jest.fn()
+    render(<WorkoutFeedbackTab workoutId="w1" existingFeedback={null} onFeedbackSaved={() => {}} onDirtyChange={onDirtyChange} />)
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false)
+    fireEvent.click(screen.getByRole('button', { name: 'RPE 6' }))
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true)
+  })
+
+  it('reports dirty=false again once feedback is successfully saved', async () => {
+    const onDirtyChange = jest.fn()
+    render(<WorkoutFeedbackTab workoutId="w1" existingFeedback={null} onFeedbackSaved={() => {}} onDirtyChange={onDirtyChange} />)
+    fireEvent.click(screen.getByRole('button', { name: 'RPE 8' }))
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true)
+    fireEvent.click(screen.getByRole('button', { name: /save feedback/i }))
+    await screen.findByText('Feedback saved.')
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false)
+  })
+
+  it('does not report dirty for feedback that is already saved (typing on a fresh session only)', async () => {
+    const onDirtyChange = jest.fn()
+    render(<WorkoutFeedbackTab workoutId="w1" existingFeedback={savedFeedback} onFeedbackSaved={() => {}} onDirtyChange={onDirtyChange} />)
+    await screen.findByText('Feedback saved.')
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false)
+  })
 })

@@ -12,6 +12,7 @@ interface Props {
   activityId?: string
   existingFeedback: SessionFeedback | null | 'loading'
   onFeedbackSaved: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
 const FEEL_FACES = ['😀', '🙂', '😐', '😣', '😵']
@@ -37,7 +38,7 @@ function derivePhase(f: SessionFeedback | null | 'loading'): Phase {
   return 'saved'
 }
 
-export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', existingFeedback, onFeedbackSaved }: Props) {
+export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', existingFeedback, onFeedbackSaved, onDirtyChange }: Props) {
   const [phase, setPhase] = useState<Phase>('input')
   const [feedbackText, setFeedbackText] = useState('')
   const [rpe, setRpe] = useState<number | null>(null)
@@ -82,6 +83,13 @@ export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', e
   const hasSignal =
     rpe != null || feel != null || completion != null || tags.length > 0 || mood != null || feedbackText.trim() !== ''
 
+  // Only 'input' is unsaved — once submitted, the feedback is persisted, so
+  // 'proposed'/'saved' phases carry nothing that closing the modal would lose.
+  useEffect(() => {
+    onDirtyChange?.(phase === 'input' && hasSignal)
+    return () => onDirtyChange?.(false)
+  }, [phase, hasSignal, onDirtyChange])
+
   function toggleTag(t: FeedbackTag) {
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
   }
@@ -107,6 +115,10 @@ export default function WorkoutFeedbackTab({ workoutId, activityId = 'manual', e
         setCoachNote(data.feedback?.coach_note ?? null)
         setRecommendAdaptations(data.feedback?.recommend_adaptations ?? false)
         setSavedFeedbackId(data.feedback?.id ?? null)
+        // Called directly (not just left to the phase/hasSignal effect) so the parent's
+        // dirty flag clears in the same batch as this save — a caller that closes the
+        // modal immediately after awaiting the save must not see a stale dirty flag.
+        onDirtyChange?.(false)
         if (adapt && data.proposed) {
           setProposed({ feedbackId: data.feedback.id, adjustment: data.proposed })
           setPhase('proposed')

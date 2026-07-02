@@ -45,11 +45,21 @@ export default function MethodologyModal({ recommendation, onConfirm, onClose }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
       <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-5 space-y-4 max-h-[92vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="methodology-modal-title">
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Coaching approach</p>
-          <p className="text-base font-bold text-slate-900 mt-0.5" id="methodology-modal-title">{label}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Coaching approach</p>
+            <p className="text-base font-bold text-slate-900 mt-0.5" id="methodology-modal-title">{label}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-slate-400 hover:text-slate-600 text-sm font-medium min-h-[44px] px-2 shrink-0"
+          >
+            Close
+          </button>
         </div>
         <p className="text-sm text-slate-600 leading-relaxed">{rationale}</p>
         <div className="space-y-1.5">

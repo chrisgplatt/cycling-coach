@@ -216,7 +216,7 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" />
 
       {/* Modal */}
       <div className="relative bg-white rounded-2xl flex flex-col w-full max-w-lg max-h-[85vh]">

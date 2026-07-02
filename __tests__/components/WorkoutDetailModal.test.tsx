@@ -323,6 +323,48 @@ describe('WorkoutDetailModal tabs', () => {
     expect(screen.getByTestId('tab-dot-feedback')).toBeInTheDocument()
   })
 
+  it('confirms before closing when the feedback tab has unsaved input', async () => {
+    const onClose = jest.fn()
+    const completedNoRide = { ...plannedWorkout, status: 'completed' as const }
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ feedback: null }) })) as never
+    render(<WorkoutDetailModal workout={completedNoRide} athleteId="i1" ftp={250} onClose={onClose} />)
+
+    fireEvent.click(await screen.findByRole('tab', { name: /feedback/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'RPE 6' }))
+
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByText(/discard feedback/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /keep editing/i }))
+    expect(screen.queryByText(/discard feedback/i)).not.toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes immediately (no confirm) once unsaved feedback has been submitted', async () => {
+    const onClose = jest.fn()
+    const completedNoRide = { ...plannedWorkout, status: 'completed' as const }
+    global.fetch = jest.fn((_url: string, opts?: { method?: string }) =>
+      opts?.method === 'POST'
+        ? Promise.resolve({ ok: true, json: async () => ({ feedback: { id: 'f2', coach_note: null }, proposed: null }) })
+        : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
+    ) as never
+    render(<WorkoutDetailModal workout={completedNoRide} athleteId="i1" ftp={250} onClose={onClose} />)
+
+    fireEvent.click(await screen.findByRole('tab', { name: /feedback/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'RPE 6' }))
+    fireEvent.click(screen.getByRole('button', { name: /save feedback/i }))
+    await screen.findByText('Feedback saved.')
+
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
+    expect(screen.queryByText(/discard feedback/i)).not.toBeInTheDocument()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('hides amber dot on Feedback tab when feedback is already saved', async () => {
     const completedNoRide = { ...plannedWorkout, status: 'completed' as const }
     global.fetch = jest.fn(() => Promise.resolve({
