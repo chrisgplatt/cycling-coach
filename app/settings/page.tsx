@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { calculateAge } from '@/lib/age'
+import { resolveMaxHr } from '@/lib/max-hr'
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -16,6 +17,9 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState('')
   const [dob, setDob] = useState('')
   const [savedDob, setSavedDob] = useState('')
+  const [maxHrManual, setMaxHrManual] = useState('')
+  const [savedMaxHrManual, setSavedMaxHrManual] = useState('')
+  const [observedMaxHr, setObservedMaxHr] = useState<number | null>(null)
   const [athleteId, setAthleteId] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [savedFullName, setSavedFullName] = useState('')
@@ -93,6 +97,9 @@ export default function SettingsPage() {
         const key = data.intervals_icu_api_key ?? ''
         setFullName(name); setSavedFullName(name)
         setDob(dateOfBirth); setSavedDob(dateOfBirth)
+        const maxHrM = data.max_hr_manual != null ? String(data.max_hr_manual) : ''
+        setMaxHrManual(maxHrM); setSavedMaxHrManual(maxHrM)
+        setObservedMaxHr(data.observed_max_hr ?? null)
         setAthleteId(id); setSavedAthleteId(id)
         setApiKey(key); setSavedApiKey(key)
         const time = data.notification_time ?? '07:00'
@@ -119,9 +126,10 @@ export default function SettingsPage() {
     setSaveError(null)
     try {
       const locationFields = { location_label: locationLabel || null, latitude, longitude }
+      const maxHrManualNum = maxHrManual.trim() === '' ? null : Number(maxHrManual)
       const body = profileId
-        ? { id: profileId, full_name: fullName, date_of_birth: dob || null, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone, ...locationFields }
-        : { full_name: fullName, date_of_birth: dob || null, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone, ...locationFields }
+        ? { id: profileId, full_name: fullName, date_of_birth: dob || null, max_hr_manual: maxHrManualNum, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone, ...locationFields }
+        : { full_name: fullName, date_of_birth: dob || null, max_hr_manual: maxHrManualNum, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone, ...locationFields }
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -134,6 +142,7 @@ export default function SettingsPage() {
       } else {
         setSavedFullName(fullName)
         setSavedDob(dob)
+        setSavedMaxHrManual(maxHrManual)
         setSavedAthleteId(athleteId)
         setSavedApiKey(apiKey)
         setSavedNotifTime(notifTime)
@@ -446,7 +455,7 @@ export default function SettingsPage() {
                 className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
               >✓</button>
               <button
-                onClick={() => { setFullName(savedFullName); setDob(savedDob); setEditingName(false); setSaveError(null) }}
+                onClick={() => { setFullName(savedFullName); setDob(savedDob); setMaxHrManual(savedMaxHrManual); setEditingName(false); setSaveError(null) }}
                 aria-label="Cancel"
                 className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
               >✕</button>
@@ -479,6 +488,18 @@ export default function SettingsPage() {
                 className={inputClass}
               />
             </div>
+            <div>
+              <label htmlFor="max-hr-manual" className={labelClass}>Max heart rate (optional)</label>
+              <input
+                id="max-hr-manual"
+                type="number"
+                inputMode="numeric"
+                value={maxHrManual}
+                onChange={e => setMaxHrManual(e.target.value)}
+                placeholder="e.g. 185"
+                className={inputClass}
+              />
+            </div>
           </div>
         ) : (
           <div className="space-y-1">
@@ -492,6 +513,23 @@ export default function SettingsPage() {
             ) : (
               <p className="text-sm text-slate-400 italic">Date of birth not set</p>
             )}
+            {(() => {
+              const maxHr = resolveMaxHr({
+                manual: savedMaxHrManual.trim() === '' ? null : Number(savedMaxHrManual),
+                dateOfBirth: savedDob || null,
+                observed: observedMaxHr,
+              })
+              const MAX_HR_LABEL: Record<'manual' | 'estimated' | 'observed', string> = {
+                manual: 'manual',
+                estimated: 'estimated from age',
+                observed: 'from your rides',
+              }
+              return maxHr ? (
+                <p className="text-sm text-slate-500">{maxHr.value} bpm · {MAX_HR_LABEL[maxHr.source]}</p>
+              ) : (
+                <p className="text-sm text-slate-400 italic">Max HR not set</p>
+              )
+            })()}
           </div>
         )}
       </section>

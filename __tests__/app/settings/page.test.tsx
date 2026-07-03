@@ -12,6 +12,10 @@ global.fetch = jest.fn().mockResolvedValue({
 })
 
 describe('Account page', () => {
+  beforeEach(() => {
+    (global.fetch as jest.Mock).mockClear()
+  })
+
   it('renders Account heading', () => {
     render(<SettingsPage />)
     expect(screen.getByText('Account')).toBeInTheDocument()
@@ -54,6 +58,61 @@ describe('Account page', () => {
     render(<SettingsPage />)
     fireEvent.click(screen.getByRole('button', { name: /edit personal details/i }))
     expect(screen.getByLabelText(/date of birth/i)).toBeInTheDocument()
+  })
+
+  it('shows Max heart rate input', () => {
+    render(<SettingsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /edit personal details/i }))
+    expect(screen.getByLabelText(/max heart rate/i)).toBeInTheDocument()
+  })
+
+  it('derives and displays max HR from date of birth when no manual value is set', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'p1',
+        full_name: 'Chris Platt',
+        date_of_birth: '1990-07-03',
+        intervals_icu_athlete_id: 'i12345',
+        intervals_icu_api_key: 'apikey',
+      }),
+    })
+    render(<SettingsPage />)
+    expect(await screen.findByText(/estimated from age/i)).toBeInTheDocument()
+  })
+
+  it('shows the manual max HR value and label when set', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'p1',
+        full_name: 'Chris Platt',
+        max_hr_manual: 188,
+        intervals_icu_athlete_id: 'i12345',
+        intervals_icu_api_key: 'apikey',
+      }),
+    })
+    render(<SettingsPage />)
+    expect(await screen.findByText('188 bpm · manual')).toBeInTheDocument()
+  })
+
+  it('shows "not set" when no max HR can be resolved', () => {
+    render(<SettingsPage />)
+    expect(screen.getByText(/max hr not set/i)).toBeInTheDocument()
+  })
+
+  it('saves max_hr_manual in the PATCH body', async () => {
+    render(<SettingsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /edit personal details/i }))
+    fireEvent.change(screen.getByLabelText(/max heart rate/i), { target: { value: '182' } })
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
+    fireEvent.click(screen.getByRole('button', { name: /save personal details/i }))
+
+    await waitFor(() => {
+      const patchCall = (global.fetch as jest.Mock).mock.calls.find((c: unknown[]) => (c[1] as { method?: string })?.method === 'PATCH')
+      expect(patchCall).toBeDefined()
+      expect(JSON.parse(patchCall[1].body)).toMatchObject({ max_hr_manual: 182 })
+    })
   })
 
   it('renders Rider personal details as the first section, above intervals.icu', () => {
