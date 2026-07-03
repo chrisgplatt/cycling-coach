@@ -32,7 +32,7 @@ const GROUP_META: Record<GroupKey, { label: string; emoji: string; chartMetric: 
   other: { label: 'Other',    emoji: '🏋️', chartMetric: 'count' },
 }
 
-const GROUP_ORDER: GroupKey[] = ['ride', 'run', 'walk', 'other']
+const GROUP_ORDER: GroupKey[] = ['ride', 'walk', 'run', 'other']
 
 function classifyActivity(type: string): GroupKey {
   if (/ride|cycl|bike/i.test(type)) return 'ride'
