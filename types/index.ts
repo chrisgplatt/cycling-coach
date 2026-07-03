@@ -57,6 +57,8 @@ export interface UserProfile {
   intervals_icu_athlete_id: string
   intervals_icu_api_key: string
   garmin_email?: string
+  garmin_last_sync_at?: string | null
+  garmin_last_sync_device?: string | null
   updated_at?: string
   notifications_enabled?: boolean
   notification_time?: string       // HH:MM 24h, e.g. "07:00"

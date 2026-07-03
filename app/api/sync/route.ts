@@ -26,12 +26,13 @@ async function syncGarmin(
     return null
   }
 
-  const [readinessData, status, batteryData, stressData, sleepData] = await Promise.all([
+  const [readinessData, status, batteryData, stressData, sleepData, lastSync] = await Promise.all([
     client.getTrainingReadiness(todayStr),
     client.getTrainingStatus(todayStr),
     client.getBodyBattery(todayStr),
     client.getDailyStress(todayStr),
     client.getSleepMetrics(todayStr),
+    client.getLastDeviceSync(),
   ])
 
   const row = {
@@ -60,6 +61,19 @@ async function syncGarmin(
     .from('garmin_wellness')
     .upsert(row, { onConflict: 'user_id,date' })
     .then(() => {}, (err: unknown) => console.error('[sync] garmin_wellness upsert failed:', err))
+
+  // Only overwrite the last-known sync fields when we actually got a fresh value —
+  // a failed/empty fetch must not erase the last known-good timestamp.
+  if (lastSync.lastSyncTime !== null) {
+    await supabase
+      .from('user_profile')
+      .update({
+        garmin_last_sync_at: lastSync.lastSyncTime,
+        garmin_last_sync_device: lastSync.deviceName,
+      })
+      .eq('user_id', userId)
+      .then(() => {}, (err: unknown) => console.error('[sync] garmin last-sync update failed:', err))
+  }
 
   return {
     date: todayStr,
