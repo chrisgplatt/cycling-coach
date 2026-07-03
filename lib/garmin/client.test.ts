@@ -247,3 +247,40 @@ describe('GarminClient.getSleepMetrics', () => {
     expect(result.deepSecs).toBeNull()
   })
 })
+
+describe('GarminClient.getLastDeviceSync', () => {
+  it('returns device name and ISO sync time from API response', async () => {
+    const gc = makeMockGC({
+      get: jest.fn().mockResolvedValue({
+        lastUsedDeviceName: 'Forerunner 965',
+        lastUsedDeviceUploadTime: 1751500800000,
+      }),
+    })
+    const client = await GarminClient.fromCredentials('a@b.com', 'p')
+    // @ts-expect-error replace internal gc for test
+    client['_gc'] = gc
+    const result = await client.getLastDeviceSync()
+    expect(result.deviceName).toBe('Forerunner 965')
+    expect(result.lastSyncTime).toBe(new Date(1751500800000).toISOString())
+  })
+
+  it('returns nulls on unexpected shape', async () => {
+    const gc = makeMockGC({ get: jest.fn().mockResolvedValue({}) })
+    const client = await GarminClient.fromCredentials('a@b.com', 'p')
+    // @ts-expect-error
+    client['_gc'] = gc
+    const result = await client.getLastDeviceSync()
+    expect(result.deviceName).toBeNull()
+    expect(result.lastSyncTime).toBeNull()
+  })
+
+  it('returns nulls on network error', async () => {
+    const gc = makeMockGC({ get: jest.fn().mockRejectedValue(new Error('net fail')) })
+    const client = await GarminClient.fromCredentials('a@b.com', 'p')
+    // @ts-expect-error
+    client['_gc'] = gc
+    const result = await client.getLastDeviceSync()
+    expect(result.deviceName).toBeNull()
+    expect(result.lastSyncTime).toBeNull()
+  })
+})

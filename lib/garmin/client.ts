@@ -139,4 +139,21 @@ export class GarminClient {
       return SLEEP_METRICS_NULL
     }
   }
+
+  // Reports which device most recently uploaded to Garmin Connect, and when.
+  // This is distinct from garmin_wellness.synced_at, which only records when
+  // OUR app last pulled from Garmin Connect — it says nothing about whether
+  // the watch itself has actually uploaded anything new.
+  async getLastDeviceSync(): Promise<{ deviceName: string | null; lastSyncTime: string | null }> {
+    try {
+      const url = `${GARMIN_API}/device-service/deviceservice/mylastused`
+      const data = await this._gc.get(url) as Record<string, unknown>
+      const deviceName = typeof data?.lastUsedDeviceName === 'string' ? data.lastUsedDeviceName : null
+      const uploadMillis = typeof data?.lastUsedDeviceUploadTime === 'number' ? data.lastUsedDeviceUploadTime : null
+      const lastSyncTime = uploadMillis !== null ? new Date(uploadMillis).toISOString() : null
+      return { deviceName, lastSyncTime }
+    } catch {
+      return { deviceName: null, lastSyncTime: null }
+    }
+  }
 }
