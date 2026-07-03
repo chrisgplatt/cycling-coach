@@ -169,6 +169,7 @@ export default function DashboardPage() {
           localStorage.setItem(SYNC_CACHE_KEY, JSON.stringify({ syncedAt: now.toISOString(), data }))
         } catch { /* ignore storage errors */ }
         await loadPlan()
+        await loadProfile()
         setSyncVersion(v => v + 1)
       }
     } finally {
@@ -179,6 +180,24 @@ export default function DashboardPage() {
         setSyncLogoExiting(false)
       }, 400)
     }
+  }
+
+  function loadProfile() {
+    return fetch('/api/profile').then(r => r.json()).then(data => {
+      const name: string = data?.full_name ?? ''
+      if (name) setFirstName(name.split(' ')[0])
+      if (data?.events) setEvents(data.events)
+      setNotificationsEnabled(data?.notifications_enabled ?? false)
+      if (data?.current_ftp) setCurrentFTP(data.current_ftp)
+      const maxHr = resolveMaxHr({
+        manual: data?.max_hr_manual ?? null,
+        dateOfBirth: data?.date_of_birth ?? null,
+        observed: data?.observed_max_hr ?? null,
+      })
+      setEffectiveMaxHr(maxHr?.value ?? null)
+      setGarminEmail(data?.garmin_email ?? null)
+      setGarminLastSyncAt(data?.garmin_last_sync_at ?? null)
+    }).catch(() => {})
   }
 
   async function loadPlan() {
@@ -329,21 +348,7 @@ export default function DashboardPage() {
     } catch { /* ignore cache errors */ }
     if (needsSync) doSync()
     loadPlan()
-    fetch('/api/profile').then(r => r.json()).then(data => {
-      const name: string = data?.full_name ?? ''
-      if (name) setFirstName(name.split(' ')[0])
-      if (data?.events) setEvents(data.events)
-      setNotificationsEnabled(data?.notifications_enabled ?? false)
-      if (data?.current_ftp) setCurrentFTP(data.current_ftp)
-      const maxHr = resolveMaxHr({
-        manual: data?.max_hr_manual ?? null,
-        dateOfBirth: data?.date_of_birth ?? null,
-        observed: data?.observed_max_hr ?? null,
-      })
-      setEffectiveMaxHr(maxHr?.value ?? null)
-      setGarminEmail(data?.garmin_email ?? null)
-      setGarminLastSyncAt(data?.garmin_last_sync_at ?? null)
-    }).catch(() => {})
+    loadProfile()
     fetch('/api/weight-log')
       .then(r => r.json())
       .then(d => setWeightLog(d.entries ?? []))
