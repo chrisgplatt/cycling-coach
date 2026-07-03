@@ -42,6 +42,8 @@ export interface UserProfile {
   id?: number
   full_name?: string
   date_of_birth?: string | null   // YYYY-MM-DD
+  max_hr_manual?: number | null
+  observed_max_hr?: number | null
   goals: string
   events: TrainingEvent[]
   unavailability?: UnavailabilityPeriod[]
