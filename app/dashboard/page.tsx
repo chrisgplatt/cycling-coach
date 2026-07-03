@@ -609,23 +609,30 @@ export default function DashboardPage() {
             </span>
           </div>
         </div>
-        <button
-          onClick={doSync}
-          disabled={syncing}
-          className="relative overflow-hidden flex items-center justify-center gap-1.5 w-28 py-1.5 text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 disabled:cursor-default transition-colors shrink-0"
-        >
-          {syncLogoVisible && (
-            <span className={syncLogoExiting
-              ? 'animate-[sync-bike-exit_0.35s_ease-in_forwards]'
-              : 'animate-[sync-bike-enter_0.3s_ease-out_forwards]'
-            }>
-              <AnimatedLogo size={18} spin={!syncLogoExiting} />
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <button
+            onClick={doSync}
+            disabled={syncing}
+            className="relative overflow-hidden flex items-center justify-center gap-1.5 w-28 py-1.5 text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 disabled:cursor-default transition-colors"
+          >
+            {syncLogoVisible && (
+              <span className={syncLogoExiting
+                ? 'animate-[sync-bike-exit_0.35s_ease-in_forwards]'
+                : 'animate-[sync-bike-enter_0.3s_ease-out_forwards]'
+              }>
+                <AnimatedLogo size={18} spin={!syncLogoExiting} />
+              </span>
+            )}
+            <span className={syncLogoExiting ? 'opacity-0 transition-opacity duration-200' : ''}>
+              {syncLogoVisible ? 'Syncing' : '↻ Sync'}
             </span>
+          </button>
+          {garminEmail && (
+            <p className="text-[10px] text-gray-400">
+              {garminLastSyncAt ? `Garmin synced ${formatGarminSyncTime(garminLastSyncAt)}` : 'Garmin not yet synced'}
+            </p>
           )}
-          <span className={syncLogoExiting ? 'opacity-0 transition-opacity duration-200' : ''}>
-            {syncLogoVisible ? 'Syncing' : '↻ Sync'}
-          </span>
-        </button>
+        </div>
       </div>
 
       {/* Daily briefing */}
