@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { calculateAge } from '@/lib/age'
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -13,6 +14,8 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 export default function SettingsPage() {
   const [profileId, setProfileId] = useState<string | null>(null)
   const [fullName, setFullName] = useState('')
+  const [dob, setDob] = useState('')
+  const [savedDob, setSavedDob] = useState('')
   const [athleteId, setAthleteId] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [savedFullName, setSavedFullName] = useState('')
@@ -85,9 +88,11 @@ export default function SettingsPage() {
         if (!data?.id) return
         setProfileId(data.id)
         const name = data.full_name ?? ''
+        const dateOfBirth = data.date_of_birth ?? ''
         const id = data.intervals_icu_athlete_id ?? ''
         const key = data.intervals_icu_api_key ?? ''
         setFullName(name); setSavedFullName(name)
+        setDob(dateOfBirth); setSavedDob(dateOfBirth)
         setAthleteId(id); setSavedAthleteId(id)
         setApiKey(key); setSavedApiKey(key)
         const time = data.notification_time ?? '07:00'
@@ -115,8 +120,8 @@ export default function SettingsPage() {
     try {
       const locationFields = { location_label: locationLabel || null, latitude, longitude }
       const body = profileId
-        ? { id: profileId, full_name: fullName, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone, ...locationFields }
-        : { full_name: fullName, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone, ...locationFields }
+        ? { id: profileId, full_name: fullName, date_of_birth: dob || null, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone, ...locationFields }
+        : { full_name: fullName, date_of_birth: dob || null, intervals_icu_athlete_id: athleteId, intervals_icu_api_key: apiKey, notification_time: notifTime, timezone, ...locationFields }
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -128,6 +133,7 @@ export default function SettingsPage() {
         return false
       } else {
         setSavedFullName(fullName)
+        setSavedDob(dob)
         setSavedAthleteId(athleteId)
         setSavedApiKey(apiKey)
         setSavedNotifTime(notifTime)
@@ -420,12 +426,75 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Account</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Manage your name and connection to intervals.icu</p>
+        <p className="text-sm text-slate-500 mt-0.5">Manage your personal details and connection to intervals.icu</p>
       </div>
 
       {saveError && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{saveError}</div>
       )}
+
+      {/* Rider personal details */}
+      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Rider personal details</h2>
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => { const ok = await save(); if (ok) setEditingName(false) }}
+                disabled={saving}
+                aria-label="Save personal details"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+              >✓</button>
+              <button
+                onClick={() => { setFullName(savedFullName); setDob(savedDob); setEditingName(false); setSaveError(null) }}
+                aria-label="Cancel"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
+              >✕</button>
+            </div>
+          ) : (
+            <button onClick={() => setEditingName(true)} aria-label="Edit personal details" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
+          )}
+        </div>
+        {editingName ? (
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="full-name" className={labelClass}>Full Name</label>
+              <input
+                id="full-name"
+                type="text"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                placeholder="e.g. Chris Smith"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="date-of-birth" className={labelClass}>Date of birth</label>
+              <input
+                id="date-of-birth"
+                type="date"
+                value={dob}
+                onChange={e => setDob(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className={inputClass}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {fullName ? (
+              <p className="text-sm font-semibold text-slate-800">{fullName}</p>
+            ) : (
+              <p className="text-sm text-slate-400 italic">Name not set</p>
+            )}
+            {dob ? (
+              <p className="text-sm text-slate-500">Age {calculateAge(dob)}</p>
+            ) : (
+              <p className="text-sm text-slate-400 italic">Date of birth not set</p>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* intervals.icu */}
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
@@ -593,47 +662,6 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
-
-      {/* Name */}
-      <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Name</h2>
-          {editingName ? (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={async () => { const ok = await save(); if (ok) setEditingName(false) }}
-                disabled={saving}
-                aria-label="Save name"
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
-              >✓</button>
-              <button
-                onClick={() => { setFullName(savedFullName); setEditingName(false); setSaveError(null) }}
-                aria-label="Cancel"
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
-              >✕</button>
-            </div>
-          ) : (
-            <button onClick={() => setEditingName(true)} aria-label="Edit name" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
-          )}
-        </div>
-        {editingName ? (
-          <div>
-            <label htmlFor="full-name" className={labelClass}>Full Name</label>
-            <input
-              id="full-name"
-              type="text"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              placeholder="e.g. Chris Smith"
-              className={inputClass}
-            />
-          </div>
-        ) : fullName ? (
-          <p className="text-sm font-semibold text-slate-800">{fullName}</p>
-        ) : (
-          <p className="text-sm text-slate-400 italic">Not set</p>
-        )}
-      </section>
 
       {/* Daily Briefing */}
       <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import SettingsPage from '@/app/settings/page'
 
 global.fetch = jest.fn().mockResolvedValue({
@@ -46,8 +46,55 @@ describe('Account page', () => {
 
   it('shows Full Name input', () => {
     render(<SettingsPage />)
-    fireEvent.click(screen.getByRole('button', { name: /edit name/i }))
+    fireEvent.click(screen.getByRole('button', { name: /edit personal details/i }))
     expect(screen.getByPlaceholderText(/e\.g\. chris smith/i)).toBeInTheDocument()
+  })
+
+  it('shows Date of birth input', () => {
+    render(<SettingsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /edit personal details/i }))
+    expect(screen.getByLabelText(/date of birth/i)).toBeInTheDocument()
+  })
+
+  it('renders Rider personal details as the first section, above intervals.icu', () => {
+    render(<SettingsPage />)
+    const headings = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)
+    expect(headings[0]).toBe('Rider personal details')
+    expect(headings.indexOf('Rider personal details')).toBeLessThan(headings.indexOf('intervals.icu'))
+  })
+
+  it('derives and displays age from date of birth', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'p1',
+        full_name: 'Chris Platt',
+        date_of_birth: '1990-03-15',
+        intervals_icu_athlete_id: 'i12345',
+        intervals_icu_api_key: 'apikey',
+      }),
+    })
+    render(<SettingsPage />)
+    expect(await screen.findByText(/^Age \d+$/)).toBeInTheDocument()
+  })
+
+  it('shows "not set" when no date of birth is stored', () => {
+    render(<SettingsPage />)
+    expect(screen.getByText(/date of birth not set/i)).toBeInTheDocument()
+  })
+
+  it('saves date_of_birth in the PATCH body', async () => {
+    render(<SettingsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /edit personal details/i }))
+    fireEvent.change(screen.getByLabelText(/date of birth/i), { target: { value: '1990-03-15' } })
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
+    fireEvent.click(screen.getByRole('button', { name: /save personal details/i }))
+
+    await waitFor(() => {
+      const patchCall = (global.fetch as jest.Mock).mock.calls.find((c: unknown[]) => (c[1] as { method?: string })?.method === 'PATCH')
+      expect(patchCall).toBeDefined()
+      expect(JSON.parse(patchCall[1].body)).toMatchObject({ date_of_birth: '1990-03-15' })
+    })
   })
 
   it('shows the location search input', () => {

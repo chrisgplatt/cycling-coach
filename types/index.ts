@@ -41,6 +41,7 @@ export interface TrainingEvent {
 export interface UserProfile {
   id?: number
   full_name?: string
+  date_of_birth?: string | null   // YYYY-MM-DD
   goals: string
   events: TrainingEvent[]
   unavailability?: UnavailabilityPeriod[]
