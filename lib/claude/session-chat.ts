@@ -26,14 +26,16 @@ export function buildSessionSystemPrompt(
   dossierSection = '',
   hrvStatus?: HrvStatus | null,
   memoryBlock = '',
+  maxHr: number | null = null,
 ): string {
   const tsb = wellness?.form ?? (
     wellness?.ctl != null && wellness?.atl != null ? wellness.ctl - wellness.atl : null
   )
 
+  const maxHrSegment = maxHr != null ? `, Max HR: ${maxHr}` : ''
   const fitnessSection = (wellness
-    ? `CTL: ${wellness.ctl ?? '?'}, ATL: ${wellness.atl ?? '?'}, Form: ${tsb != null ? Math.round(tsb) : '?'}, HRV: ${wellness.hrv ?? '?'}`
-    : 'No fitness data available.')
+    ? `CTL: ${wellness.ctl ?? '?'}, ATL: ${wellness.atl ?? '?'}, Form: ${tsb != null ? Math.round(tsb) : '?'}, HRV: ${wellness.hrv ?? '?'}${maxHrSegment}`
+    : (maxHr != null ? `No fitness data available.\nMax HR: ${maxHr}` : 'No fitness data available.'))
     + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   const weekSection = upcomingWorkouts.length

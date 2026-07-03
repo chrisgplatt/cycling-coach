@@ -140,3 +140,15 @@ describe('buildSessionSystemPrompt — distribution injection', () => {
     expect(prompt).toContain('Power shape: VI 1.04')
   })
 })
+
+describe('buildSessionSystemPrompt Max HR', () => {
+  it('includes Max HR when a value is passed', () => {
+    const p = buildSessionSystemPrompt(workout, null, [], null, 250, [], '', null, '', 183)
+    expect(p).toContain('Max HR: 183')
+  })
+
+  it('omits Max HR when null', () => {
+    const p = buildSessionSystemPrompt(workout, null, [], null, 250, [], '', null, '', null)
+    expect(p).not.toContain('Max HR')
+  })
+})

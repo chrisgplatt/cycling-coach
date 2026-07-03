@@ -8,6 +8,7 @@ import type { AthleteDossier } from '@/lib/claude/dossier'
 import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { resolveMaxHr } from '@/lib/max-hr'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
       .gt('date', new Date().toISOString().split('T')[0])
       .lte('date', new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0])
       .order('date'),
-    supabase.from('user_profile').select('current_ftp, events, intervals_icu_athlete_id, intervals_icu_api_key, garmin_email').maybeSingle(),
+    supabase.from('user_profile').select('current_ftp, events, intervals_icu_athlete_id, intervals_icu_api_key, garmin_email, date_of_birth, max_hr_manual, observed_max_hr').maybeSingle(),
     fetchDossier(supabase, user.id),
   ])
 
@@ -59,7 +60,12 @@ export async function POST(req: NextRequest) {
 
   const hrvToday = new Date().toISOString().split('T')[0]
   let hrvStatus = null
-  const sessionProfile = profile as { current_ftp?: number; events?: TrainingEvent[]; intervals_icu_athlete_id?: string; intervals_icu_api_key?: string; garmin_email?: string } | null
+  const sessionProfile = profile as { current_ftp?: number; events?: TrainingEvent[]; intervals_icu_athlete_id?: string; intervals_icu_api_key?: string; garmin_email?: string; date_of_birth?: string | null; max_hr_manual?: number | null; observed_max_hr?: number | null } | null
+  const maxHr = resolveMaxHr({
+    manual: sessionProfile?.max_hr_manual ?? null,
+    dateOfBirth: sessionProfile?.date_of_birth ?? null,
+    observed: sessionProfile?.observed_max_hr ?? null,
+  })?.value ?? null
   const garminParams = sessionProfile?.garmin_email ? { supabase, userId: user.id } : null
   const icuClient = sessionProfile?.intervals_icu_athlete_id && sessionProfile?.intervals_icu_api_key
     ? new IntervalsClient(sessionProfile.intervals_icu_athlete_id, sessionProfile.intervals_icu_api_key)
@@ -76,6 +82,7 @@ export async function POST(req: NextRequest) {
     formatDossier(dossierRow as AthleteDossier | null),
     hrvStatus,
     memoryBlock,
+    maxHr,
   )
 
   const messages = [

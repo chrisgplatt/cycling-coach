@@ -122,3 +122,17 @@ describe('buildChatSystemPrompt', () => {
     expect(result).toContain('Energy 4')
   })
 })
+
+describe('buildChatSystemPrompt Max HR', () => {
+  it('includes Max HR when a value is passed', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = buildChatSystemPrompt(plan, upcoming, wellness, 250, events, '', recentRides as any, null, '', [], 183)
+    expect(p).toContain('Max HR: 183')
+  })
+
+  it('omits Max HR when null', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = buildChatSystemPrompt(plan, upcoming, wellness, 250, events, '', recentRides as any, null, '', [], null)
+    expect(p).not.toContain('Max HR')
+  })
+})

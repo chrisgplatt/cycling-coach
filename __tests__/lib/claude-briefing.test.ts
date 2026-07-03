@@ -221,3 +221,19 @@ describe('buildTodayBriefingPrompt with recovery score', () => {
     expect(prompt).toContain('Recovery score: 68/100 (moderate) — HRV suppressed')
   })
 })
+
+describe('generateMorningBriefing — Max HR', () => {
+  it('includes Max HR in the prompt when provided', async () => {
+    mockCreate.mockResolvedValueOnce({ content: [{ type: 'text', text: 'GREEN: All good.' }] })
+    await generateBriefing({ ...baseMorningCtx, maxHr: 183 })
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toContain('Max HR: 183bpm')
+  })
+
+  it('omits Max HR from the prompt when not provided', async () => {
+    mockCreate.mockResolvedValueOnce({ content: [{ type: 'text', text: 'GREEN: All good.' }] })
+    await generateBriefing(baseMorningCtx)
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).not.toContain('Max HR')
+  })
+})

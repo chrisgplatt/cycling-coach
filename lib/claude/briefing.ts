@@ -184,6 +184,9 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<BriefingRe
   if (ctx.garminRestingHr != null) {
     garminLines.push(`Resting HR: ${ctx.garminRestingHr}bpm`)
   }
+  if (ctx.maxHr != null) {
+    garminLines.push(`Max HR: ${ctx.maxHr}bpm`)
+  }
   if (ctx.garminSleepDeepSecs != null || ctx.garminSleepLightSecs != null || ctx.garminSleepRemSecs != null) {
     const parts: string[] = []
     if (ctx.garminSleepDeepSecs != null) parts.push(`${Math.round(ctx.garminSleepDeepSecs / 60)}m deep`)

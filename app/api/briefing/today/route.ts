@@ -8,6 +8,7 @@ import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { computeDailyStrain, computeDailyActivityLoad, computeDailyLifeLoad } from '@/lib/strain'
 import { computeRecoveryScore } from '@/lib/recovery-score'
+import { resolveMaxHr } from '@/lib/max-hr'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness, DailyWellness, GarminWellness } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch profile first so we can compute the user's local date from their stored timezone
   const { data: profile } = await supabase.from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key, events, timezone, latitude, longitude, garmin_email')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, events, timezone, latitude, longitude, garmin_email, date_of_birth, max_hr_manual, observed_max_hr')
     .maybeSingle()
 
   const tz = (profile as { timezone?: string } | null)?.timezone ?? 'Europe/London'
@@ -254,6 +255,13 @@ export async function GET(req: NextRequest) {
   const todayDailyWellness = (wellnessRows ?? []).find(
     (w): w is DailyWellness => (w as DailyWellness).date === today
   )
+  const maxHrProfile = profile as { date_of_birth?: string | null; max_hr_manual?: number | null; observed_max_hr?: number | null } | null
+  const maxHr = resolveMaxHr({
+    manual: maxHrProfile?.max_hr_manual ?? null,
+    dateOfBirth: maxHrProfile?.date_of_birth ?? null,
+    observed: maxHrProfile?.observed_max_hr ?? null,
+  })?.value ?? null
+
   const recoveryResult = computeRecoveryScore({
     hrv,
     hrvBaseline: hrvStatus?.baselineMean ?? null,
@@ -310,6 +318,7 @@ export async function GET(req: NextRequest) {
     recoveryScore: recoveryResult.score,
     recoveryBand: recoveryResult.band,
     recoveryExplanation: recoveryResult.explanation,
+    maxHr,
   }
 
   const { coach_note, verdict, headline } = await generateBriefing(ctx)

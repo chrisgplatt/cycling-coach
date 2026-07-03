@@ -8,6 +8,7 @@ import { buildChatSystemPrompt } from '@/lib/claude/chat'
 import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { resolveMaxHr } from '@/lib/max-hr'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
       .gte('date', new Date().toISOString().split('T')[0])
       .lte('date', new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0])
       .order('date'),
-    supabase.from('user_profile').select('events, intervals_icu_athlete_id, intervals_icu_api_key, garmin_email').maybeSingle(),
+    supabase.from('user_profile').select('events, intervals_icu_athlete_id, intervals_icu_api_key, garmin_email, date_of_birth, max_hr_manual, observed_max_hr').maybeSingle(),
     fetchDossier(supabase, user.id),
     supabase.from('workouts')
       .select('date, type, duration_minutes, steps, activity_metrics')
@@ -72,7 +73,12 @@ export async function POST(req: NextRequest) {
 
   const hrvToday = new Date().toISOString().split('T')[0]
   let hrvStatus = null
-  const chatProfile = profileData as { events?: TrainingEvent[]; intervals_icu_athlete_id?: string; intervals_icu_api_key?: string; garmin_email?: string } | null
+  const chatProfile = profileData as { events?: TrainingEvent[]; intervals_icu_athlete_id?: string; intervals_icu_api_key?: string; garmin_email?: string; date_of_birth?: string | null; max_hr_manual?: number | null; observed_max_hr?: number | null } | null
+  const maxHr = resolveMaxHr({
+    manual: chatProfile?.max_hr_manual ?? null,
+    dateOfBirth: chatProfile?.date_of_birth ?? null,
+    observed: chatProfile?.observed_max_hr ?? null,
+  })?.value ?? null
   const garminParams = chatProfile?.garmin_email ? { supabase, userId: user.id } : null
   const icuClient = chatProfile?.intervals_icu_athlete_id && chatProfile?.intervals_icu_api_key
     ? new IntervalsClient(chatProfile.intervals_icu_athlete_id, chatProfile.intervals_icu_api_key)
@@ -90,6 +96,7 @@ export async function POST(req: NextRequest) {
     hrvStatus,
     memoryBlock,
     (wellnessData?.data ?? []) as DailyWellness[],
+    maxHr,
   )
 
   const stream = await anthropic.messages.stream({

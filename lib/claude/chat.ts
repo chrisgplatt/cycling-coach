@@ -37,6 +37,7 @@ export function buildChatSystemPrompt(
   hrvStatus?: HrvStatus | null,
   memoryBlock = '',
   recentWellness: DailyWellness[] = [],
+  maxHr: number | null = null,
 ): string {
   const today = new Date().toISOString().split('T')[0]
   const weekday = weekdayName(today)
@@ -57,9 +58,10 @@ export function buildChatSystemPrompt(
       }).join('\n')
     : 'No recent rides with detail.'
 
+  const maxHrSegment = maxHr != null ? `, Max HR: ${maxHr}` : ''
   const fitnessSection = (latestWellness
-    ? `CTL: ${latestWellness.ctl ?? '?'}, ATL: ${latestWellness.atl ?? '?'}, Form: ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'}, Resting HR: ${latestWellness.resting_hr ?? '?'}`
-    : 'No wellness data.')
+    ? `CTL: ${latestWellness.ctl ?? '?'}, ATL: ${latestWellness.atl ?? '?'}, Form: ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'}, Resting HR: ${latestWellness.resting_hr ?? '?'}${maxHrSegment}`
+    : (maxHr != null ? `No wellness data.\nMax HR: ${maxHr}` : 'No wellness data.'))
     + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   const wellnessSection = recentWellness.length
