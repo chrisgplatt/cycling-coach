@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { calculateAge } from '@/lib/age'
 import { resolveMaxHr } from '@/lib/max-hr'
+import { formatGarminSyncTime } from '@/lib/garmin/sync-staleness'
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -66,6 +67,7 @@ export default function SettingsPage() {
   const [savedGarminEmail, setSavedGarminEmail] = useState('')
   const [garminPassword, setGarminPassword] = useState('')
   const [garminConnected, setGarminConnected] = useState(false)
+  const [garminLastSyncAt, setGarminLastSyncAt] = useState<string | null>(null)
   const [garminConnecting, setGarminConnecting] = useState(false)
   const [garminError, setGarminError] = useState<string | null>(null)
   const [garminSuccess, setGarminSuccess] = useState(false)
@@ -117,6 +119,7 @@ export default function SettingsPage() {
         const ge = data.garmin_email ?? ''
         setGarminEmail(ge); setSavedGarminEmail(ge)
         setGarminConnected(!!ge)
+        setGarminLastSyncAt(data.garmin_last_sync_at ?? null)
       })
       .catch(() => {})
   }, [])
@@ -693,9 +696,14 @@ export default function SettingsPage() {
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
-              <p className="text-sm text-gray-700">Syncs on each Sync tap</p>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                <p className="text-sm text-gray-700">Syncs on each Sync tap</p>
+              </div>
+              <p className="text-xs text-gray-500">
+                {garminLastSyncAt ? `Last synced: ${formatGarminSyncTime(garminLastSyncAt)}` : 'Not yet synced'}
+              </p>
             </div>
           )}
         </div>

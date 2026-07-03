@@ -14,6 +14,7 @@ import { localDateStr } from '@/lib/local-date'
 import { computeDailyActivityLoad } from '@/lib/strain'
 import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import { resolveMaxHr } from '@/lib/max-hr'
+import { isGarminSyncStale, formatGarminSyncTime } from '@/lib/garmin/sync-staleness'
 import type { GeneratedPlan } from '@/types'
 import {
   DndContext,
@@ -112,6 +113,8 @@ export default function DashboardPage() {
   const [planTargetDate, setPlanTargetDate] = useState('')
   const [currentFTP, setCurrentFTP] = useState(200)
   const [effectiveMaxHr, setEffectiveMaxHr] = useState<number | null>(null)
+  const [garminEmail, setGarminEmail] = useState<string | null>(null)
+  const [garminLastSyncAt, setGarminLastSyncAt] = useState<string | null>(null)
   const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
   const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(null)
   const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
@@ -338,6 +341,8 @@ export default function DashboardPage() {
         observed: data?.observed_max_hr ?? null,
       })
       setEffectiveMaxHr(maxHr?.value ?? null)
+      setGarminEmail(data?.garmin_email ?? null)
+      setGarminLastSyncAt(data?.garmin_last_sync_at ?? null)
     }).catch(() => {})
     fetch('/api/weight-log')
       .then(r => r.json())
@@ -557,6 +562,8 @@ export default function DashboardPage() {
     ? { energy: todayDailyWellnessEntry.energy, leg_freshness: todayDailyWellnessEntry.leg_freshness }
     : undefined
 
+  const garminStale = !!garminEmail && isGarminSyncStale(garminLastSyncAt)
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {showReviewBanner && (
@@ -566,6 +573,16 @@ export default function DashboardPage() {
           onReview={startReview}
           onDismiss={handleDismiss}
         />
+      )}
+
+      {garminStale && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <p className="text-sm font-semibold text-amber-800">
+            ⚠️ {garminLastSyncAt
+              ? `Garmin hasn't synced today — last synced ${formatGarminSyncTime(garminLastSyncAt)}. Today's sleep/HRV data may be based on yesterday's sync.`
+              : "Garmin hasn't synced yet."}
+          </p>
+        </div>
       )}
 
       <div className="flex items-start justify-between">

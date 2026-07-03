@@ -161,4 +161,35 @@ describe('Account page', () => {
     fireEvent.click(screen.getByRole('button', { name: /edit location/i }))
     expect(screen.getByPlaceholderText(/town or city/i)).toBeInTheDocument()
   })
+
+  it('shows last synced time when Garmin has a recorded sync', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'p1',
+        full_name: 'Chris Platt',
+        garmin_email: 'chris@example.com',
+        garmin_last_sync_at: '2026-07-02T22:14:00.000Z',
+        intervals_icu_athlete_id: 'i12345',
+        intervals_icu_api_key: 'apikey',
+      }),
+    })
+    render(<SettingsPage />)
+    expect(await screen.findByText(/Last synced:/)).toBeInTheDocument()
+  })
+
+  it('shows "Not yet synced" when Garmin is connected but has no recorded sync', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'p1',
+        full_name: 'Chris Platt',
+        garmin_email: 'chris@example.com',
+        intervals_icu_athlete_id: 'i12345',
+        intervals_icu_api_key: 'apikey',
+      }),
+    })
+    render(<SettingsPage />)
+    expect(await screen.findByText('Not yet synced')).toBeInTheDocument()
+  })
 })
