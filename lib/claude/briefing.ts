@@ -55,6 +55,7 @@ function buildLoadString(ctx: BriefingContext): string {
     ctx.tsb !== null ? `Form (TSB): ${Math.round(ctx.tsb)}` : null,
     ctx.hrvStatus ? formatHrvForPrompt(ctx.hrvStatus)
       : ctx.hrv !== null ? `HRV: ${Math.round(ctx.hrv)} ms` : null,
+    ctx.maxHr != null ? `Max HR: ${ctx.maxHr}bpm` : null,
     `Readiness: ${ctx.readinessLabel}`,
     strainLine,
     strainHistoryLine,
@@ -183,9 +184,6 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<BriefingRe
   }
   if (ctx.garminRestingHr != null) {
     garminLines.push(`Resting HR: ${ctx.garminRestingHr}bpm`)
-  }
-  if (ctx.maxHr != null) {
-    garminLines.push(`Max HR: ${ctx.maxHr}bpm`)
   }
   if (ctx.garminSleepDeepSecs != null || ctx.garminSleepLightSecs != null || ctx.garminSleepRemSecs != null) {
     const parts: string[] = []

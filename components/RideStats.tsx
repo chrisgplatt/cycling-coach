@@ -143,8 +143,8 @@ export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsDat
             {data.minHr !== null && <StatCell label="Min HR" value={num(data.minHr)} unit="bpm" valueClass="text-red-300" />}
             {data.avgHr !== null && <StatCell label="Avg HR" value={num(data.avgHr)} unit="bpm" valueClass="text-red-500" />}
             {data.maxHr !== null && <StatCell label="Max HR" value={num(data.maxHr)} unit="bpm" valueClass="text-red-600" />}
-            {data.maxHr !== null && effectiveMaxHr != null && (
-              <StatCell label="% of Max" value={String(Math.round((data.maxHr / effectiveMaxHr) * 100))} valueClass="text-red-400" />
+            {data.maxHr !== null && effectiveMaxHr != null && effectiveMaxHr > 0 && (
+              <StatCell label="% of Max" value={String(Math.round((data.maxHr / effectiveMaxHr) * 100))} valueClass="text-red-400" unit="%" />
             )}
           </div>
         </SectionCard>

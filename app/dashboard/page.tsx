@@ -333,9 +333,9 @@ export default function DashboardPage() {
       setNotificationsEnabled(data?.notifications_enabled ?? false)
       if (data?.current_ftp) setCurrentFTP(data.current_ftp)
       const maxHr = resolveMaxHr({
-        manual: data.max_hr_manual ?? null,
-        dateOfBirth: data.date_of_birth ?? null,
-        observed: data.observed_max_hr ?? null,
+        manual: data?.max_hr_manual ?? null,
+        dateOfBirth: data?.date_of_birth ?? null,
+        observed: data?.observed_max_hr ?? null,
       })
       setEffectiveMaxHr(maxHr?.value ?? null)
     }).catch(() => {})

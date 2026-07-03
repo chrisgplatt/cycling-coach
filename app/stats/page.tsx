@@ -179,9 +179,9 @@ export default function StatsPage() {
       .then(r => r.json())
       .then(data => {
         const maxHr = resolveMaxHr({
-          manual: data.max_hr_manual ?? null,
-          dateOfBirth: data.date_of_birth ?? null,
-          observed: data.observed_max_hr ?? null,
+          manual: data?.max_hr_manual ?? null,
+          dateOfBirth: data?.date_of_birth ?? null,
+          observed: data?.observed_max_hr ?? null,
         })
         setEffectiveMaxHr(maxHr?.value ?? null)
       })
