@@ -47,8 +47,6 @@ export default function SettingsPage() {
   const [zonesFixing, setZonesFixing] = useState(false)
   const [zonesPreview, setZonesPreview] = useState<{ changeCount: number; total: number } | null>(null)
   const [zonesResult, setZonesResult] = useState<{ ok: boolean; message: string } | null>(null)
-  const [durationBackfilling, setDurationBackfilling] = useState(false)
-  const [durationBackfillResult, setDurationBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [locationLabel, setLocationLabel] = useState('')
@@ -372,27 +370,6 @@ export default function SettingsPage() {
       setBackfillResult({ ok: false, message: 'Network error.' })
     } finally {
       setBackfilling(false)
-    }
-  }
-
-  async function runBackfillActualDuration() {
-    setDurationBackfilling(true)
-    setDurationBackfillResult(null)
-    try {
-      const res = await fetch('/api/workouts/backfill-actual-duration', { method: 'POST' })
-      const data = await res.json()
-      if (res.ok) {
-        setDurationBackfillResult({
-          ok: data.failed === 0,
-          message: data.total === 0 ? 'All completed workouts already have an actual duration.' : `${data.updated} filled, ${data.failed} failed.`,
-        })
-      } else {
-        setDurationBackfillResult({ ok: false, message: data.error ?? 'Backfill failed.' })
-      }
-    } catch {
-      setDurationBackfillResult({ ok: false, message: 'Network error.' })
-    } finally {
-      setDurationBackfilling(false)
     }
   }
 
@@ -881,20 +858,6 @@ export default function SettingsPage() {
                   {backfillResult && (
                     <p className={`text-xs ${backfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                       {backfillResult.message}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={runBackfillActualDuration}
-                    disabled={durationBackfilling}
-                    className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
-                  >
-                    {durationBackfilling ? 'Filling…' : 'Backfill actual ride time for completed workouts'}
-                  </button>
-                  {durationBackfillResult && (
-                    <p className={`text-xs ${durationBackfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {durationBackfillResult.message}
                     </p>
                   )}
                 </div>
