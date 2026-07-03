@@ -38,6 +38,16 @@ describe('WorkoutCard', () => {
     expect(screen.getByText(/~72 → 94 TSS/)).toBeInTheDocument()
   })
 
+  it('shows planned → actual time for completed workout', () => {
+    render(<WorkoutCard workout={{ ...workout, status: 'completed', icu_activity_id: 'act1', tss: 94, actual_duration_minutes: 65 }} />)
+    expect(screen.getByText(/60 → 65 min/)).toBeInTheDocument()
+  })
+
+  it('shows only planned time when actual duration is not yet known', () => {
+    render(<WorkoutCard workout={{ ...workout, status: 'completed', icu_activity_id: 'act1', tss: 94 }} />)
+    expect(screen.getByText(/^60 min$/)).toBeInTheDocument()
+  })
+
   it('shows an estimated TSS badge for a planned workout', () => {
     render(<WorkoutCard workout={workout} />)
     // threshold 60min: IF=0.85, est = round(60*60*0.85*0.85/36) = 72

@@ -147,6 +147,7 @@ export async function POST(req: Request) {
               .update({
                 icu_activity_id: best.id,
                 tss: best.training_load,
+                actual_duration_minutes: Math.round(best.moving_time / 60),
                 status: acts.length === 1 ? 'completed' : 'needs_review',
               })
               .eq('id', w.id)

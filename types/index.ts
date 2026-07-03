@@ -98,6 +98,7 @@ export interface Workout {
   status: WorkoutStatus
   icu_activity_id: string | null
   tss: number | null
+  actual_duration_minutes: number | null
   missed_reason: string | null
   steps: WorkoutStep[] | null
   activity_metrics: ActivityMetrics | null  // enriched ride detail captured at sync; null until backfilled

@@ -70,7 +70,11 @@ export default function WorkoutCard({ workout, onClick, ftp, weather }: Props) {
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${TYPE_CHIPS[workout.type]}`}>
             {workout.type}
           </span>
-          <span className="text-sm font-medium text-gray-500">{workout.duration_minutes} min</span>
+          <span className="text-sm font-medium text-gray-500">
+            {workout.status === 'completed' && workout.actual_duration_minutes !== null
+              ? <>{workout.duration_minutes} → {workout.actual_duration_minutes} min</>
+              : <>{workout.duration_minutes} min</>}
+          </span>
           {(() => {
             if (workout.status === 'completed' && workout.tss !== null) {
               const if_ = IF_BY_TYPE[workout.type] ?? 0.68

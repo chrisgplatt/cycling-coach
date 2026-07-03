@@ -489,7 +489,7 @@ export default function DashboardPage() {
     distanceKm: Math.round(completedWP.reduce((s, w) => s + ((w.activity_metrics?.distance_m ?? 0) / 1000), 0) * 10) / 10,
     elevationM: Math.round(completedWP.reduce((s, w) => s + (w.activity_metrics?.elevation_m ?? 0), 0)),
     timePlannedMins: weekWorkoutsWP.reduce((s, w) => s + w.duration_minutes, 0),
-    timeActualMins: completedWP.reduce((s, w) => s + w.duration_minutes, 0),
+    timeActualMins: completedWP.reduce((s, w) => s + (w.actual_duration_minutes ?? w.duration_minutes), 0),
     fitnessCtl: recentCtl !== null ? Math.round(recentCtl) : null,
     otherActivitiesCount: (syncData?.activities ?? [])
       .filter(a => weekDates.some(d => a.start_date_local.startsWith(d)) && !linkedActivityIds.has(a.id))
