@@ -628,7 +628,7 @@ export default function DashboardPage() {
             </span>
           </button>
           {garminEmail && (
-            <p className="text-[10px] text-gray-400">
+            <p className="w-28 text-[11px] leading-snug text-gray-500 text-center">
               {garminLastSyncAt ? `Garmin synced ${formatGarminSyncTime(garminLastSyncAt)}` : 'Garmin not yet synced'}
             </p>
           )}
