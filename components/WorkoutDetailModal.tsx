@@ -52,6 +52,7 @@ interface Props {
   workout: Workout
   athleteId: string
   ftp?: number
+  effectiveMaxHr?: number | null
   activitiesOnDate?: ICUActivity[]
   nearbyEvents?: TrainingEvent[]
   weightLog?: WeightEntry[]
@@ -64,7 +65,7 @@ interface Props {
 }
 
 export default function WorkoutDetailModal({
-  workout, athleteId, ftp, activitiesOnDate, nearbyEvents, weightLog = [], onClose,
+  workout, athleteId, ftp, effectiveMaxHr, activitiesOnDate, nearbyEvents, weightLog = [], onClose,
   onStatusChange, onDelete, onReschedule, onChat, onEventLinked,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
@@ -457,7 +458,7 @@ export default function WorkoutDetailModal({
                       metricsStats.avgWkg = metricsStats.avgWatts !== null ? parseFloat((metricsStats.avgWatts / w).toFixed(2)) : null
                       metricsStats.npWkg = metricsStats.np !== null ? parseFloat((metricsStats.np / w).toFixed(2)) : null
                     }
-                    return <RideStats data={metricsStats} />
+                    return <RideStats data={metricsStats} effectiveMaxHr={effectiveMaxHr} />
                   })()}
                   <SessionHistogram distributions={workout.activity_metrics.distributions} />
                 </>

@@ -9,9 +9,10 @@ import TabBar from './TabBar'
 interface Props {
   activity: ICUActivity
   onClose: () => void
+  effectiveMaxHr?: number | null
 }
 
-export default function ActivityDetailModal({ activity, onClose }: Props) {
+export default function ActivityDetailModal({ activity, onClose, effectiveMaxHr }: Props) {
   const date = new Date(activity.start_date_local)
   const dateStr = date.toLocaleDateString('en-GB', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
@@ -76,7 +77,7 @@ export default function ActivityDetailModal({ activity, onClose }: Props) {
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto p-6 pt-4 space-y-4">
-            <RideStats data={rideStatsFromActivity(activity)} />
+            <RideStats data={rideStatsFromActivity(activity)} effectiveMaxHr={effectiveMaxHr} />
             <SessionHistogram distributions={distributions} />
           </div>
         )}

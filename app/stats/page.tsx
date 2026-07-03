@@ -6,6 +6,7 @@ import { weightAtDate } from '@/lib/weight-helpers'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import YearView from '@/components/YearView'
 import ActivityLogView from '@/components/ActivityLogView'
+import { resolveMaxHr } from '@/lib/max-hr'
 
 function formatRideTabLabel(dateStr: string): string {
   const d = new Date(dateStr)
@@ -158,6 +159,7 @@ export default function StatsPage() {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'year' | 'log' | '28d' | number>('year')
   const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
+  const [effectiveMaxHr, setEffectiveMaxHr] = useState<number | null>(null)
 
   useEffect(() => {
     fetch('/api/stats')
@@ -172,6 +174,17 @@ export default function StatsPage() {
     fetch('/api/weight-log')
       .then(r => r.json())
       .then(d => setWeightLog(d.entries ?? []))
+      .catch(() => {})
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then(data => {
+        const maxHr = resolveMaxHr({
+          manual: data.max_hr_manual ?? null,
+          dateOfBirth: data.date_of_birth ?? null,
+          observed: data.observed_max_hr ?? null,
+        })
+        setEffectiveMaxHr(maxHr?.value ?? null)
+      })
       .catch(() => {})
   }, [])
 
@@ -255,7 +268,7 @@ export default function StatsPage() {
               rideStats.avgWkg = rideStats.avgWatts !== null ? parseFloat((rideStats.avgWatts / w).toFixed(2)) : null
               rideStats.npWkg = rideStats.np !== null ? parseFloat((rideStats.np / w).toFixed(2)) : null
             }
-            return <RideStats data={rideStats} />
+            return <RideStats data={rideStats} effectiveMaxHr={effectiveMaxHr} />
           })()}
         </div>
       )}

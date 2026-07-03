@@ -54,4 +54,18 @@ describe('RideStats render', () => {
     expect(screen.queryByText('Heart Rate')).toBeNull()
     expect(screen.queryByText('L/R Balance')).toBeNull()
   })
+
+  it('shows "% of Max HR" when effectiveMaxHr is provided', () => {
+    // The `activity` fixture has no max_heartrate set — override it explicitly.
+    const withMaxHr = rideStatsFromActivity({ ...activity, max_heartrate: 171 })
+    render(<RideStats data={withMaxHr} effectiveMaxHr={190} />)
+    expect(screen.getByText('% of Max')).toBeInTheDocument()
+    expect(screen.getByText('90')).toBeInTheDocument() // round(171/190*100) = 90
+  })
+
+  it('does not show "% of Max HR" when effectiveMaxHr is absent', () => {
+    const withMaxHr = rideStatsFromActivity({ ...activity, max_heartrate: 171 })
+    render(<RideStats data={withMaxHr} />)
+    expect(screen.queryByText('% of Max')).not.toBeInTheDocument()
+  })
 })

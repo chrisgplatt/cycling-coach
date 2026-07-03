@@ -13,6 +13,7 @@ import { getWeekBounds } from '@/lib/week-bounds'
 import { localDateStr } from '@/lib/local-date'
 import { computeDailyActivityLoad } from '@/lib/strain'
 import { computeHrvBaseline } from '@/lib/hrv/baseline'
+import { resolveMaxHr } from '@/lib/max-hr'
 import type { GeneratedPlan } from '@/types'
 import {
   DndContext,
@@ -110,6 +111,7 @@ export default function DashboardPage() {
   const [planTargetEvent, setPlanTargetEvent] = useState('')
   const [planTargetDate, setPlanTargetDate] = useState('')
   const [currentFTP, setCurrentFTP] = useState(200)
+  const [effectiveMaxHr, setEffectiveMaxHr] = useState<number | null>(null)
   const [futurePlanWorkouts, setFuturePlanWorkouts] = useState<Workout[]>([])
   const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(null)
   const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
@@ -330,6 +332,12 @@ export default function DashboardPage() {
       if (data?.events) setEvents(data.events)
       setNotificationsEnabled(data?.notifications_enabled ?? false)
       if (data?.current_ftp) setCurrentFTP(data.current_ftp)
+      const maxHr = resolveMaxHr({
+        manual: data.max_hr_manual ?? null,
+        dateOfBirth: data.date_of_birth ?? null,
+        observed: data.observed_max_hr ?? null,
+      })
+      setEffectiveMaxHr(maxHr?.value ?? null)
     }).catch(() => {})
     fetch('/api/weight-log')
       .then(r => r.json())
@@ -798,6 +806,7 @@ export default function DashboardPage() {
           workout={selectedWorkout}
           athleteId={athleteId}
           ftp={currentFTP}
+          effectiveMaxHr={effectiveMaxHr}
           activitiesOnDate={
             syncData?.activities.filter(a =>
               a.start_date_local.startsWith(selectedWorkout.date)
@@ -875,6 +884,7 @@ export default function DashboardPage() {
         <ActivityDetailModal
           activity={selectedActivity}
           onClose={() => setSelectedActivity(null)}
+          effectiveMaxHr={effectiveMaxHr}
         />
       )}
 

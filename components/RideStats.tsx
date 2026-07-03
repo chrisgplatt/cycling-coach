@@ -91,7 +91,7 @@ export function SectionCard({ title, children, accent }: { title: string; childr
 
 // Per-ride stat cards (Power / Best Power / Totals / Heart Rate / L-R Balance). Cards
 // whose data is absent are hidden. Shared by the stats page and the ride modals.
-export default function RideStats({ data }: { data: RideStatsData }) {
+export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsData; effectiveMaxHr?: number | null }) {
   const hasBest = data.best.p1 != null || data.best.p5 != null || data.best.p10 != null || data.best.p20 != null
   const balance = data.lrBalanceRight !== null
     ? `${(100 - data.lrBalanceRight).toFixed(1)}% L / ${data.lrBalanceRight.toFixed(1)}% R`
@@ -143,6 +143,9 @@ export default function RideStats({ data }: { data: RideStatsData }) {
             {data.minHr !== null && <StatCell label="Min HR" value={num(data.minHr)} unit="bpm" valueClass="text-red-300" />}
             {data.avgHr !== null && <StatCell label="Avg HR" value={num(data.avgHr)} unit="bpm" valueClass="text-red-500" />}
             {data.maxHr !== null && <StatCell label="Max HR" value={num(data.maxHr)} unit="bpm" valueClass="text-red-600" />}
+            {data.maxHr !== null && effectiveMaxHr != null && (
+              <StatCell label="% of Max" value={String(Math.round((data.maxHr / effectiveMaxHr) * 100))} valueClass="text-red-400" />
+            )}
           </div>
         </SectionCard>
       )}

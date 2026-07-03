@@ -30,6 +30,7 @@ import WellnessCard from '@/components/WellnessCard'
 import WellnessSheet from '@/components/WellnessSheet'
 import type { DailyWellness } from '@/types'
 import DayWeatherChip from '@/components/DayWeatherChip'
+import { resolveMaxHr } from '@/lib/max-hr'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -528,6 +529,7 @@ export default function CalendarPage() {
 
   const [scrollVersion, setScrollVersion] = useState(0)
   const [currentFTP, setCurrentFTP] = useState<number | undefined>(undefined)
+  const [effectiveMaxHr, setEffectiveMaxHr] = useState<number | null>(null)
   const [unavailability, setUnavailability] = useState<UnavailabilityPeriod[]>([])
   const [addUnavailDate, setAddUnavailDate] = useState<string | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
@@ -642,6 +644,14 @@ export default function CalendarPage() {
         if (data?.events) setEvents(data.events)
         if (data?.current_ftp) setCurrentFTP(data.current_ftp)
         if (data) setUnavailability(data.unavailability ?? [])
+        if (data) {
+          const maxHr = resolveMaxHr({
+            manual: data.max_hr_manual ?? null,
+            dateOfBirth: data.date_of_birth ?? null,
+            observed: data.observed_max_hr ?? null,
+          })
+          setEffectiveMaxHr(maxHr?.value ?? null)
+        }
       })
       .catch(() => {})
     const wFrom = new Date(Date.now() - 45 * 864e5).toISOString().split('T')[0]
@@ -848,6 +858,7 @@ export default function CalendarPage() {
         <ActivityDetailModal
           activity={selectedActivity}
           onClose={() => setSelectedActivity(null)}
+          effectiveMaxHr={effectiveMaxHr}
         />
       )}
 
@@ -857,6 +868,7 @@ export default function CalendarPage() {
           workout={selectedWorkout}
           athleteId={athleteId}
           ftp={currentFTP}
+          effectiveMaxHr={effectiveMaxHr}
           activitiesOnDate={
             syncData?.activities.filter(a =>
               a.start_date_local.startsWith(selectedWorkout.date)
