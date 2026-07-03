@@ -1,6 +1,7 @@
 import { anthropic, MODEL } from './client'
 import { formatZones } from './zones'
 import type { UserProfile, CoachingNotes, Workout, WorkoutStep } from '@/types'
+import { resolveMaxHr } from '@/lib/max-hr'
 
 export type WorkoutForNotes = Pick<Workout, 'id' | 'date' | 'type' | 'description' | 'target_zones'> & {
   steps: WorkoutStep[] | null
@@ -32,8 +33,15 @@ export async function generateCoachingNotes(
     .map(w => `- id ${w.id}: ${w.date} ${w.type} — ${w.description} (target: ${w.target_zones})`)
     .join('\n')
 
+  const maxHr = resolveMaxHr({
+    manual: profile.max_hr_manual ?? null,
+    dateOfBirth: profile.date_of_birth ?? null,
+    observed: profile.observed_max_hr ?? null,
+  })
+  const maxHrSegment = maxHr ? ` | Max HR: ${maxHr.value}bpm` : ''
+
   const prompt = `Athlete goals: ${profile.goals}
-FTP: ${profile.current_ftp}W | Weight: ${profile.weight_kg}kg
+FTP: ${profile.current_ftp}W | Weight: ${profile.weight_kg}kg${maxHrSegment}
 
 TRAINING ZONES:
 ${formatZones(profile.current_ftp)}

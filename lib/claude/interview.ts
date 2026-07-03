@@ -8,6 +8,7 @@ import type { UserProfile, ICUWellness, TrainingEvent } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { buildCoachContext } from './coach-memory'
+import { resolveMaxHr } from '@/lib/max-hr'
 
 export const INTERVIEW_COMPLETE_MARKER = '__INTERVIEW_COMPLETE__'
 
@@ -65,9 +66,15 @@ export function buildInterviewSystemPrompt(
   const tsb = wellness?.form ?? (
     wellness?.ctl != null && wellness?.atl != null ? wellness.ctl - wellness.atl : null
   )
+  const maxHr = resolveMaxHr({
+    manual: profile.max_hr_manual ?? null,
+    dateOfBirth: profile.date_of_birth ?? null,
+    observed: profile.observed_max_hr ?? null,
+  })
+  const maxHrSegment = maxHr ? `, Max HR: ${maxHr.value}bpm` : ''
   const fitnessSection = (wellness
-    ? `CTL: ${wellness.ctl ?? '?'} TSS/day, ATL: ${wellness.atl ?? '?'} TSS/day, Form (TSB): ${tsb != null ? Math.round(tsb) : '?'}, HRV: ${wellness.hrv ?? '?'} ms, Resting HR: ${wellness.resting_hr ?? '?'} bpm`
-    : 'No fitness data available.')
+    ? `CTL: ${wellness.ctl ?? '?'} TSS/day, ATL: ${wellness.atl ?? '?'} TSS/day, Form (TSB): ${tsb != null ? Math.round(tsb) : '?'}, HRV: ${wellness.hrv ?? '?'} ms, Resting HR: ${wellness.resting_hr ?? '?'} bpm${maxHrSegment}`
+    : (maxHr ? `No fitness data available.\nMax HR: ${maxHr.value}bpm` : 'No fitness data available.'))
     + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   const events = (profile.events ?? []) as TrainingEvent[]

@@ -79,6 +79,16 @@ describe('buildInterviewSystemPrompt', () => {
     const p = buildInterviewSystemPrompt(makeProfile(), wellness, 250, '', null, 'MEM')
     expect(p.startsWith(COACH_PERSONA)).toBe(true)
   })
+
+  it('includes Max HR when resolvable', () => {
+    const p = buildInterviewSystemPrompt(makeProfile({ date_of_birth: '1990-07-03' }), wellness, 250, '')
+    expect(p).toContain('Max HR: 183bpm')
+  })
+
+  it('omits Max HR when it cannot be resolved', () => {
+    const p = buildInterviewSystemPrompt(makeProfile(), wellness, 250, '')
+    expect(p).not.toContain('Max HR')
+  })
 })
 
 describe('parseInterviewCompletion', () => {

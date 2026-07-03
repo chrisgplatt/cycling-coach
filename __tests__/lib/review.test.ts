@@ -85,3 +85,16 @@ describe('buildReviewPrompt — dossier injection', () => {
     expect(prompt).toContain('Dedicated cyclist')
   })
 })
+
+describe('buildReviewPrompt Max HR', () => {
+  it('includes Max HR when resolvable', () => {
+    const profileWithDob = { ...profile, date_of_birth: '1990-07-03' }
+    const prompt = buildReviewPrompt(profileWithDob, [], [], [], '')
+    expect(prompt).toContain('Max HR: 183bpm')
+  })
+
+  it('omits Max HR when it cannot be resolved', () => {
+    const prompt = buildReviewPrompt(profile, [], [], [], '')
+    expect(prompt).not.toContain('Max HR')
+  })
+})

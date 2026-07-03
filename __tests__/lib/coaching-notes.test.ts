@@ -57,3 +57,20 @@ describe('generateCoachingNotes', () => {
     expect(streamMock).not.toHaveBeenCalled()
   })
 })
+
+describe('generateCoachingNotes Max HR', () => {
+  it('includes Max HR in the prompt when resolvable', async () => {
+    mockReply(JSON.stringify({ notes: [] }))
+    const profileWithDob = { ...profile, date_of_birth: '1990-07-03' }
+    await generateCoachingNotes(profileWithDob, workouts)
+    const sentPrompt = streamMock.mock.calls.at(-1)[0].messages[0].content as string
+    expect(sentPrompt).toContain('Max HR: 183bpm')
+  })
+
+  it('omits Max HR when it cannot be resolved', async () => {
+    mockReply(JSON.stringify({ notes: [] }))
+    await generateCoachingNotes(profile, workouts)
+    const sentPrompt = streamMock.mock.calls.at(-1)[0].messages[0].content as string
+    expect(sentPrompt).not.toContain('Max HR')
+  })
+})

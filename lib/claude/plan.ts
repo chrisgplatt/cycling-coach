@@ -5,6 +5,7 @@ import { coachingNotesGuidance } from './coaching-notes'
 import type { UserProfile, ICUSyncData, GeneratedPlan, ICUActivity, ICUWellness, TrainingPhilosophy } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
+import { resolveMaxHr } from '@/lib/max-hr'
 
 function summariseActivities(activities: ICUActivity[]): string {
   if (!activities.length) return 'No recent activities.'
@@ -14,10 +15,19 @@ function summariseActivities(activities: ICUActivity[]): string {
     .join('\n')
 }
 
-function summariseWellness(wellness: ICUWellness[], hrvStatus?: HrvStatus | null): string {
+function summariseWellness(profile: UserProfile, wellness: ICUWellness[], hrvStatus?: HrvStatus | null): string {
   const latest = wellness[wellness.length - 1]
-  if (!latest) return hrvStatus ? formatHrvForPrompt(hrvStatus) : 'No wellness data.'
-  const base = `CTL: ${latest.ctl ?? '?'} TSS/day (aerobic fitness base), ATL: ${latest.atl ?? '?'} TSS/day (recent fatigue), Form (TSB): ${latest.form ?? '?'} (positive = fresh, negative = fatigued), HRV: ${latest.hrv ?? '?'} ms, Resting HR: ${latest.resting_hr ?? '?'} bpm`
+  const maxHr = resolveMaxHr({
+    manual: profile.max_hr_manual ?? null,
+    dateOfBirth: profile.date_of_birth ?? null,
+    observed: profile.observed_max_hr ?? null,
+  })
+  if (!latest) {
+    const noData = hrvStatus ? formatHrvForPrompt(hrvStatus) : 'No wellness data.'
+    return maxHr ? `${noData}\nMax HR: ${maxHr.value}bpm` : noData
+  }
+  const maxHrSegment = maxHr ? `, Max HR: ${maxHr.value}bpm` : ''
+  const base = `CTL: ${latest.ctl ?? '?'} TSS/day (aerobic fitness base), ATL: ${latest.atl ?? '?'} TSS/day (recent fatigue), Form (TSB): ${latest.form ?? '?'} (positive = fresh, negative = fatigued), HRV: ${latest.hrv ?? '?'} ms, Resting HR: ${latest.resting_hr ?? '?'} bpm${maxHrSegment}`
   return hrvStatus ? `${base}\n${formatHrvForPrompt(hrvStatus)}` : base
 }
 
@@ -189,7 +199,7 @@ GOAL INTERPRETATION — derive training emphases from the athlete's goals:
 - Multiple goals → blend emphases proportionally
 
 CURRENT ATHLETE STATE:
-${summariseWellness(syncData.wellness, hrvStatus)}
+${summariseWellness(profile, syncData.wellness, hrvStatus)}
 ${dossierSection ? '\n' + dossierSection + '\n' : ''}
 RECENT WEEKLY TRAINING LOAD:
 ${weeklyTssSummary(syncData.activities)}

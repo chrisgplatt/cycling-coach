@@ -97,3 +97,26 @@ describe('createPlanStream — dossier injection', () => {
     }).not.toThrow()
   })
 })
+
+import { anthropic } from '@/lib/claude/client'
+
+describe('summariseWellness (via generatePlan prompt)', () => {
+  it('includes Max HR in the prompt when resolvable from date of birth', async () => {
+    mockFinalMessage.mockResolvedValueOnce({
+      content: [{ type: 'text', text: JSON.stringify(validPlan) }],
+    })
+    const profileWithDob = { ...profile, date_of_birth: '1990-07-03' }
+    await generatePlan(profileWithDob, syncData)
+    const sentPrompt = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    expect(sentPrompt).toContain('Max HR: 183bpm')
+  })
+
+  it('omits Max HR when it cannot be resolved', async () => {
+    mockFinalMessage.mockResolvedValueOnce({
+      content: [{ type: 'text', text: JSON.stringify(validPlan) }],
+    })
+    await generatePlan(profile, syncData)
+    const sentPrompt = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    expect(sentPrompt).not.toContain('Max HR')
+  })
+})
