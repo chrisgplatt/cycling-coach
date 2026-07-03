@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { Workout, ICUActivity } from '@/types'
-import { makeWorkout } from '../support/factories'
+import { makeWorkout, makeActivityMetrics } from '../support/factories'
 
 const plannedWorkout: Workout = {
   id: 'w1', plan_id: 'p1', date: '2026-06-01', type: 'threshold',
@@ -299,6 +299,28 @@ describe('WorkoutDetailModal tabs', () => {
     expect(screen.getByRole('tab', { name: /feedback/i })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Stats' }))
     expect(screen.getByText(/ride stats not available yet/i)).toBeInTheDocument()
+  })
+
+  it('shows actual duration, not planned, in the Stats tab for a completed ride', async () => {
+    const completedWithMetrics = {
+      ...plannedWorkout,
+      status: 'completed' as const,
+      icu_activity_id: 'a1',
+      duration_minutes: 60,
+      actual_duration_minutes: 75,
+      activity_metrics: makeActivityMetrics(),
+    }
+    global.fetch = jest.fn((url: string) =>
+      String(url).includes('/streams')
+        ? Promise.resolve({ ok: true, json: async () => ({ streams: { time: [0, 60], power: [100, 110] }, intervals: [] }) })
+        : String(url).includes('/weather/')
+          ? Promise.resolve({ ok: false })
+          : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
+    ) as never
+    render(<WorkoutDetailModal workout={completedWithMetrics} athleteId="i1" ftp={250} onClose={() => {}} />)
+    fireEvent.click(await screen.findByRole('tab', { name: 'Stats' }))
+    expect(screen.getByText('1h 15m')).toBeInTheDocument()
+    expect(screen.queryByText('1h 0m')).not.toBeInTheDocument()
   })
 
   it('shows Feedback tab for a completed workout with no linked ride', async () => {

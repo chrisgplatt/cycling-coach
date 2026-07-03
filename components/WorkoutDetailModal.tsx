@@ -351,7 +351,11 @@ export default function WorkoutDetailModal({
                   {STATUS_LABEL[workout.status]}
                 </span>
               )}
-              <span className="text-sm font-medium text-slate-500">{workout.duration_minutes} min</span>
+              <span className="text-sm font-medium text-slate-500">
+                {workout.status === 'completed' && workout.actual_duration_minutes !== null
+                  ? <>{workout.duration_minutes} → {workout.actual_duration_minutes} min</>
+                  : <>{workout.duration_minutes} min</>}
+              </span>
               {workout.status === 'completed' && workout.tss !== null ? (
                 <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
                   ~{Math.round((workout.duration_minutes * 60 * (IF_BY_TYPE[workout.type] ?? 0.68) ** 2) / 36)} → {workout.tss} TSS
@@ -453,7 +457,7 @@ export default function WorkoutDetailModal({
                   {(() => {
                     const rideDate = workout.date
                     const w = weightAtDate(weightLog, rideDate, null)
-                    const metricsStats = rideStatsFromMetrics(workout.activity_metrics, workout.duration_minutes * 60, workout.tss)
+                    const metricsStats = rideStatsFromMetrics(workout.activity_metrics, (workout.actual_duration_minutes ?? workout.duration_minutes) * 60, workout.tss)
                     if (w) {
                       metricsStats.avgWkg = metricsStats.avgWatts !== null ? parseFloat((metricsStats.avgWatts / w).toFixed(2)) : null
                       metricsStats.npWkg = metricsStats.np !== null ? parseFloat((metricsStats.np / w).toFixed(2)) : null
