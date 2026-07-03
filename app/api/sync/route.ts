@@ -5,6 +5,7 @@ import { importUnplannedRides } from '@/lib/intervals/import-rides'
 import { backfillActivityMetrics } from '@/lib/intervals/enrich'
 import { maybeGenerateProgressBrief } from '@/lib/progress/brief-generator'
 import { GarminClient } from '@/lib/garmin/client'
+import { batchMaxHeartRate } from '@/lib/max-hr'
 import type { ICUActivity, GarminWellness } from '@/types'
 
 async function syncGarmin(
@@ -109,6 +110,20 @@ export async function POST(req: Request) {
       const date = act.start_date_local.split('T')[0]
       const existing = actsByDate.get(date) ?? []
       actsByDate.set(date, [...existing, act])
+    }
+
+    const batchMaxHr = batchMaxHeartRate(
+      syncData.activities.map(a => ({ max_heartrate: a.max_heartrate ?? null }))
+    )
+    if (batchMaxHr > 0) {
+      const { data: profileRow } = await supabase
+        .from('user_profile')
+        .select('observed_max_hr')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (batchMaxHr > (profileRow?.observed_max_hr ?? 0)) {
+        await supabase.from('user_profile').update({ observed_max_hr: batchMaxHr }).eq('user_id', user.id)
+      }
     }
 
     const { data: pending } = await supabase
