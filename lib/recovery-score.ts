@@ -72,8 +72,8 @@ function computeTsbIndex(inputs: RecoveryInputs): number | null {
   return 10
 }
 
-const COMPONENT_WEIGHTS = { sleep: 0.30, hrv: 0.30, wellness: 0.20, tsb: 0.10, bodyBattery: 0.10 } as const
-type ComponentKey = keyof typeof COMPONENT_WEIGHTS
+export const COMPONENT_WEIGHTS = { sleep: 0.30, hrv: 0.30, wellness: 0.20, tsb: 0.10, bodyBattery: 0.10 } as const
+export type ComponentKey = keyof typeof COMPONENT_WEIGHTS
 
 const EXPLANATION_LABELS: { key: ComponentKey; label: string }[] = [
   { key: 'sleep', label: 'short/poor deep sleep' },
