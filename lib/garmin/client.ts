@@ -1,5 +1,4 @@
 import { GarminConnect } from 'garmin-connect'
-import type { IGarminTokens } from 'garmin-connect/dist/garmin/types'
 import type { SleepData } from 'garmin-connect/dist/garmin/types/sleep'
 
 const GARMIN_API = 'https://connectapi.garmin.com'
@@ -43,21 +42,10 @@ export class GarminClient {
     this._gc = gc
   }
 
-  static async fromToken(token: object): Promise<GarminClient> {
-    const t = token as IGarminTokens
-    const gc = new GarminConnect({ username: '', password: '' })
-    gc.loadToken(t.oauth1, t.oauth2)
-    return new GarminClient(gc)
-  }
-
   static async fromCredentials(email: string, password: string): Promise<GarminClient> {
     const gc = new GarminConnect({ username: email, password })
     await gc.login(email, password)
     return new GarminClient(gc)
-  }
-
-  exportToken(): object {
-    return this._gc.exportToken()
   }
 
   async getTrainingReadiness(date: string): Promise<TrainingReadinessData> {

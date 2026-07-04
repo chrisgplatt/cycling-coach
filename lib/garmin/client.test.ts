@@ -4,8 +4,6 @@ import { GarminClient } from './client'
 jest.mock('garmin-connect', () => ({
   GarminConnect: jest.fn().mockImplementation(() => ({
     login: jest.fn().mockResolvedValue(undefined),
-    exportToken: jest.fn().mockReturnValue({ oauth1: { token: 'abc' }, oauth2: { access_token: 'xyz' } }),
-    loadToken: jest.fn(),
     get: jest.fn(),
   })),
 }))
@@ -15,8 +13,6 @@ const { GarminConnect: MockGarminConnect } = require('garmin-connect') as { Garm
 function makeMockGC(overrides: Partial<ReturnType<typeof MockGarminConnect>> = {}) {
   const instance = {
     login: jest.fn().mockResolvedValue(undefined),
-    exportToken: jest.fn().mockReturnValue({ oauth1: { token: 'abc' }, oauth2: { access_token: 'xyz' } }),
-    loadToken: jest.fn(),
     get: jest.fn(),
     ...overrides,
   }
@@ -35,25 +31,6 @@ describe('GarminClient.fromCredentials', () => {
   it('throws if login fails', async () => {
     makeMockGC({ login: jest.fn().mockRejectedValue(new Error('bad creds')) })
     await expect(GarminClient.fromCredentials('a@b.com', 'wrong')).rejects.toThrow('bad creds')
-  })
-})
-
-describe('GarminClient.fromToken', () => {
-  it('creates client from token without calling login', async () => {
-    const gc = makeMockGC()
-    const token = { oauth1: { token: 'abc' }, oauth2: { access_token: 'xyz' } }
-    const client = await GarminClient.fromToken(token)
-    expect(gc.login).not.toHaveBeenCalled()
-    expect(gc.loadToken).toHaveBeenCalledWith(token.oauth1, token.oauth2)
-    expect(client).toBeInstanceOf(GarminClient)
-  })
-})
-
-describe('GarminClient.exportToken', () => {
-  it('returns the serialised token from the underlying client', async () => {
-    makeMockGC({ exportToken: jest.fn().mockReturnValue({ oauth1: { tok: 'xyz' }, oauth2: { at: '123' } }) })
-    const client = await GarminClient.fromCredentials('a@b.com', 'p')
-    expect(client.exportToken()).toEqual({ oauth1: { tok: 'xyz' }, oauth2: { at: '123' } })
   })
 })
 

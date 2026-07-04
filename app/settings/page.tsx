@@ -181,14 +181,12 @@ export default function SettingsPage() {
         setGarminError(verifyData.error ?? 'Verification failed')
         return
       }
-      // Save credentials and clear cached OAuth token
       const saveRes = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           garmin_email: garminEmail.trim(),
           garmin_password: garminPassword,
-          garmin_oauth_token: null,  // clear cached token so next sync does fresh SSO
         }),
       })
       if (!saveRes.ok) {
@@ -214,7 +212,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ garmin_email: null, garmin_password: null, garmin_oauth_token: null }),
+        body: JSON.stringify({ garmin_email: null, garmin_password: null }),
       })
       if (!res.ok) {
         setGarminError('Failed to disconnect. Please try again.')

@@ -13,11 +13,10 @@ async function syncGarmin(
   userId: string,
   garminEmail: string,
   garminPassword: string,
-  _cachedToken: object | null,
   todayStr: string,
 ): Promise<GarminWellness | null> {
   // Always do a fresh SSO login — the wellness endpoints (connect.garmin.com) require
-  // session cookies established by gc.login(), which are not preserved by loadToken().
+  // session cookies established by gc.login().
   let client: GarminClient
   try {
     client = await GarminClient.fromCredentials(garminEmail, garminPassword)
@@ -208,7 +207,6 @@ export async function POST(req: Request) {
           user.id,
           profile.garmin_email,
           profile.garmin_password,
-          null,
           todayStr,
         )
       } catch (err) {
