@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import AnimatedLogo from '@/components/AnimatedLogo'
-import { StatCell, SectionCard, formatDuration } from '@/components/RideStats'
+import { StatCell, SectionCard, formatHrsMins } from '@/components/RideStats'
 
 interface MonthlyBucket { month: number; km: number; count: number }
 
@@ -118,7 +118,7 @@ function GroupPanel({ group, year }: { group: ActivityGroupStats; year: number }
         {group.totalElevationM > 0 && (
           <StatCell label="Elevation" value={String(group.totalElevationM)} unit="m" valueClass="text-emerald-600" />
         )}
-        <StatCell label="Hours" value={formatDuration(group.totalMovingTimeSecs)} valueClass="text-violet-600" />
+        <StatCell label="Hours" value={formatHrsMins(group.totalMovingTimeSecs)} valueClass="text-violet-600" />
       </div>
       <div className="px-3 pb-3 pt-2 border-t border-gray-100">
         <MonthlyBarChart

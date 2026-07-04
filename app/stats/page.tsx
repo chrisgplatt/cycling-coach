@@ -1,12 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 import type { RidingStats, CrossTrainingGroup, WeightEntry } from '@/types'
-import RideStats, { rideStatsFromActivity, StatCell, SectionCard, formatDuration } from '@/components/RideStats'
+import RideStats, { rideStatsFromActivity, StatCell, SectionCard, formatHrsMins } from '@/components/RideStats'
 import { weightAtDate } from '@/lib/weight-helpers'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import YearView from '@/components/YearView'
 import ActivityLogView from '@/components/ActivityLogView'
-import { resolveMaxHr } from '@/lib/max-hr'
+import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 
 function formatRideTabLabel(dateStr: string): string {
   const d = new Date(dateStr)
@@ -68,7 +68,7 @@ function AggregateView({ stats }: { stats: RidingStats }) {
           />
           <StatCell
             label="Duration"
-            value={formatDuration(stats.total_duration_secs)}
+            value={formatHrsMins(stats.total_duration_secs)}
             valueClass="text-violet-600"
           />
         </div>
@@ -134,7 +134,7 @@ function CrossTrainingSummary({ groups }: { groups: CrossTrainingGroup[] }) {
             </div>
             <div className="text-right">
               <div className="text-sm font-bold text-emerald-600">
-                {formatDuration(g.total_duration_secs)}
+                {formatHrsMins(g.total_duration_secs)}
               </div>
               <div className="text-[11px] text-gray-400">
                 {g.total_distance_m > 0 && `${(g.total_distance_m / 1000).toFixed(1)} km · `}
@@ -145,7 +145,7 @@ function CrossTrainingSummary({ groups }: { groups: CrossTrainingGroup[] }) {
         ))}
       </div>
       <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-400">
-        {totalCount} activities · {formatDuration(totalSecs)} total
+        {totalCount} activities · {formatHrsMins(totalSecs)} total
         {totalDistKm > 0 && ` · ${totalDistKm.toFixed(1)} km`}
         {` · ${totalTss} TSS contributed`}
       </div>
@@ -178,12 +178,7 @@ export default function StatsPage() {
     fetch('/api/profile')
       .then(r => r.json())
       .then(data => {
-        const maxHr = resolveMaxHr({
-          manual: data?.max_hr_manual ?? null,
-          dateOfBirth: data?.date_of_birth ?? null,
-          observed: data?.observed_max_hr ?? null,
-        })
-        setEffectiveMaxHr(maxHr?.value ?? null)
+        setEffectiveMaxHr(resolveMaxHrFromProfile(data)?.value ?? null)
       })
       .catch(() => {})
   }, [])

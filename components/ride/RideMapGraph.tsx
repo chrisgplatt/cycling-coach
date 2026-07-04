@@ -3,7 +3,7 @@ import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { RideStreams } from '@/types'
 import RideGraph from './RideGraph'
-import { formatDuration } from '@/lib/ride/graph-math'
+import { formatClockDuration } from '@/lib/ride/graph-math'
 
 const RouteMap = dynamic(() => import('./RouteMap'), { ssr: false })
 
@@ -47,7 +47,7 @@ export default function RideMapGraph({ streams, fit = false }: { streams: RideSt
       </div>
 
       <div className="shrink-0 px-4 py-3 border-y border-gray-100 flex flex-wrap gap-x-5 gap-y-2 bg-white">
-        <Chip label="Time" value={t != null ? formatDuration(t) : '—'} colour="#94a3b8" />
+        <Chip label="Time" value={t != null ? formatClockDuration(t) : '—'} colour="#94a3b8" />
         <Chip label="Dist" value={dist != null ? `${(dist / 1000).toFixed(1)}km` : '—'} colour="#94a3b8" />
         {streams.power && <Chip label="Power" value={power != null ? `${Math.round(power)}W` : '—'} colour="#7c3aed" />}
         {streams.hr && <Chip label="HR" value={hr != null ? `${Math.round(hr)}` : '—'} colour="#ef4444" />}

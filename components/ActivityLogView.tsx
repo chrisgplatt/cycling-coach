@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import type { ICUActivity } from '@/types'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import AnimatedLogo from '@/components/AnimatedLogo'
-import { formatDuration } from '@/components/RideStats'
+import { formatHrsMins } from '@/components/RideStats'
 
 const ACTIVITY_EMOJI: Record<string, string> = {
   Walk: '🚶', Hike: '🥾', Run: '🏃', VirtualRun: '🏃',
@@ -67,7 +67,7 @@ function ActivityRow({ activity, onClick }: { activity: ICUActivity; onClick: ()
         <div className="flex items-center justify-between mt-0.5">
           <p className="text-xs text-gray-400">{formatActivityDate(activity.start_date_local)}</p>
           <div className="flex gap-2 text-xs text-gray-500">
-            <span>{formatDuration(activity.moving_time)}</span>
+            <span>{formatHrsMins(activity.moving_time)}</span>
             {np != null && <span>· NP {np}w</span>}
           </div>
         </div>

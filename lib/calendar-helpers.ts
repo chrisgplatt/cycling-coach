@@ -67,7 +67,7 @@ export function weekStartsAfter(mondayStr: string, count: number): string[] {
 }
 
 // Formats a duration in minutes: "45m", "1h", "1h 30m"
-export function formatDuration(minutes: number): string {
+export function formatDurationMins(minutes: number): string {
   if (minutes < 60) return `${minutes}m`
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
@@ -77,7 +77,7 @@ export function formatDuration(minutes: number): string {
 // Formats a moving time in seconds to the same string format.
 // Rounds to nearest minute; imperceptible for activities measured in hours.
 export function formatMovingTime(seconds: number): string {
-  return formatDuration(Math.round(seconds / 60))
+  return formatDurationMins(Math.round(seconds / 60))
 }
 
 // Formats a Date object as YYYY-MM-DD using local time.

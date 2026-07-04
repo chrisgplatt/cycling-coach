@@ -1,7 +1,7 @@
 import {
   calendarMonthDays,
   weekDates,
-  formatDuration,
+  formatDurationMins,
   formatMovingTime,
   toLocalDateStr,
   weekdayName,
@@ -56,20 +56,20 @@ describe('weekDates', () => {
   })
 })
 
-describe('formatDuration', () => {
+describe('formatDurationMins', () => {
   it('returns minutes only when under 60', () => {
-    expect(formatDuration(45)).toBe('45m')
-    expect(formatDuration(0)).toBe('0m')
+    expect(formatDurationMins(45)).toBe('45m')
+    expect(formatDurationMins(0)).toBe('0m')
   })
 
   it('returns hours only when evenly divisible', () => {
-    expect(formatDuration(60)).toBe('1h')
-    expect(formatDuration(120)).toBe('2h')
+    expect(formatDurationMins(60)).toBe('1h')
+    expect(formatDurationMins(120)).toBe('2h')
   })
 
   it('returns hours and minutes for mixed values', () => {
-    expect(formatDuration(90)).toBe('1h 30m')
-    expect(formatDuration(135)).toBe('2h 15m')
+    expect(formatDurationMins(90)).toBe('1h 30m')
+    expect(formatDurationMins(135)).toBe('2h 15m')
   })
 })
 

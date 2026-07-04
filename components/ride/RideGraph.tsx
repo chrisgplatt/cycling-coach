@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useRef } from 'react'
 import type { RideStreams } from '@/types'
-import { axisFractions, nearestIndexForFraction, seriesToPolyline, smoothSeries, extent, niceDomain, formatDuration } from '@/lib/ride/graph-math'
+import { axisFractions, nearestIndexForFraction, seriesToPolyline, smoothSeries, extent, niceDomain, formatClockDuration } from '@/lib/ride/graph-math'
 
 const W = 1000
 const H = 260
@@ -74,7 +74,7 @@ export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis, 
     const a0 = axis[0], a1 = axis[axis.length - 1]
     return [0, 0.25, 0.5, 0.75, 1].map(f => {
       const v = a0 + f * (a1 - a0)
-      return xAxis === 'distance' ? (v / 1000).toFixed(1) : formatDuration(v)
+      return xAxis === 'distance' ? (v / 1000).toFixed(1) : formatClockDuration(v)
     })
   }, [axis, xAxis])
 

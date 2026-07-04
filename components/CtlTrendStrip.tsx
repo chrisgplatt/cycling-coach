@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import type { ChartsData, RidePoint } from '@/types'
-import { formatDuration } from '@/components/RideStats'
+import { formatHrsMins } from '@/components/RideStats'
 
 type Range = '1m' | '3m' | '6m' | '12m'
 
@@ -313,7 +313,7 @@ export default function CtlTrendStrip({
                 {rhr !== undefined && ` · RHR ${Math.round(rhr)}`}
               </div>
               {dot.rides.map((r, i) => (
-                <div key={i}>{r.name} — {Math.round(r.tss as number)} TSS · {formatDuration(r.durationSecs)}</div>
+                <div key={i}>{r.name} — {Math.round(r.tss as number)} TSS · {formatHrsMins(r.durationSecs)}</div>
               ))}
               {dot.rides.length > 1 && (
                 <div className="font-bold mt-1">Total {Math.round(dot.totalTss)} TSS</div>

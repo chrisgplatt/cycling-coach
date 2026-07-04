@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { pointerToIndex, seriesToPolyline, formatDuration, axisFractions, nearestIndexForFraction, smoothSeries, extent, niceDomain } from '@/lib/ride/graph-math'
+import { pointerToIndex, seriesToPolyline, formatClockDuration, axisFractions, nearestIndexForFraction, smoothSeries, extent, niceDomain } from '@/lib/ride/graph-math'
 
 describe('niceDomain', () => {
   it('expands bounds outward to the nearest 10', () => {
@@ -90,9 +90,9 @@ describe('seriesToPolyline', () => {
   })
 })
 
-describe('formatDuration', () => {
+describe('formatClockDuration', () => {
   it('formats seconds as H:MM:SS / M:SS', () => {
-    expect(formatDuration(75)).toBe('1:15')
-    expect(formatDuration(3675)).toBe('1:01:15')
+    expect(formatClockDuration(75)).toBe('1:15')
+    expect(formatClockDuration(3675)).toBe('1:01:15')
   })
 })

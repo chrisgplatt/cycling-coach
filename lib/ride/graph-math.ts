@@ -90,7 +90,9 @@ export function seriesToPolyline(
   return out.join(' ')
 }
 
-export function formatDuration(secs: number): string {
+// Formats a duration in seconds as a clock string, e.g. "1:15" or "1:01:15"
+// (not to be confused with components/RideStats.tsx's formatHrsMins).
+export function formatClockDuration(secs: number): string {
   const s = Math.max(0, Math.round(secs))
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)

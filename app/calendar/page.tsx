@@ -22,7 +22,7 @@ import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import WorkoutCard from '@/components/WorkoutCard'
 import type { Workout, TrainingEvent, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry, WeatherSummary, ActivityWeather } from '@/types'
-import { calendarMonthDays, weekDates, formatDuration, toLocalDateStr, weekStartsAround, weekStartsAfter, getDayWorkoutColor, getWeeklySummary } from '@/lib/calendar-helpers'
+import { calendarMonthDays, weekDates, formatDurationMins, toLocalDateStr, weekStartsAround, weekStartsAfter, getDayWorkoutColor, getWeeklySummary } from '@/lib/calendar-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
 import { periodOverlapsWeek, coveredDaysInWeek, periodDurationDays } from '@/lib/utils/unavailability'
@@ -30,7 +30,7 @@ import WellnessCard from '@/components/WellnessCard'
 import WellnessSheet from '@/components/WellnessSheet'
 import type { DailyWellness } from '@/types'
 import DayWeatherChip from '@/components/DayWeatherChip'
-import { resolveMaxHr } from '@/lib/max-hr'
+import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -91,9 +91,9 @@ function EventCard({ event, onClick }: { event: TrainingEvent; onClick: () => vo
       </div>
       <div className="flex gap-3 mt-0.5 text-xs text-slate-500">
         {event.result_duration_minutes != null
-          ? <span>{formatDuration(event.result_duration_minutes)}</span>
+          ? <span>{formatDurationMins(event.result_duration_minutes)}</span>
           : event.duration_minutes != null
-            ? <span>{formatDuration(event.duration_minutes)}</span>
+            ? <span>{formatDurationMins(event.duration_minutes)}</span>
             : null}
         {event.result_tss != null && <span>TSS {event.result_tss}</span>}
         {event.result_avg_power != null && <span>{event.result_avg_power}W</span>}
@@ -184,7 +184,7 @@ function MonthStrip({
                   )}
                   {showMins > 0 && (
                     <span className={`text-[9px] leading-tight ${summaryColor}`}>
-                      {formatDuration(showMins)}
+                      {formatDurationMins(showMins)}
                     </span>
                   )}
                 </>
@@ -401,7 +401,7 @@ function WeekHeader({ monday, todayStr, workouts }: { monday: string; todayStr: 
       )}
       {weekWorkouts.length > 0 && (
         <span className="ml-auto text-[10px] text-slate-400">
-          {formatDuration(totalMins)}{hasTss ? ` · ${Math.round(totalTss)} TSS` : ''}
+          {formatDurationMins(totalMins)}{hasTss ? ` · ${Math.round(totalTss)} TSS` : ''}
         </span>
       )}
     </div>
@@ -645,12 +645,7 @@ export default function CalendarPage() {
         if (data?.current_ftp) setCurrentFTP(data.current_ftp)
         if (data) setUnavailability(data.unavailability ?? [])
         if (data) {
-          const maxHr = resolveMaxHr({
-            manual: data.max_hr_manual ?? null,
-            dateOfBirth: data.date_of_birth ?? null,
-            observed: data.observed_max_hr ?? null,
-          })
-          setEffectiveMaxHr(maxHr?.value ?? null)
+          setEffectiveMaxHr(resolveMaxHrFromProfile(data)?.value ?? null)
         }
       })
       .catch(() => {})

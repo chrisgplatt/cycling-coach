@@ -17,7 +17,10 @@ export interface RideStatsData {
   avgWkg: number | null
 }
 
-export function formatDuration(secs: number): string {
+// Formats a duration in seconds as "1h 30m" (not to be confused with
+// lib/calendar-helpers.ts's minutes-based formatDurationMins, or
+// lib/ride/graph-math.ts's clock-style formatClockDuration).
+export function formatHrsMins(secs: number): string {
   const h = Math.floor(secs / 3600)
   const m = Math.floor((secs % 3600) / 60)
   return `${h}h ${m}m`
@@ -133,7 +136,7 @@ export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsDat
         <div className="flex divide-x divide-gray-100">
           <StatCell label="Distance" value={data.distanceM !== null ? (Math.round(data.distanceM / 100) / 10).toFixed(1) : '—'} unit={data.distanceM !== null ? 'km' : undefined} valueClass="text-blue-600" />
           <StatCell label="Elevation" value={data.elevationM !== null ? String(Math.floor(data.elevationM)) : '—'} unit={data.elevationM !== null ? 'm' : undefined} valueClass="text-emerald-600" />
-          <StatCell label="Duration" value={formatDuration(data.durationSecs)} valueClass="text-violet-600" />
+          <StatCell label="Duration" value={formatHrsMins(data.durationSecs)} valueClass="text-violet-600" />
         </div>
       </SectionCard>
 
