@@ -13,7 +13,8 @@ import { getWeekBounds } from '@/lib/week-bounds'
 import { localDateStr } from '@/lib/local-date'
 import { computeDailyActivityLoad } from '@/lib/strain'
 import { computeHrvBaseline } from '@/lib/hrv/baseline'
-import { resolveMaxHr } from '@/lib/max-hr'
+import { resolveMaxHrFromProfile } from '@/lib/max-hr'
+import { estimateTss } from '@/lib/estimate-tss'
 import { isGarminSyncStale, formatGarminSyncTime } from '@/lib/garmin/sync-staleness'
 import type { GeneratedPlan } from '@/types'
 import {
@@ -189,12 +190,7 @@ export default function DashboardPage() {
       if (data?.events) setEvents(data.events)
       setNotificationsEnabled(data?.notifications_enabled ?? false)
       if (data?.current_ftp) setCurrentFTP(data.current_ftp)
-      const maxHr = resolveMaxHr({
-        manual: data?.max_hr_manual ?? null,
-        dateOfBirth: data?.date_of_birth ?? null,
-        observed: data?.observed_max_hr ?? null,
-      })
-      setEffectiveMaxHr(maxHr?.value ?? null)
+      setEffectiveMaxHr(resolveMaxHrFromProfile(data)?.value ?? null)
       setGarminEmail(data?.garmin_email ?? null)
       setGarminLastSyncAt(data?.garmin_last_sync_at ?? null)
     }).catch(() => {})
@@ -483,7 +479,6 @@ export default function DashboardPage() {
     return localDateStr(d)
   })
 
-  const IF_VALS_WP: Record<string, number> = { recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90 }
   const weekWorkoutsWP = workouts.filter(w => weekDates.includes(w.date))
   const completedWP = weekWorkoutsWP.filter(w => w.status === 'completed')
   const linkedActivityIds = new Set(weekWorkoutsWP.map(w => w.icu_activity_id).filter((id): id is string => id != null))
@@ -492,10 +487,7 @@ export default function DashboardPage() {
     sessionsCompleted: completedWP.length,
     sessionsTotal: weekWorkoutsWP.length,
     tssActual: Math.round(completedWP.filter(w => w.tss !== null).reduce((s, w) => s + (w.tss ?? 0), 0)),
-    tssPlanned: weekWorkoutsWP.reduce((s, w) => {
-      const if_ = IF_VALS_WP[w.type] ?? 0.68
-      return s + Math.round((w.duration_minutes * 60 * if_ * if_) / 36)
-    }, 0),
+    tssPlanned: weekWorkoutsWP.reduce((s, w) => s + estimateTss(w.type, w.duration_minutes), 0),
     distanceKm: Math.round(completedWP.reduce((s, w) => s + ((w.activity_metrics?.distance_m ?? 0) / 1000), 0) * 10) / 10,
     elevationM: Math.round(completedWP.reduce((s, w) => s + (w.activity_metrics?.elevation_m ?? 0), 0)),
     timePlannedMins: weekWorkoutsWP.reduce((s, w) => s + w.duration_minutes, 0),
@@ -690,13 +682,9 @@ export default function DashboardPage() {
         <div className="flex items-baseline justify-between mb-0.5">
           <h2 className="text-lg font-bold tracking-tight text-gray-900">This week</h2>
           {(() => {
-            const IF_VALS: Record<string, number> = { recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90 }
             const weekWorkouts = workouts.filter(w => weekDates.includes(w.date))
             if (!weekWorkouts.length) return null
-            const plannedTss = weekWorkouts.reduce((sum, w) => {
-              const if_ = IF_VALS[w.type] ?? 0.68
-              return sum + Math.round((w.duration_minutes * 60 * if_ * if_) / 36)
-            }, 0)
+            const plannedTss = weekWorkouts.reduce((sum, w) => sum + estimateTss(w.type, w.duration_minutes), 0)
             const actualTss = weekWorkouts
               .filter(w => w.status === 'completed' && w.tss !== null)
               .reduce((sum, w) => sum + (w.tss ?? 0), 0)

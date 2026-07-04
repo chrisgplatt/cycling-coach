@@ -8,7 +8,7 @@ import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { computeDailyStrain, computeDailyActivityLoad, computeDailyLifeLoad } from '@/lib/strain'
 import { computeRecoveryScore } from '@/lib/recovery-score'
-import { resolveMaxHr } from '@/lib/max-hr'
+import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness, DailyWellness, GarminWellness } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -256,11 +256,7 @@ export async function GET(req: NextRequest) {
     (w): w is DailyWellness => (w as DailyWellness).date === today
   )
   const maxHrProfile = profile as { date_of_birth?: string | null; max_hr_manual?: number | null; observed_max_hr?: number | null } | null
-  const maxHr = resolveMaxHr({
-    manual: maxHrProfile?.max_hr_manual ?? null,
-    dateOfBirth: maxHrProfile?.date_of_birth ?? null,
-    observed: maxHrProfile?.observed_max_hr ?? null,
-  })?.value ?? null
+  const maxHr = resolveMaxHrFromProfile(maxHrProfile)?.value ?? null
 
   const recoveryResult = computeRecoveryScore({
     hrv,

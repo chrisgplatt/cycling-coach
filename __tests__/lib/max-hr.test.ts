@@ -1,4 +1,4 @@
-import { resolveMaxHr, batchMaxHeartRate, type MaxHrInputs } from '@/lib/max-hr'
+import { resolveMaxHr, resolveMaxHrFromProfile, batchMaxHeartRate, type MaxHrInputs } from '@/lib/max-hr'
 
 describe('resolveMaxHr', () => {
   it('manual override wins even when lower than both formula and observed', () => {
@@ -41,6 +41,23 @@ describe('resolveMaxHr', () => {
   it('returns null when manual, date of birth, and observed are all unset', () => {
     const inputs: MaxHrInputs = { manual: null, dateOfBirth: null, observed: null }
     expect(resolveMaxHr(inputs)).toBeNull()
+  })
+})
+
+describe('resolveMaxHrFromProfile', () => {
+  it('reads manual, date_of_birth, and observed_max_hr off a profile-shaped object', () => {
+    const result = resolveMaxHrFromProfile({ max_hr_manual: 175, date_of_birth: '1990-07-03', observed_max_hr: 190 })
+    expect(result).toEqual({ value: 175, source: 'manual' })
+  })
+
+  it('falls back correctly when fields are missing', () => {
+    const result = resolveMaxHrFromProfile({ date_of_birth: '1990-07-03' })
+    expect(result).toEqual({ value: 183, source: 'estimated' })
+  })
+
+  it('returns null for a null or undefined profile', () => {
+    expect(resolveMaxHrFromProfile(null)).toBeNull()
+    expect(resolveMaxHrFromProfile(undefined)).toBeNull()
   })
 })
 
