@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import type { GeneratedPlan } from '@/types'
 import AnimatedLogo from './AnimatedLogo'
+import { WORKOUT_TYPE_BADGE } from '@/lib/workout-colours'
 
 interface Props {
   plan: GeneratedPlan | null
@@ -14,12 +15,6 @@ interface Props {
 
 const PHASE_LABELS: Record<string, string> = {
   base: 'Base', build: 'Build', peak: 'Peak', taper: 'Taper',
-}
-const TYPE_COLOURS: Record<string, string> = {
-  endurance: 'bg-blue-100 text-blue-700',
-  threshold: 'bg-orange-100 text-orange-700',
-  intervals: 'bg-red-100 text-red-700',
-  recovery: 'bg-green-100 text-green-700',
 }
 
 export default function PlanReviewModal({
@@ -123,7 +118,7 @@ export default function PlanReviewModal({
                   className={`flex gap-4 items-center px-4 py-3 text-sm ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
                 >
                   <span className="text-slate-400 w-20 shrink-0 font-mono text-xs">{w.date}</span>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 capitalize ${TYPE_COLOURS[w.type] ?? 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 capitalize ${WORKOUT_TYPE_BADGE[w.type] ?? 'bg-slate-100 text-slate-600'}`}>
                     {w.type}
                   </span>
                   <span className="text-slate-400 text-xs shrink-0">{w.duration_minutes}m</span>

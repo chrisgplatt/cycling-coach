@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { Workout, ICUActivity, WorkoutType, SessionFeedback, TrainingEvent, RideStreams, WeightEntry, ActivityWeather } from '@/types'
+import type { Workout, ICUActivity, SessionFeedback, TrainingEvent, RideStreams, WeightEntry, ActivityWeather } from '@/types'
 import ActivityWeatherPanel from '@/components/ActivityWeatherPanel'
 import { weightAtDate } from '@/lib/weight-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
@@ -14,30 +14,8 @@ import PlannedVsActualList from './PlannedVsActualList'
 import { buildPlannedActual, type PlannedActual } from '@/lib/ride/planned-actual'
 import WorkoutFeedbackTab from './WorkoutFeedbackTab'
 import { deriveTargetZones } from '@/lib/claude/zones'
-
-const TYPE_COLOURS: Record<WorkoutType, string> = {
-  endurance: 'bg-blue-100 text-blue-700',
-  threshold: 'bg-orange-100 text-orange-700',
-  intervals: 'bg-red-100 text-red-700',
-  recovery:  'bg-emerald-100 text-emerald-700',
-  test:      'bg-violet-100 text-violet-700',
-}
-
-const IF_BY_TYPE: Record<WorkoutType, number> = {
-  recovery: 0.50, endurance: 0.68, threshold: 0.85, intervals: 0.90, test: 0.90,
-}
-
-const STATUS_CHIP: Partial<Record<string, string>> = {
-  completed:    'bg-emerald-100 text-emerald-700',
-  skipped:      'bg-red-100 text-red-600',
-  needs_review: 'bg-amber-100 text-amber-700',
-}
-
-const STATUS_LABEL: Partial<Record<string, string>> = {
-  completed:    '✓ Completed',
-  skipped:      'Missed',
-  needs_review: 'Needs review',
-}
+import { WORKOUT_TYPE_BADGE, WORKOUT_STATUS_BADGE, WORKOUT_STATUS_LABEL } from '@/lib/workout-colours'
+import { estimateTss } from '@/lib/estimate-tss'
 
 const MISSED_REASONS = ['Too tired', 'No time', 'Illness', 'Weather', 'Other']
 
@@ -343,12 +321,12 @@ export default function WorkoutDetailModal({
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${TYPE_COLOURS[workout.type]}`}>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${WORKOUT_TYPE_BADGE[workout.type]}`}>
                 {workout.type}
               </span>
-              {STATUS_CHIP[workout.status] && (
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_CHIP[workout.status]}`}>
-                  {STATUS_LABEL[workout.status]}
+              {WORKOUT_STATUS_BADGE[workout.status] && (
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${WORKOUT_STATUS_BADGE[workout.status]}`}>
+                  {WORKOUT_STATUS_LABEL[workout.status]}
                 </span>
               )}
               <span className="text-sm font-medium text-slate-500">
@@ -358,7 +336,7 @@ export default function WorkoutDetailModal({
               </span>
               {workout.status === 'completed' && workout.tss !== null ? (
                 <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
-                  ~{Math.round((workout.duration_minutes * 60 * (IF_BY_TYPE[workout.type] ?? 0.68) ** 2) / 36)} → {workout.tss} TSS
+                  ~{estimateTss(workout.type, workout.duration_minutes)} → {workout.tss} TSS
                 </span>
               ) : workout.tss !== null ? (
                 <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
