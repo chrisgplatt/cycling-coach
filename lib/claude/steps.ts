@@ -23,7 +23,7 @@ Return ONLY a JSON array of steps, no markdown:
 ]`
 
   const response = await anthropic.messages.create({
-    model: 'claude-opus-4-8',
+    model: MODEL,
     max_tokens: 512,
     system: 'You are a cycling coach. Always respond with ONLY valid JSON. No markdown, no text outside the JSON.',
     messages: [{ role: 'user', content: prompt }],

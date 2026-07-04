@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { anthropic } from '@/lib/claude/client'
+import { anthropic, MODEL } from '@/lib/claude/client'
 import { buildInterviewSystemPrompt } from '@/lib/claude/interview'
 import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   })
 
   const stream = await anthropic.messages.stream({
-    model: 'claude-opus-4-8',
+    model: MODEL,
     max_tokens: 2048,
     system: systemPrompt,
     messages: convo,

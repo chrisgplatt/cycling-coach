@@ -1,10 +1,10 @@
-import { anthropic } from './client'
+import { anthropic, MODEL } from './client'
 import { formatZones, formatSchedule, formatPlanCalendar, buildPromptWithPhilosophy } from './plan'
 import { coachingNotesGuidance } from './coaching-notes'
 import type { UserProfile, ICUActivity, ICUWellness, Workout, TrainingEvent, TrainingPhilosophy } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
-import { resolveMaxHr } from '@/lib/max-hr'
+import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 
 export { parsePlanText } from './plan'
 
@@ -97,11 +97,7 @@ export function buildReviewPrompt(
   trainingPhilosophy?: TrainingPhilosophy | null,
 ): string {
   const wPerKg = (profile.current_ftp / profile.weight_kg).toFixed(2)
-  const maxHr = resolveMaxHr({
-    manual: profile.max_hr_manual ?? null,
-    dateOfBirth: profile.date_of_birth ?? null,
-    observed: profile.observed_max_hr ?? null,
-  })
+  const maxHr = resolveMaxHrFromProfile(profile)
   const maxHrSegment = maxHr ? `, Max HR: ${maxHr.value}bpm` : ''
   const allEvents = [...(profile.events ?? [])].sort((a: TrainingEvent, b: TrainingEvent) =>
     a.date.localeCompare(b.date)
@@ -212,7 +208,7 @@ export function createReviewStream(
 ) {
   const prompt = buildReviewPrompt(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, dossierSection, hrvStatus, trainingPhilosophy)
   return anthropic.messages.stream({
-    model: 'claude-opus-4-8',
+    model: MODEL,
     max_tokens: 32000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],

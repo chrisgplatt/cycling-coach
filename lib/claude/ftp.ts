@@ -90,7 +90,7 @@ Return ONLY:
 }`
 
   const response = await anthropic.messages.create({
-    model: 'claude-opus-4-8',
+    model: MODEL,
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],

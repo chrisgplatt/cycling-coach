@@ -5,7 +5,7 @@ import { coachingNotesGuidance } from './coaching-notes'
 import type { UserProfile, ICUSyncData, GeneratedPlan, ICUActivity, ICUWellness, TrainingPhilosophy } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
-import { resolveMaxHr } from '@/lib/max-hr'
+import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 
 function summariseActivities(activities: ICUActivity[]): string {
   if (!activities.length) return 'No recent activities.'
@@ -17,11 +17,7 @@ function summariseActivities(activities: ICUActivity[]): string {
 
 function summariseWellness(profile: UserProfile, wellness: ICUWellness[], hrvStatus?: HrvStatus | null): string {
   const latest = wellness[wellness.length - 1]
-  const maxHr = resolveMaxHr({
-    manual: profile.max_hr_manual ?? null,
-    dateOfBirth: profile.date_of_birth ?? null,
-    observed: profile.observed_max_hr ?? null,
-  })
+  const maxHr = resolveMaxHrFromProfile(profile)
   if (!latest) {
     const noData = hrvStatus ? formatHrvForPrompt(hrvStatus) : 'No wellness data.'
     return maxHr ? `${noData}\nMax HR: ${maxHr.value}bpm` : noData
@@ -290,7 +286,7 @@ export function createPlanStream(
 ) {
   const prompt = buildPrompt(profile, syncData, weeks, startDate, notes, dossierSection, hrvStatus, trainingPhilosophy)
   return anthropic.messages.stream({
-    model: 'claude-opus-4-8',
+    model: MODEL,
     max_tokens: 32000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],

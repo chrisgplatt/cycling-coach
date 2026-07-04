@@ -1,4 +1,4 @@
-import { anthropic } from './client'
+import { anthropic, MODEL } from './client'
 import type { ProgressMetrics } from '@/types'
 
 interface ProgressBriefInput {
@@ -51,7 +51,7 @@ Return ONLY:
 {"content": "your 2-3 sentence summary here"}`
 
   const response = await anthropic.messages.create({
-    model: 'claude-opus-4-8',
+    model: MODEL,
     max_tokens: 256,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
