@@ -44,7 +44,7 @@ function computeSleepIndex(inputs: RecoveryInputs): number | null {
   return sub.reduce((a, b) => a + b, 0) / sub.length
 }
 
-function computeHrvIndex(inputs: RecoveryInputs): number | null {
+export function computeHrvIndex(inputs: { hrv: number | null; hrvBaseline: number | null }): number | null {
   const { hrv, hrvBaseline } = inputs
   if (hrv === null || hrvBaseline === null || hrvBaseline === 0) return null
   const ratio = hrv / hrvBaseline
@@ -54,7 +54,7 @@ function computeHrvIndex(inputs: RecoveryInputs): number | null {
   return lerp(0, 40, clamp01((ratio - 0.70) / 0.20))
 }
 
-function computeWellnessIndex(inputs: RecoveryInputs): number | null {
+export function computeWellnessIndex(inputs: { energy: number | null; leg_freshness: number | null }): number | null {
   const { energy, leg_freshness } = inputs
   const vals = [energy, leg_freshness].filter((v): v is number => v !== null)
   if (!vals.length) return null

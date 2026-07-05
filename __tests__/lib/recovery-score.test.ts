@@ -1,4 +1,4 @@
-import { computeRecoveryScore, type RecoveryInputs } from '@/lib/recovery-score'
+import { computeRecoveryScore, computeHrvIndex, computeWellnessIndex, type RecoveryInputs } from '@/lib/recovery-score'
 
 const ALL_DATA: RecoveryInputs = {
   hrv: 55,
@@ -107,5 +107,36 @@ describe('computeRecoveryScore', () => {
     })
     expect(r.explanation).toMatch(/HRV suppressed/)
     expect(r.explanation).toMatch(/short/)
+  })
+})
+
+describe('computeHrvIndex', () => {
+  it('returns null when hrv or baseline is missing', () => {
+    expect(computeHrvIndex({ hrv: null, hrvBaseline: 50 })).toBeNull()
+    expect(computeHrvIndex({ hrv: 50, hrvBaseline: null })).toBeNull()
+  })
+
+  it('returns 90 when hrv is well above baseline', () => {
+    expect(computeHrvIndex({ hrv: 60, hrvBaseline: 50 })).toBe(90) // ratio 1.2
+  })
+
+  it('returns 0 when hrv is well below baseline', () => {
+    expect(computeHrvIndex({ hrv: 30, hrvBaseline: 60 })).toBe(0) // ratio 0.5, clamped
+  })
+})
+
+describe('computeWellnessIndex', () => {
+  it('returns null when both energy and leg_freshness are missing', () => {
+    expect(computeWellnessIndex({ energy: null, leg_freshness: null })).toBeNull()
+  })
+
+  it('averages energy and leg_freshness on a 0-100 scale', () => {
+    // avg = (4+2)/2 = 3 -> (3-1)/4*100 = 50
+    expect(computeWellnessIndex({ energy: 4, leg_freshness: 2 })).toBe(50)
+  })
+
+  it('uses whichever single value is present', () => {
+    // energy=5 -> (5-1)/4*100=100
+    expect(computeWellnessIndex({ energy: 5, leg_freshness: null })).toBe(100)
   })
 })
