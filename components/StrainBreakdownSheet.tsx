@@ -1,10 +1,13 @@
 'use client'
 import { computeStrainComponents, strainLabel, STRAIN_WORKOUT_WEIGHT, STRAIN_LIFE_WEIGHT } from '@/lib/strain'
 import type { ICUWellness } from '@/types'
+import type { HrvStatus } from '@/lib/hrv/baseline'
 
 interface Props {
   wellness: ICUWellness
   activitySummary?: string
+  hrvStatus?: HrvStatus | null
+  todayDailyWellness?: { energy: number | null; leg_freshness: number | null } | null
   onClose: () => void
 }
 
@@ -14,23 +17,29 @@ const BAND_BG: Record<string, string> = {
   high: 'bg-red-500',
 }
 
-export default function StrainBreakdownSheet({ wellness, activitySummary, onClose }: Props) {
-  const c = computeStrainComponents(
-    wellness.garmin_training_load,
-    wellness.sleep_score,
-    wellness.body_battery_high,
-    wellness.sleep_secs,
-  )
-  if (!c) return null
-
-  const totalStrain = c.total
-  const label = strainLabel(totalStrain)
-
+export default function StrainBreakdownSheet({ wellness, activitySummary, hrvStatus, todayDailyWellness, onClose }: Props) {
   const batteryCharged = wellness.garmin_body_battery_charged ?? null
   const batteryDrained = wellness.garmin_body_battery_drained ?? null
   const batteryDrainFallback = (wellness.garmin_body_battery_current != null && wellness.body_battery_high != null)
     ? Math.max(0, wellness.body_battery_high - wellness.garmin_body_battery_current)
     : null
+  const drainForScore = batteryDrained ?? batteryDrainFallback
+
+  const c = computeStrainComponents(wellness.garmin_training_load, {
+    sleepScore: wellness.sleep_score,
+    bodyBatteryHigh: wellness.body_battery_high,
+    sleepSecs: wellness.sleep_secs,
+    hrv: hrvStatus?.today ?? null,
+    hrvBaseline: hrvStatus?.baselineMean ?? null,
+    energy: todayDailyWellness?.energy ?? null,
+    legFreshness: todayDailyWellness?.leg_freshness ?? null,
+    batteryDrained: drainForScore,
+  })
+  if (!c) return null
+
+  const totalStrain = c.total
+  const label = strainLabel(totalStrain)
+
   const trainingReadiness = wellness.garmin_training_readiness ?? null
   const recoveryTimeMins = wellness.garmin_recovery_time_mins ?? null
 
@@ -42,11 +51,19 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
   const d = 21
   const w  = (c.workoutPts          / d) * 100
   const sl = (c.sleepRawPts         / d) * 100
+  const hr = (c.hrvRawPts           / d) * 100
   const sd = (c.sleepDurationRawPts / d) * 100
+  const wl = (c.wellnessRawPts      / d) * 100
   const b  = (c.batteryRawPts       / d) * 100
-  const drainForDonut = batteryDrained ?? batteryDrainFallback
-  const dr = drainForDonut != null ? (Math.min(drainForDonut, 100) / 21) * 100 : 0
-  const donut = `conic-gradient(#3b82f6 0% ${w}%, #8b5cf6 ${w}% ${w+sl}%, #a78bfa ${w+sl}% ${w+sl+sd}%, #10b981 ${w+sl+sd}% ${w+sl+sd+b}%, #f97316 ${w+sl+sd+b}% ${Math.min(100, w+sl+sd+b+dr)}%, #e2e8f0 ${Math.min(100, w+sl+sd+b+dr)}% 100%)`
+  const dr = (c.drainRawPts         / d) * 100
+  const seg1 = w
+  const seg2 = seg1 + sl
+  const seg3 = seg2 + hr
+  const seg4 = seg3 + sd
+  const seg5 = seg4 + wl
+  const seg6 = seg5 + b
+  const seg7 = Math.min(100, seg6 + dr)
+  const donut = `conic-gradient(#3b82f6 0% ${seg1}%, #8b5cf6 ${seg1}% ${seg2}%, #6366f1 ${seg2}% ${seg3}%, #a78bfa ${seg3}% ${seg4}%, #14b8a6 ${seg4}% ${seg5}%, #10b981 ${seg5}% ${seg6}%, #f97316 ${seg6}% ${seg7}%, #e2e8f0 ${seg7}% 100%)`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -132,6 +149,17 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
                   <span className="text-xs text-gray-300">Sleep quality <em>not synced</em></span>
                 )}
               </div>
+              {/* HRV */}
+              <div className="flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.hrv != null && c.hrvBaseline != null ? 'bg-indigo-400' : 'bg-gray-200'}`} />
+                {c.hrv != null && c.hrvBaseline != null ? (
+                  <span className="text-xs text-gray-700">
+                    HRV <span className="text-gray-400">{Math.round(c.hrv)}ms (baseline {Math.round(c.hrvBaseline)}ms)</span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-300">HRV <em>not synced</em></span>
+                )}
+              </div>
               {/* Sleep duration */}
               <div className="flex items-center gap-2">
                 <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.sleepSecs != null ? 'bg-violet-300' : 'bg-gray-200'}`} />
@@ -158,6 +186,21 @@ export default function StrainBreakdownSheet({ wellness, activitySummary, onClos
                   </span>
                 </div>
               )}
+              {/* Subjective wellness */}
+              <div className="flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.energy != null || c.legFreshness != null ? 'bg-teal-400' : 'bg-gray-200'}`} />
+                {c.energy != null || c.legFreshness != null ? (
+                  <span className="text-xs text-gray-700">
+                    Subjective wellness <span className="text-gray-400">
+                      {c.energy != null && `Energy ${c.energy}/5`}
+                      {c.energy != null && c.legFreshness != null && ' · '}
+                      {c.legFreshness != null && `Legs ${c.legFreshness}/5`}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-300">Subjective wellness <em>not synced</em></span>
+                )}
+              </div>
               {/* Body battery peak */}
               <div className="flex items-center gap-2">
                 <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.bodyBatteryHigh != null ? 'bg-emerald-400' : 'bg-gray-200'}`} />
