@@ -376,6 +376,7 @@ export default function MetricsBar({
   onStrainTap,
   strainHistory,
   hrvStatus,
+  todayDailyWellness,
 }: {
   wellness: ICUWellness | null
   syncedAt?: Date | null
@@ -385,6 +386,7 @@ export default function MetricsBar({
   onStrainTap?: () => void
   strainHistory?: DailyStrainPoint[]
   hrvStatus?: HrvStatus | null
+  todayDailyWellness?: { energy: number | null; leg_freshness: number | null } | null
 }) {
   const [trendOpen, setTrendOpen] = useState(false)
   const [trendTab, setTrendTab] = useState<'1w' | '1m' | '3m'>('1w')
@@ -393,7 +395,16 @@ export default function MetricsBar({
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
   const formPositive = form !== null && form >= 0
-  const lifeLoad = computeDailyLifeLoad(wellness.sleep_score, wellness.body_battery_high, wellness.sleep_secs)
+  const lifeLoad = computeDailyLifeLoad({
+    sleepScore: wellness.sleep_score,
+    bodyBatteryHigh: wellness.body_battery_high,
+    sleepSecs: wellness.sleep_secs,
+    hrv: hrvStatus?.today ?? null,
+    hrvBaseline: hrvStatus?.baselineMean ?? null,
+    energy: todayDailyWellness?.energy ?? null,
+    legFreshness: todayDailyWellness?.leg_freshness ?? null,
+    batteryDrained: wellness.garmin_body_battery_drained ?? null,
+  })
   const dailyStrain = computeDailyStrain(wellness.garmin_training_load, lifeLoad)
   const strainCategory = dailyStrain !== null ? strainLabel(dailyStrain) : null
 
