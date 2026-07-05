@@ -458,6 +458,8 @@ export default function DashboardPage() {
         garmin_sleep_rem_secs: syncData?.garmin_today?.garmin_sleep_rem_secs ?? latestWellness.garmin_sleep_rem_secs,
         garmin_sleep_awake_secs: syncData?.garmin_today?.garmin_sleep_awake_secs ?? latestWellness.garmin_sleep_awake_secs,
         garmin_sleep_respiration_avg: syncData?.garmin_today?.garmin_sleep_respiration_avg ?? latestWellness.garmin_sleep_respiration_avg,
+        garmin_body_battery_drained: syncData?.garmin_today?.garmin_body_battery_drained ?? latestWellness.garmin_body_battery_drained,
+        garmin_body_battery_charged: syncData?.garmin_today?.garmin_body_battery_charged ?? latestWellness.garmin_body_battery_charged,
       }
     : null
   const todayActivities = (syncData?.activities ?? []).filter((a: ICUActivity) =>
