@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { isoWeekStart } from '@/lib/chart-helpers'
 import { mergeGarminIntoWellness } from '@/lib/garmin-wellness-merge'
+import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import type { ChartsData, WeeklyTss, RidePoint, DailyStrainPoint, ActivitySummary } from '@/types'
 import {
   computeDailyActivityLoad,
@@ -39,7 +40,7 @@ export async function GET() {
   )
 
   try {
-    const [rawWellness, activities, { data: garminHistory }] = await Promise.all([
+    const [rawWellness, activities, { data: garminHistory }, { data: dailyWellnessRows }] = await Promise.all([
       client.getWellness(oldest, newest),
       client.getActivities(oldest, newest),
       supabase
@@ -47,7 +48,14 @@ export async function GET() {
         .select('date, garmin_training_readiness, garmin_recovery_time_mins, garmin_training_status, garmin_body_battery_current, garmin_body_battery_charged, garmin_body_battery_drained, garmin_stress_avg, garmin_stress_max, garmin_hrv_overnight, garmin_hrv_status, garmin_resting_hr, garmin_sleep_deep_secs, garmin_sleep_light_secs, garmin_sleep_rem_secs, garmin_sleep_awake_secs, garmin_sleep_respiration_avg')
         .gte('date', oldest)
         .lte('date', newest),
+      supabase
+        .from('daily_wellness')
+        .select('date, energy, leg_freshness')
+        .eq('user_id', user.id)
+        .gte('date', oldest)
+        .lte('date', newest),
     ])
+    const dailyWellnessByDate = new Map((dailyWellnessRows ?? []).map(w => [w.date as string, w]))
     const garminByDate = new Map((garminHistory ?? []).map(g => [g.date as string, g]))
     // Garmin sleep stages, HRV overnight, and training readiness live only in garmin_wellness —
     // intervals.icu's wellness endpoint never returns them (lib/intervals/client.ts getWellness()).
@@ -89,14 +97,23 @@ export async function GET() {
     const dailyStrain: DailyStrainPoint[] = wellness
       .map((w): DailyStrainPoint | null => {
         const activityLoad = computeDailyActivityLoad(activities, w.id, ftp)
-        const components = computeStrainComponents(
-          activityLoad > 0 ? activityLoad : null,
-          w.sleep_score,
-          w.body_battery_high,
-          w.sleep_secs,
-        )
-        if (!components) return null
         const g = garminByDate.get(w.id)
+        // True rolling baseline per historical day — computeHrvBaseline already
+        // accepts an `asOf` date, so this is as accurate as a live baseline lookup,
+        // not an approximation.
+        const dayHrvStatus = computeHrvBaseline(rawWellness, { asOf: w.id })
+        const dw = dailyWellnessByDate.get(w.id)
+        const components = computeStrainComponents(activityLoad > 0 ? activityLoad : null, {
+          sleepScore: w.sleep_score,
+          bodyBatteryHigh: w.body_battery_high,
+          sleepSecs: w.sleep_secs,
+          hrv: dayHrvStatus.today,
+          hrvBaseline: dayHrvStatus.baselineMean,
+          energy: dw?.energy ?? null,
+          legFreshness: dw?.leg_freshness ?? null,
+          batteryDrained: g?.garmin_body_battery_drained ?? null,
+        })
+        if (!components) return null
         return {
           date: w.id,
           workout: components.workoutPts,
