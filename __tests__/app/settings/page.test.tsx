@@ -115,6 +115,17 @@ describe('Account page', () => {
     })
   })
 
+  it('shows a "Saved." confirmation in the section just saved', async () => {
+    render(<SettingsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /edit personal details/i }))
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
+    fireEvent.click(screen.getByRole('button', { name: /save personal details/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Saved.')).toBeInTheDocument()
+    })
+  })
+
   it('renders Rider personal details as the first section, above intervals.icu', () => {
     render(<SettingsPage />)
     const headings = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)

@@ -35,7 +35,7 @@ export default function SettingsPage() {
   const [savedNotifTime, setSavedNotifTime] = useState('07:00')
   const [savedTimezone, setSavedTimezone] = useState('Europe/London')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [savedSection, setSavedSection] = useState<'name' | 'icu' | 'briefing' | 'location' | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -117,7 +117,7 @@ export default function SettingsPage() {
       .catch(() => {})
   }, [])
 
-  async function save(): Promise<boolean> {
+  async function save(section: 'name' | 'icu' | 'briefing' | 'location'): Promise<boolean> {
     setSaving(true)
     setSaveError(null)
     try {
@@ -146,8 +146,8 @@ export default function SettingsPage() {
         setSavedLocationLabel(locationLabel)
         setSavedLatitude(latitude)
         setSavedLongitude(longitude)
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
+        setSavedSection(section)
+        setTimeout(() => setSavedSection(null), 2000)
         return true
       }
     } catch {
@@ -446,6 +446,7 @@ export default function SettingsPage() {
         savedMaxHrManual={savedMaxHrManual}
         observedMaxHr={observedMaxHr}
         saving={saving}
+        saved={savedSection === 'name'}
         labelClass={labelClass}
         inputClass={inputClass}
         onFullNameChange={setFullName}
@@ -453,7 +454,7 @@ export default function SettingsPage() {
         onMaxHrManualChange={setMaxHrManual}
         onStartEditing={() => setEditingName(true)}
         onCancelEditing={() => { setFullName(savedFullName); setDob(savedDob); setMaxHrManual(savedMaxHrManual); setEditingName(false); setSaveError(null) }}
-        onSave={async () => { const ok = await save(); if (ok) setEditingName(false) }}
+        onSave={async () => { const ok = await save('name'); if (ok) setEditingName(false) }}
       />
 
       {/* intervals.icu */}
@@ -462,12 +463,13 @@ export default function SettingsPage() {
         athleteId={athleteId}
         apiKey={apiKey}
         saving={saving}
+        saved={savedSection === 'icu'}
         inputClass={inputClass}
         onAthleteIdChange={setAthleteId}
         onApiKeyChange={setApiKey}
         onStartEditing={() => setEditingIcu(true)}
         onCancelEditing={() => { setAthleteId(savedAthleteId); setApiKey(savedApiKey); setEditingIcu(false); setSaveError(null) }}
-        onSave={async () => { const ok = await save(); if (ok) setEditingIcu(false) }}
+        onSave={async () => { const ok = await save('icu'); if (ok) setEditingIcu(false) }}
       />
 
       {/* Garmin Connect */}
@@ -508,13 +510,14 @@ export default function SettingsPage() {
         testSending={testSending}
         testResult={testResult}
         saving={saving}
+        saved={savedSection === 'briefing'}
         labelClass={labelClass}
         inputClass={inputClass}
         onNotifTimeChange={setNotifTime}
         onTimezoneChange={setTimezone}
         onStartEditing={() => setEditingBriefing(true)}
         onCancelEditing={() => { setNotifTime(savedNotifTime); setTimezone(savedTimezone); setEditingBriefing(false); setSaveError(null) }}
-        onSave={async () => { const ok = await save(); if (ok) setEditingBriefing(false) }}
+        onSave={async () => { const ok = await save('briefing'); if (ok) setEditingBriefing(false) }}
         onToggleNotifications={toggleNotifications}
         onSendTestNotification={sendTestNotification}
         cronTesting={cronTesting}
@@ -542,11 +545,12 @@ export default function SettingsPage() {
         geoMatches={geoMatches}
         geoSearching={geoSearching}
         saving={saving}
+        saved={savedSection === 'location'}
         inputClass={inputClass}
         onLocationQueryChange={setLocationQuery}
         onStartEditing={() => setEditingLocation(true)}
         onCancelEditing={() => { setLocationLabel(savedLocationLabel); setLatitude(savedLatitude); setLongitude(savedLongitude); setGeoMatches(null); setLocationQuery(''); setEditingLocation(false); setSaveError(null) }}
-        onSave={async () => { const ok = await save(); if (ok) { setEditingLocation(false); setGeoMatches(null); setLocationQuery('') } }}
+        onSave={async () => { const ok = await save('location'); if (ok) { setEditingLocation(false); setGeoMatches(null); setLocationQuery('') } }}
         onSearchLocation={searchLocation}
         onSelectLocation={selectLocation}
         onClearLocation={clearLocation}

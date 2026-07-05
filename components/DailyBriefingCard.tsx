@@ -23,6 +23,7 @@ interface Props {
   testSending: boolean
   testResult: ActionResult
   saving: boolean
+  saved: boolean
   labelClass: string
   inputClass: string
   onNotifTimeChange: (value: string) => void
@@ -50,7 +51,7 @@ interface Props {
 
 export default function DailyBriefingCard({
   editingBriefing, notifTime, timezone, notificationsEnabled, isAdmin, notifWorking, notifError,
-  testSending, testResult, saving, labelClass, inputClass,
+  testSending, testResult, saving, saved, labelClass, inputClass,
   onNotifTimeChange, onTimezoneChange, onStartEditing, onCancelEditing, onSave,
   onToggleNotifications, onSendTestNotification,
   cronTesting, cronTestLogs, onRunCronTest,
@@ -80,6 +81,9 @@ export default function DailyBriefingCard({
           <button onClick={onStartEditing} aria-label="Edit briefing settings" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
         )}
       </div>
+      {saved && (
+        <p className="text-xs text-emerald-600 font-medium">Saved.</p>
+      )}
       {editingBriefing ? (
         <div className="space-y-3">
           <div>

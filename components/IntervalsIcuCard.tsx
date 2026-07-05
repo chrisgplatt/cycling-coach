@@ -3,6 +3,7 @@ interface Props {
   athleteId: string
   apiKey: string
   saving: boolean
+  saved: boolean
   inputClass: string
   onAthleteIdChange: (value: string) => void
   onApiKeyChange: (value: string) => void
@@ -12,7 +13,7 @@ interface Props {
 }
 
 export default function IntervalsIcuCard({
-  editingIcu, athleteId, apiKey, saving, inputClass,
+  editingIcu, athleteId, apiKey, saving, saved, inputClass,
   onAthleteIdChange, onApiKeyChange, onStartEditing, onCancelEditing, onSave,
 }: Props) {
   return (
@@ -37,6 +38,9 @@ export default function IntervalsIcuCard({
           <button onClick={onStartEditing} aria-label="Edit intervals.icu settings" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
         )}
       </div>
+      {saved && (
+        <p className="text-xs text-emerald-600 font-medium">Saved.</p>
+      )}
       {editingIcu ? (
         <div className="space-y-3">
           <input

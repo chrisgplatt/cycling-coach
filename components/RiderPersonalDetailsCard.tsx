@@ -16,6 +16,7 @@ interface Props {
   savedMaxHrManual: string
   observedMaxHr: number | null
   saving: boolean
+  saved: boolean
   labelClass: string
   inputClass: string
   onFullNameChange: (value: string) => void
@@ -27,7 +28,7 @@ interface Props {
 }
 
 export default function RiderPersonalDetailsCard({
-  editingName, fullName, dob, maxHrManual, savedDob, savedMaxHrManual, observedMaxHr, saving,
+  editingName, fullName, dob, maxHrManual, savedDob, savedMaxHrManual, observedMaxHr, saving, saved,
   labelClass, inputClass, onFullNameChange, onDobChange, onMaxHrManualChange,
   onStartEditing, onCancelEditing, onSave,
 }: Props) {
@@ -53,6 +54,9 @@ export default function RiderPersonalDetailsCard({
           <button onClick={onStartEditing} aria-label="Edit personal details" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
         )}
       </div>
+      {saved && (
+        <p className="text-xs text-emerald-600 font-medium">Saved.</p>
+      )}
       {editingName ? (
         <div className="space-y-3">
           <div>

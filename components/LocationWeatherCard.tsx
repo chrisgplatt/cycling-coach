@@ -12,6 +12,7 @@ interface Props {
   geoMatches: GeoMatch[] | null
   geoSearching: boolean
   saving: boolean
+  saved: boolean
   inputClass: string
   onLocationQueryChange: (value: string) => void
   onStartEditing: () => void
@@ -24,7 +25,7 @@ interface Props {
 
 export default function LocationWeatherCard({
   editingLocation, locationLabel, savedLocationLabel, locationQuery, geoMatches, geoSearching,
-  saving, inputClass, onLocationQueryChange, onStartEditing, onCancelEditing, onSave,
+  saving, saved, inputClass, onLocationQueryChange, onStartEditing, onCancelEditing, onSave,
   onSearchLocation, onSelectLocation, onClearLocation,
 }: Props) {
   return (
@@ -49,6 +50,9 @@ export default function LocationWeatherCard({
           <button onClick={onStartEditing} aria-label="Edit location" className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Edit</button>
         )}
       </div>
+      {saved && (
+        <p className="text-xs text-emerald-600 font-medium">Saved.</p>
+      )}
       {editingLocation ? (
         <>
           <p className="text-xs text-slate-500 leading-relaxed">
