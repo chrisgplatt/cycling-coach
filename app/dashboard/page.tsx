@@ -661,6 +661,7 @@ export default function DashboardPage() {
             onStrainTap={() => setStrainSheetOpen(true)}
             strainHistory={chartsData?.dailyStrain}
             hrvStatus={hrvStatus}
+            todayDailyWellness={todayDailyWellnessForCard}
           />
           <HrvStatusChip embedded />
           <CtlTrendStrip embedded chartsData={chartsData} />
@@ -951,6 +952,8 @@ export default function DashboardPage() {
         <StrainBreakdownSheet
           wellness={latestWellnessWithLoad}
           activitySummary={activitySummary}
+          hrvStatus={hrvStatus}
+          todayDailyWellness={todayDailyWellnessForCard}
           onClose={() => setStrainSheetOpen(false)}
         />
       )}
