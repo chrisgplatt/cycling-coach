@@ -92,6 +92,8 @@ export async function GET(req: NextRequest) {
   let recentWorkouts: BriefingContext['recentWorkouts'] = []
   let dailyStrain: number | null = null
   let strainHistory: Array<{ date: string; strain: number | null }> = []
+  let strainWellness: ICUWellness[] = []
+  let strainActivities: ICUActivity[] = []
 
   if (profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key) {
     const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
@@ -101,29 +103,14 @@ export async function GET(req: NextRequest) {
         client.getWellness(sevenDaysAgo, today),
         client.getActivities(sevenDaysAgo, today),
       ])
+      strainWellness = wellness
+      strainActivities = activities
       const latest: ICUWellness | undefined = wellness.at(-1)
       ctl = latest?.ctl ?? null
       atl = latest?.atl ?? null
       tsb = latest?.form ?? (ctl !== null && atl !== null ? ctl - atl : null)
       hrv = latest?.hrv ?? null
       bodyBatteryHigh = latest?.body_battery_high ?? null
-      const todayLoad = computeDailyActivityLoad(activities, today)
-      const todayLifeLoad = computeDailyLifeLoad(
-        latest?.sleep_score ?? null,
-        latest?.body_battery_high ?? null,
-        latest?.sleep_secs ?? null,
-      )
-      dailyStrain = computeDailyStrain(
-        todayLoad > 0 ? todayLoad : null,
-        todayLifeLoad,
-      )
-      strainHistory = wellness.map(w => ({
-        date: w.id,
-        strain: computeDailyStrain(
-          computeDailyActivityLoad(activities, w.id) || null,
-          computeDailyLifeLoad(w.sleep_score, w.body_battery_high, w.sleep_secs),
-        ),
-      }))
       recentWorkouts = activities
         .filter((a: ICUActivity) => /ride/i.test(a.type))
         .sort((a: ICUActivity, b: ICUActivity) => b.start_date_local.localeCompare(a.start_date_local))
@@ -229,7 +216,8 @@ export async function GET(req: NextRequest) {
   }
 
   const twoDaysAgo = new Date(Date.now() - 2 * 864e5).toISOString().split('T')[0]
-  const [{ data: wellnessRows }, { data: garminRow }] = await Promise.all([
+  const sevenDaysAgoForStrain = new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0]
+  const [{ data: wellnessRows }, { data: garminRow }, { data: strainWellnessRows }, { data: strainGarminRows }] = await Promise.all([
     supabase
       .from('daily_wellness')
       .select('*')
@@ -243,7 +231,21 @@ export async function GET(req: NextRequest) {
       .eq('user_id', user.id)
       .eq('date', today)
       .maybeSingle(),
+    supabase
+      .from('daily_wellness')
+      .select('date, energy, leg_freshness')
+      .eq('user_id', user.id)
+      .gte('date', sevenDaysAgoForStrain)
+      .lte('date', today),
+    supabase
+      .from('garmin_wellness')
+      .select('date, garmin_body_battery_drained')
+      .eq('user_id', user.id)
+      .gte('date', sevenDaysAgoForStrain)
+      .lte('date', today),
   ])
+  const strainWellnessByDate = new Map((strainWellnessRows ?? []).map(w => [w.date as string, w]))
+  const strainDrainByDate = new Map((strainGarminRows ?? []).map(g => [g.date as string, g.garmin_body_battery_drained as number | null]))
   const todayGarmin = garminRow as Pick<GarminWellness,
     | 'garmin_training_readiness' | 'garmin_recovery_time_mins' | 'garmin_training_status'
     | 'garmin_body_battery_current' | 'garmin_body_battery_charged' | 'garmin_body_battery_drained'
@@ -257,6 +259,44 @@ export async function GET(req: NextRequest) {
   )
   const maxHrProfile = profile as { date_of_birth?: string | null; max_hr_manual?: number | null; observed_max_hr?: number | null } | null
   const maxHr = resolveMaxHrFromProfile(maxHrProfile)?.value ?? null
+
+  // Daily Strain — computed here (not in the ICU block above) since it needs
+  // hrvStatus, subjective wellness, and Garmin battery drain, all fetched above.
+  if (strainWellness.length > 0 || strainActivities.length > 0) {
+    const latestStrainWellness: ICUWellness | undefined = strainWellness.at(-1)
+    const todayLoad = computeDailyActivityLoad(strainActivities, today)
+    const todayStrainDw = strainWellnessByDate.get(today)
+    const todayLifeLoad = computeDailyLifeLoad({
+      sleepScore: latestStrainWellness?.sleep_score ?? null,
+      bodyBatteryHigh: latestStrainWellness?.body_battery_high ?? null,
+      sleepSecs: latestStrainWellness?.sleep_secs ?? null,
+      hrv,
+      hrvBaseline: hrvStatus?.baselineMean ?? null,
+      energy: todayStrainDw?.energy ?? null,
+      legFreshness: todayStrainDw?.leg_freshness ?? null,
+      batteryDrained: todayGarmin?.garmin_body_battery_drained ?? null,
+    })
+    dailyStrain = computeDailyStrain(todayLoad > 0 ? todayLoad : null, todayLifeLoad)
+    strainHistory = strainWellness.map(w => {
+      const dw = strainWellnessByDate.get(w.id)
+      return {
+        date: w.id,
+        strain: computeDailyStrain(
+          computeDailyActivityLoad(strainActivities, w.id) || null,
+          computeDailyLifeLoad({
+            sleepScore: w.sleep_score,
+            bodyBatteryHigh: w.body_battery_high,
+            sleepSecs: w.sleep_secs,
+            hrv: w.hrv,
+            hrvBaseline: hrvStatus?.baselineMean ?? null,
+            energy: dw?.energy ?? null,
+            legFreshness: dw?.leg_freshness ?? null,
+            batteryDrained: strainDrainByDate.get(w.id) ?? null,
+          }),
+        ),
+      }
+    })
+  }
 
   const recoveryResult = computeRecoveryScore({
     hrv,
