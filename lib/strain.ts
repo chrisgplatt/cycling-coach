@@ -1,3 +1,5 @@
+import { computeHrvIndex, computeWellnessIndex } from '@/lib/recovery-score'
+
 export const STRAIN_TRAINING_LOAD_MAX = 150
 export const STRAIN_NONPOWER_LOAD_MAX = 50 // ceiling for walks, runs, HR-only activities
 export const STRAIN_WORKOUT_WEIGHT = 14
@@ -6,6 +8,9 @@ export const STRAIN_LIFE_WEIGHT = 7
 export const STRAIN_SLEEP_WEIGHT = 2.0
 export const STRAIN_BATTERY_WEIGHT = 1.5
 export const STRAIN_SLEEP_DURATION_WEIGHT = 1.0
+export const STRAIN_HRV_WEIGHT = 2.0
+export const STRAIN_WELLNESS_WEIGHT = 1.0
+export const STRAIN_DRAIN_WEIGHT = 1.0
 export const STRAIN_SLEEP_DURATION_TARGET_SECS = 27000 // 7.5h = no penalty
 export const STRAIN_SLEEP_DURATION_MIN_SECS = 18000 // 5h = max penalty
 
@@ -44,64 +49,46 @@ export function computeDailyActivityLoad(
     }, 0)
 }
 
-// Compute the life component of daily strain (0–7) from Garmin wellness signals.
-// Signals are combined using a weighted-average blending: each present signal
-// contributes its raw points and its weight to the denominator; absent signals are
-// excluded rather than counted as zero, so a missing value doesn't drag the score.
-// bodyBatteryHigh is the post-sleep peak (not the midnight trough before it) so
-// the score reflects true recovery state.
-// batteryDrain (BodyBatteryMax - BodyBatteryMin) is an optional fourth signal
-// representing in-day cardiovascular drain; only used when the reading is from a
-// post-8am live poll (caller's responsibility to enforce).
-export function computeDailyLifeLoad(
-  sleepScore: number | null,
-  bodyBatteryHigh: number | null,
-  sleepSecs: number | null = null,
-): number | null {
-  if (sleepScore == null && bodyBatteryHigh == null && sleepSecs == null) return null
-  let rawScore = 0
-  let availableWeight = 0
-  if (sleepScore != null) {
-    rawScore += ((100 - sleepScore) / 100) * STRAIN_SLEEP_WEIGHT
-    availableWeight += STRAIN_SLEEP_WEIGHT
-  }
-  if (sleepSecs != null) {
-    rawScore += ((100 - sleepDurationScore(sleepSecs)) / 100) * STRAIN_SLEEP_DURATION_WEIGHT
-    availableWeight += STRAIN_SLEEP_DURATION_WEIGHT
-  }
-  if (bodyBatteryHigh != null) {
-    rawScore += ((100 - bodyBatteryHigh) / 100) * STRAIN_BATTERY_WEIGHT
-    availableWeight += STRAIN_BATTERY_WEIGHT
-  }
-  return availableWeight > 0 ? (rawScore / availableWeight) * STRAIN_LIFE_WEIGHT : null
+export interface LifeLoadInputs {
+  sleepScore: number | null
+  bodyBatteryHigh: number | null
+  sleepSecs?: number | null
+  hrv?: number | null
+  hrvBaseline?: number | null
+  energy?: number | null
+  legFreshness?: number | null
+  batteryDrained?: number | null
 }
 
-export interface StrainComponents {
-  total: number             // final strain score 0–21
-  workoutPts: number
-  workoutLoad: number
-  lifePts: number
-  sleepRawPts: number       // un-normalised sleep quality pts (for donut)
+interface LifeLoadParts {
+  sleepRawPts: number
   sleepDurationRawPts: number
   batteryRawPts: number
-  sleepScore: number | null
-  sleepSecs: number | null
-  bodyBatteryHigh: number | null  // daily peak battery (post-sleep), not the midnight trough
+  hrvRawPts: number
+  wellnessRawPts: number
+  drainRawPts: number
+  availableWeight: number
 }
 
-export function computeStrainComponents(
-  activityLoad: number | null,
-  sleepScore: number | null,
-  bodyBatteryHigh: number | null,
-  sleepSecs: number | null = null,
-): StrainComponents | null {
-  if (activityLoad == null && sleepScore == null && bodyBatteryHigh == null && sleepSecs == null) return null
-  const load = activityLoad ?? 0
-  const workoutPts = Math.min(STRAIN_WORKOUT_WEIGHT, (load / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT)
+// Blends every present life-load signal into raw (un-normalised) points plus the
+// total weight of signals actually available. Signals are combined using a
+// weighted-average blend: each present signal contributes its raw points and its
+// weight to the denominator; absent signals are excluded rather than counted as
+// zero, so a missing value doesn't drag the score.
+function computeLifeLoadParts(inputs: LifeLoadInputs): LifeLoadParts {
+  const {
+    sleepScore, bodyBatteryHigh, sleepSecs = null,
+    hrv = null, hrvBaseline = null, energy = null, legFreshness = null, batteryDrained = null,
+  } = inputs
+
   let sleepRawPts = 0
   let sleepDurationRawPts = 0
   let batteryRawPts = 0
+  let hrvRawPts = 0
+  let wellnessRawPts = 0
+  let drainRawPts = 0
   let availableWeight = 0
+
   if (sleepScore != null) {
     sleepRawPts = ((100 - sleepScore) / 100) * STRAIN_SLEEP_WEIGHT
     availableWeight += STRAIN_SLEEP_WEIGHT
@@ -114,13 +101,85 @@ export function computeStrainComponents(
     batteryRawPts = ((100 - bodyBatteryHigh) / 100) * STRAIN_BATTERY_WEIGHT
     availableWeight += STRAIN_BATTERY_WEIGHT
   }
-  const rawLife = sleepRawPts + sleepDurationRawPts + batteryRawPts
-  const lifePts = availableWeight > 0 ? (rawLife / availableWeight) * STRAIN_LIFE_WEIGHT : 0
+  const hrvGoodness = computeHrvIndex({ hrv, hrvBaseline })
+  if (hrvGoodness != null) {
+    hrvRawPts = ((100 - hrvGoodness) / 100) * STRAIN_HRV_WEIGHT
+    availableWeight += STRAIN_HRV_WEIGHT
+  }
+  const wellnessGoodness = computeWellnessIndex({ energy, leg_freshness: legFreshness })
+  if (wellnessGoodness != null) {
+    wellnessRawPts = ((100 - wellnessGoodness) / 100) * STRAIN_WELLNESS_WEIGHT
+    availableWeight += STRAIN_WELLNESS_WEIGHT
+  }
+  if (batteryDrained != null) {
+    drainRawPts = (Math.max(0, Math.min(100, batteryDrained)) / 100) * STRAIN_DRAIN_WEIGHT
+    availableWeight += STRAIN_DRAIN_WEIGHT
+  }
+
+  return { sleepRawPts, sleepDurationRawPts, batteryRawPts, hrvRawPts, wellnessRawPts, drainRawPts, availableWeight }
+}
+
+export function computeDailyLifeLoad(inputs: LifeLoadInputs): number | null {
+  const { sleepScore, bodyBatteryHigh, sleepSecs = null, hrv = null, energy = null, legFreshness = null, batteryDrained = null } = inputs
+  if (sleepScore == null && bodyBatteryHigh == null && sleepSecs == null
+    && hrv == null && energy == null && legFreshness == null && batteryDrained == null) return null
+  const parts = computeLifeLoadParts(inputs)
+  const rawLife = parts.sleepRawPts + parts.sleepDurationRawPts + parts.batteryRawPts
+    + parts.hrvRawPts + parts.wellnessRawPts + parts.drainRawPts
+  return parts.availableWeight > 0 ? (rawLife / parts.availableWeight) * STRAIN_LIFE_WEIGHT : null
+}
+
+export interface StrainComponents {
+  total: number             // final strain score 0–21
+  workoutPts: number
+  workoutLoad: number
+  lifePts: number
+  sleepRawPts: number       // un-normalised sleep quality pts (for donut)
+  sleepDurationRawPts: number
+  batteryRawPts: number
+  hrvRawPts: number
+  wellnessRawPts: number
+  drainRawPts: number
+  sleepScore: number | null
+  sleepSecs: number | null
+  bodyBatteryHigh: number | null  // daily peak battery (post-sleep), not the midnight trough
+  hrv: number | null
+  hrvBaseline: number | null
+  energy: number | null
+  legFreshness: number | null
+  batteryDrained: number | null
+}
+
+export function computeStrainComponents(
+  activityLoad: number | null,
+  inputs: LifeLoadInputs,
+): StrainComponents | null {
+  const {
+    sleepScore, bodyBatteryHigh, sleepSecs = null,
+    hrv = null, hrvBaseline = null, energy = null, legFreshness = null, batteryDrained = null,
+  } = inputs
+  if (activityLoad == null && sleepScore == null && bodyBatteryHigh == null && sleepSecs == null
+    && hrv == null && energy == null && legFreshness == null && batteryDrained == null) return null
+
+  const load = activityLoad ?? 0
+  const workoutPts = Math.min(STRAIN_WORKOUT_WEIGHT, (load / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT)
+
+  const parts = computeLifeLoadParts(inputs)
+  const rawLife = parts.sleepRawPts + parts.sleepDurationRawPts + parts.batteryRawPts
+    + parts.hrvRawPts + parts.wellnessRawPts + parts.drainRawPts
+  const lifePts = parts.availableWeight > 0 ? (rawLife / parts.availableWeight) * STRAIN_LIFE_WEIGHT : 0
   const total = Math.min(21, Math.round(workoutPts + lifePts))
+
   return {
     total, workoutPts, workoutLoad: load, lifePts,
-    sleepRawPts, sleepDurationRawPts, batteryRawPts,
+    sleepRawPts: parts.sleepRawPts,
+    sleepDurationRawPts: parts.sleepDurationRawPts,
+    batteryRawPts: parts.batteryRawPts,
+    hrvRawPts: parts.hrvRawPts,
+    wellnessRawPts: parts.wellnessRawPts,
+    drainRawPts: parts.drainRawPts,
     sleepScore, sleepSecs, bodyBatteryHigh,
+    hrv, hrvBaseline, energy, legFreshness, batteryDrained,
   }
 }
 
