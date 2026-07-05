@@ -9,6 +9,7 @@ import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { buildCoachContext } from './coach-memory'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
+import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
 
 export const INTERVIEW_COMPLETE_MARKER = '__INTERVIEW_COMPLETE__'
 
@@ -63,14 +64,8 @@ export function buildInterviewSystemPrompt(
   const weekday = weekdayName(today)
   const wPerKg = (currentFTP / (profile.weight_kg || 70)).toFixed(2)
 
-  const tsb = wellness?.form ?? (
-    wellness?.ctl != null && wellness?.atl != null ? wellness.ctl - wellness.atl : null
-  )
   const maxHr = resolveMaxHrFromProfile(profile)
-  const maxHrSegment = maxHr ? `, Max HR: ${maxHr.value}bpm` : ''
-  const fitnessSection = (wellness
-    ? `CTL: ${wellness.ctl ?? '?'} TSS/day, ATL: ${wellness.atl ?? '?'} TSS/day, Form (TSB): ${tsb != null ? Math.round(tsb) : '?'}, HRV: ${wellness.hrv ?? '?'} ms, Resting HR: ${wellness.resting_hr ?? '?'} bpm${maxHrSegment}`
-    : (maxHr ? `No fitness data available.\nMax HR: ${maxHr.value}bpm` : 'No fitness data available.'))
+  const fitnessSection = buildAthleteStateLine(wellness, maxHr?.value ?? null)
     + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   const events = (profile.events ?? []) as TrainingEvent[]

@@ -5,6 +5,7 @@ import type { UserProfile, ICUActivity, ICUWellness, Workout, TrainingEvent, Tra
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
+import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
 
 export { parsePlanText } from './plan'
 
@@ -98,7 +99,6 @@ export function buildReviewPrompt(
 ): string {
   const wPerKg = (profile.current_ftp / profile.weight_kg).toFixed(2)
   const maxHr = resolveMaxHrFromProfile(profile)
-  const maxHrSegment = maxHr ? `, Max HR: ${maxHr.value}bpm` : ''
   const allEvents = [...(profile.events ?? [])].sort((a: TrainingEvent, b: TrainingEvent) =>
     a.date.localeCompare(b.date)
   )
@@ -109,6 +109,8 @@ export function buildReviewPrompt(
   const lastDate = sortedRemaining.length ? sortedRemaining[sortedRemaining.length - 1].date : today
   const plannedDates = new Set(lastWeekWorkouts.map(w => w.date))
   const latestWellness = wellness[wellness.length - 1]
+  const athleteStateSection = buildAthleteStateLine(latestWellness ?? null, maxHr?.value ?? null)
+    + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   // Total actual TSS from last week's activities (planned + unplanned)
   const lastWeekActivities = recentActivities.filter(a => {
@@ -138,9 +140,7 @@ ${allEvents.length
     : 'None'}
 ${eventResultsSection ? '\n' + eventResultsSection : ''}
 CURRENT ATHLETE STATE:
-${latestWellness
-  ? `CTL: ${latestWellness.ctl ?? '?'} TSS/day (fitness), ATL: ${latestWellness.atl ?? '?'} TSS/day (fatigue), Form (TSB): ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'} ms, Resting HR: ${latestWellness.resting_hr ?? '?'} bpm${maxHrSegment}`
-  : (maxHr ? `No wellness data.\nMax HR: ${maxHr.value}bpm` : 'No wellness data.')}${hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : ''}
+${athleteStateSection}
 Last week's actual total TSS (all rides): ${actualWeeklyTSS || 'unknown'}
 ${trainingPhilosophy ? '\n' + buildPromptWithPhilosophy(trainingPhilosophy) + '\n' : ''}
 WELLNESS TREND — LAST 14 DAYS:

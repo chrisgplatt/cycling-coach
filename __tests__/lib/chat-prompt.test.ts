@@ -86,6 +86,11 @@ describe('buildChatSystemPrompt', () => {
     expect(() => buildChatSystemPrompt(null, [], null, 200, [])).not.toThrow()
   })
 
+  it('includes units and Resting HR in the athlete state line', () => {
+    const p = buildChatSystemPrompt(plan, upcoming, wellness, 240, events)
+    expect(p).toContain('CTL: 65 TSS/day (fitness), ATL: 70 TSS/day (fatigue), Form (TSB): -5, HRV: 50 ms, Resting HR: 48 bpm')
+  })
+
   it('includes a recent rides block with metrics and execution', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = buildChatSystemPrompt(plan, upcoming, wellness, 240, events, '', recentRides as any)

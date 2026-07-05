@@ -6,6 +6,7 @@ import type { UserProfile, ICUSyncData, GeneratedPlan, ICUActivity, ICUWellness,
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
+import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
 
 function summariseActivities(activities: ICUActivity[]): string {
   if (!activities.length) return 'No recent activities.'
@@ -22,8 +23,7 @@ function summariseWellness(profile: UserProfile, wellness: ICUWellness[], hrvSta
     const noData = hrvStatus ? formatHrvForPrompt(hrvStatus) : 'No wellness data.'
     return maxHr ? `${noData}\nMax HR: ${maxHr.value}bpm` : noData
   }
-  const maxHrSegment = maxHr ? `, Max HR: ${maxHr.value}bpm` : ''
-  const base = `CTL: ${latest.ctl ?? '?'} TSS/day (aerobic fitness base), ATL: ${latest.atl ?? '?'} TSS/day (recent fatigue), Form (TSB): ${latest.form ?? '?'} (positive = fresh, negative = fatigued), HRV: ${latest.hrv ?? '?'} ms, Resting HR: ${latest.resting_hr ?? '?'} bpm${maxHrSegment}`
+  const base = buildAthleteStateLine(latest, maxHr?.value ?? null)
   return hrvStatus ? `${base}\n${formatHrvForPrompt(hrvStatus)}` : base
 }
 

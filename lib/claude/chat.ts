@@ -6,6 +6,7 @@ import type { HrvStatus } from '@/lib/hrv/baseline'
 import { weekdayName, labelDate } from '@/lib/calendar-helpers'
 import { buildCoachContext } from './coach-memory'
 import { formatWellnessForPrompt } from '@/lib/claude/wellness-prompt'
+import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -58,10 +59,7 @@ export function buildChatSystemPrompt(
       }).join('\n')
     : 'No recent rides with detail.'
 
-  const maxHrSegment = maxHr != null ? `, Max HR: ${maxHr}` : ''
-  const fitnessSection = (latestWellness
-    ? `CTL: ${latestWellness.ctl ?? '?'}, ATL: ${latestWellness.atl ?? '?'}, Form: ${latestWellness.form ?? '?'}, HRV: ${latestWellness.hrv ?? '?'}, Resting HR: ${latestWellness.resting_hr ?? '?'}${maxHrSegment}`
-    : (maxHr != null ? `No wellness data.\nMax HR: ${maxHr}` : 'No wellness data.'))
+  const fitnessSection = buildAthleteStateLine(latestWellness, maxHr)
     + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   const wellnessSection = recentWellness.length

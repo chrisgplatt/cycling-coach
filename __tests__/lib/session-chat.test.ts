@@ -44,6 +44,11 @@ describe('buildSessionSystemPrompt', () => {
     expect(prompt).toContain('240W') // FTP
   })
 
+  it('includes Resting HR in the athlete state line', () => {
+    const prompt = buildSessionSystemPrompt(workout, plan, upcoming, wellness, 240)
+    expect(prompt).toContain('Resting HR: 48 bpm')
+  })
+
   it('includes upcoming workout IDs for week proposals', () => {
     const prompt = buildSessionSystemPrompt(workout, plan, upcoming, wellness, 240)
     expect(prompt).toContain('wk-thu')

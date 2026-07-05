@@ -4,6 +4,7 @@ import type { HrvStatus } from '@/lib/hrv/baseline'
 import { weekdayName, labelDate } from '@/lib/calendar-helpers'
 import { formatDistributions } from '@/lib/claude/activity-metrics'
 import { buildCoachContext } from './coach-memory'
+import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -28,14 +29,7 @@ export function buildSessionSystemPrompt(
   memoryBlock = '',
   maxHr: number | null = null,
 ): string {
-  const tsb = wellness?.form ?? (
-    wellness?.ctl != null && wellness?.atl != null ? wellness.ctl - wellness.atl : null
-  )
-
-  const maxHrSegment = maxHr != null ? `, Max HR: ${maxHr}` : ''
-  const fitnessSection = (wellness
-    ? `CTL: ${wellness.ctl ?? '?'}, ATL: ${wellness.atl ?? '?'}, Form: ${tsb != null ? Math.round(tsb) : '?'}, HRV: ${wellness.hrv ?? '?'}${maxHrSegment}`
-    : (maxHr != null ? `No fitness data available.\nMax HR: ${maxHr}` : 'No fitness data available.'))
+  const fitnessSection = buildAthleteStateLine(wellness, maxHr)
     + (hrvStatus ? '\n' + formatHrvForPrompt(hrvStatus) : '')
 
   const weekSection = upcomingWorkouts.length
