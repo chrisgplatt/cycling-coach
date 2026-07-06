@@ -128,4 +128,43 @@ describe('AddEventModal — holiday date range and continue training', () => {
       expect.objectContaining({ end_date: '2026-08-17', continue_training: true })
     ))
   })
+
+  it('disables Add event when End date is earlier than the start date', () => {
+    render(<AddEventModal onConfirm={jest.fn()} onClose={jest.fn()} />)
+    fireEvent.change(screen.getByPlaceholderText('e.g. Cheltenham Sportive'), { target: { value: 'Ski Trip' } })
+    const dateInputs = document.querySelectorAll('input[type="date"]')
+    fireEvent.change(dateInputs[0], { target: { value: '2026-08-10' } })
+    fireEvent.change(screen.getByDisplayValue('Sportive'), { target: { value: 'holiday' } })
+    fireEvent.change(screen.getByText('End date').closest('div')!.querySelector('input')!, { target: { value: '2026-08-05' } })
+    expect(screen.getByRole('button', { name: /add event/i })).toBeDisabled()
+  })
+
+  it('clears end_date and continue_training from the payload when switching back to Sportive', async () => {
+    const onConfirm = jest.fn().mockResolvedValue(undefined)
+    render(<AddEventModal onConfirm={onConfirm} onClose={jest.fn()} hasPlan={false} />)
+    fireEvent.change(screen.getByPlaceholderText('e.g. Cheltenham Sportive'), { target: { value: 'Ski Trip' } })
+    const dateInputs = document.querySelectorAll('input[type="date"]')
+    fireEvent.change(dateInputs[0], { target: { value: '2026-08-10' } })
+    fireEvent.change(screen.getByDisplayValue('Sportive'), { target: { value: 'holiday' } })
+    fireEvent.change(screen.getByText('End date').closest('div')!.querySelector('input')!, { target: { value: '2026-08-17' } })
+    fireEvent.click(screen.getByLabelText(/continue training/i))
+    fireEvent.change(screen.getByDisplayValue('Holiday riding'), { target: { value: 'sportive' } })
+    fireEvent.click(screen.getByRole('button', { name: /add event/i }))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const payload = onConfirm.mock.calls[0][0]
+    expect(payload).not.toHaveProperty('end_date')
+    expect(payload).not.toHaveProperty('continue_training')
+  })
+
+  it('resets End date to the start date when switching away and back to Holiday riding', () => {
+    render(<AddEventModal onConfirm={jest.fn()} onClose={jest.fn()} />)
+    fireEvent.change(screen.getByPlaceholderText('e.g. Cheltenham Sportive'), { target: { value: 'Ski Trip' } })
+    const dateInputs = document.querySelectorAll('input[type="date"]')
+    fireEvent.change(dateInputs[0], { target: { value: '2026-08-10' } })
+    fireEvent.change(screen.getByDisplayValue('Sportive'), { target: { value: 'holiday' } })
+    fireEvent.change(screen.getByText('End date').closest('div')!.querySelector('input')!, { target: { value: '2026-08-20' } })
+    fireEvent.change(screen.getByDisplayValue('Holiday riding'), { target: { value: 'sportive' } })
+    fireEvent.change(screen.getByDisplayValue('Sportive'), { target: { value: 'holiday' } })
+    expect(screen.getByText('End date').closest('div')!.querySelector('input')).toHaveValue('2026-08-10')
+  })
 })
