@@ -36,4 +36,22 @@ describe('formatPlanCalendar', () => {
     const dayLines = cal.split('\n').filter(l => /^\s+\d{4}-\d{2}-\d{2}/.test(l))
     expect(dayLines).toHaveLength(7)
   })
+
+  it('blocks every day of a multi-day event range, not just the start date', () => {
+    const cal = formatPlanCalendar('2026-06-01', '2026-06-07', availability, [
+      { date: '2026-06-05', end_date: '2026-06-07', name: 'Ski Trip' },
+    ])
+    expect(cal).toContain('2026-06-05 Friday: BLOCKED — event: Ski Trip (no workout)')
+    expect(cal).toContain('2026-06-06 Saturday: BLOCKED — event: Ski Trip (no workout)')
+    expect(cal).toContain('2026-06-07 Sunday: BLOCKED — event: Ski Trip (no workout)')
+  })
+
+  it('does not block a continue-training holiday — it gets a third, distinct status', () => {
+    const cal = formatPlanCalendar('2026-06-01', '2026-06-07', availability, [
+      { date: '2026-06-05', end_date: '2026-06-07', name: 'Ski Trip', continueTraining: true },
+    ])
+    expect(cal).toContain('2026-06-05 Friday: HOLIDAY (continuing to train) — optional quality session only, no mandatory workout: Ski Trip')
+    expect(cal).not.toContain('2026-06-05 Friday: BLOCKED')
+    expect(cal).not.toContain('2026-06-06 Saturday: train — up to 180 min')
+  })
 })

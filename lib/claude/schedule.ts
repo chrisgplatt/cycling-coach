@@ -1,4 +1,5 @@
 import { weekdayName } from '@/lib/calendar-helpers'
+import { eventCoversDate } from '@/lib/events'
 
 // Pure weekly-schedule formatter. Dependency-free (no Claude client import) so
 // prompt builders can describe availability without pulling in the Anthropic SDK.
@@ -32,12 +33,10 @@ export function formatPlanCalendar(
   startDate: string,
   endDate: string,
   availability: Array<{ day: string; duration_minutes: number }> | undefined,
-  events: Array<{ date: string; name: string }> = [],
+  events: Array<{ date: string; end_date?: string; name: string; continueTraining?: boolean }> = [],
 ): string {
   const capByDay = new Map<string, number>()
   for (const a of availability ?? []) capByDay.set(a.day.toLowerCase(), a.duration_minutes)
-  const eventByDate = new Map<string, string>()
-  for (const e of events) eventByDate.set(e.date, e.name)
 
   const [sy, sm, sd] = startDate.split('-').map(Number)
   const start = Date.UTC(sy, sm - 1, sd)
@@ -49,9 +48,12 @@ export function formatPlanCalendar(
   for (let t = start; t <= end; t += 864e5) {
     const dateStr = new Date(t).toISOString().split('T')[0]
     const dayName = weekdayName(dateStr)
+    const covering = events.find(e => eventCoversDate(e, dateStr))
     let status: string
-    if (eventByDate.has(dateStr)) {
-      status = `BLOCKED — event: ${eventByDate.get(dateStr)} (no workout)`
+    if (covering?.continueTraining) {
+      status = `HOLIDAY (continuing to train) — optional quality session only, no mandatory workout: ${covering.name}`
+    } else if (covering) {
+      status = `BLOCKED — event: ${covering.name} (no workout)`
     } else {
       const cap = capByDay.get(dayName.toLowerCase()) ?? 0
       status = cap > 0 ? `train — up to ${cap} min` : 'REST — no workout'
