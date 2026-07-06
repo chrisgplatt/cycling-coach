@@ -1,6 +1,6 @@
 import type { Workout, WorkoutType } from '@/types'
 import { deriveTargetZones } from '@/lib/claude/zones'
-import { WORKOUT_TYPE_CHIP, WORKOUT_STATUS_CHIP, WORKOUT_STATUS_LABEL } from '@/lib/workout-colours'
+import { WORKOUT_TYPE_CHIP, WORKOUT_STATUS_CHIP, WORKOUT_STATUS_LABEL, WORKOUT_OPTIONAL_BADGE } from '@/lib/workout-colours'
 import { estimateTss } from '@/lib/estimate-tss'
 
 function getTss(workout: Workout): { value: number; estimated: boolean } | null {
@@ -60,6 +60,11 @@ export default function WorkoutCard({ workout, onClick, ftp, weather }: Props) {
               <span className="text-xs text-gray-400">· {t.estimated ? '~' : ''}{t.value} TSS</span>
             ) : null
           })()}
+          {workout.optional && (
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${WORKOUT_OPTIONAL_BADGE}`}>
+              Optional
+            </span>
+          )}
         </div>
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${WORKOUT_STATUS_CHIP[workout.status]}`}>
           {WORKOUT_STATUS_LABEL[workout.status]}

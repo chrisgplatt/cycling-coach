@@ -41,3 +41,7 @@ export const WORKOUT_STATUS_CHIP: Record<WorkoutStatus, string> = {
   skipped:      'bg-red-50 text-red-600 border border-red-200',
   needs_review: 'bg-amber-50 text-amber-700 border border-amber-200',
 }
+
+// Dashed pill for workouts flagged optional (sparse continue-training-holiday
+// sessions) — orthogonal to status, so it's a single style, not a per-status record.
+export const WORKOUT_OPTIONAL_BADGE = 'bg-amber-50 text-amber-700 border border-dashed border-amber-300'

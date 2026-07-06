@@ -96,4 +96,14 @@ describe('WorkoutCard', () => {
     expect(screen.getByText('Z4 Threshold · 300W')).toBeInTheDocument()
     expect(screen.queryByText(/240-265W/)).not.toBeInTheDocument()
   })
+
+  it('shows an Optional badge when the workout is flagged optional', () => {
+    render(<WorkoutCard workout={{ ...workout, optional: true }} />)
+    expect(screen.getByText('Optional')).toBeInTheDocument()
+  })
+
+  it('does not show an Optional badge for a normal workout', () => {
+    render(<WorkoutCard workout={workout} />)
+    expect(screen.queryByText('Optional')).not.toBeInTheDocument()
+  })
 })
