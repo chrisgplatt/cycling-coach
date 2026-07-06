@@ -163,6 +163,7 @@ export async function POST(req: NextRequest) {
     tss: w.steps?.length ? estimateTss(w.steps) : null,
     steps: w.steps ?? null,
     coaching_notes: w.coaching_notes ?? null,
+    optional: w.optional ?? false,
   }))
 
   const { error: insertError } = await supabase.from('workouts').insert(workoutsToInsert)

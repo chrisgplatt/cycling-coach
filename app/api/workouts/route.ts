@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
 
-  const { date, type, duration_minutes, description, target_zones, steps } = body
+  const { date, type, duration_minutes, description, target_zones, steps, optional } = body
   if (!date || !type || !duration_minutes || !description || !target_zones) {
     return NextResponse.json({ error: 'Missing required fields: date, type, duration_minutes, description, target_zones' }, { status: 400 })
   }
@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
       tss,
       intervals_icu_event_id: icuEventId,
       status: 'planned',
+      optional: optional ?? false,
     })
     .select()
     .single()
