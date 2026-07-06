@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { name, date, type, priority, race_type, start_time, rpe, duration_minutes, distance_km } = await req.json() as TrainingEvent
+  const { name, date, end_date, type, priority, race_type, start_time, rpe, duration_minutes, distance_km, continue_training } = await req.json() as TrainingEvent
 
   if (!name?.trim() || !date) {
     return NextResponse.json({ error: 'name and date are required' }, { status: 400 })
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     try {
       const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
       icu_event_id = await client.createTargetEvent({
-        date, name: name.trim(), type, priority,
+        date, end_date, name: name.trim(), type, priority,
         race_type, start_time, rpe, duration_minutes, distance_km,
       })
     } catch (err) {
@@ -44,6 +44,8 @@ export async function POST(req: NextRequest) {
     date,
     type,
     priority,
+    ...(end_date && end_date !== date ? { end_date } : {}),
+    ...(type === 'holiday' && continue_training ? { continue_training } : {}),
     ...(icu_event_id ? { icu_event_id } : {}),
     ...(type === 'race' && race_type ? { race_type } : {}),
     ...(start_time ? { start_time } : {}),

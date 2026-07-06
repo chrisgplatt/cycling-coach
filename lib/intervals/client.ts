@@ -385,6 +385,7 @@ export class IntervalsClient {
 
   async createTargetEvent(params: {
     date: string
+    end_date?: string
     name: string
     type: 'race' | 'sportive' | 'holiday' | 'fitness'
     priority: 'A' | 'B' | 'C'
@@ -407,17 +408,29 @@ export class IntervalsClient {
       name: params.name,
       type: 'Ride',
     }
+    if (params.end_date && params.end_date !== params.date) body.end_date_local = `${params.end_date}T23:59:59`
     if (params.duration_minutes) body.moving_time = params.duration_minutes * 60
     if (params.distance_km) body.distance = params.distance_km * 1000
     const notes: string[] = []
     if (params.race_type) notes.push(`Race type: ${params.race_type.replace(/_/g, ' ')}`)
     if (params.rpe) notes.push(`Expected effort: ${params.rpe.replace('_', ' ')}`)
     if (notes.length) body.description = notes.join('\n')
-    const data = await this.request<{ id: number }>(
-      `/athlete/${this.athleteId}/events`,
-      { method: 'POST', body: JSON.stringify(body) }
-    )
-    return String(data.id)
+    try {
+      const data = await this.request<{ id: number }>(
+        `/athlete/${this.athleteId}/events`,
+        { method: 'POST', body: JSON.stringify(body) }
+      )
+      return String(data.id)
+    } catch (err) {
+      if (!body.end_date_local) throw err
+      // intervals.icu may reject end_date_local — retry as a single-day event.
+      const { end_date_local, ...fallback } = body
+      const data = await this.request<{ id: number }>(
+        `/athlete/${this.athleteId}/events`,
+        { method: 'POST', body: JSON.stringify(fallback) }
+      )
+      return String(data.id)
+    }
   }
 
   async createUnavailabilityEvent(params: {
@@ -506,6 +519,7 @@ export class IntervalsClient {
 
   async updateTargetEvent(eventId: string, params: {
     date: string
+    end_date?: string
     name: string
     type: 'race' | 'sportive' | 'holiday' | 'fitness'
     priority: 'A' | 'B' | 'C'
@@ -528,16 +542,26 @@ export class IntervalsClient {
       name: params.name,
       type: 'Ride',
     }
+    if (params.end_date && params.end_date !== params.date) body.end_date_local = `${params.end_date}T23:59:59`
     if (params.duration_minutes) body.moving_time = params.duration_minutes * 60
     if (params.distance_km) body.distance = params.distance_km * 1000
     const notes: string[] = []
     if (params.race_type) notes.push(`Race type: ${params.race_type.replace(/_/g, ' ')}`)
     if (params.rpe) notes.push(`Expected effort: ${params.rpe.replace('_', ' ')}`)
     if (notes.length) body.description = notes.join('\n')
-    await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    })
+    try {
+      await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      })
+    } catch (err) {
+      if (!body.end_date_local) throw err
+      const { end_date_local, ...fallback } = body
+      await this.request(`/athlete/${this.athleteId}/events/${eventId}`, {
+        method: 'PUT',
+        body: JSON.stringify(fallback),
+      })
+    }
   }
 
   async updateEventFull(eventId: string, params: {

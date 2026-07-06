@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { original_name, original_date, name, date, type, priority, race_type, start_time, rpe, duration_minutes, distance_km } = await req.json()
+  const { original_name, original_date, name, date, end_date, type, priority, race_type, start_time, rpe, duration_minutes, distance_km, continue_training } = await req.json()
 
   if (!original_name || !original_date) {
     return NextResponse.json({ error: 'original_name and original_date are required' }, { status: 400 })
@@ -52,7 +52,7 @@ export async function PUT(req: NextRequest) {
     if (icu_event_id) {
       try {
         await client.updateTargetEvent(icu_event_id, {
-          date, name: name.trim(), type, priority,
+          date, end_date, name: name.trim(), type, priority,
           race_type, start_time, rpe, duration_minutes, distance_km,
         })
       } catch (err) {
@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest) {
       // Nothing in ICU yet — create it now
       try {
         icu_event_id = await client.createTargetEvent({
-          date, name: name.trim(), type, priority,
+          date, end_date, name: name.trim(), type, priority,
           race_type, start_time, rpe, duration_minutes, distance_km,
         })
       } catch (err) {
@@ -78,6 +78,8 @@ export async function PUT(req: NextRequest) {
     date,
     type,
     priority,
+    ...(end_date && end_date !== date ? { end_date } : {}),
+    ...(type === 'holiday' && continue_training ? { continue_training } : {}),
     ...(icu_event_id ? { icu_event_id } : {}),
     ...(type === 'race' && race_type ? { race_type } : {}),
     ...(start_time ? { start_time } : {}),
