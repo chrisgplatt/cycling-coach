@@ -6,6 +6,7 @@ import type { ICUWellness, TrainingEvent, TrainingPlan, UserProfile, Workout, Un
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { loadCoachMemory, buildCoachContext } from '@/lib/claude/coach-memory'
+import { eventEndDate, eventDateRangeLabel, eventBlockStatusLabel } from '@/lib/events'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
@@ -61,7 +62,7 @@ function buildSystemPrompt(
 
   const events = (profile.events ?? []) as TrainingEvent[]
   const upcomingEvents = events
-    .filter(e => e.date >= today)
+    .filter(e => eventEndDate(e) >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
 
   const planTargetStillActive = upcomingEvents.some(e => e.date === plan.target_event_date)
@@ -78,7 +79,8 @@ function buildSystemPrompt(
         if (e.duration_minutes) extras.push(`~${e.duration_minutes}min`)
         if (e.distance_km) extras.push(`~${e.distance_km}km`)
         const raceTypeStr = e.type === 'race' && e.race_type ? ` — ${e.race_type.replace('_', ' ')}` : ''
-        return `- ${e.date} (${rel}) BLOCKED: ${e.name} (${e.type}${raceTypeStr}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''})`
+        const statusLabel = e.type === 'holiday' && e.continue_training ? 'NOT BLOCKED — optional quality sessions only' : 'BLOCKED'
+        return `- ${eventDateRangeLabel(e)} (${rel}) ${statusLabel}: ${e.name} (${e.type}${raceTypeStr}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''})`
       }).join('\n')
     : 'None'
 
@@ -123,7 +125,7 @@ ACTIVE PLAN: ${plan.name} (${plan.phase} phase)
 Target: ${plan.target_event_name} on ${plan.target_event_date}
 Rationale: ${plan.rationale}
 ${removedTargetNote}
-${unavailSection ? unavailSection + '\n\n' : ''}UPCOMING EVENTS (BLOCKED — never propose a workout on these dates):
+${unavailSection ? unavailSection + '\n\n' : ''}UPCOMING EVENTS (status shown per event — BLOCKED means never propose a workout on that date; NOT BLOCKED continue-training holidays allow optional quality sessions only):
 ${eventsSection}
 
 FUTURE PLANNED WORKOUTS (ID | date | type | duration | description):
@@ -141,7 +143,7 @@ __PLAN_PROPOSAL__
     {"workout_id": "<same UUID>", "steps": [{"label": "Warm Up", "duration_minutes": N, "power_pct_ftp": N}]}
   ],
   "new_workouts": [
-    {"date": "YYYY-MM-DD", "type": "endurance|threshold|intervals|recovery", "duration_minutes": N, "description": "...", "target_zones": "...", "steps": [{"label": "...", "duration_minutes": N, "power_pct_ftp": N}], "reason": "why"}
+    {"date": "YYYY-MM-DD", "type": "endurance|threshold|intervals|recovery", "duration_minutes": N, "description": "...", "target_zones": "...", "steps": [{"label": "...", "duration_minutes": N, "power_pct_ftp": N}], "reason": "why", "optional": false}
   ]
 }
 
@@ -150,9 +152,10 @@ Proposal rules:
 - new_workouts[]: REQUIRED for every session you are adding that does not already exist in the plan — if you mention a new session in your text, it MUST be in new_workouts[]; omit the array only when no new sessions are being added
 - workout_steps[]: generate for every existing workout (in changes[]) whose duration_minutes or type changes; steps must sum exactly to the final duration_minutes
 - new_workouts[].steps: always include; steps must sum exactly to duration_minutes
+- new_workouts[].optional: set true only for a sparse quality session proposed inside a continue-training holiday's date range (roughly 2 per 7 days of the holiday, 1 threshold + 1 interval/VO2max); false or omitted for everything else
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
 - Sessions >45min must have warm-up (10-15min, Z1-Z2) and cool-down (10min, Z1)
-- Never propose a workout on an event date or rest day
+- Never propose a workout on a BLOCKED event date or rest day; a continue-training holiday's dates are not BLOCKED and may receive optional sessions as described above
 
 When the athlete explicitly asks you to remember something personal — a physical constraint, injury, scheduling limitation, or important observation about themselves — append a marker after your visible response:
 

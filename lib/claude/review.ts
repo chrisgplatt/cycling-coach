@@ -6,6 +6,7 @@ import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
+import { eventDateRangeLabel, eventBlockStatusLabel } from '@/lib/events'
 
 export { parsePlanText } from './plan'
 
@@ -21,9 +22,13 @@ function formatLastWeekWorkouts(workouts: Workout[], activities: ICUActivity[]):
 
   return workouts
     .map(w => {
-      const statusStr = w.status === 'skipped' && w.missed_reason
-        ? `skipped (${w.missed_reason})`
-        : w.status
+      const statusStr = w.status !== 'skipped'
+        ? w.status
+        : w.optional
+          ? 'skipped (optional — holiday, no penalty)'
+          : w.missed_reason
+            ? `skipped (${w.missed_reason})`
+            : w.status
 
       // Find the best matching actual activity for this date
       const acts = actsByDate.get(w.date) ?? []
@@ -130,12 +135,12 @@ ${formatZones(profile.current_ftp)}
 
 ${formatSchedule(profile.weekly_availability)}
 
-UPCOMING EVENTS — these dates are BLOCKED, no workout may be scheduled on them:
+UPCOMING EVENTS — status shown per event below (BLOCKED = no workout may be scheduled; NOT BLOCKED continue-training holidays allow optional quality sessions only):
 ${allEvents.length
     ? allEvents.map((e: TrainingEvent) => {
         const raceTypeStr = e.type === 'race' && e.race_type ? ` — ${e.race_type.replace('_', ' ')}` : ''
         const tssStr = e.estimated_tss != null ? ` | ~${e.estimated_tss} TSS (est.)` : ''
-        return `- ${e.date} BLOCKED: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}${tssStr}`
+        return `- ${eventDateRangeLabel(e)} ${eventBlockStatusLabel(e)}: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}${tssStr}`
       }).join('\n')
     : 'None'}
 ${eventResultsSection ? '\n' + eventResultsSection : ''}
@@ -152,11 +157,13 @@ ${formatLastWeekWorkouts(lastWeekWorkouts, recentActivities)}${formatUnplannedAc
 REMAINING PLANNED WORKOUTS (to be replaced):
 ${formatRemainingWorkouts(remainingWorkouts)}
 ${note ? `\nATHLETE NOTE: ${note}\n` : ''}
-${formatPlanCalendar(today, lastDate, profile.weekly_availability, allEvents.map(e => ({ date: e.date, name: e.name })))}
+${formatPlanCalendar(today, lastDate, profile.weekly_availability, allEvents.map(e => ({ date: e.date, end_date: e.end_date, name: e.name, continueTraining: e.continue_training })))}
 
 Review last week's execution and adapt the remaining plan. Replace the remaining planned workouts with an adjusted schedule covering the same date range (${today} to ${lastDate}).
 
 Apply the same constraints as initial plan generation: only schedule on days marked "train" in the EXACT PLANNING CALENDAR above, never on a REST or BLOCKED day, and use exact duration_minutes for each day. Take every date's weekday from that calendar verbatim — never compute the day of week yourself.
+
+If an event is a continue-training holiday (NOT BLOCKED above), you may schedule sessions inside its date range — but only as sparse optional quality sessions flagged "optional": true, roughly 2 per 7 days of the holiday (1 threshold + 1 interval/VO2max). Leave every other day in that window free of mandatory sessions.
 
 Use the athlete's current CTL, ATL, form, and actual weekly TSS to calibrate the adapted load:
 - If form (TSB) is below -15 or the athlete missed multiple sessions: reduce next week's load 10–20%
