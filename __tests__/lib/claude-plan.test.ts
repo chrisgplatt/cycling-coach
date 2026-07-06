@@ -1,4 +1,4 @@
-import { generatePlan, createPlanStream } from '@/lib/claude/plan'
+import { generatePlan, createPlanStream, countPlannedWorkouts } from '@/lib/claude/plan'
 import type { UserProfile, ICUSyncData, GeneratedPlan } from '@/types'
 import { makeGeneratedWorkout } from '../support/factories'
 
@@ -99,6 +99,74 @@ describe('createPlanStream — dossier injection', () => {
 })
 
 import { anthropic } from '@/lib/claude/client'
+
+describe('generatePlan — multi-day and continue-training holiday events', () => {
+  it('shows the full date range and BLOCKED status for a default multi-day holiday', async () => {
+    mockFinalMessage.mockResolvedValueOnce({
+      content: [{ type: 'text', text: JSON.stringify(validPlan) }],
+    })
+    const profileWithHoliday = {
+      ...profile,
+      events: [
+        ...profile.events,
+        { name: 'Ski Trip', date: '2026-08-10', end_date: '2026-08-17', type: 'holiday' as const, priority: 'C' as const },
+      ],
+    }
+    await generatePlan(profileWithHoliday, syncData)
+    const sentPrompt = (require('@/lib/claude/client').anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    expect(sentPrompt).toContain('2026-08-10 to 2026-08-17 BLOCKED: Ski Trip')
+  })
+
+  it('marks a continue-training holiday as not blocked and instructs sparse optional sessions', async () => {
+    mockFinalMessage.mockResolvedValueOnce({
+      content: [{ type: 'text', text: JSON.stringify(validPlan) }],
+    })
+    const profileWithHoliday = {
+      ...profile,
+      events: [
+        ...profile.events,
+        {
+          name: 'Ski Trip', date: '2026-08-10', end_date: '2026-08-17',
+          type: 'holiday' as const, priority: 'C' as const, continue_training: true,
+        },
+      ],
+    }
+    await generatePlan(profileWithHoliday, syncData)
+    const sentPrompt = (require('@/lib/claude/client').anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    expect(sentPrompt).toContain('2026-08-10 to 2026-08-17 NOT BLOCKED')
+    expect(sentPrompt).toContain('roughly 2 optional quality sessions per 7 days')
+    expect(sentPrompt).not.toContain('2026-08-10 to 2026-08-17 BLOCKED: Ski Trip')
+  })
+})
+
+describe('countPlannedWorkouts — multi-day and continue-training holidays', () => {
+  it('excludes every day of a multi-day blocked event from the count', () => {
+    const profileWithHoliday: UserProfile = {
+      ...profile,
+      weekly_availability: [
+        { day: 'monday', duration_minutes: 60 }, { day: 'tuesday', duration_minutes: 60 },
+        { day: 'wednesday', duration_minutes: 60 }, { day: 'thursday', duration_minutes: 60 },
+        { day: 'friday', duration_minutes: 60 }, { day: 'saturday', duration_minutes: 90 }, { day: 'sunday', duration_minutes: 90 },
+      ],
+      events: [{ name: 'Ski Trip', date: '2026-06-01', end_date: '2026-06-07', type: 'holiday', priority: 'C' }],
+    }
+    // 2026-06-01 is a Monday — a full 7-day week, all 7 days blocked by the holiday.
+    expect(countPlannedWorkouts(profileWithHoliday, 1, '2026-06-01')).toBe(0)
+  })
+
+  it('excludes a continue-training holiday from the count the same way (sparse sessions are not deterministic)', () => {
+    const profileWithHoliday: UserProfile = {
+      ...profile,
+      weekly_availability: [
+        { day: 'monday', duration_minutes: 60 }, { day: 'tuesday', duration_minutes: 60 },
+        { day: 'wednesday', duration_minutes: 60 }, { day: 'thursday', duration_minutes: 60 },
+        { day: 'friday', duration_minutes: 60 }, { day: 'saturday', duration_minutes: 90 }, { day: 'sunday', duration_minutes: 90 },
+      ],
+      events: [{ name: 'Ski Trip', date: '2026-06-01', end_date: '2026-06-07', type: 'holiday', priority: 'C', continue_training: true }],
+    }
+    expect(countPlannedWorkouts(profileWithHoliday, 1, '2026-06-01')).toBe(0)
+  })
+})
 
 describe('summariseWellness (via generatePlan prompt)', () => {
   it('includes Max HR in the prompt when resolvable from date of birth', async () => {

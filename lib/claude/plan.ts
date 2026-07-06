@@ -7,6 +7,7 @@ import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
+import { eventCoversDate, eventDateRangeLabel, eventBlockStatusLabel } from '@/lib/events'
 
 function summariseActivities(activities: ICUActivity[]): string {
   if (!activities.length) return 'No recent activities.'
@@ -141,7 +142,7 @@ HARD SCHEDULING CONSTRAINTS — absolute rules, never break these:
 4. All workout dates must fall on or after ${startDate}.
 5. NEVER place a workout on an event date. Every event date is a blocked day — the event itself is the athlete's activity that day. No exceptions.
 
-EVENTS (all priorities) — these dates are BLOCKED, no workout may be scheduled on them:
+EVENTS (all priorities) — status shown per event below (BLOCKED = no workout may be scheduled; NOT BLOCKED continue-training holidays allow optional quality sessions only):
 ${allEvents.map(e => {
   const extras: string[] = []
   if (e.start_time) extras.push(`starts ${e.start_time}`)
@@ -150,7 +151,7 @@ ${allEvents.map(e => {
   if (e.distance_km) extras.push(`~${e.distance_km}km`)
   if (e.estimated_tss != null) extras.push(`~${e.estimated_tss} TSS (est.)`)
   const raceTypeStr = e.type === 'race' && e.race_type ? ` — ${e.race_type.replace('_', ' ')}` : ''
-  return `- ${e.date} BLOCKED: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}${extras.length ? ` | ${extras.join(', ')}` : ''}`
+  return `- ${eventDateRangeLabel(e)} ${eventBlockStatusLabel(e)}: ${e.name} | ${e.type}${raceTypeStr} | Priority ${e.priority}${extras.length ? ` | ${extras.join(', ')}` : ''}`
 }).join('\n')}
 
 EVENT PREPARATION — apply these rules around every event:
@@ -162,9 +163,10 @@ Race or sportive (type: race | sportive):
   - 2–3 days after: Easy recovery (Z1–Z2 only, 50% of normal duration), then resume normal progression
 
 Holiday riding (type: holiday):
-  - Event date: BLOCKED (athlete is self-directing their riding)
-  - 1–2 weeks before: Build aerobic volume; aim for positive or near-zero form going in
-  - After: Resume normal schedule
+  - Default: every date from the start date to the end date is BLOCKED (athlete is self-directing their riding)
+  - 1–2 weeks before the start date: Build aerobic volume; aim for positive or near-zero form going in
+  - After the end date: Resume normal schedule
+  - If continue_training is set on the event: do NOT block these dates. Instead place roughly 2 optional quality sessions per 7 days of the holiday (1 threshold + 1 interval/VO2max), each with "optional": true. Leave every other day in the window free — no mandatory endurance/recovery session. Do not apply the "build volume before / resume after" adjustment in this case, since training continues through the period.
 
 Fitness checkpoint (type: fitness):
   - Event date: BLOCKED (no workout)
@@ -217,6 +219,7 @@ STEP RULES:
 - Sessions >45min must include a warm-up (10-15min at Z1-Z2) and cool-down (10min at Z1)
 - For interval sessions, list each rep and each recovery period as a separate step (do not group)
 - Use type: test for FTP tests, ramp tests, and any fitness assessment sessions — not intervals
+- Set "optional": true only for the sparse quality sessions placed inside a continue_training holiday window; omit or set false for every other workout
 
 ${coachingNotesGuidance()}
 
@@ -241,7 +244,8 @@ Return ONLY this JSON:
         {"label": "Zone 2", "duration_minutes": 65, "power_pct_ftp": 70},
         {"label": "Cool Down", "duration_minutes": 10, "power_pct_ftp": 55}
       ],
-      "coaching_notes": { "summary": "why this session matters today", "focus": [ {"label": "Cadence", "detail": "hold 90-95 rpm"} ] }
+      "coaching_notes": { "summary": "why this session matters today", "focus": [ {"label": "Cadence", "detail": "hold 90-95 rpm"} ] },
+      "optional": false
     }
   ]
 }`
@@ -257,14 +261,18 @@ export function countPlannedWorkouts(
       .filter(a => a.duration_minutes > 0)
       .map(a => a.day)
   )
-  const blockedDates = new Set((profile.events ?? []).map(e => e.date))
+  const events = profile.events ?? []
   const jsDay = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
   let count = 0
   for (let i = 0; i < weeks * 7; i++) {
     const d = new Date(startDate)
     d.setUTCDate(d.getUTCDate() + i)
     const dateStr = d.toISOString().split('T')[0]
-    if (trainingDays.has(jsDay[d.getUTCDay()]) && !blockedDates.has(dateStr)) count++
+    // Any covering event — blocked or continue-training — excludes the day from this
+    // deterministic count. Continue-training holidays get their sparse optional sessions
+    // from the model's judgement, not this fixed availability count.
+    if (events.some(e => eventCoversDate(e, dateStr))) continue
+    if (trainingDays.has(jsDay[d.getUTCDay()])) count++
   }
   return count
 }

@@ -111,6 +111,8 @@ Source: `user_profile.events` — array of `TrainingEvent`.
 | `rpe` | race_pace \| high \| medium \| low | Expected effort level |
 | `duration_minutes` | number? | Estimated event duration |
 | `distance_km` | number? | Estimated event distance |
+| `end_date` | YYYY-MM-DD? | Only for type=holiday; inclusive end of the blocked range (defaults to `date` if absent) |
+| `continue_training` | boolean? | Only for type=holiday; if true, the range is not blocked — sparse optional quality sessions are placed instead |
 
 All fields must be surfaced in the prompt. Never omit event details — they directly inform load management and session design.
 
@@ -123,9 +125,10 @@ All fields must be surfaced in the prompt. Never omit event details — they dir
 - 2–3 days after: easy recovery (Z1–Z2, 50% of normal duration), then resume normal progression
 
 **Holiday riding:**
-- Event date: BLOCKED (athlete self-directs)
-- 1–2 weeks before: build aerobic volume; target positive or near-zero form going in
-- After: resume normal schedule
+- Every date from the start date to the end date: BLOCKED (athlete self-directs), unless `continue_training` is set
+- 1–2 weeks before the start date: build aerobic volume; target positive or near-zero form going in
+- After the end date: resume normal schedule
+- If `continue_training` is set: do not block these dates. Place roughly 2 optional quality sessions per 7 days of the holiday (1 threshold + 1 interval/VO2max), flagged `optional: true`; leave every other day free. Skip the build-before/resume-after adjustment.
 
 **Fitness checkpoint:**
 - Event date: BLOCKED
