@@ -2,7 +2,7 @@
 
 ## Goal
 
-Extend the Events tab's "Holiday riding" event type to span a date range (start → end) instead of a single day, so the plan generator blocks the whole holiday, builds volume beforehand, and resumes normally after — instead of only blocking one day of what's actually a multi-day trip.
+Extend the Events tab's "Holiday riding" event type to span a date range (start → end) instead of a single day, so the plan generator blocks the whole holiday, builds volume beforehand, and resumes normally after — instead of only blocking one day of what's actually a multi-day trip. Also let the athlete flag a holiday as "continue training", in which case the days aren't blocked at all — instead the coach seeds in a couple of optional, skippable quality sessions across the window and leaves the rest of the days free.
 
 ## Background
 
@@ -45,10 +45,10 @@ String comparison works here because dates are always `YYYY-MM-DD` — the same 
 
 Every place that currently blocks/matches on `e.date` alone becomes range-aware using the helpers above:
 
-- **`lib/claude/schedule.ts`'s `formatPlanCalendar`** — its `events` param gains optional `end_date`; the day-by-day loop marks a day BLOCKED if `eventCoversDate` is true for any event, not just an exact match.
+- **`lib/claude/schedule.ts`'s `formatPlanCalendar`** — its `events` param gains optional `end_date`; the day-by-day loop marks a day BLOCKED if `eventCoversDate` is true for any event, not just an exact match. (Continue-training holidays get a third status — see Continue-Training Holidays below.)
 - **`lib/claude/plan.ts`'s `countPlannedWorkouts`** — `blockedDates` becomes a range check (`events.some(e => eventCoversDate(e, dateStr))`) instead of an exact-match `Set`.
 - **`lib/claude/plan.ts`'s EVENTS prompt section** — each holiday line shows the full range (e.g. `2026-08-10 to 2026-08-17 BLOCKED`) instead of a single date.
-- **`lib/claude/review.ts`** — its `formatPlanCalendar` call passes `end_date` through in its events mapping (currently maps to `{date, name}` only) so review-time calendars are range-aware too.
+- **`lib/claude/review.ts`** — its `formatPlanCalendar` call passes `end_date` and `continueTraining` through in its events mapping (currently maps to `{date, name}` only) so review-time calendars are range-aware and continue-training-aware too.
 
 ## Periodization & Coaching Prompt Changes
 
@@ -95,17 +95,74 @@ The same red `EventCard` already rendered for single-day events now renders in e
 
 `lib/intervals/client.ts`'s `createTargetEvent`/`updateTargetEvent` gain an optional `end_date` param, sent as `end_date_local` — mirroring the try/fallback pattern already proven in `createUnavailabilityEvent`/`updateUnavailabilityEvent` (if intervals.icu rejects `end_date_local`, retry without it, same as today's single-day behavior). `app/api/events/create/route.ts` and `app/api/events/update/route.ts` pass `end_date` through when present.
 
+## Continue-Training Holidays
+
+A holiday can be flagged so training continues through it instead of stopping entirely: `continue_training?: boolean` on `TrainingEvent` (`types/index.ts`), shown in `AddEventModal.tsx` as a toggle alongside the End date field, only when `type === 'holiday'`.
+
+When set:
+- The holiday's dates are **not** BLOCKED for scheduling purposes.
+- Plan generation places a small, sparse set of **optional** quality sessions across the window instead of a normal full week — roughly 2 per 7 days (1 threshold + 1 interval/VO2max, matching the existing "max 1 threshold + max 1 VO2max/week" caps in `CLAUDE.md`), scaled sensibly for shorter/longer holidays. Every other day in the window stays free, self-directed riding — no mandatory endurance/recovery filler gets scheduled there.
+- These sessions are flagged `optional: true` so skipping one carries no adherence penalty — the weekly review won't read a skipped optional session as reduced adherence.
+
+### Data model
+
+- `types/index.ts`: `TrainingEvent.continue_training?: boolean`
+- `Workout.optional: boolean` (new column, default `false`) — same shared workout-entry shape used by `GeneratedPlan.workouts[]` (`lib/claude/plan.ts`, used by fresh generation, extension, and weekly review) and `NewWorkoutProposal` (the plan-chat "add a new session" tool call), so one field addition threads through all three workout-creation paths.
+- Migration: `alter table workouts add column if not exists optional boolean not null default false;`
+
+### Where it plugs in
+
+Every place that currently renders an event's "BLOCKED" line for the coaching prompts gets a `continue_training`-aware branch. Rather than duplicate that branch across every prompt-building file, a shared helper handles it:
+
+```ts
+// lib/events.ts
+export function formatEventBlockLine(e: TrainingEvent, dateLabel: string): string {
+  if (e.type === 'holiday' && e.continue_training) {
+    return `${dateLabel} — self-directed riding, optional quality sessions only (no mandatory workout): ${e.name}`
+  }
+  return `${dateLabel} BLOCKED: ${e.name}`
+}
+```
+
+Used by: `lib/claude/plan.ts` (EVENTS section + `formatPlanCalendar`'s day status), `lib/claude/review.ts` (its own EVENTS line + calendar), `app/api/chat/plan/route.ts` (its EVENTS line), and the "upcoming events" lines in `lib/claude/chat.ts`, `session-chat.ts`, `feedback.ts`.
+
+`formatPlanCalendar`'s day-status logic needs a third branch, since a continue-training holiday day is neither BLOCKED nor a normal capacity-limited training day (if it fell back to normal "train — up to N min" status, the model could read that as license to fill every day with a full mandatory session, defeating the "sparse optional sessions only" intent). Its `events` param becomes `Array<{ date: string; end_date?: string; name: string; continueTraining?: boolean }>`, and the per-day status resolves in this order: any covering event with `continueTraining` → `` `HOLIDAY (continuing to train) — optional quality session only, no mandatory workout: ${name}` ``; else any covering event → `BLOCKED`; else the existing train-capacity/REST logic.
+
+`lib/claude/plan.ts`'s `countPlannedWorkouts` treats `continue_training` holiday days as **not** blocked but also not normal training days — they're excluded from the deterministic day-count/cap logic entirely (the sparse optional sessions are placed by the model's judgement, not the deterministic availability count). `countPlannedWorkouts`'s returned total is a pre-generation estimate already; it will slightly undercount these sessions, which is an accepted simplification, not a bug.
+
+`lib/claude/plan.ts`'s "Holiday riding" periodization rule gains a second branch:
+
+```
+Holiday riding (type: holiday):
+  - Default: every date from start to end date is BLOCKED (self-directed riding); build volume 1-2 weeks before, resume normal after.
+  - If continue_training is set: do NOT block these dates. Instead place roughly 2 optional quality sessions per 7 days of the holiday (1 threshold + 1 interval/VO2max), each with "optional": true. Leave every other day in the window free — no mandatory endurance/recovery session. Do not apply the "build volume before / resume after" adjustment, since training continues through the period.
+```
+
+The same instruction (not just an implicit "apply the same constraints as initial plan generation") is added to `lib/claude/review.ts` and `app/api/chat/plan/route.ts`'s system prompts, since each needs to actively know to emit `optional: true` on new workout entries.
+
+### Insertion points
+
+`optional` threads through the three places that insert generated workouts: `app/api/plan/route.ts`, `app/api/plan/extend/route.ts`, `app/api/plan/review/route.ts` (`workoutsToInsert` mapping gains `optional: w.optional ?? false`), and `app/api/workouts/route.ts`'s POST handler (used when a plan-chat proposal's `new_workouts[]` is applied).
+
+### UI
+
+- `components/WorkoutCard.tsx` — an "Optional" badge (dashed border or amber pill, consistent with the existing `WORKOUT_STATUS_CHIP` styling in `lib/workout-colours.ts`) shown when `workout.optional` is true.
+- `lib/claude/review.ts`'s skipped-session line already shows `missed_reason`; when the workout is `optional`, the line reads `skipped (optional — holiday, no penalty)` instead, so the review AI doesn't misread it as reduced adherence.
+
 ## Global Constraints
 
-- `end_date` is only ever set for `type: 'holiday'` — the Add/Edit Event form only shows the field for that type; all other event types remain single-day.
-- Every date-comparison call site touching `TrainingEvent` must use the new `eventEndDate`/`eventCoversDate`/`eventDurationDays` helpers from `lib/events.ts` rather than a fresh inline comparison — this is what fixes the in-progress-holiday filtering bug consistently everywhere.
+- `end_date` and `continue_training` are only ever set for `type: 'holiday'` — the Add/Edit Event form only shows these fields for that type; all other event types remain single-day and always blocked.
+- Every date-comparison call site touching `TrainingEvent` must use the `eventEndDate`/`eventCoversDate`/`eventDurationDays` helpers from `lib/events.ts` rather than a fresh inline comparison — this is what fixes the in-progress-holiday filtering bug consistently everywhere.
+- Every "BLOCKED" line rendered for a coaching prompt must go through `formatEventBlockLine` rather than a fresh inline string, so the continue-training branch is applied consistently everywhere an event is described to the model.
 - Unavailability Periods (`UnavailabilityPeriod`, `AddUnavailabilityModal.tsx`, `/api/unavailability/*`) are out of scope and must not be modified.
 - The result-assignment feature (`EventDetailModal.tsx`'s ride-result section, `/api/events/result`) is hidden for `type === 'holiday'` but unchanged for all other event types.
+- `continue_training` sessions are always `optional: true`; this design does not add an `optional` toggle anywhere else (e.g. manual workout creation outside the plan-chat flow keeps its existing behavior).
 
 ## Testing
 
-- `__tests__/lib/plan-calendar.test.ts` — new case: an event with `end_date` blocks every day in its range, not just the start date.
-- New `__tests__/lib/events.test.ts` for `eventEndDate`/`eventCoversDate`/`eventDurationDays`.
-- `__tests__/lib/claude-plan.test.ts` — update/add cases for the new periodization wording and multi-day BLOCKED lines.
-- `__tests__/components/AddEventModal.test.tsx`, `EventDetailModal.test.tsx` — new cases for the End date field and the hidden result section.
+- `__tests__/lib/plan-calendar.test.ts` — new cases: an event with `end_date` blocks every day in its range, not just the start date; a `continue_training` holiday does not block its days.
+- New `__tests__/lib/events.test.ts` for `eventEndDate`/`eventCoversDate`/`eventDurationDays`/`formatEventBlockLine`.
+- `__tests__/lib/claude-plan.test.ts` — update/add cases for the new periodization wording, multi-day BLOCKED lines, and the continue-training branch.
+- `__tests__/components/AddEventModal.test.tsx`, `EventDetailModal.test.tsx` — new cases for the End date field, the Continue training toggle, and the hidden result section.
+- `__tests__/components/WorkoutCard.test.tsx` — new case for the Optional badge.
 - No new tests for the API routes or `chat.ts`/`session-chat.ts`/`feedback.ts` prompt text — consistent with this codebase's existing convention of not testing these directly.
