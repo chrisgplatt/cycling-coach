@@ -41,3 +41,25 @@ describe('EventDetailModal — done events are read-only', () => {
     expect(screen.getByText('Assign completed ride')).toBeInTheDocument()
   })
 })
+
+describe('EventDetailModal — multi-day holiday', () => {
+  it('shows the date range in the header for a multi-day event', () => {
+    renderModal({ name: 'Ski Trip', type: 'holiday', priority: 'C', date: dateOffset(5), end_date: dateOffset(12) } as TrainingEvent)
+    expect(screen.getByText(`${dateOffset(5)} – ${dateOffset(12)}`)).toBeInTheDocument()
+  })
+
+  it('hides the result-assignment section for a holiday event', () => {
+    renderModal({ name: 'Ski Trip', type: 'holiday', priority: 'C', date: dateOffset(5), end_date: dateOffset(12) } as TrainingEvent)
+    expect(screen.queryByText('Assign completed ride')).not.toBeInTheDocument()
+  })
+
+  it('treats a multi-day holiday as still editable until its end date passes', () => {
+    renderModal({ name: 'Ski Trip', type: 'holiday', priority: 'C', date: dateOffset(-5), end_date: dateOffset(2) } as TrainingEvent)
+    expect(screen.getByRole('button', { name: 'Edit event' })).toBeInTheDocument()
+  })
+
+  it('treats a multi-day holiday as done once its end date has passed', () => {
+    renderModal({ name: 'Ski Trip', type: 'holiday', priority: 'C', date: dateOffset(-12), end_date: dateOffset(-5) } as TrainingEvent)
+    expect(screen.queryByRole('button', { name: 'Edit event' })).toBeNull()
+  })
+})

@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import type { TrainingEvent, ICUActivity } from '@/types'
+import { eventEndDate } from '@/lib/events'
 
 interface Props {
   event: TrainingEvent
@@ -44,7 +45,7 @@ export default function EventDetailModal({
   const hasResult = !!event.icu_activity_id
   // A past event is "done": its details can no longer be edited (a result can still
   // be recorded after the fact — that's not editing the event itself).
-  const isPast = event.date < new Date().toISOString().split('T')[0]
+  const isPast = eventEndDate(event) < new Date().toISOString().split('T')[0]
 
   async function assign() {
     const activity = rides.find(a => a.id === selectedActivityId)
@@ -146,7 +147,9 @@ export default function EventDetailModal({
             <div className="space-y-1.5">
               <h2 className="text-base font-semibold text-slate-800">{event.name}</h2>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-medium text-slate-400">{event.date}</span>
+                <span className="text-xs font-medium text-slate-400">
+                  {event.end_date && event.end_date !== event.date ? `${event.date} – ${event.end_date}` : event.date}
+                </span>
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${TYPE_COLOUR[event.type] ?? 'bg-slate-100 text-slate-600'}`}>
                   {event.type}
                 </span>
@@ -181,7 +184,7 @@ export default function EventDetailModal({
 
         {/* Body */}
         <div className="p-5 space-y-5 flex-1">
-          {hasResult && !showPicker ? (
+          {event.type === 'holiday' ? null : hasResult && !showPicker ? (
             /* Result-assigned state */
             <>
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
@@ -300,7 +303,7 @@ export default function EventDetailModal({
         {/* Footer */}
         <div className="p-4 border-t border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {hasResult && !showPicker && (
+            {event.type !== 'holiday' && hasResult && !showPicker && (
               <>
                 <button
                   onClick={() => setShowPicker(true)}
@@ -317,7 +320,7 @@ export default function EventDetailModal({
                 </button>
               </>
             )}
-            {(!hasResult || showPicker) && (
+            {event.type !== 'holiday' && (!hasResult || showPicker) && (
               <>
                 <button
                   onClick={assign}
