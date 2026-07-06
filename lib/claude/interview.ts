@@ -4,6 +4,7 @@
 import { formatZones } from './zones'
 import { formatSchedule } from './schedule'
 import { weekdayName } from '@/lib/calendar-helpers'
+import { eventEndDate, eventDateRangeLabel } from '@/lib/events'
 import type { UserProfile, ICUWellness, TrainingEvent } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
@@ -70,10 +71,13 @@ export function buildInterviewSystemPrompt(
 
   const events = (profile.events ?? []) as TrainingEvent[]
   const upcoming = events
-    .filter(e => e.date >= today)
+    .filter(e => eventEndDate(e) >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
   const eventsSection = upcoming.length
-    ? upcoming.map(e => `- ${e.date}: ${e.name} (${e.type}, priority ${e.priority})`).join('\n')
+    ? upcoming.map(e => {
+        const continueNote = e.type === 'holiday' && e.continue_training ? ' — continuing to train' : ''
+        return `- ${eventDateRangeLabel(e)}: ${e.name} (${e.type}, priority ${e.priority}${continueNote})`
+      }).join('\n')
     : 'None on the calendar.'
 
   return `${buildCoachContext(memoryBlock, dossierSection)}

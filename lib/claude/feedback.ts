@@ -1,5 +1,6 @@
 import { anthropic, MODEL } from './client'
 import type { Workout, ProposedAdjustment, TrainingEvent, ReportedSignals } from '@/types'
+import { eventEndDate, eventDateRangeLabel } from '@/lib/events'
 import { formatReportedSignals } from './feedback-signals'
 
 const SYSTEM_PROMPT = `You are an expert cycling coach analysing post-session feedback to adjust upcoming training.
@@ -23,10 +24,13 @@ export async function analyseFeedback(
 
   const today = plannedWorkout.date
   const upcomingEvents = events
-    .filter(e => e.date >= today)
+    .filter(e => eventEndDate(e) >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
   const eventsSection = upcomingEvents.length
-    ? upcomingEvents.map(e => `- ${e.date}: ${e.name} (${e.type}, priority ${e.priority})`).join('\n')
+    ? upcomingEvents.map(e => {
+        const continueNote = e.type === 'holiday' && e.continue_training ? ' — continuing to train' : ''
+        return `- ${eventDateRangeLabel(e)}: ${e.name} (${e.type}, priority ${e.priority}${continueNote})`
+      }).join('\n')
     : 'None'
 
   const signalsLine = formatReportedSignals(reported)

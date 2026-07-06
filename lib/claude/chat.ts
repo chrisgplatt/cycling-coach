@@ -4,6 +4,7 @@ import { formatActivityMetrics, formatRideExecution } from './activity-metrics'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { weekdayName, labelDate } from '@/lib/calendar-helpers'
+import { eventEndDate, eventDateRangeLabel } from '@/lib/events'
 import { buildCoachContext } from './coach-memory'
 import { formatWellnessForPrompt } from '@/lib/claude/wellness-prompt'
 import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
@@ -66,7 +67,7 @@ export function buildChatSystemPrompt(
     ? formatWellnessForPrompt(recentWellness.slice(-7))
     : null
 
-  const upcomingEvents = events.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date))
+  const upcomingEvents = events.filter(e => eventEndDate(e) >= today).sort((a, b) => a.date.localeCompare(b.date))
   const eventsSection = upcomingEvents.length
     ? upcomingEvents.map(e => {
         const rel = relativeDay(e.date, today)
@@ -75,7 +76,8 @@ export function buildChatSystemPrompt(
         if (e.rpe) extras.push(`effort: ${e.rpe.replace('_', ' ')}`)
         if (e.duration_minutes) extras.push(`~${e.duration_minutes}min`)
         if (e.distance_km) extras.push(`~${e.distance_km}km`)
-        return `- ${e.date} (${rel}): ${e.name} (${e.type}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''})`
+        const continueNote = e.type === 'holiday' && e.continue_training ? ' — continuing to train' : ''
+        return `- ${eventDateRangeLabel(e)} (${rel}): ${e.name} (${e.type}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''}${continueNote})`
       }).join('\n')
     : 'No upcoming events.'
 

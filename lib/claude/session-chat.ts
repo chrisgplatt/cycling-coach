@@ -2,6 +2,7 @@ import type { Workout, TrainingPlan, ICUWellness, TrainingEvent } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { weekdayName, labelDate } from '@/lib/calendar-helpers'
+import { eventEndDate, eventDateRangeLabel } from '@/lib/events'
 import { formatDistributions } from '@/lib/claude/activity-metrics'
 import { buildCoachContext } from './coach-memory'
 import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
@@ -39,7 +40,7 @@ export function buildSessionSystemPrompt(
   const today = workout.date
   const weekday = weekdayName(today)
   const upcomingEvents = events
-    .filter(e => e.date >= today)
+    .filter(e => eventEndDate(e) >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
 
   const planTargetDate = plan?.target_event_date
@@ -60,7 +61,8 @@ export function buildSessionSystemPrompt(
         if (e.rpe) extras.push(`effort: ${e.rpe.replace('_', ' ')}`)
         if (e.duration_minutes) extras.push(`~${e.duration_minutes}min`)
         if (e.distance_km) extras.push(`~${e.distance_km}km`)
-        return `- ${e.date} (${rel}): ${e.name} (${e.type}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''})`
+        const continueNote = e.type === 'holiday' && e.continue_training ? ' — continuing to train' : ''
+        return `- ${eventDateRangeLabel(e)} (${rel}): ${e.name} (${e.type}, priority ${e.priority}${extras.length ? ', ' + extras.join(', ') : ''}${continueNote})`
       }).join('\n')
     : 'None'
 
