@@ -31,6 +31,7 @@ import WellnessSheet from '@/components/WellnessSheet'
 import type { DailyWellness } from '@/types'
 import DayWeatherChip from '@/components/DayWeatherChip'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
+import { eventCoversDate } from '@/lib/events'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -200,7 +201,7 @@ function MonthStrip({
                 const isRaceDay = events.some(e => e.date === dateStr && (e.type === 'race' || e.type === 'sportive'))
                 const isTestDay = workouts.some(w => w.date === dateStr && w.type === 'test')
                 const dots: string[] = []
-                if (events.some(e => e.date === dateStr)) dots.push('bg-red-400')
+                if (events.some(e => eventCoversDate(e, dateStr))) dots.push('bg-red-400')
                 if (workoutColor) dots.push(workoutColor)
                 if (unlinkedActivities.some(a => a.start_date_local.startsWith(dateStr))) dots.push('bg-sky-400')
                 return (
@@ -287,7 +288,7 @@ function WeekDetail({
       })}
       {dates.map((dateStr, i) => {
         const dayWorkouts = workouts.filter(w => w.date === dateStr)
-        const dayEvents = events.filter(e => e.date === dateStr)
+        const dayEvents = events.filter(e => eventCoversDate(e, dateStr))
         const dayActivities = unlinkedActivities.filter(a => a.start_date_local.startsWith(dateStr))
         const hasEvent = dayEvents.length > 0
         const isToday = dateStr === todayStr

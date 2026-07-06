@@ -16,6 +16,7 @@ import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { estimateTss } from '@/lib/estimate-tss'
 import { isGarminSyncStale, formatGarminSyncTime } from '@/lib/garmin/sync-staleness'
+import { eventCoversDate } from '@/lib/events'
 import type { GeneratedPlan } from '@/types'
 import {
   DndContext,
@@ -514,7 +515,8 @@ export default function DashboardPage() {
   const upcomingEvents = events
     .filter(e => {
       const days = Math.ceil((new Date(e.date).getTime() - new Date(todayStr).getTime()) / 86400000)
-      return days >= 0 && days <= 90
+      const endDays = Math.ceil((new Date(e.end_date ?? e.date).getTime() - new Date(todayStr).getTime()) / 86400000)
+      return endDays >= 0 && days <= 90
     })
     .sort((a, b) => a.date.localeCompare(b.date))
 
@@ -642,7 +644,7 @@ export default function DashboardPage() {
         <TodayCard
           workout={todayWorkout}
           wellness={latestWellnessWithLoad}
-          todayEvent={events.find(e => e.date === todayStr) ?? null}
+          todayEvent={events.find(e => eventCoversDate(e, todayStr)) ?? null}
           extraSessionCount={todaySessionCount - 1}
           ftp={currentFTP}
           hrvBaseline={hrvStatus.baselineMean}
@@ -717,7 +719,7 @@ export default function DashboardPage() {
           <div className="space-y-2">
             {weekDates.map((date, i) => {
               const dayWorkouts = workouts.filter(w => w.date === date)
-              const dayEvents = events.filter(e => e.date === date)
+              const dayEvents = events.filter(e => eventCoversDate(e, date))
 
               // Events whose icu_activity_id matches a workout on the same day — shown below that workout
               const eventByActivityId = new Map<string, TrainingEvent>()
