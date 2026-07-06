@@ -53,6 +53,18 @@ describe('EventDetailModal — multi-day holiday', () => {
     expect(screen.queryByText('Assign completed ride')).not.toBeInTheDocument()
   })
 
+  it('hides the "Assign ride" / "Cancel" footer buttons for a holiday event with no result', () => {
+    renderModal({ name: 'Ski Trip', type: 'holiday', priority: 'C', date: dateOffset(5), end_date: dateOffset(12) } as TrainingEvent)
+    expect(screen.queryByRole('button', { name: 'Assign ride' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
+  })
+
+  it('hides the "Change ride" / "Remove result" footer buttons for a holiday event with a result assigned', () => {
+    renderModal({ name: 'Ski Trip', type: 'holiday', priority: 'C', date: dateOffset(5), end_date: dateOffset(12), icu_activity_id: 'act1' } as TrainingEvent)
+    expect(screen.queryByRole('button', { name: 'Change ride' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Remove result' })).toBeNull()
+  })
+
   it('treats a multi-day holiday as still editable until its end date passes', () => {
     renderModal({ name: 'Ski Trip', type: 'holiday', priority: 'C', date: dateOffset(-5), end_date: dateOffset(2) } as TrainingEvent)
     expect(screen.getByRole('button', { name: 'Edit event' })).toBeInTheDocument()
