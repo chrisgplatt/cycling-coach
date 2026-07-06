@@ -8,6 +8,7 @@ const plannedWorkout: Workout = {
   duration_minutes: 60, description: 'Test session', target_zones: 'Zone 4',
   status: 'planned', intervals_icu_event_id: null, icu_activity_id: null,
   tss: null, actual_duration_minutes: null, missed_reason: null,
+  optional: false,
   steps: [{ label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 }],
   activity_metrics: null,
   coaching_notes: null,

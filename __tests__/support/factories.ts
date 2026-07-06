@@ -21,6 +21,7 @@ export function makeWorkout(overrides: Partial<Workout> = {}): Workout {
     tss: null,
     actual_duration_minutes: null,
     missed_reason: null,
+    optional: false,
     steps: null,
     activity_metrics: null,
     coaching_notes: null,

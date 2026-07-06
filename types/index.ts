@@ -21,6 +21,7 @@ export interface UnavailabilityPeriod {
 export interface TrainingEvent {
   name: string
   date: string           // YYYY-MM-DD
+  end_date?: string      // YYYY-MM-DD, inclusive — only used by type: 'holiday'; falls back to date when absent
   type: EventType
   priority: EventPriority
   race_type?: RaceType   // only for type === 'race'
@@ -29,6 +30,7 @@ export interface TrainingEvent {
   rpe?: EventRPE
   duration_minutes?: number
   distance_km?: number
+  continue_training?: boolean  // only for type === 'holiday'; if true, the range is not blocked — sparse optional quality sessions are placed instead
   // Result assignment fields (all optional, written via PATCH /api/events/result)
   icu_activity_id?: string          // linked intervals.icu activity ID
   result_tss?: number               // TSS from the activity
@@ -102,6 +104,7 @@ export interface Workout {
   tss: number | null
   actual_duration_minutes: number | null
   missed_reason: string | null
+  optional: boolean  // true for sparse continue-training-holiday sessions — skipping carries no adherence penalty
   steps: WorkoutStep[] | null
   activity_metrics: ActivityMetrics | null  // enriched ride detail captured at sync; null until backfilled
   coaching_notes: CoachingNotes | null
@@ -124,6 +127,7 @@ export interface NewWorkoutProposal {
   target_zones: string
   steps: WorkoutStep[]
   reason: string
+  optional?: boolean  // true for sparse continue-training-holiday sessions
 }
 
 export interface ProposedAdjustment {
@@ -587,6 +591,7 @@ export interface GeneratedPlan {
     target_zones: string
     steps: WorkoutStep[]
     coaching_notes?: CoachingNotes
+    optional?: boolean  // true for sparse continue-training-holiday sessions
   }>
 }
 
