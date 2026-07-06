@@ -940,7 +940,7 @@ git commit -m "fix: stop dropping in-progress multi-day holidays from upcoming-e
 **Files:**
 - Create: `supabase/migrations/20260706_workout_optional.sql`
 - Modify: `app/api/plan/route.ts`
-- Modify: `app/api/plan/extend/route.ts`
+- Modify: `app/api/plan/extend/apply/route.ts (corrected during execution — the original text named extend/route.ts, but that file has no insert logic; apply/route.ts is where the plan-extension insert actually happens)`
 - Modify: `app/api/plan/review/route.ts`
 - Modify: `app/api/workouts/route.ts`
 
@@ -980,7 +980,7 @@ Find `workoutsToInsert` (around line 305):
   }))
 ```
 
-- [ ] **Step 3: Thread `optional` through `app/api/plan/extend/route.ts`'s workout insert**
+- [ ] **Step 3: Thread `optional` through `app/api/plan/extend/apply/route.ts`'s workout insert**
 
 Find `workoutsToInsert` (around line 226):
 
@@ -1051,7 +1051,7 @@ Expected: PASS
 - [ ] **Step 8: Commit**
 
 ```bash
-git add supabase/migrations/20260706_workout_optional.sql app/api/plan/route.ts app/api/plan/extend/route.ts app/api/plan/review/route.ts app/api/workouts/route.ts
+git add supabase/migrations/20260706_workout_optional.sql app/api/plan/route.ts app/api/plan/extend/apply/route.ts app/api/plan/review/route.ts app/api/workouts/route.ts
 git commit -m "feat: persist the optional flag on generated and manually-added workouts"
 ```
 
