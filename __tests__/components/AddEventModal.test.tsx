@@ -99,3 +99,33 @@ describe('AddEventModal — with plan', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('AddEventModal — holiday date range and continue training', () => {
+  it('does not show End date or Continue training for a non-holiday type', () => {
+    render(<AddEventModal onConfirm={jest.fn()} onClose={jest.fn()} />)
+    expect(screen.queryByText('End date')).not.toBeInTheDocument()
+    expect(screen.queryByText(/continue training/i)).not.toBeInTheDocument()
+  })
+
+  it('shows End date and Continue training once Holiday riding is selected', () => {
+    render(<AddEventModal onConfirm={jest.fn()} onClose={jest.fn()} />)
+    fireEvent.change(screen.getByDisplayValue('Sportive'), { target: { value: 'holiday' } })
+    expect(screen.getByText('End date')).toBeInTheDocument()
+    expect(screen.getByText(/continue training/i)).toBeInTheDocument()
+  })
+
+  it('saves end_date and continue_training for a holiday event', async () => {
+    const onConfirm = jest.fn().mockResolvedValue(undefined)
+    render(<AddEventModal onConfirm={onConfirm} onClose={jest.fn()} hasPlan={false} />)
+    fireEvent.change(screen.getByPlaceholderText('e.g. Cheltenham Sportive'), { target: { value: 'Ski Trip' } })
+    const dateInputs = document.querySelectorAll('input[type="date"]')
+    fireEvent.change(dateInputs[0], { target: { value: '2026-08-10' } })
+    fireEvent.change(screen.getByDisplayValue('Sportive'), { target: { value: 'holiday' } })
+    fireEvent.change(screen.getByText('End date').closest('div')!.querySelector('input')!, { target: { value: '2026-08-17' } })
+    fireEvent.click(screen.getByLabelText(/continue training/i))
+    fireEvent.click(screen.getByRole('button', { name: /add event/i }))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ end_date: '2026-08-17', continue_training: true })
+    ))
+  })
+})

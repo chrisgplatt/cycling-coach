@@ -27,6 +27,8 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
   const [name, setName] = useState(initialEvent?.name ?? '')
   const [date, setDate] = useState(initialEvent?.date ?? '')
   const [type, setType] = useState<TrainingEvent['type']>(initialEvent?.type ?? 'sportive')
+  const [endDate, setEndDate] = useState(initialEvent?.end_date ?? '')
+  const [continueTraining, setContinueTraining] = useState(initialEvent?.continue_training ?? false)
   const [priority, setPriority] = useState<TrainingEvent['priority']>(initialEvent?.priority ?? 'B')
   const [startTime, setStartTime] = useState(initialEvent?.start_time ?? '')
   const [rpe, setRpe] = useState<EventRPE | ''>(initialEvent?.rpe ?? '')
@@ -38,7 +40,7 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
   const [phase, setPhase] = useState<'form' | 'saved'>('form')
 
   const isEditing = !!initialEvent
-  const valid = name.trim() !== '' && date !== ''
+  const valid = name.trim() !== '' && date !== '' && (!endDate || endDate >= date)
 
   async function handleConfirm() {
     if (!valid) return
@@ -55,6 +57,8 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
         ...(rpe ? { rpe } : {}),
         ...(duration ? { duration_minutes: Number(duration) } : {}),
         ...(distance ? { distance_km: Number(distance) } : {}),
+        ...(type === 'holiday' && endDate && endDate !== date ? { end_date: endDate } : {}),
+        ...(type === 'holiday' && continueTraining ? { continue_training: true } : {}),
       })
       if (hasPlan && onRegenerate) {
         setPhase('saved')
@@ -116,7 +120,20 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
                 </Field>
 
                 <Field label="Type">
-                  <select value={type} onChange={e => setType(e.target.value as TrainingEvent['type'])} className={fieldClass}>
+                  <select
+                    value={type}
+                    onChange={e => {
+                      const next = e.target.value as TrainingEvent['type']
+                      setType(next)
+                      if (next === 'holiday') {
+                        setEndDate(prev => prev || date)
+                      } else {
+                        setEndDate('')
+                        setContinueTraining(false)
+                      }
+                    }}
+                    className={fieldClass}
+                  >
                     <option value="sportive">Sportive</option>
                     <option value="race">Race</option>
                     <option value="holiday">Holiday riding</option>
@@ -142,6 +159,33 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
                       <option value="cyclocross">Cyclocross</option>
                     </select>
                   </Field>
+                )}
+
+                {type === 'holiday' && (
+                  <>
+                    <Field label="End date">
+                      <input
+                        type="date"
+                        value={endDate}
+                        min={date}
+                        onChange={e => setEndDate(e.target.value)}
+                        className={dateTimeClass}
+                      />
+                    </Field>
+                    <label className="flex items-start gap-2.5 py-1">
+                      <input
+                        type="checkbox"
+                        checked={continueTraining}
+                        onChange={e => setContinueTraining(e.target.checked)}
+                        className="mt-0.5 w-4 h-4"
+                      />
+                      <span className="text-sm text-slate-600">
+                        <span className="font-medium text-slate-800">Continue training through this holiday</span>
+                        <br />
+                        <span className="text-xs text-slate-400">The coach will place a couple of optional quality sessions across the window instead of blocking it entirely.</span>
+                      </span>
+                    </label>
+                  </>
                 )}
               </div>
 
