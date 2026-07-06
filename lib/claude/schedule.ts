@@ -48,12 +48,13 @@ export function formatPlanCalendar(
   for (let t = start; t <= end; t += 864e5) {
     const dateStr = new Date(t).toISOString().split('T')[0]
     const dayName = weekdayName(dateStr)
-    const covering = events.find(e => eventCoversDate(e, dateStr))
+    const continueTrainingEvent = events.find(e => eventCoversDate(e, dateStr) && e.continueTraining)
+    const blockingEvent = events.find(e => eventCoversDate(e, dateStr))
     let status: string
-    if (covering?.continueTraining) {
-      status = `HOLIDAY (continuing to train) — optional quality session only, no mandatory workout: ${covering.name}`
-    } else if (covering) {
-      status = `BLOCKED — event: ${covering.name} (no workout)`
+    if (continueTrainingEvent) {
+      status = `HOLIDAY (continuing to train) — optional quality session only, no mandatory workout: ${continueTrainingEvent.name}`
+    } else if (blockingEvent) {
+      status = `BLOCKED — event: ${blockingEvent.name} (no workout)`
     } else {
       const cap = capByDay.get(dayName.toLowerCase()) ?? 0
       status = cap > 0 ? `train — up to ${cap} min` : 'REST — no workout'

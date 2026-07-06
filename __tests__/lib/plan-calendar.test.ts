@@ -54,4 +54,22 @@ describe('formatPlanCalendar', () => {
     expect(cal).not.toContain('2026-06-05 Friday: BLOCKED')
     expect(cal).not.toContain('2026-06-06 Saturday: train — up to 180 min')
   })
+
+  it('resolves an overlapping BLOCKED event and continue-training holiday to the holiday status, regardless of array order (continue-training first)', () => {
+    const cal = formatPlanCalendar('2026-06-01', '2026-06-07', availability, [
+      { date: '2026-06-07', name: 'Family Ski Trip', continueTraining: true },
+      { date: '2026-06-07', name: 'Local Race' },
+    ])
+    expect(cal).toContain('2026-06-07 Sunday: HOLIDAY (continuing to train) — optional quality session only, no mandatory workout: Family Ski Trip')
+    expect(cal).not.toContain('2026-06-07 Sunday: BLOCKED')
+  })
+
+  it('resolves an overlapping BLOCKED event and continue-training holiday to the holiday status, regardless of array order (continue-training second)', () => {
+    const cal = formatPlanCalendar('2026-06-01', '2026-06-07', availability, [
+      { date: '2026-06-07', name: 'Local Race' },
+      { date: '2026-06-07', name: 'Family Ski Trip', continueTraining: true },
+    ])
+    expect(cal).toContain('2026-06-07 Sunday: HOLIDAY (continuing to train) — optional quality session only, no mandatory workout: Family Ski Trip')
+    expect(cal).not.toContain('2026-06-07 Sunday: BLOCKED')
+  })
 })
