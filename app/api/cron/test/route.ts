@@ -5,6 +5,7 @@ import { generateBriefing } from '@/lib/claude/briefing'
 import { sendPush } from '@/lib/push'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
+import { eventEndDate } from '@/lib/events'
 import type { Workout, TrainingEvent, BriefingContext } from '@/types'
 
 function readinessLabel(tsb: number | null): BriefingContext['readinessLabel'] {
@@ -57,7 +58,7 @@ export async function POST() {
 
   const fourWeeks = new Date(Date.now() + 28 * 864e5).toISOString().split('T')[0]
   const upcomingEvents = ((profile.events ?? []) as TrainingEvent[]).filter(
-    (e: TrainingEvent) => e.date >= today && e.date <= fourWeeks
+    (e: TrainingEvent) => eventEndDate(e) >= today && e.date <= fourWeeks
   )
 
   let ctl: number | null = null

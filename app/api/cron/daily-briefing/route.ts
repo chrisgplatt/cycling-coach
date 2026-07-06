@@ -7,6 +7,7 @@ import { sendBriefingEmail } from '@/lib/email'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
+import { eventEndDate } from '@/lib/events'
 import type { Workout, TrainingEvent, BriefingContext } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -135,7 +136,7 @@ export async function GET(req: NextRequest) {
 
     const fourWeeks = new Date(Date.now() + 28 * 864e5).toISOString().split('T')[0]
     const upcomingEvents = ((profile.events ?? []) as TrainingEvent[]).filter(
-      (e: TrainingEvent) => e.date >= today && e.date <= fourWeeks
+      (e: TrainingEvent) => eventEndDate(e) >= today && e.date <= fourWeeks
     )
 
     if (profile.intervals_icu_athlete_id && profile.intervals_icu_api_key) {

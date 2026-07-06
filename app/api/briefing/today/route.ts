@@ -9,6 +9,7 @@ import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { computeDailyStrain, computeDailyActivityLoad, computeDailyLifeLoad } from '@/lib/strain'
 import { computeRecoveryScore } from '@/lib/recovery-score'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
+import { eventCoversDate, eventEndDate } from '@/lib/events'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness, DailyWellness, GarminWellness } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -77,10 +78,10 @@ export async function GET(req: NextRequest) {
   const todayWorkout = todayWorkouts[0] ?? null
 
   const allEvents = (profile?.events ?? []) as TrainingEvent[]
-  const todayEvent = allEvents.find((e: TrainingEvent) => e.date === today) ?? null
+  const todayEvent = allEvents.find((e: TrainingEvent) => eventCoversDate(e, today)) ?? null
   const fourWeeks = new Date(Date.now() + 28 * 864e5).toISOString().split('T')[0]
   const upcomingEvents = allEvents.filter(
-    (e: TrainingEvent) => e.date >= today && e.date <= fourWeeks
+    (e: TrainingEvent) => eventEndDate(e) >= today && e.date <= fourWeeks
   )
 
   let ctl: number | null = null
