@@ -21,6 +21,7 @@ import { buildForecast, daysBetweenUtc, addDaysUtc } from '@/lib/plan/forecast'
 import WeightLogWidget from '@/components/WeightLogWidget'
 import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase, CoachingLogEntry, WeightEntry, TrainingPhilosophy } from '@/types'
 import { periodDurationDays } from '@/lib/utils/unavailability'
+import { eventEndDate, eventDurationDays } from '@/lib/events'
 import ExtendPlanModal from '@/components/ExtendPlanModal'
 import PlanKebabMenu from '@/components/PlanKebabMenu'
 
@@ -1261,18 +1262,22 @@ export default function PlanPage() {
               const weeksStr = absDays >= 14 ? ` / ${Math.floor(absDays / 7)}w` : ''
               const countdown = diffDays === 0 ? 'Today!' : diffDays === 1 ? 'Tomorrow' : diffDays > 0 ? `In ${diffDays}d${weeksStr}` : `${absDays}d${weeksStr} ago`
               const countdownColor = diffDays < 0 ? 'text-slate-400' : diffDays === 0 ? 'text-green-600 font-semibold' : diffDays <= 7 ? 'text-amber-600' : 'text-slate-500'
+              const isDone = eventEndDate(event) < today
+              const dateLabel = event.end_date && event.end_date !== event.date
+                ? `${event.date} – ${event.end_date} · ${eventDurationDays(event)} days`
+                : event.date
               return (
                 <div key={key} className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-800 truncate">{event.name}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {event.date} · {event.type} · Priority {event.priority}
+                      {dateLabel} · {event.type} · Priority {event.priority}
                     </p>
                     <p className={`text-xs mt-0.5 ${countdownColor}`}>{countdown}</p>
                     {event.icu_event_id && <p className="text-xs text-green-600 mt-0.5">↑ synced to intervals.icu</p>}
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    {diffDays < 0 ? (
+                    {isDone ? (
                       /* Past events are done — no longer editable or deletable */
                       <span className="text-xs font-medium text-slate-300">Done</span>
                     ) : (
