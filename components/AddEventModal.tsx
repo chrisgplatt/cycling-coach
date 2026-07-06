@@ -172,7 +172,7 @@ export default function AddEventModal({ initialEvent, onConfirm, onClose, hasPla
                         className={dateTimeClass}
                       />
                     </Field>
-                    <label className="flex items-start gap-2.5 py-1">
+                    <label className="flex items-start gap-2.5 py-2.5">
                       <input
                         type="checkbox"
                         checked={continueTraining}

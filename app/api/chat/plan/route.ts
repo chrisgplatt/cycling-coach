@@ -6,7 +6,7 @@ import type { ICUWellness, TrainingEvent, TrainingPlan, UserProfile, Workout, Un
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { loadCoachMemory, buildCoachContext } from '@/lib/claude/coach-memory'
-import { eventEndDate, eventDateRangeLabel, eventBlockStatusLabel } from '@/lib/events'
+import { eventEndDate, eventDateRangeLabel } from '@/lib/events'
 
 function relativeDay(eventDate: string, today: string): string {
   const diffDays = Math.round(
