@@ -146,7 +146,7 @@ export default function PlanChatModal({
 
     // Group changes by workout_id so we send one PATCH per workout
     const byWorkout = new Map<string, Record<string, unknown>>()
-    const allowedFields = new Set(['duration_minutes', 'description', 'type', 'target_zones'])
+    const allowedFields = new Set(['duration_minutes', 'description', 'type', 'target_zones', 'date'])
     for (const c of proposal.changes) {
       if (!allowedFields.has(c.field)) continue
       const patch = byWorkout.get(c.workout_id) ?? {}

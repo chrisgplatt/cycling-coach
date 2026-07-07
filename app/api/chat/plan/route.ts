@@ -137,7 +137,7 @@ __PLAN_PROPOSAL__
 {
   "summary": "brief overall explanation",
   "changes": [
-    {"workout_id": "<exact UUID from the workout list above>", "field": "duration_minutes|description|type|target_zones", "old_value": <current value>, "new_value": <proposed value>, "reason": "why"}
+    {"workout_id": "<exact UUID from the workout list above>", "field": "duration_minutes|description|type|target_zones|date", "old_value": <current value>, "new_value": <proposed value>, "reason": "why"}
   ],
   "workout_steps": [
     {"workout_id": "<same UUID>", "steps": [{"label": "Warm Up", "duration_minutes": N, "power_pct_ftp": N}]}
@@ -149,6 +149,7 @@ __PLAN_PROPOSAL__
 
 Proposal rules:
 - changes[]: only for EXISTING workouts — use the exact UUID from the workout list; only include fields that actually change
+- To MOVE an existing workout to a different date, use changes[] with field: "date" and new_value: the new "YYYY-MM-DD" date — do NOT recreate it via new_workouts[], which would duplicate it instead of moving it
 - new_workouts[]: REQUIRED for every session you are adding that does not already exist in the plan — if you mention a new session in your text, it MUST be in new_workouts[]; omit the array only when no new sessions are being added
 - Use type: test for FTP tests, ramp tests, and any fitness assessment sessions — not intervals
 - workout_steps[]: generate for every existing workout (in changes[]) whose duration_minutes or type changes; steps must sum exactly to the final duration_minutes
@@ -157,6 +158,7 @@ Proposal rules:
 - power_pct_ftp: recovery=50-55, endurance=60-75, tempo=76-90, threshold=91-105, VO2max=106-120, sprint=121+
 - Sessions >45min must have warm-up (10-15min, Z1-Z2) and cool-down (10min, Z1)
 - Never propose a workout on a BLOCKED event date or rest day; a continue-training holiday's dates are not BLOCKED and may receive optional sessions as described above
+- Before adding a new_workouts[] entry or moving a workout (changes[] with field: "date") onto a date, check the FUTURE PLANNED WORKOUTS list above for that date — never place a session on a date that already has one there unless the athlete explicitly asks for two sessions that day
 
 When the athlete explicitly asks you to remember something personal — a physical constraint, injury, scheduling limitation, or important observation about themselves — append a marker after your visible response:
 

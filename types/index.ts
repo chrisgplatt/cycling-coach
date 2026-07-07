@@ -114,7 +114,7 @@ export interface Workout {
 
 export interface WorkoutChange {
   workout_id: string
-  field: 'duration_minutes' | 'description' | 'type' | 'status'
+  field: 'duration_minutes' | 'description' | 'type' | 'status' | 'date'
   old_value: string | number
   new_value: string | number
   reason: string
