@@ -105,6 +105,7 @@ export interface Workout {
   actual_duration_minutes: number | null
   missed_reason: string | null
   optional: boolean  // true for sparse continue-training-holiday sessions — skipping carries no adherence penalty
+  name: string | null  // deterministic session name (e.g. "Sa Batalla - 75"); null for un-named/imported workouts
   steps: WorkoutStep[] | null
   activity_metrics: ActivityMetrics | null  // enriched ride detail captured at sync; null until backfilled
   coaching_notes: CoachingNotes | null

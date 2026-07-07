@@ -44,7 +44,7 @@ const baseMorningCtx: BriefingContext = {
     id: 'w2', plan_id: 'p1', date: '2026-05-28', type: 'endurance',
     duration_minutes: 90, description: 'Z2 aerobic base', target_zones: 'Z2',
     intervals_icu_event_id: null, status: 'planned', icu_activity_id: null,
-    tss: 65, actual_duration_minutes: null, missed_reason: null, optional: false, steps: null, created_at: '',
+    tss: 65, actual_duration_minutes: null, missed_reason: null, optional: false, name: null, steps: null, created_at: '',
     activity_metrics: null, coaching_notes: null,
   },
   todayWorkouts: [],
