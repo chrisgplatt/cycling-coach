@@ -98,3 +98,11 @@ describe('buildReviewPrompt Max HR', () => {
     expect(prompt).not.toContain('Max HR')
   })
 })
+
+describe('buildReviewPrompt — workout type options', () => {
+  it('offers test as a valid workout type alongside guidance on when to use it', () => {
+    const prompt = buildReviewPrompt(profile, [], [], [], '')
+    expect(prompt).toContain('"endurance|threshold|intervals|recovery|test"')
+    expect(prompt).toContain('Use type: test for FTP tests, ramp tests, and any fitness assessment sessions')
+  })
+})

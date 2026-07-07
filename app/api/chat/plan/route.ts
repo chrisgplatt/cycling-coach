@@ -143,13 +143,14 @@ __PLAN_PROPOSAL__
     {"workout_id": "<same UUID>", "steps": [{"label": "Warm Up", "duration_minutes": N, "power_pct_ftp": N}]}
   ],
   "new_workouts": [
-    {"date": "YYYY-MM-DD", "type": "endurance|threshold|intervals|recovery", "duration_minutes": N, "description": "...", "target_zones": "...", "steps": [{"label": "...", "duration_minutes": N, "power_pct_ftp": N}], "reason": "why", "optional": false}
+    {"date": "YYYY-MM-DD", "type": "endurance|threshold|intervals|recovery|test", "duration_minutes": N, "description": "...", "target_zones": "...", "steps": [{"label": "...", "duration_minutes": N, "power_pct_ftp": N}], "reason": "why", "optional": false}
   ]
 }
 
 Proposal rules:
 - changes[]: only for EXISTING workouts — use the exact UUID from the workout list; only include fields that actually change
 - new_workouts[]: REQUIRED for every session you are adding that does not already exist in the plan — if you mention a new session in your text, it MUST be in new_workouts[]; omit the array only when no new sessions are being added
+- Use type: test for FTP tests, ramp tests, and any fitness assessment sessions — not intervals
 - workout_steps[]: generate for every existing workout (in changes[]) whose duration_minutes or type changes; steps must sum exactly to the final duration_minutes
 - new_workouts[].steps: always include; steps must sum exactly to duration_minutes
 - new_workouts[].optional: set true only for a sparse quality session proposed inside a continue-training holiday's date range (roughly 2 per 7 days of the holiday, 1 threshold + 1 interval/VO2max); false or omitted for everything else
