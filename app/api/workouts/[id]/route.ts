@@ -97,7 +97,7 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Regenerate coach notes + sync content changes to intervals.icu with a full rewrite
-  const contentFieldsChanged = ['type', 'duration_minutes', 'description', 'target_zones'].some(f => body[f] !== undefined)
+  const contentFieldsChanged = ['type', 'duration_minutes', 'description', 'target_zones', 'steps'].some(f => body[f] !== undefined)
   if (contentFieldsChanged) {
     const { data: updated } = await supabase.from('workouts').select('*').eq('id', id).maybeSingle()
     if (updated) {
