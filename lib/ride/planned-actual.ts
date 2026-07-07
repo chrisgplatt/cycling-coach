@@ -81,6 +81,44 @@ export function alignPlannedToLaps(
   return out
 }
 
+// Laps under this duration are almost always device artifacts — a double lap-button
+// press, an auto-lap glitch — not a deliberate effort. Left unfiltered, the cost-
+// minimising aligner in alignPlannedToLaps can find it globally cheaper to hand a
+// short planned interval to one of these noise slivers (whose power happens to land
+// near the target) than to a real, substantial lap whose average power merely drifted
+// closer to a neighbouring step's target — erasing the real interval (near-zero
+// width_frac) and mislabelling its actual minutes as the neighbour's effort instead.
+export const MIN_LAP_SECS = 10
+
+// Folds any lap shorter than minSecs into its neighbour (preceding lap, or the
+// following one if the very first lap is itself too short), combining durations and
+// duration-weighting the average watts. Total duration is preserved exactly.
+export function mergeShortLaps(
+  laps: Array<{ watts: number; duration_secs: number }>,
+  minSecs: number,
+): Array<{ watts: number; duration_secs: number }> {
+  const merged: Array<{ watts: number; duration_secs: number }> = []
+  for (const lap of laps) {
+    const prev = merged[merged.length - 1]
+    if (prev && lap.duration_secs < minSecs) {
+      const totalSecs = prev.duration_secs + lap.duration_secs
+      prev.watts = totalSecs > 0 ? (prev.watts * prev.duration_secs + lap.watts * lap.duration_secs) / totalSecs : prev.watts
+      prev.duration_secs = totalSecs
+    } else {
+      merged.push({ ...lap })
+    }
+  }
+  // A tiny first lap has nothing earlier to merge into — fold it forward instead.
+  if (merged.length > 1 && merged[0].duration_secs < minSecs) {
+    const first = merged.shift()!
+    const next = merged[0]
+    const totalSecs = first.duration_secs + next.duration_secs
+    next.watts = totalSecs > 0 ? (first.watts * first.duration_secs + next.watts * next.duration_secs) / totalSecs : next.watts
+    next.duration_secs = totalSecs
+  }
+  return merged
+}
+
 export interface AlignedSegment {
   label: string
   planned_pct: number   // target %FTP (from the step)
@@ -137,7 +175,7 @@ export function buildPlannedActual(
   // proportional 'scaled' path is the better fallback.
   const sumSecs = intervals?.length ? intervals.reduce((s, iv) => s + iv.duration_secs, 0) || 1 : 1
   let groups: ReturnType<typeof alignPlannedToLaps> = null
-  if (intervals && intervals.length >= steps.length) {
+  if (intervals && intervals.length) {
     let frac = 0
     const resolved = intervals.map(iv => {
       const wf = iv.duration_secs / sumSecs
@@ -148,7 +186,13 @@ export function buildPlannedActual(
         : meanPowerInFrac(f0, f0 + wf)
       return { watts, duration_secs: iv.duration_secs }
     })
-    groups = alignPlannedToLaps(steps, resolved, ftp)
+    // Merge device-glitch laps before deciding whether there are enough real
+    // laps to lap-anchor — filtering can drop the count below steps.length,
+    // in which case the proportional 'scaled' fallback below is the right call.
+    const merged = mergeShortLaps(resolved, MIN_LAP_SECS)
+    if (merged.length >= steps.length) {
+      groups = alignPlannedToLaps(steps, merged, ftp)
+    }
   }
 
   let segments: AlignedSegment[]

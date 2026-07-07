@@ -100,4 +100,51 @@ describe('buildPlannedActual', () => {
     const flat = { time: [0, 0, 0], power: [150, 200, 250] }
     expect(buildPlannedActual(steps, flat, null, 250)).toBeNull()
   })
+
+  it('does not let a sub-10-second glitch lap steal a real interval from a neighbouring step with a closer-matching target', () => {
+    // Reproduces a real-world bug from an actual ride. Five planned steps; the
+    // athlete rode the Tempo block under target (145W vs a 164W target), closer
+    // to the following Endurance step's target (139W) than to Tempo's. A stray
+    // 2-second lap-button-press artifact happened to read 166W — near-exact for
+    // Tempo. Without filtering tiny laps, the cost-minimising aligner finds it
+    // cheaper globally to hand "Tempo" to the 2-second glitch (near-zero
+    // width_frac, invisible on the chart) and reassign the real ~10 minutes to
+    // the neighbouring Endurance step, since 145W costs less there than at Tempo.
+    const s: WorkoutStep[] = [
+      { label: 'Warm Up', duration_minutes: 12, power_pct_ftp: 60 },    // 123W @205
+      { label: 'Endurance', duration_minutes: 20, power_pct_ftp: 70 },  // 144W @205
+      { label: 'Tempo', duration_minutes: 10, power_pct_ftp: 80 },      // 164W @205
+      { label: 'Endurance', duration_minutes: 23, power_pct_ftp: 68 },  // 139W @205
+      { label: 'Cool Down', duration_minutes: 10, power_pct_ftp: 54 },  // 111W @205
+    ]
+    const laps: ActivityInterval[] = [
+      { label: null, duration_secs: 721, avg_watts: 133, avg_hr: null },
+      { label: null, duration_secs: 2, avg_watts: 186, avg_hr: null },
+      { label: null, duration_secs: 1201, avg_watts: 137, avg_hr: null },
+      { label: null, duration_secs: 2, avg_watts: 166, avg_hr: null },   // glitch — reads near Tempo's target
+      { label: null, duration_secs: 600, avg_watts: 145, avg_hr: null }, // the real tempo effort
+      { label: null, duration_secs: 1348, avg_watts: 125, avg_hr: null },
+      { label: null, duration_secs: 1, avg_watts: 170, avg_hr: null },
+      { label: null, duration_secs: 32, avg_watts: 167, avg_hr: null },
+      { label: null, duration_secs: 600, avg_watts: 104, avg_hr: null },
+      { label: null, duration_secs: 9, avg_watts: null, avg_hr: null },
+    ]
+    let t = 0
+    const time: number[] = []
+    const power: number[] = []
+    for (const lap of laps) {
+      for (let i = 0; i < lap.duration_secs; i++) {
+        time.push(t)
+        power.push(lap.avg_watts ?? 0)
+        t++
+      }
+    }
+    const out = buildPlannedActual(s, { time, power }, laps, 205)!
+
+    expect(out.aligned).toBe('laps')
+    const tempo = out.segments.find(seg => seg.label === 'Tempo')!
+    expect(tempo.actual_w).toBe(145)
+    // The real ~600s lap (~13% of the ~4516s ride), not the 2s glitch (~0.04%).
+    expect(tempo.width_frac).toBeCloseTo(600 / 4516, 2)
+  })
 })
