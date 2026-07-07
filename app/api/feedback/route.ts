@@ -5,6 +5,7 @@ import { analyseFeedback } from '@/lib/claude/feedback'
 import { assessSession } from '@/lib/claude/session-note'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
+import { nameForWorkout } from '@/lib/workout-names'
 import type { Workout, ProposedAdjustment } from '@/types'
 
 export async function GET(req: NextRequest) {
@@ -229,14 +230,17 @@ export async function PATCH(req: NextRequest) {
 
     const { data: w } = await supabase
       .from('workouts')
-      .select('intervals_icu_event_id, type, duration_minutes, description, target_zones, steps')
+      .select('intervals_icu_event_id, type, duration_minutes, description, target_zones, steps, name')
       .eq('id', workoutId)
       .single()
 
     if (!w?.intervals_icu_event_id) continue
 
     const steps = (w.steps as import('@/types').WorkoutStep[] | null) ?? []
-    const name = `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`
+    const name = nameForWorkout(w.type, w.duration_minutes, steps)
+    if (name !== w.name) {
+      await supabase.from('workouts').update({ name }).eq('id', workoutId)
+    }
     const description = `${w.description}\n\nTarget: ${w.target_zones}`
 
     await client.updateEventFull(w.intervals_icu_event_id, {
