@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { generateWorkoutSteps } from '@/lib/claude/steps'
 import { generateCoachingNotes } from '@/lib/claude/coaching-notes'
+import { nameForWorkout } from '@/lib/workout-names'
 import type { Workout, WorkoutStep, CoachingNotes, UserProfile } from '@/types'
 
 export async function DELETE(
@@ -138,7 +139,10 @@ export async function PATCH(
         } else if (body.steps !== undefined) {
           steps = body.steps as WorkoutStep[]
         }
-        const name = `${updated.type.charAt(0).toUpperCase() + updated.type.slice(1)} — ${updated.duration_minutes}min`
+        const name = nameForWorkout(updated.type, updated.duration_minutes, steps)
+        if (name !== updated.name) {
+          await supabase.from('workouts').update({ name }).eq('id', id)
+        }
         const description = `${updated.description}\n\nTarget: ${updated.target_zones}`
         try {
           await client.updateEventFull(updated.intervals_icu_event_id, {
