@@ -137,7 +137,7 @@ function MonthStrip({
   const selectedWeek = weekDates(selectedDateStr)
   const selectedWeekSet = new Set(selectedWeek)
 
-  const weeks: (string | null)[][] = []
+  const weeks: { date: string; inMonth: boolean }[][] = []
   for (let i = 0; i < cells.length; i += 7) {
     weeks.push(cells.slice(i, i + 7))
   }
@@ -163,10 +163,10 @@ function MonthStrip({
 
       {/* Week rows: [summary column] + [7 day cells] */}
       {weeks.map((weekCells, weekIndex) => {
-        const weekDateStrs = weekCells.filter((d): d is string => d !== null)
+        const weekDateStrs = weekCells.map(c => c.date)
         const summary = getWeeklySummary(weekDateStrs, workouts, unlinkedActivities)
         const isCurrentWeek = weekDateStrs.includes(todayStr)
-        const isPastWeek = !isCurrentWeek && weekDateStrs.length > 0 && weekDateStrs.every(d => d < todayStr)
+        const isPastWeek = !isCurrentWeek && weekDateStrs.every(d => d < todayStr)
         const hasActual = summary.actualTss > 0 || summary.actualMins > 0
         const showActual = isPastWeek || (isCurrentWeek && hasActual)
         const showTss = showActual ? summary.actualTss : summary.plannedTss
@@ -193,8 +193,7 @@ function MonthStrip({
             </div>
             {/* Day cells */}
             <div className="grid grid-cols-7 flex-1">
-              {weekCells.map((dateStr, i) => {
-                if (!dateStr) return <div key={`b${weekIndex}-${i}`} />
+              {weekCells.map(({ date: dateStr, inMonth }) => {
                 const inSelectedWeek = selectedWeekSet.has(dateStr)
                 const isToday = dateStr === todayStr
                 const workoutColor = getDayWorkoutColor(dateStr, workouts)
@@ -218,7 +217,9 @@ function MonthStrip({
                           ? 'bg-red-500 text-white font-semibold'
                           : isTestDay
                             ? 'bg-violet-500 text-white font-semibold'
-                            : 'text-slate-600'
+                            : inMonth
+                              ? 'text-slate-600'
+                              : 'text-slate-300'
                       }`}>
                       {parseInt(dateStr.split('-')[2], 10)}
                     </span>
