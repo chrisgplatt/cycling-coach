@@ -14,24 +14,63 @@ import {
 import type { Workout, ICUActivity } from '@/types'
 
 describe('calendarMonthDays', () => {
-  it('returns null-padded grid for May 2026 (Friday 1st → 4 leading nulls)', () => {
+  it('returns dimmed leading days from the previous month for May 2026 (Friday 1st → 4 leading days)', () => {
     const grid = calendarMonthDays(2026, 4) // month 4 = May
-    expect(grid.slice(0, 4)).toEqual([null, null, null, null])
-    expect(grid[4]).toBe('2026-05-01')
-    expect(grid[grid.length - 1]).toBe('2026-05-31')
+    expect(grid.slice(0, 4)).toEqual([
+      { date: '2026-04-27', inMonth: false },
+      { date: '2026-04-28', inMonth: false },
+      { date: '2026-04-29', inMonth: false },
+      { date: '2026-04-30', inMonth: false },
+    ])
+    expect(grid[4]).toEqual({ date: '2026-05-01', inMonth: true })
   })
 
-  it('returns no leading nulls for a month starting on Monday', () => {
+  it('returns no leading days for a month starting on Monday', () => {
     // June 2026 starts on Monday
     const grid = calendarMonthDays(2026, 5) // month 5 = June
-    expect(grid[0]).toBe('2026-06-01')
+    expect(grid[0]).toEqual({ date: '2026-06-01', inMonth: true })
   })
 
-  it('returns 6 leading nulls for a month starting on Sunday', () => {
+  it('returns 6 leading days from the previous month for a month starting on Sunday', () => {
     // March 2026 starts on Sunday
     const grid = calendarMonthDays(2026, 2) // month 2 = March
-    expect(grid.slice(0, 6)).toEqual([null, null, null, null, null, null])
-    expect(grid[6]).toBe('2026-03-01')
+    expect(grid.slice(0, 6)).toEqual([
+      { date: '2026-02-23', inMonth: false },
+      { date: '2026-02-24', inMonth: false },
+      { date: '2026-02-25', inMonth: false },
+      { date: '2026-02-26', inMonth: false },
+      { date: '2026-02-27', inMonth: false },
+      { date: '2026-02-28', inMonth: false },
+    ])
+    expect(grid[6]).toEqual({ date: '2026-03-01', inMonth: true })
+  })
+
+  it('adds trailing days from the next month so the grid always ends on a Sunday', () => {
+    // July 2026: 1st is Wednesday (2 leading days from June), 31 days, 31st is a
+    // Friday (2 trailing days into August needed to reach Sunday).
+    const grid = calendarMonthDays(2026, 6) // month 6 = July
+    expect(grid).toHaveLength(35) // 2 leading + 31 + 2 trailing = 35 = 5 * 7
+    expect(grid[0]).toEqual({ date: '2026-06-29', inMonth: false })
+    expect(grid[1]).toEqual({ date: '2026-06-30', inMonth: false })
+    expect(grid[2]).toEqual({ date: '2026-07-01', inMonth: true })
+    expect(grid[grid.length - 3]).toEqual({ date: '2026-07-31', inMonth: true })
+    expect(grid[grid.length - 2]).toEqual({ date: '2026-08-01', inMonth: false })
+    expect(grid[grid.length - 1]).toEqual({ date: '2026-08-02', inMonth: false })
+  })
+
+  it('adds no trailing days when the month already ends on a Sunday', () => {
+    // May 2026 has 31 days starting Friday 1st, so May 31 is a Sunday.
+    const grid = calendarMonthDays(2026, 4)
+    expect(grid[grid.length - 1]).toEqual({ date: '2026-05-31', inMonth: true })
+  })
+
+  it('rolls over the year boundary correctly for December/January', () => {
+    // December 2026 starts on a Tuesday (1 leading day from November).
+    const grid = calendarMonthDays(2026, 11) // month 11 = December
+    expect(grid[0]).toEqual({ date: '2026-11-30', inMonth: false })
+    expect(grid[1]).toEqual({ date: '2026-12-01', inMonth: true })
+    // December 31 2026 is a Thursday, so 3 trailing days into January 2027 are needed.
+    expect(grid[grid.length - 1]).toEqual({ date: '2027-01-03', inMonth: false })
   })
 })
 

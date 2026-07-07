@@ -1,21 +1,33 @@
 import { getWeekBounds } from '@/lib/week-bounds'
 import type { Workout, ICUActivity } from '@/types'
 
-/**
- * Returns a Monday-start grid of YYYY-MM-DD strings for a calendar month.
- * Cells before the 1st of the month are null.
- * @param year - Full year (e.g. 2026)
- * @param month - 0-based month index (0 = January, 11 = December)
- */
-export function calendarMonthDays(year: number, month: number): (string | null)[] {
+export function calendarMonthDays(year: number, month: number): { date: string; inMonth: boolean }[] {
   const firstDayUTC = new Date(Date.UTC(year, month, 1)).getUTCDay() // 0=Sun
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
-  const leadingNulls = Array<null>(firstDayUTC === 0 ? 6 : firstDayUTC - 1).fill(null)
-  const days = Array.from({ length: daysInMonth }, (_, i) => {
-    const day = i + 1
-    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  })
-  return [...leadingNulls, ...days]
+  const leadingCount = firstDayUTC === 0 ? 6 : firstDayUTC - 1
+
+  const toDateStr = (d: Date) => d.toISOString().split('T')[0]
+
+  // Date.UTC normalizes out-of-range day/month indices itself (day 0 = last day
+  // of the previous month, month 12 = January of the next year), so no manual
+  // month/year rollover handling is needed for either end.
+  const leading = Array.from({ length: leadingCount }, (_, i) => ({
+    date: toDateStr(new Date(Date.UTC(year, month, 1 - (leadingCount - i)))),
+    inMonth: false,
+  }))
+
+  const current = Array.from({ length: daysInMonth }, (_, i) => ({
+    date: toDateStr(new Date(Date.UTC(year, month, i + 1))),
+    inMonth: true,
+  }))
+
+  const trailingCount = (7 - ((leadingCount + daysInMonth) % 7)) % 7
+  const trailing = Array.from({ length: trailingCount }, (_, i) => ({
+    date: toDateStr(new Date(Date.UTC(year, month + 1, i + 1))),
+    inMonth: false,
+  }))
+
+  return [...leading, ...current, ...trailing]
 }
 
 // Returns 7 YYYY-MM-DD strings for Mon–Sun of the week containing dateStr.
