@@ -749,6 +749,24 @@ export default function DashboardPage() {
                     <DayWeatherChip weather={weatherByDate.get(date)} />
                   </div>
                   <DroppableDay date={date}>
+                    {standaloneEvents.map(e => (
+                      <button
+                        key={e.icu_event_id ?? `${e.date}-${e.name}`}
+                        onClick={() => setSelectedEvent(e)}
+                        className={`w-full text-left rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-3 hover:brightness-95 transition-all ${EVENT_COLOURS[e.priority]}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>🏁</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-sm">{e.name}</div>
+                            <div className="text-xs capitalize opacity-75">{e.type} · {e.priority} priority</div>
+                          </div>
+                          {e.icu_activity_id && (
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" title="Result recorded" />
+                          )}
+                        </div>
+                      </button>
+                    ))}
                     {dayWorkouts.map(w => {
                       const linkedEvent = w.icu_activity_id ? eventByActivityId.get(w.icu_activity_id) : undefined
                       return (
@@ -781,24 +799,6 @@ export default function DashboardPage() {
                         </div>
                       )
                     })}
-                    {standaloneEvents.map(e => (
-                      <button
-                        key={e.icu_event_id ?? `${e.date}-${e.name}`}
-                        onClick={() => setSelectedEvent(e)}
-                        className={`w-full text-left rounded-xl border-l-4 border border-gray-200 bg-white shadow-sm px-4 py-3 hover:brightness-95 transition-all ${EVENT_COLOURS[e.priority]}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span>🏁</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-sm">{e.name}</div>
-                            <div className="text-xs capitalize opacity-75">{e.type} · {e.priority} priority</div>
-                          </div>
-                          {e.icu_activity_id && (
-                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" title="Result recorded" />
-                          )}
-                        </div>
-                      </button>
-                    ))}
                     {unplannedActivities.map(a => (
                       <ActivityCard key={a.id} activity={a} onClick={() => setSelectedActivity(a)} />
                     ))}

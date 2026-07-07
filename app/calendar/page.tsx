@@ -339,6 +339,9 @@ function WeekDetail({
             {/* Sessions column — droppable target for rescheduling */}
             <DroppableDay date={dateStr}>
               {isEmpty && <p className="text-sm text-slate-300 italic py-1.5">Rest day</p>}
+              {standaloneEvents.map(e => (
+                <EventCard key={`${e.date}-${e.name}`} event={e} onClick={() => onEventClick(e)} />
+              ))}
               {dayWorkouts.map(w => {
                 const linkedEvent = linkedEventByWorkoutId.get(w.id)
                 return (
@@ -355,9 +358,6 @@ function WeekDetail({
                   </div>
                 )
               })}
-              {standaloneEvents.map(e => (
-                <EventCard key={`${e.date}-${e.name}`} event={e} onClick={() => onEventClick(e)} />
-              ))}
               {dayActivities.map(a => (
                 <ActivityCard key={a.id} activity={a} onClick={() => onActivityClick(a)} />
               ))}
