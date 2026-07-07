@@ -40,6 +40,11 @@ export default function WorkoutCard({ workout, onClick, ftp, weather }: Props) {
       }`}
     >
       <div className={`h-1 ${TYPE_BAR[workout.type]}`} />
+      {workout.name && (
+        <div className="px-4 pt-2.5 pb-0.5 bg-gray-50">
+          <p className="text-sm font-bold text-gray-800 truncate">{workout.name}</p>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${WORKOUT_TYPE_CHIP[workout.type]}`}>

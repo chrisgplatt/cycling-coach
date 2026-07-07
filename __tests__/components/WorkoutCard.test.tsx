@@ -106,4 +106,14 @@ describe('WorkoutCard', () => {
     render(<WorkoutCard workout={workout} />)
     expect(screen.queryByText('Optional')).not.toBeInTheDocument()
   })
+
+  it('shows the session name at the top when present', () => {
+    render(<WorkoutCard workout={{ ...workout, name: 'Sa Batalla - 60' }} />)
+    expect(screen.getByText('Sa Batalla - 60')).toBeInTheDocument()
+  })
+
+  it('renders no name line when name is null', () => {
+    render(<WorkoutCard workout={{ ...workout, name: null }} />)
+    expect(screen.queryByText(/Sa Batalla/)).not.toBeInTheDocument()
+  })
 })
