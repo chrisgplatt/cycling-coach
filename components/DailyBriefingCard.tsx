@@ -42,9 +42,6 @@ interface Props {
   backfilling: boolean
   backfillResult: ActionResult
   onRunBackfillNotes: () => void
-  backfillingNames: boolean
-  backfillNamesResult: ActionResult
-  onRunBackfillNames: () => void
   zonesFixing: boolean
   zonesResult: ActionResult
   zonesPreview: { changeCount: number; total: number } | null
@@ -60,7 +57,6 @@ export default function DailyBriefingCard({
   cronTesting, cronTestLogs, onRunCronTest,
   repushing, repushResult, onRunRepushPlanned,
   backfilling, backfillResult, onRunBackfillNotes,
-  backfillingNames, backfillNamesResult, onRunBackfillNames,
   zonesFixing, zonesResult, zonesPreview, onPreviewZonesFix, onApplyZonesFix,
 }: Props) {
   return (
@@ -223,20 +219,6 @@ export default function DailyBriefingCard({
                 {backfillResult && (
                   <p className={`text-xs ${backfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                     {backfillResult.message}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={onRunBackfillNames}
-                  disabled={backfillingNames}
-                  className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
-                >
-                  {backfillingNames ? 'Naming…' : 'Backfill session names for existing workouts'}
-                </button>
-                {backfillNamesResult && (
-                  <p className={`text-xs ${backfillNamesResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {backfillNamesResult.message}
                   </p>
                 )}
               </div>
