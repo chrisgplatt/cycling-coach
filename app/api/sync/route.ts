@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { importUnplannedRides } from '@/lib/intervals/import-rides'
+import { matchWorkoutsToActivities } from '@/lib/sync/match-workouts'
 import { backfillActivityMetrics } from '@/lib/intervals/enrich'
 import { maybeGenerateProgressBrief } from '@/lib/progress/brief-generator'
 import { GarminClient } from '@/lib/garmin/client'
@@ -141,31 +142,24 @@ export async function POST(req: Request) {
 
     const { data: pending } = await supabase
       .from('workouts')
-      .select('id, date')
+      .select('id, date, created_at')
       .in('status', ['planned', 'needs_review'])
       .is('icu_activity_id', null)
 
     if (pending?.length) {
+      const matches = matchWorkoutsToActivities(pending, actsByDate)
       await Promise.all(
-        pending
-          .map(w => {
-            const acts = (actsByDate.get(w.date) ?? [])
-              .filter(a => /ride/i.test(a.type))
-            if (acts.length === 0) return null
-            const best = acts.reduce((a, b) =>
-              (b.training_load ?? 0) > (a.training_load ?? 0) ? b : a
-            )
-            return supabase
-              .from('workouts')
-              .update({
-                icu_activity_id: best.id,
-                tss: best.training_load,
-                actual_duration_minutes: Math.round(best.moving_time / 60),
-                status: acts.length === 1 ? 'completed' : 'needs_review',
-              })
-              .eq('id', w.id)
-          })
-          .filter(Boolean)
+        matches.map(m =>
+          supabase
+            .from('workouts')
+            .update({
+              icu_activity_id: m.icu_activity_id,
+              tss: m.tss,
+              actual_duration_minutes: m.actual_duration_minutes,
+              status: m.status,
+            })
+            .eq('id', m.id)
+        )
       )
     }
 
