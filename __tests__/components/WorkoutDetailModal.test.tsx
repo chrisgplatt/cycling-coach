@@ -84,6 +84,18 @@ describe('WorkoutDetailModal', () => {
     expect(screen.getByText('Zone 4 (91-105% FTP)')).toBeInTheDocument()
   })
 
+  it('shows the workout name at the top when set', () => {
+    const named = { ...workout, name: 'Sa Batalla - 60' }
+    render(<WorkoutDetailModal workout={named} athleteId="i12345" onClose={jest.fn()} />)
+    expect(screen.getByText('Sa Batalla - 60')).toBeInTheDocument()
+  })
+
+  it('renders no name line when name is null', () => {
+    const unnamed = { ...workout, name: null }
+    render(<WorkoutDetailModal workout={unnamed} athleteId="i12345" onClose={jest.fn()} />)
+    expect(screen.queryByText(/Sa Batalla/)).not.toBeInTheDocument()
+  })
+
   it('does not show an intervals.icu week link, even when an event id is present', () => {
     // The "View week in intervals.icu" link was removed; the workout fixture has an
     // intervals_icu_event_id, so this confirms it no longer renders.
