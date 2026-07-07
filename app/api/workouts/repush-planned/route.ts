@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { nameForWorkout } from '@/lib/workout-names'
 import type { WorkoutStep, CoachingNotes } from '@/types'
 
 // Re-pushes every planned workout's structured steps to intervals.icu so they pick
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
   const today = new Date().toISOString().slice(0, 10)
   let query = supabase
     .from('workouts')
-    .select('id, date, type, duration_minutes, description, target_zones, steps, intervals_icu_event_id, coaching_notes')
+    .select('id, date, type, duration_minutes, description, target_zones, steps, intervals_icu_event_id, coaching_notes, name')
     .eq('status', 'planned')
     .order('date', { ascending: true })
   if (!includePast) query = query.gte('date', today)
@@ -50,7 +51,10 @@ export async function POST(req: NextRequest) {
     const steps = (w.steps as WorkoutStep[] | null) ?? []
     if (!steps.length) { results.skipped++; continue }
 
-    const name = `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`
+    const name = w.name ?? nameForWorkout(w.type, w.duration_minutes, steps)
+    if (!w.name) {
+      await supabase.from('workouts').update({ name }).eq('id', w.id)
+    }
     const description = `${w.description}\n\nTarget: ${w.target_zones}`
     const note = (w.coaching_notes as CoachingNotes | null)?.summary
 

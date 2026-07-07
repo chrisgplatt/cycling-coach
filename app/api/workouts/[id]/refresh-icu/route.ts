@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { generateWorkoutSteps } from '@/lib/claude/steps'
+import { nameForWorkout } from '@/lib/workout-names'
 import type { Workout, WorkoutStep, CoachingNotes } from '@/types'
 
 export async function POST(
@@ -40,9 +41,6 @@ export async function POST(
     try { await client.deleteEvent(workout.intervals_icu_event_id) } catch { /* already gone */ }
   }
 
-  const name = `${workout.type.charAt(0).toUpperCase() + workout.type.slice(1)} — ${workout.duration_minutes}min`
-  const description = `${workout.description}\n\nTarget: ${workout.target_zones}`
-
   let steps = (workout.steps as WorkoutStep[] | null) ?? []
 
   // Generate steps via Claude if none stored, then persist them
@@ -54,6 +52,12 @@ export async function POST(
       steps = []
     }
   }
+
+  const name = workout.name ?? nameForWorkout(workout.type, workout.duration_minutes, steps)
+  if (!workout.name) {
+    await supabase.from('workouts').update({ name }).eq('id', id)
+  }
+  const description = `${workout.description}\n\nTarget: ${workout.target_zones}`
 
   let newEventId: string
   try {
