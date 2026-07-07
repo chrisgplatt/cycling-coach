@@ -49,6 +49,8 @@ export default function SettingsPage() {
   const [repushResult, setRepushResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [backfilling, setBackfilling] = useState(false)
   const [backfillResult, setBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [backfillingNames, setBackfillingNames] = useState(false)
+  const [backfillNamesResult, setBackfillNamesResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [zonesFixing, setZonesFixing] = useState(false)
   const [zonesPreview, setZonesPreview] = useState<{ changeCount: number; total: number } | null>(null)
   const [zonesResult, setZonesResult] = useState<{ ok: boolean; message: string } | null>(null)
@@ -367,6 +369,27 @@ export default function SettingsPage() {
     }
   }
 
+  async function runBackfillNames() {
+    setBackfillingNames(true)
+    setBackfillNamesResult(null)
+    try {
+      const res = await fetch('/api/workouts/backfill-names', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setBackfillNamesResult({
+          ok: data.failed === 0,
+          message: data.total === 0 ? 'All workouts already have names.' : `${data.updated} named, ${data.failed} failed.`,
+        })
+      } else {
+        setBackfillNamesResult({ ok: false, message: data.error ?? 'Backfill failed.' })
+      }
+    } catch {
+      setBackfillNamesResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setBackfillingNames(false)
+    }
+  }
+
   async function previewZonesFix() {
     setZonesFixing(true)
     setZonesResult(null)
@@ -529,6 +552,9 @@ export default function SettingsPage() {
         backfilling={backfilling}
         backfillResult={backfillResult}
         onRunBackfillNotes={runBackfillNotes}
+        backfillingNames={backfillingNames}
+        backfillNamesResult={backfillNamesResult}
+        onRunBackfillNames={runBackfillNames}
         zonesFixing={zonesFixing}
         zonesResult={zonesResult}
         zonesPreview={zonesPreview}
