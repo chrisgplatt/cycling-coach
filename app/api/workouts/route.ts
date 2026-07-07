@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { nameForWorkout } from '@/lib/workout-names'
 import type { WorkoutStep } from '@/types'
 
 function estimateTss(steps: WorkoutStep[]): number {
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
   if (!plan) return NextResponse.json({ error: 'No active plan' }, { status: 400 })
 
   const tss = Array.isArray(steps) && steps.length ? estimateTss(steps as WorkoutStep[]) : null
+  const name = nameForWorkout(type, duration_minutes, Array.isArray(steps) ? (steps as WorkoutStep[]) : [])
 
   const { data: profile } = await supabase
     .from('user_profile')
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
     try {
       icuEventId = await client.createEvent({
         date,
-        name: `${String(type).charAt(0).toUpperCase() + String(type).slice(1)} — ${duration_minutes}min`,
+        name,
         description: `Plan: ${plan.name}\n\n${description}\n\nTarget: ${target_zones}`,
         duration_minutes,
         steps: Array.isArray(steps) ? steps : [],
@@ -66,6 +68,7 @@ export async function POST(req: NextRequest) {
       intervals_icu_event_id: icuEventId,
       status: 'planned',
       optional: optional ?? false,
+      name,
     })
     .select()
     .single()

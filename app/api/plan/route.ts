@@ -6,6 +6,7 @@ import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
+import { nameForWorkout } from '@/lib/workout-names'
 import type { GeneratedPlan, TrainingPhilosophy } from '@/types'
 
 export async function GET() {
@@ -281,7 +282,7 @@ export async function PATCH(req: NextRequest) {
     try {
       return await client.createEvent({
         date: w.date,
-        name: `${w.type.charAt(0).toUpperCase() + w.type.slice(1)} — ${w.duration_minutes}min`,
+        name: nameForWorkout(w.type, w.duration_minutes, w.steps),
         description: `Plan: ${name}\n\n${w.description}\n\nTarget: ${w.target_zones}`,
         duration_minutes: w.duration_minutes,
         steps: w.steps,
@@ -316,6 +317,7 @@ export async function PATCH(req: NextRequest) {
     steps: w.steps ?? null,
     coaching_notes: w.coaching_notes ?? null,
     optional: w.optional ?? false,
+    name: nameForWorkout(w.type, w.duration_minutes, w.steps),
   }))
 
   const { error: workoutsError } = await supabase.from('workouts').insert(workoutsToInsert)
