@@ -108,7 +108,7 @@ describe('FTP prediction confirm-before-save flow', () => {
   const predictResponse = { predicted_ftp: 230, reasoning: 'Solid block.', confidence: 'medium', activity_ids: ['a1'] }
   const confirmResponse = { id: 'p1', ...predictResponse, confirmed: false, created_at: '2026-07-09T00:00:00Z' }
 
-  function mockFetchWithFtpFlow() {
+  function mockFetchWithFtpFlow(options?: { applyFails?: boolean }) {
     ;(global.fetch as jest.Mock).mockImplementation((url: string, opts?: RequestInit) => {
       if (url.includes('/api/charts')) {
         return Promise.resolve({
@@ -140,6 +140,9 @@ describe('FTP prediction confirm-before-save flow', () => {
         return Promise.resolve({ ok: true, json: async () => confirmResponse })
       }
       if (url.match(/\/api\/ftp\/.+\/apply/)) {
+        if (options?.applyFails) {
+          return Promise.resolve({ ok: false, status: 500, json: async () => ({ error: 'apply failed' }) })
+        }
         return Promise.resolve({ ok: true, json: async () => ({ ...confirmResponse, confirmed: true }) })
       }
       if (url.includes('/api/ftp') && opts?.method === 'POST') {
@@ -212,5 +215,18 @@ describe('FTP prediction confirm-before-save flow', () => {
     fireEvent.click(screen.getByText('Keep current'))
     expect(screen.queryByText('Update profile FTP?')).not.toBeInTheDocument()
     expect(screen.queryByText('✓ applied to profile')).not.toBeInTheDocument()
+  })
+
+  it('shows an error and keeps the apply modal open when the apply PATCH fails', async () => {
+    mockFetchWithFtpFlow({ applyFails: true })
+    render(<FitnessPage />)
+    await screen.findByText('Sleep')
+    fireEvent.click(screen.getByRole('button', { name: 'Predict FTP' }))
+    await screen.findByText('Not saved yet')
+    fireEvent.click(screen.getByText('Save prediction'))
+    await screen.findByText('Update profile FTP?')
+    fireEvent.click(screen.getByText('Update to 230W'))
+    await screen.findByText('apply failed')
+    expect(screen.getByText('Update profile FTP?')).toBeInTheDocument()
   })
 })

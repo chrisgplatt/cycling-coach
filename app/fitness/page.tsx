@@ -935,15 +935,21 @@ export default function FitnessPage() {
 
   async function applyPrediction(update: { id: string; predictedFtp: number }) {
     setUpdatingFTP(true)
+    setError(null)
     try {
       const res = await fetch(`/api/ftp/${update.id}/apply`, { method: 'PATCH' })
       if (res.ok) {
         setCurrentFTP(update.predictedFtp)
         setPredictions(prev => prev.map(p => p.id === update.id ? { ...p, confirmed: true } : p))
+        setPendingFTPUpdate(null)
+      } else {
+        const json = await res.json().catch(() => null)
+        setError(json?.error ?? `Request failed (${res.status})`)
       }
+    } catch {
+      setError('Network error — could not reach server')
     } finally {
       setUpdatingFTP(false)
-      setPendingFTPUpdate(null)
     }
   }
 
