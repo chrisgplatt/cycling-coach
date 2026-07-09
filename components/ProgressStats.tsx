@@ -89,6 +89,8 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
     return km > 0 ? `${km.toFixed(1)} km · ${t}` : null
   })()
 
+  const roundedForm = form != null ? Math.round(form) : null
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
@@ -158,12 +160,12 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
           {m.streak != null && (
             <Tile label="Streak" value={m.streak > 0 ? `🔥 ${m.streak}` : `${m.streak}`} sub="weeks" />
           )}
-{form != null && (
+          {roundedForm != null && (
             <Tile
               label="Form"
-              value={form > 0 ? `+${form}` : String(form)}
-              sub={form > 5 ? 'fresh' : form >= -15 ? 'building' : 'tired'}
-              subColour={form > 5 ? 'text-emerald-600' : form >= -15 ? 'text-amber-500' : 'text-red-500'}
+              value={roundedForm > 0 ? `+${roundedForm}` : String(roundedForm)}
+              sub={roundedForm > 5 ? 'fresh' : roundedForm >= -15 ? 'building' : 'tired'}
+              subColour={roundedForm > 5 ? 'text-emerald-600' : roundedForm >= -15 ? 'text-amber-500' : 'text-red-500'}
             />
           )}
         </div>
