@@ -312,21 +312,26 @@ export class IntervalsClient {
     const raw = await this.request<Array<Record<string, unknown>>>(
       `/athlete/${this.athleteId}/wellness?start=${start}&end=${end}`
     )
-    return raw.map(w => ({
-      id: w.id as string,
-      ctl: (w.ctl ?? null) as number | null,
-      atl: (w.atl ?? null) as number | null,
-      form: (w.form ?? null) as number | null,
-      hrv: (w.hrv ?? null) as number | null,
-      resting_hr: ((w.restingHR ?? w.resting_hr) ?? null) as number | null,
-      sleep_secs: ((w.sleepSecs ?? w.sleep_secs) ?? null) as number | null,
-      body_battery_low: ((w.BodyBatteryMin ?? w.bodyBatteryMin ?? w.bodyBatteryLow ?? w.body_battery_low) ?? null) as number | null,
-      body_battery_high: ((w.BodyBatteryMax ?? w.bodyBatteryMax ?? w.bodyBatteryHigh ?? w.body_battery_high) ?? null) as number | null,
-      stress_avg: (w.stress ?? null) as number | null,
-      stress_high: ((w.stressHigh ?? w.stress_high) ?? null) as number | null,
-      garmin_training_load: (w.atlLoad ?? null) as number | null,
-      sleep_score: (w.sleepScore ?? null) as number | null,
-    }))
+    return raw.map(w => {
+      const ctl = (w.ctl ?? null) as number | null
+      const atl = (w.atl ?? null) as number | null
+      return {
+        id: w.id as string,
+        ctl,
+        atl,
+        // intervals.icu's wellness schema has no `form` field — it must be derived from ctl - atl.
+        form: (ctl !== null && atl !== null) ? ctl - atl : null,
+        hrv: (w.hrv ?? null) as number | null,
+        resting_hr: ((w.restingHR ?? w.resting_hr) ?? null) as number | null,
+        sleep_secs: ((w.sleepSecs ?? w.sleep_secs) ?? null) as number | null,
+        body_battery_low: ((w.BodyBatteryMin ?? w.bodyBatteryMin ?? w.bodyBatteryLow ?? w.body_battery_low) ?? null) as number | null,
+        body_battery_high: ((w.BodyBatteryMax ?? w.bodyBatteryMax ?? w.bodyBatteryHigh ?? w.body_battery_high) ?? null) as number | null,
+        stress_avg: (w.stress ?? null) as number | null,
+        stress_high: ((w.stressHigh ?? w.stress_high) ?? null) as number | null,
+        garmin_training_load: (w.atlLoad ?? null) as number | null,
+        sleep_score: (w.sleepScore ?? null) as number | null,
+      }
+    })
   }
 
   async getEvents(oldest: string, newest: string): Promise<ICUEvent[]> {
