@@ -26,8 +26,8 @@ const plan = {
 }
 
 // Helper to build a minimal ICUActivity fixture
-function act(date: string): ICUActivity {
-  return { start_date_local: `${date}T09:00:00`, category: 'WORKOUT', name: 'Ride' } as unknown as ICUActivity
+function act(date: string, type: string = 'Ride'): ICUActivity {
+  return { start_date_local: `${date}T09:00:00`, category: 'WORKOUT', name: 'Ride', type } as unknown as ICUActivity
 }
 
 describe('computeProgressMetrics', () => {
@@ -177,5 +177,16 @@ describe('computeProgressMetrics', () => {
     ]
     const result = computeProgressMetrics([], 245, 73.5, null, [], [], activities, 3)
     expect(result.totalRides).toBe(1)
+  })
+
+  it('excludes non-ride activity types (Run, Walk) from the rides count', () => {
+    const activities = [
+      act('2026-04-02', 'Ride'),
+      act('2026-04-03', 'VirtualRide'),
+      act('2026-04-04', 'Run'),
+      act('2026-04-05', 'Walk'),
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], activities, 3)
+    expect(result.totalRides).toBe(2)
   })
 })

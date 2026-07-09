@@ -131,7 +131,7 @@ export function computeProgressMetrics(
       d.setDate(d.getDate() - 42)
       baseline = d.toISOString().split('T')[0]
     }
-    const count = activities.filter(a => a.start_date_local.substring(0, 10) >= baseline).length
+    const count = activities.filter(a => /ride/i.test(a.type) && a.start_date_local.substring(0, 10) >= baseline).length
     if (count > 0) totalRides = count
   }
 
