@@ -5,7 +5,7 @@ import { predictFTP } from '@/lib/claude/ftp'
 import { fitCriticalPower } from '@/lib/critical-power'
 import { findNearestPower } from '@/lib/stats-helpers'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
-import type { ICUPowerCurvePoint } from '@/types'
+import type { ICUPowerCurvePoint, PredictionDraft } from '@/types'
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
@@ -124,20 +124,14 @@ export async function POST(req: NextRequest) {
       currentFTP: resolvedFTP,
     })
 
-    const { data } = await supabase
-      .from('ftp_predictions')
-      .insert({
-        predicted_ftp: result.predicted_ftp,
-        reasoning: result.reasoning,
-        confidence: result.confidence,
-        activity_ids: activities.map(a => a.id),
-        confirmed: false,
-        user_id: user.id,
-      })
-      .select()
-      .single()
+    const draft: PredictionDraft = {
+      predicted_ftp: result.predicted_ftp,
+      reasoning: result.reasoning,
+      confidence: result.confidence,
+      activity_ids: activities.map(a => a.id),
+    }
 
-    return NextResponse.json(data)
+    return NextResponse.json(draft)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'FTP prediction failed'
     return NextResponse.json({ error: message }, { status: 502 })
