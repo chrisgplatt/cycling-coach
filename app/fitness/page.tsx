@@ -836,6 +836,7 @@ export default function FitnessPage() {
   const [showRecencyWarning, setShowRecencyWarning] = useState(false)
   const [pendingFTPUpdate, setPendingFTPUpdate] = useState<{ id: string; predictedFtp: number } | null>(null)
   const [updatingFTP, setUpdatingFTP] = useState(false)
+  const [applyError, setApplyError] = useState<string | null>(null)
   const [draftPrediction, setDraftPrediction] = useState<PredictionDraft | null>(null)
   const [savingDraft, setSavingDraft] = useState(false)
   const [charts, setCharts] = useState<ChartsData | null>(null)
@@ -935,7 +936,7 @@ export default function FitnessPage() {
 
   async function applyPrediction(update: { id: string; predictedFtp: number }) {
     setUpdatingFTP(true)
-    setError(null)
+    setApplyError(null)
     try {
       const res = await fetch(`/api/ftp/${update.id}/apply`, { method: 'PATCH' })
       if (res.ok) {
@@ -944,10 +945,10 @@ export default function FitnessPage() {
         setPendingFTPUpdate(null)
       } else {
         const json = await res.json().catch(() => null)
-        setError(json?.error ?? `Request failed (${res.status})`)
+        setApplyError(json?.error ?? `Request failed (${res.status})`)
       }
     } catch {
-      setError('Network error — could not reach server')
+      setApplyError('Network error — could not reach server')
     } finally {
       setUpdatingFTP(false)
     }
@@ -1179,9 +1180,12 @@ export default function FitnessPage() {
                 <p className="text-3xl font-black text-blue-600">{pendingFTPUpdate.predictedFtp}<span className="text-base font-semibold ml-0.5">W</span></p>
               </div>
             </div>
+            {applyError && (
+              <p className="text-sm text-red-600">{applyError}</p>
+            )}
             <div className="flex gap-3 justify-end pt-1">
               <button
-                onClick={() => setPendingFTPUpdate(null)}
+                onClick={() => { setPendingFTPUpdate(null); setApplyError(null) }}
                 disabled={updatingFTP}
                 className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
               >
