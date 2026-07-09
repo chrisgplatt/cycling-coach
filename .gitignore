@@ -60,3 +60,4 @@ next-env.d.ts
 # graphify generated knowledge graph
 graphify-out/
 .worktrees/
+.claude/worktrees/
