@@ -11,14 +11,70 @@ import AnimatedLogo from '@/components/AnimatedLogo'
 const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-function SectionCard({ title, children, accent }: { title: string; children: ReactNode; accent?: string }) {
+function SectionCard({ title, children, accent, headerRight }: { title: string; children: ReactNode; accent?: string; headerRight?: ReactNode }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="px-4 py-2.5 border-b border-gray-200 flex items-center gap-2 bg-white">
         {accent && <span className={`w-2 h-2 rounded-full ${accent}`} />}
-        <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">{title}</h2>
+        <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em] flex-1">{title}</h2>
+        {headerRight}
       </div>
       {children}
+    </div>
+  )
+}
+
+function InfoButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="w-11 h-11 -mr-2.5 flex items-center justify-center text-gray-400 hover:text-gray-600 shrink-0"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/>
+      </svg>
+    </button>
+  )
+}
+
+const PMC_DEFINITIONS = [
+  { term: 'CTL', label: 'Chronic Training Load (Fitness)', description: 'A rolling ~42-day average of daily training stress. Represents your aerobic fitness base — the load you can sustainably absorb. Rises slowly with consistent training, falls slowly when you rest.' },
+  { term: 'ATL', label: 'Acute Training Load (Fatigue)', description: 'A rolling ~7-day average of daily training stress. Represents short-term fatigue from recent training. Rises and falls quickly with each hard or easy day.' },
+  { term: 'Form', label: 'Training Stress Balance (TSB)', description: 'CTL minus ATL. Positive form means you’re fresh and recovered; negative form means fatigue is outweighing fitness. A very negative form before a key event signals a need to taper.' },
+]
+
+function PmcHelpModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/40" aria-hidden="true" onClick={onClose} />
+      <div
+        className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-5 space-y-4 max-h-[92vh] overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pmc-help-modal-title"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-base font-bold text-slate-900" id="pmc-help-modal-title">Performance Management</p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-slate-400 hover:text-slate-600 text-sm font-medium min-h-[44px] px-2 shrink-0"
+          >
+            Close
+          </button>
+        </div>
+        <div className="space-y-3">
+          {PMC_DEFINITIONS.map(d => (
+            <div key={d.term} className="bg-slate-50 rounded-lg px-3 py-2.5">
+              <p className="text-xs font-bold text-slate-700">{d.term} <span className="font-medium text-slate-400">— {d.label}</span></p>
+              <p className="text-xs text-slate-500 leading-relaxed mt-1">{d.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -770,6 +826,7 @@ export default function FitnessPage() {
   const [activePrediction, setActivePrediction] = useState(0)
   const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
   const [weightKg, setWeightKg] = useState<number | null>(null)
+  const [showPmcHelp, setShowPmcHelp] = useState(false)
 
   useEffect(() => {
     fetch('/api/ftp').then(r => r.json()).then(setPredictions).catch(() => {})
@@ -1001,9 +1058,14 @@ export default function FitnessPage() {
             </SectionCard>
           )}
 
-          <SectionCard title="Performance Management" accent="bg-blue-500">
+          <SectionCard
+            title="Performance Management"
+            accent="bg-blue-500"
+            headerRight={<InfoButton onClick={() => setShowPmcHelp(true)} label="What do CTL, ATL and Form mean?" />}
+          >
             <PMCChart wellness={charts.wellness} />
           </SectionCard>
+          {showPmcHelp && <PmcHelpModal onClose={() => setShowPmcHelp(false)} />}
 
           <HrvSection wellness={charts.wellness} />
 
