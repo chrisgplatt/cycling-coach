@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, type ReactNode } from 'react'
 import { normalizeY, isoWeekStart } from '@/lib/chart-helpers'
-import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss, WeightEntry } from '@/types'
+import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss, WeightEntry, PredictionDraft } from '@/types'
 import WeightHistoryChart from '@/components/WeightHistoryChart'
 import type { HrvImprovement } from '@/lib/hrv/improvement'
 import { computeHrvBaseline, type HrvStatus } from '@/lib/hrv/baseline'
@@ -21,6 +21,22 @@ function SectionCard({ title, children, accent, headerRight }: { title: string; 
       </div>
       {children}
     </div>
+  )
+}
+
+function ReasoningText({ reasoning }: { reasoning: string }) {
+  if (!reasoning.includes('•')) {
+    return <p className="text-sm text-gray-700 leading-relaxed">{reasoning}</p>
+  }
+  return (
+    <ul className="space-y-2">
+      {reasoning.split('\n').filter(l => l.trim()).map((line, i) => (
+        <li key={i} className="flex gap-2.5 text-sm text-gray-700 leading-snug">
+          <span className="text-blue-400 mt-0.5 shrink-0">•</span>
+          <span>{line.replace(/^•\s*/, '')}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -818,8 +834,10 @@ export default function FitnessPage() {
   const [predicting, setPredicting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showRecencyWarning, setShowRecencyWarning] = useState(false)
-  const [pendingFTPUpdate, setPendingFTPUpdate] = useState<number | null>(null)
+  const [pendingFTPUpdate, setPendingFTPUpdate] = useState<{ id: string; predictedFtp: number } | null>(null)
   const [updatingFTP, setUpdatingFTP] = useState(false)
+  const [draftPrediction, setDraftPrediction] = useState<PredictionDraft | null>(null)
+  const [savingDraft, setSavingDraft] = useState(false)
   const [charts, setCharts] = useState<ChartsData | null>(null)
   const [chartsLoading, setChartsLoading] = useState(true)
   const [chartsError, setChartsError] = useState<string | null>(null)
@@ -872,8 +890,7 @@ export default function FitnessPage() {
       })
       const json = await res.json()
       if (res.ok) {
-        setPredictions(prev => [json, ...prev])
-        if (json.predicted_ftp !== currentFTP) setPendingFTPUpdate(json.predicted_ftp)
+        setDraftPrediction(json)
       } else {
         setError(json?.error ?? `Request failed (${res.status})`)
       }
@@ -884,15 +901,46 @@ export default function FitnessPage() {
     }
   }
 
-  async function updateProfileFTP(newFTP: number) {
+  function discardDraft() {
+    setDraftPrediction(null)
+  }
+
+  async function saveDraft() {
+    if (!draftPrediction) return
+    setSavingDraft(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/ftp/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draftPrediction),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        setPredictions(prev => [json, ...prev])
+        setActivePrediction(0)
+        setDraftPrediction(null)
+        if (json.predicted_ftp !== currentFTP) {
+          setPendingFTPUpdate({ id: json.id, predictedFtp: json.predicted_ftp })
+        }
+      } else {
+        setError(json?.error ?? `Request failed (${res.status})`)
+      }
+    } catch {
+      setError('Network error — could not reach server')
+    } finally {
+      setSavingDraft(false)
+    }
+  }
+
+  async function applyPrediction(update: { id: string; predictedFtp: number }) {
     setUpdatingFTP(true)
     try {
-      await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ current_ftp: newFTP }),
-      })
-      setCurrentFTP(newFTP)
+      const res = await fetch(`/api/ftp/${update.id}/apply`, { method: 'PATCH' })
+      if (res.ok) {
+        setCurrentFTP(update.predictedFtp)
+        setPredictions(prev => prev.map(p => p.id === update.id ? { ...p, confirmed: true } : p))
+      }
     } finally {
       setUpdatingFTP(false)
       setPendingFTPUpdate(null)
@@ -964,10 +1012,12 @@ export default function FitnessPage() {
       )}
 
       {predictions.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center">
-          <p className="text-gray-400 text-sm">No predictions yet.</p>
-          <p className="text-gray-400 text-sm mt-1">Click <span className="font-medium text-gray-600">Predict FTP</span> to analyse your ride data.</p>
-        </div>
+        !draftPrediction && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center">
+            <p className="text-gray-400 text-sm">No predictions yet.</p>
+            <p className="text-gray-400 text-sm mt-1">Click <span className="font-medium text-gray-600">Predict FTP</span> to analyse your ride data.</p>
+          </div>
+        )
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {predictions.length > 1 && (
@@ -1001,26 +1051,50 @@ export default function FitnessPage() {
                   <p className="text-xs text-gray-500">
                     {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
-                  {p.confirmed && <p className="text-xs text-emerald-600 font-medium mt-0.5">&#10003; confirmed</p>}
+                  {p.confirmed && <p className="text-xs text-emerald-600 font-medium mt-0.5">&#10003; applied to profile</p>}
                 </div>
               </div>
               <div className="px-5 py-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Coach&apos;s Analysis</p>
-                {p.reasoning.includes('•') ? (
-                  <ul className="space-y-2">
-                    {p.reasoning.split('\n').filter(l => l.trim()).map((line, i) => (
-                      <li key={i} className="flex gap-2.5 text-sm text-gray-700 leading-snug">
-                        <span className="text-blue-400 mt-0.5 shrink-0">•</span>
-                        <span>{line.replace(/^•\s*/, '')}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-700 leading-relaxed">{p.reasoning}</p>
-                )}
+                <ReasoningText reasoning={p.reasoning} />
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {draftPrediction && (
+        <div className="bg-white rounded-xl border-2 border-blue-200 shadow-sm overflow-hidden">
+          <div className="bg-blue-50 border-b border-blue-200 px-5 py-3.5 flex items-center justify-between">
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-black text-gray-900 tracking-tight">{draftPrediction.predicted_ftp}</span>
+              <span className="text-base font-semibold text-gray-400">W</span>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ml-1 ${confidenceBadge(draftPrediction.confidence)}`}>
+                {draftPrediction.confidence} confidence
+              </span>
+            </div>
+            <span className="text-xs font-semibold text-blue-600">Not saved yet</span>
+          </div>
+          <div className="px-5 py-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Coach&apos;s Analysis</p>
+            <ReasoningText reasoning={draftPrediction.reasoning} />
+          </div>
+          <div className="flex gap-3 justify-end px-5 pb-4">
+            <button
+              onClick={discardDraft}
+              disabled={savingDraft}
+              className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Discard
+            </button>
+            <button
+              onClick={saveDraft}
+              disabled={savingDraft}
+              className="bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+            >
+              {savingDraft ? 'Saving…' : 'Save prediction'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -1086,7 +1160,7 @@ export default function FitnessPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Update profile FTP?</h2>
-              <p className="text-sm text-gray-500 mt-1">The prediction differs from your current profile FTP.</p>
+              <p className="text-sm text-gray-500 mt-1">The saved prediction differs from your current profile FTP.</p>
             </div>
             <div className="flex items-center justify-center gap-6 py-2">
               <div className="text-center">
@@ -1096,7 +1170,7 @@ export default function FitnessPage() {
               <span className="text-2xl text-gray-300">→</span>
               <div className="text-center">
                 <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-1">Predicted</p>
-                <p className="text-3xl font-black text-blue-600">{pendingFTPUpdate}<span className="text-base font-semibold ml-0.5">W</span></p>
+                <p className="text-3xl font-black text-blue-600">{pendingFTPUpdate.predictedFtp}<span className="text-base font-semibold ml-0.5">W</span></p>
               </div>
             </div>
             <div className="flex gap-3 justify-end pt-1">
@@ -1108,11 +1182,11 @@ export default function FitnessPage() {
                 Keep current
               </button>
               <button
-                onClick={() => updateProfileFTP(pendingFTPUpdate)}
+                onClick={() => applyPrediction(pendingFTPUpdate)}
                 disabled={updatingFTP}
                 className="bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
               >
-                {updatingFTP ? 'Updating…' : `Update to ${pendingFTPUpdate}W`}
+                {updatingFTP ? 'Updating…' : `Update to ${pendingFTPUpdate.predictedFtp}W`}
               </button>
             </div>
           </div>
