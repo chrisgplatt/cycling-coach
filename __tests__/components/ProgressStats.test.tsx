@@ -51,6 +51,30 @@ describe('ProgressStats', () => {
     expect(await screen.findByText('🔥 5')).toBeInTheDocument()
   })
 
+  it('renders weight tile with negative delta as good (green)', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
+    render(<ProgressStats syncVersion={0} />)
+    expect(await screen.findByText('73.5kg')).toBeInTheDocument()
+    const badge = screen.getByText('-1.5kg')
+    expect(badge).toBeInTheDocument()
+    expect(badge).toHaveClass('text-emerald-600')
+  })
+
+  it('renders total rides tile with "since start" sub label when a plan start date exists', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
+    render(<ProgressStats syncVersion={0} />)
+    expect(await screen.findByText('47')).toBeInTheDocument()
+    expect(screen.getByText('since start')).toBeInTheDocument()
+  })
+
+  it('renders total rides tile with "last 6wk" sub label when there is no plan', async () => {
+    const noplan = { ...briefData, metrics_snapshot: { ...briefData.metrics_snapshot, planStartDate: null } }
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => noplan })
+    render(<ProgressStats syncVersion={0} />)
+    expect(await screen.findByText('47')).toBeInTheDocument()
+    expect(screen.getByText('last 6wk')).toBeInTheDocument()
+  })
+
 it('does not render the coaching narrative text', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} />)

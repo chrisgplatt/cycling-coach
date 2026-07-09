@@ -52,7 +52,7 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
 
   if (loading) return <div className="h-24 bg-gray-100 rounded-xl animate-pulse" />
 
-  const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || data.metrics_snapshot.streak != null)
+  const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || data.metrics_snapshot.streak != null || data.metrics_snapshot.weight || data.metrics_snapshot.totalRides != null)
   const hasWeek = weeklyProgress && weeklyProgress.sessionsTotal > 0
 
   if (!hasSeasonStats && !hasWeek && !eventCountdown && !upcomingEvents?.length && !upcomingTests?.length && !activities?.length) return null
@@ -167,6 +167,12 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
               sub={roundedForm > 5 ? 'fresh' : roundedForm >= -15 ? 'building' : 'tired'}
               subColour={roundedForm > 5 ? 'text-emerald-600' : roundedForm >= -15 ? 'text-amber-500' : 'text-red-500'}
             />
+          )}
+          {m.weight && (
+            <Tile label="Weight" value={`${m.weight.current.toFixed(1)}kg`} delta={m.weight.delta} deltaSuffix="kg" />
+          )}
+          {m.totalRides != null && (
+            <Tile label="Rides" value={String(m.totalRides)} sub={m.planStartDate ? 'since start' : 'last 6wk'} />
           )}
         </div>
       )}
