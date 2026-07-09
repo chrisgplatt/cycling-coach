@@ -221,6 +221,13 @@ export interface FTPPrediction {
   created_at: string
 }
 
+export interface PredictionDraft {
+  predicted_ftp: number
+  reasoning: string
+  confidence: 'high' | 'medium' | 'low'
+  activity_ids: string[]
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
