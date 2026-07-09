@@ -8,6 +8,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Always run `npm run typecheck` before committing. Jest does not surface TypeScript type errors — `tsc --noEmit` is required. The CI pipeline runs typecheck separately and will fail if you skip it. The `npm run test:ci` script runs both in sequence.
 
+# Database migrations
+
+There is no automated migration deploy step — the Supabase project isn't linked via CLI and CI only runs typecheck/tests. Any file added to `supabase/migrations/` must be run manually against the shared production database (Supabase SQL editor, or `supabase db push` if linked locally) **before or as part of** deploying the app version that depends on it. If app code ships first, every user hits a "Could not find the 'X' column ... in the schema cache" error until the migration is run.
+
+- When you add a new migration file, tell the user the exact SQL to run and remind them to run it against the shared Supabase project.
+- Prefer `add column if not exists` / other idempotent forms so a migration can be safely re-run if it's unclear whether it was already applied.
+- After running SQL manually, force PostgREST to pick up the change immediately with `notify pgrst, 'reload schema';` rather than waiting on its periodic cache refresh.
+
 # Mobile-first UI
 
 This is a PWA used primarily on mobile. Every UI change must be mobile-compatible:
