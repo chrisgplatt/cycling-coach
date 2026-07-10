@@ -52,6 +52,8 @@ export default function SettingsPage() {
   const [zonesFixing, setZonesFixing] = useState(false)
   const [zonesPreview, setZonesPreview] = useState<{ changeCount: number; total: number } | null>(null)
   const [zonesResult, setZonesResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [ftpBackfilling, setFtpBackfilling] = useState(false)
+  const [ftpBackfillResult, setFtpBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [locationLabel, setLocationLabel] = useState('')
@@ -367,6 +369,27 @@ export default function SettingsPage() {
     }
   }
 
+  async function runBackfillFtp() {
+    setFtpBackfilling(true)
+    setFtpBackfillResult(null)
+    try {
+      const res = await fetch('/api/workouts/backfill-ftp', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setFtpBackfillResult({
+          ok: data.failed === 0,
+          message: data.total === 0 ? 'No completed workouts need an FTP backfill.' : `${data.updated} updated, ${data.skipped} skipped, ${data.failed} failed.`,
+        })
+      } else {
+        setFtpBackfillResult({ ok: false, message: data.error ?? 'Backfill failed.' })
+      }
+    } catch {
+      setFtpBackfillResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setFtpBackfilling(false)
+    }
+  }
+
   async function previewZonesFix() {
     setZonesFixing(true)
     setZonesResult(null)
@@ -534,6 +557,9 @@ export default function SettingsPage() {
         zonesPreview={zonesPreview}
         onPreviewZonesFix={previewZonesFix}
         onApplyZonesFix={applyZonesFix}
+        ftpBackfilling={ftpBackfilling}
+        ftpBackfillResult={ftpBackfillResult}
+        onRunBackfillFtp={runBackfillFtp}
       />
 
       {/* Location for weather */}

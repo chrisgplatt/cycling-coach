@@ -47,6 +47,9 @@ interface Props {
   zonesPreview: { changeCount: number; total: number } | null
   onPreviewZonesFix: () => void
   onApplyZonesFix: () => void
+  ftpBackfilling: boolean
+  ftpBackfillResult: ActionResult
+  onRunBackfillFtp: () => void
 }
 
 export default function DailyBriefingCard({
@@ -58,6 +61,7 @@ export default function DailyBriefingCard({
   repushing, repushResult, onRunRepushPlanned,
   backfilling, backfillResult, onRunBackfillNotes,
   zonesFixing, zonesResult, zonesPreview, onPreviewZonesFix, onApplyZonesFix,
+  ftpBackfilling, ftpBackfillResult, onRunBackfillFtp,
 }: Props) {
   return (
     <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
@@ -219,6 +223,20 @@ export default function DailyBriefingCard({
                 {backfillResult && (
                   <p className={`text-xs ${backfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                     {backfillResult.message}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={onRunBackfillFtp}
+                  disabled={ftpBackfilling}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+                >
+                  {ftpBackfilling ? 'Backfilling…' : 'Backfill FTP for completed workouts'}
+                </button>
+                {ftpBackfillResult && (
+                  <p className={`text-xs ${ftpBackfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {ftpBackfillResult.message}
                   </p>
                 )}
               </div>
