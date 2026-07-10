@@ -9,8 +9,8 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
-  testPathIgnorePatterns: ['<rootDir>/node_modules/', '__tests__[/\\\\]support[/\\\\]', '[/\\\\]\\.claude[/\\\\]worktrees[/\\\\]'],
-  modulePathIgnorePatterns: ['[/\\\\]\\.claude[/\\\\]worktrees[/\\\\]'],
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '__tests__[/\\\\]support[/\\\\]', '<rootDir>[/\\\\]\\.claude[/\\\\]worktrees[/\\\\]'],
+  modulePathIgnorePatterns: ['<rootDir>[/\\\\]\\.claude[/\\\\]worktrees[/\\\\]'],
 }
 
 export default createJestConfig(config)
