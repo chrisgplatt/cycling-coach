@@ -104,6 +104,84 @@ describe('Profile & Schedule tab', () => {
     fireEvent.click(screen.getByRole('button', { name: /profile/i }))
     expect(await screen.findByText(/not set/i)).toBeInTheDocument()
   })
+
+  it('shows only the latest weight (no log form) when not editing stats', async () => {
+    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/weight-log') {
+        return Promise.resolve({ ok: true, json: async () => ({ entries: [{ id: 'w1', date: '2026-07-10', weight_kg: 76.2 }] }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ id: 'p1', current_ftp: 265, weight_kg: 76.2, goals: '', weekly_availability: [], events: [] }),
+      })
+    })
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }))
+    expect(await screen.findByText('76.2 kg')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/weight \(kg\)/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /log weight/i })).not.toBeInTheDocument()
+  })
+
+  it('shows an editable Max HR input with an auto-calculate hint when Stats Edit is clicked', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'p1', current_ftp: 265, weight_kg: 78.5, goals: '',
+        weekly_availability: [], events: [],
+        date_of_birth: '1990-01-01', max_hr_manual: null, observed_max_hr: null,
+      }),
+    })
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /edit stats/i }))
+    expect(screen.getByLabelText(/max heart rate/i)).toBeInTheDocument()
+    expect(screen.getByText(/leave blank to auto-calculate — currently \d+ bpm \(estimated from age\)/i)).toBeInTheDocument()
+  })
+
+  it('saves an entered Max HR value and shows it as manual after saving', async () => {
+    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'PATCH') {
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          id: 'p1', current_ftp: 265, weight_kg: 78.5, goals: '',
+          weekly_availability: [], events: [],
+          date_of_birth: '1990-01-01', max_hr_manual: null, observed_max_hr: null,
+        }),
+      })
+    })
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /edit stats/i }))
+    const maxHrInput = screen.getByLabelText(/max heart rate/i)
+    fireEvent.change(maxHrInput, { target: { value: '188' } })
+    fireEvent.click(screen.getByRole('button', { name: /save stats/i }))
+    expect(await screen.findByText(/188 bpm/)).toBeInTheDocument()
+    expect(screen.getByText(/\(manual\)/)).toBeInTheDocument()
+  })
+
+  it('shows the weight log form when Stats Edit is clicked', async () => {
+    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/weight-log') {
+        return Promise.resolve({ ok: true, json: async () => ({ entries: [{ id: 'w1', date: '2026-07-10', weight_kg: 76.2 }] }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ id: 'p1', current_ftp: 265, weight_kg: 76.2, goals: '', weekly_availability: [], events: [] }),
+      })
+    })
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }))
+    await screen.findByText('76.2 kg')
+    fireEvent.click(screen.getByRole('button', { name: /edit stats/i }))
+    expect(await screen.findByLabelText(/weight \(kg\)/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /log weight/i })).toBeInTheDocument()
+  })
 })
 
 describe('Events tab', () => {

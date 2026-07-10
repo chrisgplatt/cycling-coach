@@ -58,7 +58,8 @@ export default function PlanPage() {
   const [currentFtp, setCurrentFtp] = useState(200)
   const [weightKg, setWeightKg] = useState(70)
   const [dateOfBirth, setDateOfBirth] = useState<string | null>(null)
-  const [maxHrManual, setMaxHrManual] = useState<number | null>(null)
+  const [maxHrManual, setMaxHrManual] = useState('')
+  const [savedMaxHrManual, setSavedMaxHrManual] = useState('')
   const [observedMaxHr, setObservedMaxHr] = useState<number | null>(null)
   const [schedule, setSchedule] = useState<Record<string, number>>(
     Object.fromEntries(DAYS.map(d => [d, 0]))
@@ -367,7 +368,8 @@ export default function PlanPage() {
         setCurrentFtp(ftp); setSavedFtp(ftp)
         setWeightKg(wt); setSavedWeight(wt)
         setDateOfBirth(data.date_of_birth ?? null)
-        setMaxHrManual(data.max_hr_manual ?? null)
+        const maxHrM = data.max_hr_manual != null ? String(data.max_hr_manual) : ''
+        setMaxHrManual(maxHrM); setSavedMaxHrManual(maxHrM)
         setObservedMaxHr(data.observed_max_hr ?? null)
         setSchedule(sched); setSavedSchedule(sched)
         setMinSessions(minSess); setSavedMinSessions(minSess)
@@ -413,9 +415,10 @@ export default function PlanPage() {
       const weekly_availability = DAYS
         .filter(d => (schedule[d] ?? 0) > 0)
         .map(d => ({ day: d, duration_minutes: schedule[d] }))
+      const maxHrManualNum = maxHrManual.trim() === '' ? null : Number(maxHrManual)
       const body = profileId
-        ? { id: profileId, goals, current_ftp: currentFtp, weight_kg: weightKg, weekly_availability, min_sessions_per_week: minSessions, max_sessions_per_week: maxSessions }
-        : { goals, current_ftp: currentFtp, weight_kg: weightKg, weekly_availability, min_sessions_per_week: minSessions, max_sessions_per_week: maxSessions }
+        ? { id: profileId, goals, current_ftp: currentFtp, weight_kg: weightKg, max_hr_manual: maxHrManualNum, weekly_availability, min_sessions_per_week: minSessions, max_sessions_per_week: maxSessions }
+        : { goals, current_ftp: currentFtp, weight_kg: weightKg, max_hr_manual: maxHrManualNum, weekly_availability, min_sessions_per_week: minSessions, max_sessions_per_week: maxSessions }
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -429,6 +432,7 @@ export default function PlanPage() {
       setSavedGoals(goals)
       setSavedFtp(currentFtp)
       setSavedWeight(weightKg)
+      setSavedMaxHrManual(maxHrManual)
       setSavedSchedule({ ...schedule })
       setSavedMinSessions(minSessions)
       setSavedMaxSessions(maxSessions)
@@ -1061,7 +1065,7 @@ export default function PlanPage() {
                     className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
                   >✓</button>
                   <button
-                    onClick={() => { setCurrentFtp(savedFtp); setEditingStats(false); setSaveError(null) }}
+                    onClick={() => { setCurrentFtp(savedFtp); setMaxHrManual(savedMaxHrManual); setEditingStats(false); setSaveError(null) }}
                     aria-label="Cancel"
                     className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors"
                   >✕</button>
@@ -1090,25 +1094,59 @@ export default function PlanPage() {
               )}
             </div>
             <div>
-              <p className={labelClass}>Max HR</p>
-              {(() => {
-                const maxHr = resolveMaxHr({ manual: maxHrManual, dateOfBirth, observed: observedMaxHr })
-                return maxHr ? (
-                  <p className="text-sm font-semibold text-slate-800">{maxHr.value} bpm <span className="text-xs font-normal text-slate-400">({MAX_HR_SOURCE_LABEL[maxHr.source]})</span></p>
-                ) : (
-                  <p className="text-sm text-slate-400 italic">Not set — add a date of birth in Account settings.</p>
-                )
-              })()}
+              {editingStats ? (
+                <>
+                  <label htmlFor="max-hr" className={labelClass}>Max heart rate (optional)</label>
+                  <input
+                    id="max-hr"
+                    type="number"
+                    inputMode="numeric"
+                    value={maxHrManual}
+                    onChange={e => setMaxHrManual(e.target.value)}
+                    placeholder="e.g. 185"
+                    className={inputClass}
+                  />
+                  {(() => {
+                    const autoMaxHr = resolveMaxHr({ manual: null, dateOfBirth, observed: observedMaxHr })
+                    return (
+                      <p className="text-xs text-slate-400 mt-1">
+                        {autoMaxHr
+                          ? `Leave blank to auto-calculate — currently ${autoMaxHr.value} bpm (${MAX_HR_SOURCE_LABEL[autoMaxHr.source]}).`
+                          : 'Leave blank to auto-calculate from date of birth once it’s set.'}
+                      </p>
+                    )
+                  })()}
+                </>
+              ) : (
+                <>
+                  <p className={labelClass}>Max HR</p>
+                  {(() => {
+                    const manual = maxHrManual.trim() === '' ? null : Number(maxHrManual)
+                    const maxHr = resolveMaxHr({ manual, dateOfBirth, observed: observedMaxHr })
+                    return maxHr ? (
+                      <p className="text-sm font-semibold text-slate-800">{maxHr.value} bpm <span className="text-xs font-normal text-slate-400">({MAX_HR_SOURCE_LABEL[maxHr.source]})</span></p>
+                    ) : (
+                      <p className="text-sm text-slate-400 italic">Not set — add a date of birth in Account settings.</p>
+                    )
+                  })()}
+                </>
+              )}
             </div>
             <div>
               <p className={labelClass}>Weight Log</p>
-              <WeightLogWidget
-                entries={weightLog}
-                onEntriesChange={entries => {
-                  setWeightLog(entries)
-                  if (entries[0]) setWeightKg(entries[0].weight_kg)
-                }}
-              />
+              {editingStats ? (
+                <WeightLogWidget
+                  entries={weightLog}
+                  onEntriesChange={entries => {
+                    setWeightLog(entries)
+                    if (entries[0]) setWeightKg(entries[0].weight_kg)
+                  }}
+                />
+              ) : weightLog[0] ? (
+                <p className="text-sm font-semibold text-slate-800">{weightLog[0].weight_kg} kg</p>
+              ) : (
+                <p className="text-sm text-slate-400 italic">No entries yet</p>
+              )}
             </div>
           </section>
 
