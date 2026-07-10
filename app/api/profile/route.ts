@@ -50,7 +50,7 @@ export async function PATCH(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  if (typeof fields.current_ftp === 'number' || typeof fields.weight_kg === 'number') {
+  if (typeof fields.current_ftp === 'number' || typeof fields.weight_kg === 'number' || typeof fields.max_hr_manual === 'number') {
     const { data: profileRow } = await supabase
       .from('user_profile')
       .select('intervals_icu_athlete_id, intervals_icu_api_key')
@@ -59,6 +59,7 @@ export async function PATCH(req: Request) {
       const client = new IntervalsClient(profileRow.intervals_icu_athlete_id, profileRow.intervals_icu_api_key)
       if (typeof fields.current_ftp === 'number') await client.updateRideFTP(fields.current_ftp).catch(() => {})
       if (typeof fields.weight_kg === 'number') await client.updateAthleteWeight(fields.weight_kg).catch(() => {})
+      if (typeof fields.max_hr_manual === 'number') await client.updateRideMaxHr(fields.max_hr_manual).catch(() => {})
     }
   }
 

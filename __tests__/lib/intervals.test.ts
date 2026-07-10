@@ -51,6 +51,31 @@ describe('IntervalsClient', () => {
     expect(activities[0].ftp).toBe(245)
   })
 
+  it('updateRideMaxHr PUTs max_hr to the Ride sport-settings entry', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ([
+        { id: 10, types: ['Run'] },
+        { id: 20, types: ['Ride', 'VirtualRide'] },
+      ]) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+
+    await client.updateRideMaxHr(188)
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    const [url, options] = mockFetch.mock.calls[1]
+    expect(url).toBe('https://intervals.icu/api/v1/athlete/i12345/sport-settings/20')
+    expect(options.method).toBe('PUT')
+    expect(JSON.parse(options.body)).toEqual({ max_hr: 188 })
+  })
+
+  it('updateRideMaxHr does nothing when there is no Ride sport-settings entry', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ([{ id: 10, types: ['Run'] }]) })
+
+    await client.updateRideMaxHr(188)
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
   it('createEvent returns the created event id', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'evt123' }) })
 

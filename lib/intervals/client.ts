@@ -205,6 +205,18 @@ export class IntervalsClient {
     })
   }
 
+  async updateRideMaxHr(maxHr: number): Promise<void> {
+    const settings = await this.request<Array<{ id: number; types: string[] }>>(
+      `/athlete/${this.athleteId}/sport-settings`
+    )
+    const rideEntry = settings.find(s => s.types.includes('Ride'))
+    if (!rideEntry) return
+    await this.request(`/athlete/${this.athleteId}/sport-settings/${rideEntry.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ max_hr: maxHr }),
+    })
+  }
+
   async getRideLthr(): Promise<number | null> {
     const settings = await this.request<Array<{ types: string[]; lthr?: number | null }>>(
       `/athlete/${this.athleteId}/sport-settings`
