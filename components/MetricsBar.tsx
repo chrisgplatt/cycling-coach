@@ -31,21 +31,6 @@ function Metric({ label, value, valueClass = 'text-gray-900', unit, stale }: Met
   )
 }
 
-function formatSyncTime(syncedAt: Date | null): string {
-  if (!syncedAt) return ''
-  const timeStr = syncedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-  const today = new Date()
-  const todayStr = today.toISOString().split('T')[0]
-  const syncedStr = syncedAt.toISOString().split('T')[0]
-  if (syncedStr === todayStr) return `Synced today at ${timeStr}`
-  const yesterday = new Date(today)
-  yesterday.setDate(today.getDate() - 1)
-  if (syncedStr === yesterday.toISOString().split('T')[0]) return `Synced yesterday at ${timeStr}`
-  const [, month, day] = syncedStr.split('-').map(Number)
-  const monthName = MONTHS_SHORT[month - 1]
-  return `Synced ${day} ${monthName} at ${timeStr}`
-}
-
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function localDateStr(d: Date): string {
@@ -369,7 +354,6 @@ const TRAINING_STATUS_CONFIG: Record<string, { label: string; bg: string; text: 
 
 export default function MetricsBar({
   wellness,
-  syncedAt = null,
   stale = {},
   embedded = false,
   lastRideLabel,
@@ -379,7 +363,6 @@ export default function MetricsBar({
   todayDailyWellness,
 }: {
   wellness: ICUWellness | null
-  syncedAt?: Date | null
   stale?: { hrv?: boolean; restingHr?: boolean }
   embedded?: boolean
   lastRideLabel?: string
@@ -428,7 +411,6 @@ export default function MetricsBar({
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[11px] text-white/60">{formatSyncTime(syncedAt)}</div>
               {lastRideLabel && (
                 <div className="text-[11px] text-white/60">
                   Last ride: <span className="font-semibold text-white/85">{lastRideLabel}</span>
@@ -449,7 +431,6 @@ export default function MetricsBar({
         <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
           <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Fitness Stats</h2>
           <div className="text-right">
-            <div className="text-xs text-gray-400">{formatSyncTime(syncedAt)}</div>
             {lastRideLabel && (
               <div className="text-[11px] text-gray-400">Last ride: <span className="font-medium text-gray-500">{lastRideLabel}</span></div>
             )}
