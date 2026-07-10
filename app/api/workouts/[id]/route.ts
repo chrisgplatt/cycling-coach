@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { resolveFallbackFtpForWorkout } from '@/lib/ftp/resolve-ftp'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { generateWorkoutSteps } from '@/lib/claude/steps'
 import { generateCoachingNotes } from '@/lib/claude/coaching-notes'
@@ -73,6 +74,17 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
     }
     update.date = body.date
+  }
+
+  if (body.status === 'completed') {
+    if (typeof body.ftp_at_completion === 'number') {
+      update.ftp_at_completion = body.ftp_at_completion
+    } else {
+      const { data: existing } = await supabase.from('workouts').select('date, plan_id').eq('id', id).maybeSingle()
+      update.ftp_at_completion = existing
+        ? await resolveFallbackFtpForWorkout(supabase, existing.date, existing.plan_id)
+        : null
+    }
   }
 
   if (Object.keys(update).length === 0) {
