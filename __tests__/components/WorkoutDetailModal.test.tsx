@@ -62,7 +62,7 @@ const activity: ICUActivity = {
   id: 'act456', start_date_local: '2026-05-15T08:00:00',
   type: 'Ride', moving_time: 3600, name: 'Morning Ride',
   average_watts: 220, max_watts: 350, weighted_average_watts: 225,
-  average_heartrate: 155, training_load: 94, rolling_ftp: null,
+  average_heartrate: 155, training_load: 94, rolling_ftp: null, ftp: 245,
   distance: null, total_elevation_gain: null, left_right_balance: null,
 }
 
@@ -124,6 +124,64 @@ describe('WorkoutDetailModal', () => {
     expect(await screen.findByText('Morning Ride')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /change/i })).toBeInTheDocument()
+  })
+
+  it('calls PATCH with ftp_at_completion from the matched activity when confirming a match', async () => {
+    const onStatusChange = jest.fn()
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true, json: async () => ({}),
+    } as unknown as Response)
+    render(
+      <WorkoutDetailModal
+        workout={reviewWorkout}
+        athleteId="i12345"
+        activitiesOnDate={[activity]}
+        onClose={jest.fn()}
+        onStatusChange={onStatusChange}
+      />
+    )
+    fireEvent.click(await screen.findByRole('button', { name: /confirm/i }))
+    await waitFor(() => expect(onStatusChange).toHaveBeenCalledTimes(1))
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/workouts/w1', expect.objectContaining({
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'completed', ftp_at_completion: 245 }),
+    }))
+  })
+
+  it('calls PATCH with ftp_at_completion from the selected activity when picking a different match', async () => {
+    const onStatusChange = jest.fn()
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true, json: async () => ({}),
+    } as unknown as Response)
+    const otherActivity: ICUActivity = { ...activity, id: 'act789', name: 'Afternoon Ride', ftp: 250 }
+    render(
+      <WorkoutDetailModal
+        workout={reviewWorkout}
+        athleteId="i12345"
+        activitiesOnDate={[activity, otherActivity]}
+        onClose={jest.fn()}
+        onStatusChange={onStatusChange}
+      />
+    )
+    fireEvent.click(await screen.findByRole('button', { name: /change/i }))
+    fireEvent.click(screen.getByText('Afternoon Ride'))
+    await waitFor(() => expect(onStatusChange).toHaveBeenCalledTimes(1))
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/workouts/w1', expect.objectContaining({
+      method: 'PATCH',
+      body: JSON.stringify({ icu_activity_id: 'act789', tss: 94, status: 'completed', ftp_at_completion: 250 }),
+    }))
+  })
+
+  it('shows the FTP chip for a completed workout with ftp_at_completion set', async () => {
+    const withFtp = { ...matchedWorkout, ftp_at_completion: 245 }
+    render(<WorkoutDetailModal workout={withFtp} athleteId="i12345" onClose={jest.fn()} />)
+    expect(await screen.findByText('245W FTP')).toBeInTheDocument()
+  })
+
+  it('does not show the FTP chip when ftp_at_completion is null', async () => {
+    render(<WorkoutDetailModal workout={matchedWorkout} athleteId="i12345" onClose={jest.fn()} />)
+    await screen.findByText('✓ Completed')
+    expect(screen.queryByText(/W FTP/)).not.toBeInTheDocument()
   })
 
   it('calls onClose when Close is clicked', () => {
