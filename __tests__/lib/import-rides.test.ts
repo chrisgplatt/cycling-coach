@@ -15,6 +15,7 @@ function makeSupabase({
   existingActivityIds = [] as string[],
   predictions = [] as { created_at: string; predicted_ftp: number }[],
   insertSpy = jest.fn(),
+  predictionsSelectSpy = jest.fn(),
 } = {}) {
   return {
     from: (table: string) => {
@@ -25,7 +26,12 @@ function makeSupabase({
         }
       }
       if (table === 'ftp_predictions') {
-        return { select: () => ({ eq: () => ({ data: predictions }) }) }
+        return {
+          select: (...args: unknown[]) => {
+            predictionsSelectSpy(...args)
+            return { eq: () => ({ data: predictions }) }
+          },
+        }
       }
       throw new Error(`unexpected table ${table}`)
     },
@@ -71,5 +77,24 @@ describe('importUnplannedRides', () => {
     const count = await importUnplannedRides(supabase as never, 'u1', [makeActivity({ type: 'Run' })])
     expect(count).toBe(0)
     expect(insertSpy).not.toHaveBeenCalled()
+  })
+
+  it('fetches the confirmed ftp_predictions fallback exactly once when multiple rides in the same batch need it', async () => {
+    const insertSpy = jest.fn()
+    const predictionsSelectSpy = jest.fn()
+    const supabase = makeSupabase({
+      insertSpy,
+      predictionsSelectSpy,
+      predictions: [{ created_at: '2026-07-01T00:00:00Z', predicted_ftp: 230 }],
+    })
+    await importUnplannedRides(supabase as never, 'u1', [
+      makeActivity({ id: 'act1', ftp: null, start_date_local: '2026-07-06T08:00:00' }),
+      makeActivity({ id: 'act2', ftp: null, start_date_local: '2026-07-07T08:00:00' }),
+    ])
+    expect(predictionsSelectSpy).toHaveBeenCalledTimes(1)
+    expect(insertSpy).toHaveBeenCalledWith([
+      expect.objectContaining({ icu_activity_id: 'act1', ftp_at_completion: 230 }),
+      expect.objectContaining({ icu_activity_id: 'act2', ftp_at_completion: 230 }),
+    ])
   })
 })
