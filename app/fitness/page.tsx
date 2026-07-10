@@ -1062,8 +1062,17 @@ export default function FitnessPage() {
                 </div>
               </div>
               <div className="px-5 py-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Coach&apos;s Analysis</p>
-                <ReasoningText reasoning={p.reasoning} />
+                <details className="group">
+                  <summary className="cursor-pointer list-none text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1 select-none">
+                    <svg width="10" height="10" viewBox="0 0 12 12" className="transition-transform group-open:rotate-90" fill="currentColor" aria-hidden="true">
+                      <path d="M4 2l4 4-4 4z" />
+                    </svg>
+                    Coach&apos;s Analysis
+                  </summary>
+                  <div className="mt-3">
+                    <ReasoningText reasoning={p.reasoning} />
+                  </div>
+                </details>
               </div>
             </div>
           ))}
@@ -1083,8 +1092,17 @@ export default function FitnessPage() {
             <span className="text-xs font-semibold text-blue-600">Not saved yet</span>
           </div>
           <div className="px-5 py-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Coach&apos;s Analysis</p>
-            <ReasoningText reasoning={draftPrediction.reasoning} />
+            <details className="group">
+              <summary className="cursor-pointer list-none text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1 select-none">
+                <svg width="10" height="10" viewBox="0 0 12 12" className="transition-transform group-open:rotate-90" fill="currentColor" aria-hidden="true">
+                  <path d="M4 2l4 4-4 4z" />
+                </svg>
+                Coach&apos;s Analysis
+              </summary>
+              <div className="mt-3">
+                <ReasoningText reasoning={draftPrediction.reasoning} />
+              </div>
+            </details>
           </div>
           <div className="flex gap-3 justify-end px-5 pb-4">
             <button
