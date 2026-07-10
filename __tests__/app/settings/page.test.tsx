@@ -101,6 +101,23 @@ describe('Account page', () => {
     expect(screen.getByText(/max hr not set/i)).toBeInTheDocument()
   })
 
+  it('shows the auto-calculated value as a hint under the manual override input in edit mode', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'p1',
+        full_name: 'Chris Platt',
+        date_of_birth: '1990-07-03',
+        intervals_icu_athlete_id: 'i12345',
+        intervals_icu_api_key: 'apikey',
+      }),
+    })
+    render(<SettingsPage />)
+    await screen.findByText(/estimated from age/i)
+    fireEvent.click(screen.getByRole('button', { name: /edit personal details/i }))
+    expect(screen.getByText(/leave blank to auto-calculate — currently \d+ bpm \(estimated from age\)/i)).toBeInTheDocument()
+  })
+
   it('saves max_hr_manual in the PATCH body', async () => {
     render(<SettingsPage />)
     fireEvent.click(screen.getByRole('button', { name: /edit personal details/i }))

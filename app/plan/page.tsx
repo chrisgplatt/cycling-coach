@@ -18,6 +18,7 @@ import CoachingLog from '@/components/plan/CoachingLog'
 import { resolvePhases } from '@/lib/plan/phases'
 import { buildWeekBuckets, weekState, consistency, planHours } from '@/lib/plan/progress'
 import { buildForecast, daysBetweenUtc, addDaysUtc } from '@/lib/plan/forecast'
+import { resolveMaxHr, MAX_HR_SOURCE_LABEL } from '@/lib/max-hr'
 import WeightLogWidget from '@/components/WeightLogWidget'
 import type { TrainingEvent, Workout, GeneratedPlan, ICUSyncData, UnavailabilityPeriod, PlanPhase, CoachingLogEntry, WeightEntry, TrainingPhilosophy } from '@/types'
 import { periodDurationDays } from '@/lib/utils/unavailability'
@@ -56,6 +57,9 @@ export default function PlanPage() {
   const [goals, setGoals] = useState('')
   const [currentFtp, setCurrentFtp] = useState(200)
   const [weightKg, setWeightKg] = useState(70)
+  const [dateOfBirth, setDateOfBirth] = useState<string | null>(null)
+  const [maxHrManual, setMaxHrManual] = useState<number | null>(null)
+  const [observedMaxHr, setObservedMaxHr] = useState<number | null>(null)
   const [schedule, setSchedule] = useState<Record<string, number>>(
     Object.fromEntries(DAYS.map(d => [d, 0]))
   )
@@ -362,6 +366,9 @@ export default function PlanPage() {
         setGoals(g); setSavedGoals(g)
         setCurrentFtp(ftp); setSavedFtp(ftp)
         setWeightKg(wt); setSavedWeight(wt)
+        setDateOfBirth(data.date_of_birth ?? null)
+        setMaxHrManual(data.max_hr_manual ?? null)
+        setObservedMaxHr(data.observed_max_hr ?? null)
         setSchedule(sched); setSavedSchedule(sched)
         setMinSessions(minSess); setSavedMinSessions(minSess)
         setMaxSessions(maxSess); setSavedMaxSessions(maxSess)
@@ -1081,6 +1088,17 @@ export default function PlanPage() {
                   <p className="text-sm font-semibold text-slate-800">{currentFtp} W</p>
                 </>
               )}
+            </div>
+            <div>
+              <p className={labelClass}>Max HR</p>
+              {(() => {
+                const maxHr = resolveMaxHr({ manual: maxHrManual, dateOfBirth, observed: observedMaxHr })
+                return maxHr ? (
+                  <p className="text-sm font-semibold text-slate-800">{maxHr.value} bpm <span className="text-xs font-normal text-slate-400">({MAX_HR_SOURCE_LABEL[maxHr.source]})</span></p>
+                ) : (
+                  <p className="text-sm text-slate-400 italic">Not set — add a date of birth in Account settings.</p>
+                )
+              })()}
             </div>
             <div>
               <p className={labelClass}>Weight Log</p>

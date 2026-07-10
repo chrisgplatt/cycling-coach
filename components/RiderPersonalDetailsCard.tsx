@@ -1,11 +1,5 @@
 import { calculateAge } from '@/lib/age'
-import { resolveMaxHr } from '@/lib/max-hr'
-
-const MAX_HR_LABEL: Record<'manual' | 'estimated' | 'observed', string> = {
-  manual: 'manual',
-  estimated: 'estimated from age',
-  observed: 'from your rides',
-}
+import { resolveMaxHr, MAX_HR_SOURCE_LABEL } from '@/lib/max-hr'
 
 interface Props {
   editingName: boolean
@@ -92,6 +86,16 @@ export default function RiderPersonalDetailsCard({
               placeholder="e.g. 185"
               className={inputClass}
             />
+            {(() => {
+              const autoMaxHr = resolveMaxHr({ manual: null, dateOfBirth: dob || null, observed: observedMaxHr })
+              return (
+                <p className="text-xs text-slate-400 mt-1">
+                  {autoMaxHr
+                    ? `Leave blank to auto-calculate — currently ${autoMaxHr.value} bpm (${MAX_HR_SOURCE_LABEL[autoMaxHr.source]}).`
+                    : 'Leave blank to auto-calculate from date of birth once it’s set.'}
+                </p>
+              )
+            })()}
           </div>
         </div>
       ) : (
@@ -113,7 +117,7 @@ export default function RiderPersonalDetailsCard({
               observed: observedMaxHr,
             })
             return maxHr ? (
-              <p className="text-sm text-slate-500">{maxHr.value} bpm · {MAX_HR_LABEL[maxHr.source]}</p>
+              <p className="text-sm text-slate-500">{maxHr.value} bpm · {MAX_HR_SOURCE_LABEL[maxHr.source]}</p>
             ) : (
               <p className="text-sm text-slate-400 italic">Max HR not set</p>
             )

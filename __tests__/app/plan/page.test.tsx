@@ -75,6 +75,35 @@ describe('Profile & Schedule tab', () => {
     expect(screen.getByRole('button', { name: /save goals/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
   })
+
+  it('shows the calculated Max HR when a date of birth is on file', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'p1', current_ftp: 265, weight_kg: 78.5, goals: '',
+        weekly_availability: [], events: [],
+        date_of_birth: '1990-01-01', max_hr_manual: null, observed_max_hr: null,
+      }),
+    })
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }))
+    expect(await screen.findByText(/bpm/)).toBeInTheDocument()
+    expect(screen.getByText(/estimated from age/)).toBeInTheDocument()
+  })
+
+  it('shows a "not set" message when no date of birth or Max HR source is available', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'p1', current_ftp: 265, weight_kg: 78.5, goals: '',
+        weekly_availability: [], events: [],
+        date_of_birth: null, max_hr_manual: null, observed_max_hr: null,
+      }),
+    })
+    render(<PlanPage />)
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }))
+    expect(await screen.findByText(/not set/i)).toBeInTheDocument()
+  })
 })
 
 describe('Events tab', () => {

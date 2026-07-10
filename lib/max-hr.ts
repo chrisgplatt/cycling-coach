@@ -11,6 +11,12 @@ export interface MaxHrResult {
   source: 'manual' | 'estimated' | 'observed'
 }
 
+export const MAX_HR_SOURCE_LABEL: Record<MaxHrResult['source'], string> = {
+  manual: 'manual',
+  estimated: 'estimated from age',
+  observed: 'from your rides',
+}
+
 export function resolveMaxHr(inputs: MaxHrInputs): MaxHrResult | null {
   const { manual, dateOfBirth, observed } = inputs
   if (manual != null) return { value: manual, source: 'manual' }
