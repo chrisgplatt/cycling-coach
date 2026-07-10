@@ -11,6 +11,12 @@ describe('formatRelativeSyncTime', () => {
     expect(formatRelativeSyncTime(syncedAt, now)).toBe('today at 09:05')
   })
 
+  it('formats a late-night sync from earlier the same local day as "today"', () => {
+    const now = new Date('2026-07-09T23:30:00')
+    const syncedAt = new Date('2026-07-09T00:15:00')
+    expect(formatRelativeSyncTime(syncedAt, now)).toBe('today at 00:15')
+  })
+
   it('formats a timestamp from yesterday as "yesterday at HH:MM"', () => {
     const now = new Date('2026-07-10T08:00:00')
     const syncedAt = new Date('2026-07-09T21:14:00')
