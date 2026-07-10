@@ -7,7 +7,7 @@ const plannedWorkout: Workout = {
   id: 'w1', plan_id: 'p1', date: '2026-06-01', type: 'threshold',
   duration_minutes: 60, description: 'Test session', target_zones: 'Zone 4',
   status: 'planned', intervals_icu_event_id: null, icu_activity_id: null,
-  tss: null, actual_duration_minutes: null, missed_reason: null,
+  tss: null, actual_duration_minutes: null, missed_reason: null, ftp_at_completion: null,
   optional: false, name: null,
   steps: [{ label: 'Warm Up', duration_minutes: 10, power_pct_ftp: 60 }],
   activity_metrics: null,

@@ -227,6 +227,7 @@ export class IntervalsClient {
       max_heartrate: (a.max_heartrate ?? null) as number | null,
       training_load: (a.icu_training_load ?? null) as number | null,
       rolling_ftp: (a.icu_rolling_ftp ?? null) as number | null,
+      ftp: (a.icu_ftp ?? null) as number | null,
       distance: (a.distance ?? null) as number | null,
       total_elevation_gain: (a.total_elevation_gain ?? null) as number | null,
       left_right_balance: (a.avg_lr_balance ?? null) as number | null,

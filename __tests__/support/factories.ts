@@ -19,6 +19,7 @@ export function makeWorkout(overrides: Partial<Workout> = {}): Workout {
     status: 'planned',
     icu_activity_id: null,
     tss: null,
+    ftp_at_completion: null,
     actual_duration_minutes: null,
     missed_reason: null,
     optional: false,
