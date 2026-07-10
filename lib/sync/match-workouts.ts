@@ -4,6 +4,7 @@ export interface PendingWorkout {
   id: string
   date: string
   created_at: string
+  plan_id: string | null
 }
 
 export interface WorkoutMatch {
@@ -12,6 +13,9 @@ export interface WorkoutMatch {
   tss: number | null
   actual_duration_minutes: number
   status: 'completed' | 'needs_review'
+  ftp_at_completion: number | null
+  date: string
+  plan_id: string | null
 }
 
 // Matches unfinished workouts to same-day ride activities. A single ride must
@@ -44,6 +48,9 @@ export function matchWorkoutsToActivities(
         tss: best.training_load,
         actual_duration_minutes: Math.round(best.moving_time / 60),
         status: acts.length === 1 ? 'completed' : 'needs_review',
+        ftp_at_completion: best.ftp ?? null,
+        date: workoutsForDate[0].date,
+        plan_id: workoutsForDate[0].plan_id,
       })
       continue
     }
@@ -61,6 +68,9 @@ export function matchWorkoutsToActivities(
         tss: act.training_load,
         actual_duration_minutes: Math.round(act.moving_time / 60),
         status: 'completed',
+        ftp_at_completion: act.ftp ?? null,
+        date: w.date,
+        plan_id: w.plan_id,
       })
     })
   }

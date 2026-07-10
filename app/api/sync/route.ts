@@ -142,7 +142,7 @@ export async function POST(req: Request) {
 
     const { data: pending } = await supabase
       .from('workouts')
-      .select('id, date, created_at')
+      .select('id, date, created_at, plan_id')
       .in('status', ['planned', 'needs_review'])
       .is('icu_activity_id', null)
 
