@@ -102,6 +102,7 @@ export interface Workout {
   status: WorkoutStatus
   icu_activity_id: string | null
   tss: number | null
+  ftp_at_completion: number | null  // FTP in effect when this workout/ride was marked completed
   actual_duration_minutes: number | null
   missed_reason: string | null
   optional: boolean  // true for sparse continue-training-holiday sessions — skipping carries no adherence penalty
@@ -268,6 +269,7 @@ export interface ICUActivity {
   max_heartrate?: number | null
   training_load: number | null   // TSS
   rolling_ftp: number | null     // intervals.icu rolling FTP estimate
+  ftp?: number | null            // the FTP intervals.icu actually applied to this activity's calculations (its own FTP history) — distinct from rolling_ftp, which is intervals.icu's algorithmic estimate
   distance: number | null              // metres
   total_elevation_gain: number | null  // metres
   left_right_balance: number | null    // right-side %, e.g. 47.7 (intervals.icu stores right-side %)

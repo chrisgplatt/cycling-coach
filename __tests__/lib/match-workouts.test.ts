@@ -14,6 +14,7 @@ function makeActivity(overrides: Partial<ICUActivity> = {}): ICUActivity {
     average_heartrate: 140,
     training_load: 70,
     rolling_ftp: null,
+    ftp: null,
     distance: null,
     total_elevation_gain: null,
     left_right_balance: null,
@@ -24,6 +25,7 @@ function makeActivity(overrides: Partial<ICUActivity> = {}): ICUActivity {
 function makeWorkout(overrides: Partial<PendingWorkout> = {}): PendingWorkout {
   return {
     id: 'w1',
+    plan_id: 'plan1',
     date: '2026-07-06',
     created_at: '2026-07-01T00:00:00Z',
     ...overrides,
@@ -33,13 +35,25 @@ function makeWorkout(overrides: Partial<PendingWorkout> = {}): PendingWorkout {
 describe('matchWorkoutsToActivities', () => {
   it('matches a single pending workout to its single same-day ride as completed', () => {
     const workouts = [makeWorkout({ id: 'w1' })]
-    const acts = new Map([['2026-07-06', [makeActivity({ id: 'act1', training_load: 70, moving_time: 4500 })]]])
+    const acts = new Map([['2026-07-06', [makeActivity({ id: 'act1', training_load: 70, moving_time: 4500, ftp: 245 })]]])
 
     const matches = matchWorkoutsToActivities(workouts, acts)
 
     expect(matches).toEqual([
-      { id: 'w1', icu_activity_id: 'act1', tss: 70, actual_duration_minutes: 75, status: 'completed' },
+      {
+        id: 'w1', icu_activity_id: 'act1', tss: 70, actual_duration_minutes: 75, status: 'completed',
+        ftp_at_completion: 245, date: '2026-07-06', plan_id: 'plan1',
+      },
     ])
+  })
+
+  it('passes ftp_at_completion through as null when the matched activity has no ftp', () => {
+    const workouts = [makeWorkout({ id: 'w1' })]
+    const acts = new Map([['2026-07-06', [makeActivity({ id: 'act1', ftp: null })]]])
+
+    const matches = matchWorkoutsToActivities(workouts, acts)
+
+    expect(matches[0].ftp_at_completion).toBeNull()
   })
 
   it('marks a single pending workout needs_review when multiple candidate rides exist that day', () => {

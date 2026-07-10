@@ -38,6 +38,19 @@ describe('IntervalsClient', () => {
     expect(activities[0].training_load).toBe(85)
   })
 
+  it('maps icu_ftp to the ftp field', async () => {
+    const mockActivities = [
+      { id: 'act1', start_date_local: '2026-05-01T08:00:00', type: 'Ride',
+        moving_time: 3600, name: 'Morning Ride', average_watts: 200,
+        max_watts: 350, weighted_average_watts: 210, average_heartrate: 145,
+        icu_training_load: 85, icu_ftp: 245 },
+    ]
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockActivities })
+
+    const activities = await client.getActivities('2026-04-01', '2026-05-11')
+    expect(activities[0].ftp).toBe(245)
+  })
+
   it('createEvent returns the created event id', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'evt123' }) })
 

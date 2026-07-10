@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { importUnplannedRides } from '@/lib/intervals/import-rides'
 import { matchWorkoutsToActivities } from '@/lib/sync/match-workouts'
+import { resolveFallbackFtpForWorkout } from '@/lib/ftp/resolve-ftp'
 import { backfillActivityMetrics } from '@/lib/intervals/enrich'
 import { maybeGenerateProgressBrief } from '@/lib/progress/brief-generator'
 import { GarminClient } from '@/lib/garmin/client'
@@ -142,24 +143,26 @@ export async function POST(req: Request) {
 
     const { data: pending } = await supabase
       .from('workouts')
-      .select('id, date, created_at')
+      .select('id, date, created_at, plan_id')
       .in('status', ['planned', 'needs_review'])
       .is('icu_activity_id', null)
 
     if (pending?.length) {
       const matches = matchWorkoutsToActivities(pending, actsByDate)
       await Promise.all(
-        matches.map(m =>
-          supabase
+        matches.map(async m => {
+          const ftpAtCompletion = m.ftp_at_completion ?? await resolveFallbackFtpForWorkout(supabase, m.date, m.plan_id)
+          return supabase
             .from('workouts')
             .update({
               icu_activity_id: m.icu_activity_id,
               tss: m.tss,
               actual_duration_minutes: m.actual_duration_minutes,
               status: m.status,
+              ftp_at_completion: ftpAtCompletion,
             })
             .eq('id', m.id)
-        )
+        })
       )
     }
 

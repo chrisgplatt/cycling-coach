@@ -176,7 +176,7 @@ export default function WorkoutDetailModal({
       const res = await fetch(`/api/workouts/${workout.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'completed' }),
+        body: JSON.stringify({ status: 'completed', ftp_at_completion: matchedActivity?.ftp ?? null }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -198,7 +198,7 @@ export default function WorkoutDetailModal({
       const res = await fetch(`/api/workouts/${workout.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ icu_activity_id: act.id, tss: act.training_load, status: 'completed' }),
+        body: JSON.stringify({ icu_activity_id: act.id, tss: act.training_load, status: 'completed', ftp_at_completion: act.ftp ?? null }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -346,6 +346,11 @@ export default function WorkoutDetailModal({
                   TSS {workout.tss}
                 </span>
               ) : null}
+              {workout.status === 'completed' && workout.ftp_at_completion !== null && (
+                <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+                  {workout.ftp_at_completion}W FTP
+                </span>
+              )}
             </div>
             {workout.status === 'planned' ? (
               // A styled label (so we can show the weekday) with a transparent native
