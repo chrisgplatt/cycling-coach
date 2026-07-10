@@ -16,6 +16,7 @@ import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { estimateTss } from '@/lib/estimate-tss'
 import { isGarminSyncStale, formatGarminSyncTime } from '@/lib/garmin/sync-staleness'
+import { formatRelativeSyncTime } from '@/lib/format-sync-time'
 import { eventCoversDate } from '@/lib/events'
 import type { GeneratedPlan } from '@/types'
 import {
@@ -564,6 +565,10 @@ export default function DashboardPage() {
     : undefined
 
   const garminStale = !!garminEmail && isGarminSyncStale(garminLastSyncAt)
+  const garminSyncLine = garminEmail
+    ? (garminLastSyncAt ? `Garmin: synced ${formatRelativeSyncTime(new Date(garminLastSyncAt))}` : 'Garmin: not yet synced')
+    : null
+  const intervalsSyncLine = lastSyncedAt ? `Intervals: synced ${formatRelativeSyncTime(lastSyncedAt)}` : null
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -628,10 +633,17 @@ export default function DashboardPage() {
               {syncLogoVisible ? 'Syncing' : '↻ Sync'}
             </span>
           </button>
-          {garminEmail && (
-            <p className="w-28 text-[11px] leading-snug text-gray-500 text-center">
-              {garminLastSyncAt ? `Garmin synced ${formatGarminSyncTime(garminLastSyncAt)}` : 'Garmin not yet synced'}
-            </p>
+          {(garminSyncLine || intervalsSyncLine) && (
+            <div className="text-right">
+              {garminSyncLine && (
+                <p className={`text-[11px] leading-snug ${garminStale ? 'text-amber-600 font-semibold' : 'text-gray-500'}`}>
+                  {garminStale && '⚠ '}{garminSyncLine}
+                </p>
+              )}
+              {intervalsSyncLine && (
+                <p className="text-[11px] leading-snug text-gray-500">{intervalsSyncLine}</p>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -658,7 +670,6 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-200">
           <MetricsBar
             wellness={latestWellnessWithLoad}
-            syncedAt={lastSyncedAt}
             stale={wellnessStale}
             embedded
             lastRideLabel={lastRide ? formatLastRide() : undefined}
