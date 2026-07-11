@@ -189,7 +189,7 @@ export async function POST(req: Request) {
           weight_kg: profile.weight_kg,
           goals: profile.goals ?? '',
           min_sessions_per_week: profile.min_sessions_per_week ?? 3,
-        })
+        }, client)
       } catch { /* non-fatal — brief generation failure must not block sync */ }
     }
 

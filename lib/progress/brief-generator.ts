@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { computeProgressMetrics } from './metrics'
 import { generateProgressBrief } from '@/lib/claude/progress-brief'
+import type { IntervalsClient } from '@/lib/intervals/client'
 import type { ICUSyncData, WeightEntry, WorkoutStatus } from '@/types'
 
 const DEBOUNCE_HOURS = 4
@@ -17,6 +18,7 @@ export async function maybeGenerateProgressBrief(
   userId: string,
   syncData: ICUSyncData,
   profile: BriefProfile,
+  client: IntervalsClient,
 ): Promise<void> {
   // Check debounce
   const { data: existing } = await supabase
@@ -47,12 +49,20 @@ export async function maybeGenerateProgressBrief(
   const weightLog: WeightEntry[] = (rawWeightLog ?? []) as WeightEntry[]
 
   let planWorkouts: Array<{ status: WorkoutStatus; date: string }> = []
+  // syncData.activities is always just the trailing 6-week sync window, which
+  // undercounts "rides since start" once a plan has run longer than that — so
+  // whenever a plan is active, fetch its full actual duration directly instead.
+  let ridesActivities = syncData.activities
   if (plan) {
     const { data: workouts } = await supabase
       .from('workouts')
       .select('status, date')
       .eq('plan_id', plan.id)
     planWorkouts = (workouts ?? []) as Array<{ status: WorkoutStatus; date: string }>
+
+    const planStartDate = plan.created_at.split('T')[0]
+    const todayStr = new Date().toISOString().split('T')[0]
+    ridesActivities = await client.getActivities(planStartDate, todayStr)
   }
 
   const metrics = computeProgressMetrics(
@@ -62,7 +72,7 @@ export async function maybeGenerateProgressBrief(
     plan ?? null,
     weightLog,
     planWorkouts,
-    syncData.activities,
+    ridesActivities,
     profile.min_sessions_per_week,
   )
 
