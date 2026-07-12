@@ -212,7 +212,7 @@ describe('getDayWorkoutColor', () => {
 describe('getWeeklySummary', () => {
   const DATES = ['2026-06-16', '2026-06-17', '2026-06-18']
 
-  it('returns actual TSS and minutes from completed/needs_review; ignores planned', () => {
+  it('computes actual from completed/needs_review, and planned from every non-skipped workout\'s original schedule', () => {
     const workouts = [
       w({ date: '2026-06-16', status: 'completed', tss: 80, duration_minutes: 60 }),
       w({ date: '2026-06-17', status: 'needs_review', tss: 40, duration_minutes: 30 }),
@@ -221,11 +221,12 @@ describe('getWeeklySummary', () => {
     const result = getWeeklySummary(DATES, workouts)
     expect(result.actualTss).toBe(120)
     expect(result.actualMins).toBe(90)
-    expect(result.plannedTss).toBe(50)
-    expect(result.plannedMins).toBe(45)
+    // estimateTss('endurance', 60) + estimateTss('endurance', 30) + estimateTss('endurance', 45) = 46 + 23 + 35
+    expect(result.plannedTss).toBe(104)
+    expect(result.plannedMins).toBe(135) // 60 + 30 + 45 — every non-skipped workout's own scheduled duration, regardless of status
   })
 
-  it('returns planned values when no completed workouts exist', () => {
+  it('computes planned TSS from estimateTss, not the tss field, when workouts are still planned', () => {
     const workouts = [
       w({ date: '2026-06-16', status: 'planned', tss: 60, duration_minutes: 50 }),
       w({ date: '2026-06-17', status: 'planned', tss: 40, duration_minutes: 35 }),
@@ -233,8 +234,28 @@ describe('getWeeklySummary', () => {
     const result = getWeeklySummary(DATES, workouts)
     expect(result.actualTss).toBe(0)
     expect(result.actualMins).toBe(0)
-    expect(result.plannedTss).toBe(100)
+    // estimateTss('endurance', 50) + estimateTss('endurance', 35) = 39 + 27 — NOT the fixture's tss field (60 + 40 = 100)
+    expect(result.plannedTss).toBe(66)
     expect(result.plannedMins).toBe(85)
+  })
+
+  it('shows nonzero planned totals for a fully-completed week (the reported bug)', () => {
+    const workouts = [
+      w({ date: '2026-06-16', status: 'completed', tss: 80, duration_minutes: 60 }),
+      w({ date: '2026-06-17', status: 'completed', tss: 40, duration_minutes: 30 }),
+    ]
+    const result = getWeeklySummary(DATES, workouts)
+    expect(result.plannedMins).toBe(90) // 60 + 30 — not 0, even though nothing is still status: 'planned'
+    expect(result.plannedTss).toBe(69) // estimateTss('endurance', 60) + estimateTss('endurance', 30) = 46 + 23
+  })
+
+  it('uses actual_duration_minutes, not duration_minutes, for actualMins when a completed workout has both', () => {
+    const workouts = [
+      w({ date: '2026-06-16', status: 'completed', tss: 80, duration_minutes: 45, actual_duration_minutes: 51 }),
+    ]
+    const result = getWeeklySummary(DATES, workouts)
+    expect(result.actualMins).toBe(51) // the real synced duration, not the 45-minute plan
+    expect(result.plannedMins).toBe(45) // planned bucket still uses the original scheduled duration
   })
 
   it('returns zeros for both buckets when week has no workouts', () => {

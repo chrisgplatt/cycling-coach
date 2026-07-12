@@ -1,4 +1,5 @@
 import { getWeekBounds } from '@/lib/week-bounds'
+import { estimateTss } from '@/lib/estimate-tss'
 import type { Workout, ICUActivity } from '@/types'
 
 export function calendarMonthDays(year: number, month: number): { date: string; inMonth: boolean }[] {
@@ -127,16 +128,20 @@ export interface WeeklySummary {
 // buckets and returns their TSS and duration sums. Unlinked activities (rides
 // not tied to a planned workout) are folded into the actual bucket.
 export function getWeeklySummary(dates: string[], workouts: Workout[], activities: ICUActivity[] = []): WeeklySummary {
-  const week = workouts.filter(w => dates.includes(w.date))
+  const week = workouts.filter(w => dates.includes(w.date) && w.status !== 'skipped')
   const actual = week.filter(w => w.status === 'completed' || w.status === 'needs_review')
-  const planned = week.filter(w => w.status === 'planned')
   const unlinked = activities.filter(a => dates.some(d => a.start_date_local.startsWith(d)))
   return {
     actualTss:  actual.reduce((sum, w) => sum + (w.tss ?? 0), 0)
               + unlinked.reduce((sum, a) => sum + (a.training_load ?? 0), 0),
-    actualMins: actual.reduce((sum, w) => sum + w.duration_minutes, 0)
+    actualMins: actual.reduce((sum, w) => sum + (w.actual_duration_minutes ?? w.duration_minutes), 0)
               + unlinked.reduce((sum, a) => sum + Math.round(a.moving_time / 60), 0),
-    plannedTss:  planned.reduce((sum, w) => sum + (w.tss ?? 0), 0),
-    plannedMins: planned.reduce((sum, w) => sum + w.duration_minutes, 0),
+    // Planned reflects the week's original schedule regardless of what happened to
+    // it — every non-skipped workout counts, not just ones still in status 'planned'.
+    // Workout.tss only ever holds the achieved value once completed, never a target,
+    // so estimateTss (the same heuristic WorkoutCard uses for its own planned figure)
+    // is used unconditionally here instead.
+    plannedTss:  week.reduce((sum, w) => sum + estimateTss(w.type, w.duration_minutes), 0),
+    plannedMins: week.reduce((sum, w) => sum + w.duration_minutes, 0),
   }
 }
