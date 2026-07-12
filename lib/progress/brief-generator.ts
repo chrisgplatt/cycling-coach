@@ -20,20 +20,12 @@ export async function maybeGenerateProgressBrief(
   profile: BriefProfile,
   client: IntervalsClient,
 ): Promise<void> {
-  // Check debounce
-  const { data: existing } = await supabase
-    .from('progress_briefs')
-    .select('generated_at')
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (existing?.generated_at) {
-    const hoursSince = (Date.now() - new Date(existing.generated_at).getTime()) / 3600000
-    if (hoursSince < DEBOUNCE_HOURS) return
-  }
-
-  // Fetch plan and weight log
-  const [{ data: plan }, { data: rawWeightLog }] = await Promise.all([
+  const [{ data: existing }, { data: plan }, { data: rawWeightLog }] = await Promise.all([
+    supabase
+      .from('progress_briefs')
+      .select('generated_at')
+      .eq('user_id', userId)
+      .maybeSingle(),
     supabase
       .from('training_plans')
       .select('id, created_at, baseline_ftp, phase, target_event_name, target_event_date')
@@ -75,6 +67,23 @@ export async function maybeGenerateProgressBrief(
     ridesActivities,
     profile.min_sessions_per_week,
   )
+
+  // Numeric stats are cheap (no Claude call) and safe to refresh on every
+  // sync, so tiles like "Rides" never sit stale behind the debounce below —
+  // which exists only to limit Claude calls for the written text. Only
+  // update here once a brief row already exists: the very first brief for a
+  // new user is created further down, together with its AI text, so the
+  // `content` column's NOT NULL constraint is always satisfied on insert.
+  if (existing) {
+    await supabase
+      .from('progress_briefs')
+      .upsert({ user_id: userId, metrics_snapshot: metrics }, { onConflict: 'user_id' })
+  }
+
+  if (existing?.generated_at) {
+    const hoursSince = (Date.now() - new Date(existing.generated_at).getTime()) / 3600000
+    if (hoursSince < DEBOUNCE_HOURS) return
+  }
 
   const content = await generateProgressBrief({ metrics, goals: profile.goals ?? '' })
   if (!content) return

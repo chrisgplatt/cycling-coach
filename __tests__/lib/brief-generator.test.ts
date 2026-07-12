@@ -1,9 +1,12 @@
 import { maybeGenerateProgressBrief } from '@/lib/progress/brief-generator'
+import { generateProgressBrief } from '@/lib/claude/progress-brief'
 import type { ICUActivity, ICUSyncData } from '@/types'
 
 jest.mock('@/lib/claude/progress-brief', () => ({
   generateProgressBrief: jest.fn(async () => 'Great progress this week.'),
 }))
+
+const mockedGenerateProgressBrief = generateProgressBrief as jest.Mock
 
 function act(date: string, type: string = 'Ride'): ICUActivity {
   return { start_date_local: `${date}T09:00:00`, category: 'WORKOUT', name: 'Ride', type } as unknown as ICUActivity
@@ -33,13 +36,18 @@ const profile = {
 function makeSupabase(opts: {
   plan?: { id: string; created_at: string; baseline_ftp: number | null; phase: string; target_event_name: string; target_event_date: string } | null
   upsertSpy?: jest.Mock
+  existingGeneratedAt?: string | null
 }) {
-  const { plan = null, upsertSpy = jest.fn(async () => ({ error: null })) } = opts
+  const { plan = null, upsertSpy = jest.fn(async () => ({ error: null })), existingGeneratedAt = null } = opts
   return {
     from: (table: string) => {
       if (table === 'progress_briefs') {
         return {
-          select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }),
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: existingGeneratedAt ? { generated_at: existingGeneratedAt } : null }),
+            }),
+          }),
           upsert: upsertSpy,
         }
       }
@@ -56,6 +64,11 @@ function makeSupabase(opts: {
     },
   }
 }
+
+beforeEach(() => {
+  mockedGenerateProgressBrief.mockClear()
+  mockedGenerateProgressBrief.mockResolvedValue('Great progress this week.')
+})
 
 describe('maybeGenerateProgressBrief — rides count source', () => {
   it('fetches a plan-scoped activities range and uses it for the rides count when a plan is active', async () => {
@@ -107,5 +120,53 @@ describe('maybeGenerateProgressBrief — rides count source', () => {
     expect(upsertSpy).toHaveBeenCalled()
     const written = (upsertSpy.mock.calls as unknown[][])[0]?.[0] as any
     expect(written.metrics_snapshot.totalRides).toBe(1) // only the recent one — from syncData.activities directly
+  })
+})
+
+describe('maybeGenerateProgressBrief — metrics/content debounce decoupling', () => {
+  it('updates metrics_snapshot even within the debounce window when a brief row already exists, and skips content generation', async () => {
+    const recentGeneratedAt = new Date(Date.now() - 1 * 3600000).toISOString() // 1 hour ago — within DEBOUNCE_HOURS=4
+    const upsertSpy = jest.fn(async () => ({ error: null }))
+    const supabase = makeSupabase({ plan: null, upsertSpy, existingGeneratedAt: recentGeneratedAt })
+    const client = { getActivities: jest.fn() }
+
+    const today = new Date()
+    const recent = new Date(today); recent.setDate(today.getDate() - 5)
+    const recentStr = recent.toISOString().split('T')[0]
+    const localSyncData: ICUSyncData = { ...syncData, activities: [act(recentStr)] }
+
+    await maybeGenerateProgressBrief(supabase as never, 'u1', localSyncData, profile, client as never)
+
+    expect(upsertSpy).toHaveBeenCalledTimes(1)
+    const written = (upsertSpy.mock.calls as unknown[][])[0]?.[0] as any
+    expect(written).toEqual({ user_id: 'u1', metrics_snapshot: expect.objectContaining({ totalRides: 1 }) })
+    expect(mockedGenerateProgressBrief).not.toHaveBeenCalled()
+  })
+
+  it('creates no row at all when there is no existing brief and metrics are too sparse for AI text', async () => {
+    mockedGenerateProgressBrief.mockResolvedValueOnce(null)
+    const upsertSpy = jest.fn(async () => ({ error: null }))
+    const supabase = makeSupabase({ plan: null, upsertSpy })
+    const client = { getActivities: jest.fn() }
+
+    await maybeGenerateProgressBrief(
+      supabase as never, 'u1', { ...syncData, activities: [] }, profile, client as never,
+    )
+
+    expect(upsertSpy).not.toHaveBeenCalled()
+  })
+
+  it('writes content, metrics_snapshot, and generated_at together when creating the first-ever brief', async () => {
+    const upsertSpy = jest.fn(async () => ({ error: null }))
+    const supabase = makeSupabase({ plan: null, upsertSpy })
+    const client = { getActivities: jest.fn() }
+
+    await maybeGenerateProgressBrief(supabase as never, 'u1', syncData, profile, client as never)
+
+    expect(upsertSpy).toHaveBeenCalledTimes(1)
+    const written = (upsertSpy.mock.calls as unknown[][])[0]?.[0] as any
+    expect(written.content).toBe('Great progress this week.')
+    expect(written.metrics_snapshot).toBeDefined()
+    expect(written.generated_at).toEqual(expect.any(String))
   })
 })
