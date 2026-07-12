@@ -22,7 +22,7 @@ import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import WorkoutCard from '@/components/WorkoutCard'
 import type { Workout, TrainingEvent, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry, WeatherSummary, ActivityWeather } from '@/types'
-import { calendarMonthDays, weekDates, formatDurationMins, toLocalDateStr, weekStartsAround, weekStartsAfter, getDayWorkoutColor, getWeeklySummary } from '@/lib/calendar-helpers'
+import { calendarMonthDays, weekDates, formatDurationMins, toLocalDateStr, weekStartsAround, weekStartsAfter, getDayWorkoutColor, getWeeklySummary, type WeeklySummary } from '@/lib/calendar-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
 import { periodOverlapsWeek, coveredDaysInWeek, periodDurationDays } from '@/lib/utils/unavailability'
@@ -165,31 +165,11 @@ function MonthStrip({
       {weeks.map((weekCells, weekIndex) => {
         const weekDateStrs = weekCells.map(c => c.date)
         const summary = getWeeklySummary(weekDateStrs, workouts, unlinkedActivities)
-        const isCurrentWeek = weekDateStrs.includes(todayStr)
-        const isPastWeek = !isCurrentWeek && weekDateStrs.every(d => d < todayStr)
-        const hasActual = summary.actualTss > 0 || summary.actualMins > 0
-        const showActual = isPastWeek || (isCurrentWeek && hasActual)
-        const showTss = showActual ? summary.actualTss : summary.plannedTss
-        const showMins = showActual ? summary.actualMins : summary.plannedMins
-        const summaryColor = isPastWeek ? 'text-emerald-600' : isCurrentWeek ? 'text-orange-500' : 'text-slate-300'
         return (
           <div key={weekIndex} className="flex">
-            {/* Weekly summary: past=green actual, current=orange planned, future=slate-300 planned */}
+            {/* Weekly summary: actual (green) / planned (gray) side by side */}
             <div className="w-10 shrink-0 flex flex-col justify-center items-end pr-1.5">
-              {(showTss > 0 || showMins > 0) && (
-                <>
-                  {showTss > 0 && (
-                    <span className={`text-[9px] leading-tight ${summaryColor}`}>
-                      {Math.round(showTss)}
-                    </span>
-                  )}
-                  {showMins > 0 && (
-                    <span className={`text-[9px] leading-tight ${summaryColor}`}>
-                      {formatDurationMins(showMins)}
-                    </span>
-                  )}
-                </>
-              )}
+              <WeeklySummaryStack summary={summary} />
             </div>
             {/* Day cells */}
             <div className="grid grid-cols-7 flex-1">
@@ -236,6 +216,30 @@ function MonthStrip({
         )
       })}
     </div>
+  )
+}
+
+function WeeklySummaryStack({ summary }: { summary: WeeklySummary }) {
+  const showTss = summary.actualTss > 0 || summary.plannedTss > 0
+  const showMins = summary.actualMins > 0 || summary.plannedMins > 0
+  if (!showTss && !showMins) return null
+  return (
+    <>
+      {showTss && (
+        <span className="text-[9px] leading-tight">
+          <span className="text-emerald-600">{Math.round(summary.actualTss)}</span>
+          <span className="text-slate-300">/</span>
+          <span className="text-slate-400">{Math.round(summary.plannedTss)}</span>
+        </span>
+      )}
+      {showMins && (
+        <span className="text-[9px] leading-tight">
+          <span className="text-emerald-600">{Math.round(summary.actualMins)}m</span>
+          <span className="text-slate-300">/</span>
+          <span className="text-slate-400">{Math.round(summary.plannedMins)}m</span>
+        </span>
+      )}
+    </>
   )
 }
 
@@ -379,7 +383,7 @@ function WeekDetail({
 // ─── Continuous week list ──────────────────────────────────────────────────────
 
 // Short label for a week given its Monday, e.g. "25–31 May" or "29 Jun – 5 Jul".
-function WeekHeader({ monday, todayStr, workouts }: { monday: string; todayStr: string; workouts: Workout[] }) {
+function WeekHeader({ monday, todayStr, workouts, unlinkedActivities }: { monday: string; todayStr: string; workouts: Workout[]; unlinkedActivities: ICUActivity[] }) {
   const { start, end } = getWeekBounds(monday)
   const s = new Date(start + 'T00:00:00Z')
   const e = new Date(end + 'T00:00:00Z')
@@ -390,10 +394,7 @@ function WeekHeader({ monday, todayStr, workouts }: { monday: string; todayStr: 
     : `${s.getUTCDate()} ${sMonth} – ${e.getUTCDate()} ${eMonth}`
   const isThisWeek = todayStr >= start && todayStr <= end
 
-  const weekWorkouts = workouts.filter(w => w.date >= start && w.date <= end && w.status !== 'skipped')
-  const totalMins = weekWorkouts.reduce((sum, w) => sum + w.duration_minutes, 0)
-  const totalTss = weekWorkouts.reduce((sum, w) => sum + (w.tss ?? 0), 0)
-  const hasTss = weekWorkouts.some(w => w.tss != null)
+  const summary = getWeeklySummary(weekDates(monday), workouts, unlinkedActivities)
 
   return (
     <div className="flex items-center gap-2 px-1 pb-1 pt-0.5">
@@ -401,11 +402,9 @@ function WeekHeader({ monday, todayStr, workouts }: { monday: string; todayStr: 
       {isThisWeek && (
         <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">This week</span>
       )}
-      {weekWorkouts.length > 0 && (
-        <span className="ml-auto text-[10px] text-slate-400">
-          {formatDurationMins(totalMins)}{hasTss ? ` · ${Math.round(totalTss)} TSS` : ''}
-        </span>
-      )}
+      <div className="ml-auto flex flex-col items-end">
+        <WeeklySummaryStack summary={summary} />
+      </div>
     </div>
   )
 }
@@ -484,7 +483,7 @@ function ContinuousWeeks({ navTarget, onWeekInView, scrollVersion, ...week }: Co
           key={monday}
           ref={el => { if (el) weekEls.current.set(monday, el); else weekEls.current.delete(monday) }}
         >
-          <WeekHeader monday={monday} todayStr={week.todayStr} workouts={week.workouts} />
+          <WeekHeader monday={monday} todayStr={week.todayStr} workouts={week.workouts} unlinkedActivities={week.unlinkedActivities} />
           <WeekDetail selectedDateStr={monday} {...week} />
         </div>
       ))}
