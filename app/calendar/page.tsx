@@ -153,7 +153,7 @@ function MonthStrip({
 
       {/* Day-of-week headers — blank left cell keeps columns aligned with summary */}
       <div className="flex mb-1">
-        <div className="w-10 shrink-0" />
+        <div className="w-14 shrink-0" />
         <div className="grid grid-cols-7 flex-1 text-center">
           {['M','T','W','T','F','S','S'].map((d, i) => (
             <div key={i} className="text-[9px] text-slate-400 font-medium">{d}</div>
@@ -168,7 +168,7 @@ function MonthStrip({
         return (
           <div key={weekIndex} className="flex">
             {/* Weekly summary: actual (green) / planned (gray) side by side */}
-            <div className="w-10 shrink-0 flex flex-col justify-center items-end pr-1.5">
+            <div className="w-14 shrink-0 flex flex-col justify-center items-end pr-1.5">
               <WeeklySummaryStack summary={summary} />
             </div>
             {/* Day cells */}
