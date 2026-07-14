@@ -81,6 +81,51 @@ describe('computeProgressMetrics', () => {
     expect(result.adherence).toBeNull()
   })
 
+  it('excludes a pending optional workout from adherence total', () => {
+    const workouts = [
+      { status: 'completed' as const, date: '2026-05-01' },
+      { status: 'planned' as const, date: '2026-05-03', optional: true },
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], workouts)
+    expect(result.adherence).toEqual({ completed: 1, total: 1 })
+  })
+
+  it('excludes a skipped optional workout from adherence total', () => {
+    const workouts = [
+      { status: 'completed' as const, date: '2026-05-01' },
+      { status: 'skipped' as const, date: '2026-05-03', optional: true },
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], workouts)
+    expect(result.adherence).toEqual({ completed: 1, total: 1 })
+  })
+
+  it('counts a needs_review optional workout as done in both total and completed', () => {
+    const workouts = [
+      { status: 'completed' as const, date: '2026-05-01' },
+      { status: 'needs_review' as const, date: '2026-05-03', optional: true },
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], workouts)
+    expect(result.adherence).toEqual({ completed: 2, total: 2 })
+  })
+
+  it('counts a completed optional workout the same as a non-optional one', () => {
+    const workouts = [
+      { status: 'completed' as const, date: '2026-05-01', optional: true },
+      { status: 'completed' as const, date: '2026-05-03' },
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], workouts)
+    expect(result.adherence).toEqual({ completed: 2, total: 2 })
+  })
+
+  it('does not count a non-optional needs_review workout as completed', () => {
+    const workouts = [
+      { status: 'completed' as const, date: '2026-05-01' },
+      { status: 'needs_review' as const, date: '2026-05-03' },
+    ]
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], workouts)
+    expect(result.adherence).toEqual({ completed: 1, total: 2 })
+  })
+
   it('exposes planPhase and targetEvent from plan', () => {
     const result = computeProgressMetrics([], 245, 73.5, plan, [], [])
     expect(result.planPhase).toBe('build')

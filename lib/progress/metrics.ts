@@ -1,4 +1,5 @@
 import type { ICUActivity, ICUWellness, ProgressMetrics, WeightEntry, WorkoutStatus } from '@/types'
+import { isSessionCountable, isSessionCompleted } from './session-counting'
 
 interface PlanInfo {
   created_at: string
@@ -11,6 +12,7 @@ interface PlanInfo {
 interface PlanWorkout {
   status: WorkoutStatus
   date: string
+  optional?: boolean
 }
 
 function getWeekStart(dateStr: string): string {
@@ -93,8 +95,9 @@ export function computeProgressMetrics(
   if (plan && planWorkouts.length > 0) {
     // includes today — a planned session today counts until it's marked completed
     const pastAndToday = planWorkouts.filter(w => w.date <= today)
-    const completed = pastAndToday.filter(w => w.status === 'completed').length
-    const total = pastAndToday.length
+    const countable = pastAndToday.filter(isSessionCountable)
+    const completed = countable.filter(isSessionCompleted).length
+    const total = countable.length
     if (total > 0) adherence = { completed, total }
   }
 
