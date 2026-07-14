@@ -277,6 +277,11 @@ export interface ICUActivity {
   power_5min?: number | null
   power_10min?: number | null
   power_20min?: number | null
+  elapsed_time?: number | null   // seconds; includes stopped time, unlike moving_time
+  max_speed?: number | null      // m/s, raw from API
+  average_temp?: number | null   // °C
+  min_temp?: number | null       // °C
+  max_temp?: number | null       // °C
 }
 
 export interface ICUWellness {
