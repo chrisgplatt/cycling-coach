@@ -37,8 +37,16 @@ function makeSupabase(opts: {
   plan?: { id: string; created_at: string; baseline_ftp: number | null; phase: string; target_event_name: string; target_event_date: string } | null
   upsertSpy?: jest.Mock
   existingGeneratedAt?: string | null
+  workoutsData?: Array<{ status: string; date: string; optional: boolean }>
+  workoutsSelectSpy?: jest.Mock
 }) {
-  const { plan = null, upsertSpy = jest.fn(async () => ({ error: null })), existingGeneratedAt = null } = opts
+  const {
+    plan = null,
+    upsertSpy = jest.fn(async () => ({ error: null })),
+    existingGeneratedAt = null,
+    workoutsData = [],
+    workoutsSelectSpy = jest.fn(),
+  } = opts
   return {
     from: (table: string) => {
       if (table === 'progress_briefs') {
@@ -58,7 +66,7 @@ function makeSupabase(opts: {
         return { select: () => ({ eq: () => ({ order: async () => ({ data: [] }) }) }) }
       }
       if (table === 'workouts') {
-        return { select: () => ({ eq: async () => ({ data: [] }) }) }
+        return { select: (cols: string) => { workoutsSelectSpy(cols); return { eq: async () => ({ data: workoutsData }) } } }
       }
       throw new Error(`unexpected table: ${table}`)
     },
@@ -168,5 +176,53 @@ describe('maybeGenerateProgressBrief — metrics/content debounce decoupling', (
     expect(written.content).toBe('Great progress this week.')
     expect(written.metrics_snapshot).toBeDefined()
     expect(written.generated_at).toEqual(expect.any(String))
+  })
+})
+
+describe('maybeGenerateProgressBrief — optional workouts excluded from adherence until done', () => {
+  it('selects the optional column so it reaches the adherence calculation', async () => {
+    const plan = {
+      id: 'p1',
+      created_at: '2026-04-01T00:00:00Z',
+      baseline_ftp: 230,
+      phase: 'build',
+      target_event_name: 'Dragon Ride',
+      target_event_date: '2026-09-01',
+    }
+    const workoutsSelectSpy = jest.fn()
+    const supabase = makeSupabase({ plan, workoutsSelectSpy })
+    const client = { getActivities: jest.fn(async () => []) }
+
+    await maybeGenerateProgressBrief(supabase as never, 'u1', syncData, profile, client as never)
+
+    expect(workoutsSelectSpy).toHaveBeenCalledWith('status, date, optional')
+  })
+
+  it('excludes a pending optional workout from the adherence total end-to-end', async () => {
+    const today = new Date()
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
+    const twoDaysAgo = new Date(today); twoDaysAgo.setDate(today.getDate() - 2)
+    const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+    const plan = {
+      id: 'p1',
+      created_at: twoDaysAgo.toISOString(),
+      baseline_ftp: 230,
+      phase: 'build',
+      target_event_name: 'Dragon Ride',
+      target_event_date: '2026-09-01',
+    }
+    const upsertSpy = jest.fn(async () => ({ error: null }))
+    const workoutsData = [
+      { status: 'completed', date: yesterdayStr, optional: false },
+      { status: 'planned', date: yesterdayStr, optional: true },
+    ]
+    const supabase = makeSupabase({ plan, upsertSpy, workoutsData })
+    const client = { getActivities: jest.fn(async () => []) }
+
+    await maybeGenerateProgressBrief(supabase as never, 'u1', syncData, profile, client as never)
+
+    const written = (upsertSpy.mock.calls as unknown[][])[0]?.[0] as any
+    expect(written.metrics_snapshot.adherence).toEqual({ completed: 1, total: 1 })
   })
 })
