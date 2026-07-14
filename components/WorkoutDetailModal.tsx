@@ -34,6 +34,7 @@ interface Props {
   activitiesOnDate?: ICUActivity[]
   nearbyEvents?: TrainingEvent[]
   weightLog?: WeightEntry[]
+  workoutsOnDate?: Workout[]
   onClose: () => void
   onStatusChange?: () => void
   onDelete?: () => void
@@ -43,7 +44,7 @@ interface Props {
 }
 
 export default function WorkoutDetailModal({
-  workout, athleteId, ftp, effectiveMaxHr, activitiesOnDate, nearbyEvents, weightLog = [], onClose,
+  workout, athleteId, ftp, effectiveMaxHr, activitiesOnDate, nearbyEvents, weightLog = [], workoutsOnDate, onClose,
   onStatusChange, onDelete, onReschedule, onChat, onEventLinked,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
@@ -73,7 +74,17 @@ export default function WorkoutDetailModal({
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [feedbackDirty, setFeedbackDirty] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [disassociateConfirm, setDisassociateConfirm] = useState(false)
+  const [disassociating, setDisassociating] = useState(false)
+  const [associateOpen, setAssociateOpen] = useState(false)
+  const [associating, setAssociating] = useState(false)
+  const [associateError, setAssociateError] = useState<string | null>(null)
   const hasRide = (workout.status === 'completed' || workout.status === 'needs_review') && !!workout.icu_activity_id
+  const isMatchedPlanned = workout.plan_id != null && hasRide
+  const isUnmatchedPlanned = workout.plan_id != null && !workout.icu_activity_id && workout.status === 'planned'
+  const isUnplannedRide = workout.plan_id == null
+  const sameDayUnplannedRides = (workoutsOnDate ?? []).filter(w => w.plan_id == null)
+  const sameDayUnmatchedWorkouts = (workoutsOnDate ?? []).filter(w => w.plan_id != null && !w.icu_activity_id && w.status === 'planned')
 
   // Guards against losing in-progress, unsubmitted feedback if the tab or PWA
   // gets backgrounded/reloaded — the in-app Close button has its own confirm.
@@ -160,6 +171,51 @@ export default function WorkoutDetailModal({
       setDeleteConfirm(false)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function handleDisassociate() {
+    setDisassociating(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/workouts/${workout.id}/disassociate`, { method: 'POST' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? 'Failed to disassociate')
+        setDisassociateConfirm(false)
+        return
+      }
+      onStatusChange?.()
+    } catch {
+      setError('Network error')
+      setDisassociateConfirm(false)
+    } finally {
+      setDisassociating(false)
+    }
+  }
+
+  async function handleAssociate(candidateId: string) {
+    setAssociating(true)
+    setAssociateError(null)
+    try {
+      const body = isUnplannedRide
+        ? { plannedWorkoutId: candidateId, unplannedWorkoutId: workout.id }
+        : { plannedWorkoutId: workout.id, unplannedWorkoutId: candidateId }
+      const res = await fetch('/api/workouts/associate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setAssociateError(data.error ?? 'Failed to associate')
+        return
+      }
+      onStatusChange?.()
+    } catch {
+      setAssociateError('Network error')
+    } finally {
+      setAssociating(false)
     }
   }
 
@@ -670,6 +726,52 @@ export default function WorkoutDetailModal({
               </button>
             </div>
           )}
+
+          {(isUnmatchedPlanned || isUnplannedRide) && (() => {
+            const candidates = isUnplannedRide ? sameDayUnmatchedWorkouts : sameDayUnplannedRides
+            if (candidates.length === 0) return null
+            const label = isUnplannedRide ? 'Link to a workout' : 'Link to a ride'
+            return !associateOpen ? (
+              <button
+                onClick={() => setAssociateOpen(true)}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors py-2"
+              >
+                {label}
+              </button>
+            ) : (
+              <div className="border border-slate-200 rounded-xl p-4 space-y-2 bg-slate-50">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{label}</p>
+                <div className="space-y-1.5">
+                  {candidates.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => handleAssociate(c.id)}
+                      disabled={associating}
+                      className="w-full text-left text-sm px-3 py-2.5 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50 transition-colors"
+                    >
+                      <span className="font-medium text-slate-700">
+                        {isUnplannedRide ? (c.name ?? c.type) : c.description}
+                      </span>
+                      <span className="text-slate-400 ml-2">
+                        {isUnplannedRide
+                          ? `${c.duration_minutes} min${c.target_zones ? ` · ${c.target_zones}` : ''}`
+                          : `${c.duration_minutes} min${c.tss != null ? ` · TSS ${c.tss}` : ''}`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {associateError && (
+                  <p className="text-sm text-red-600">{associateError}</p>
+                )}
+                <button
+                  onClick={() => { setAssociateOpen(false); setAssociateError(null) }}
+                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )
+          })()}
             </>
           )}
 
@@ -716,6 +818,32 @@ export default function WorkoutDetailModal({
               >
                 Mark as missed
               </button>
+            )}
+            {isMatchedPlanned && !disassociateConfirm && (
+              <button
+                onClick={() => setDisassociateConfirm(true)}
+                className="text-sm font-medium text-orange-500 hover:text-orange-700 transition-colors"
+              >
+                Disassociate ride
+              </button>
+            )}
+            {disassociateConfirm && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-slate-600">Unlink this ride?</span>
+                <button
+                  onClick={handleDisassociate}
+                  disabled={disassociating}
+                  className="text-sm font-medium text-orange-600 hover:text-orange-800 disabled:opacity-50 transition-colors"
+                >
+                  {disassociating ? 'Unlinking…' : 'Yes, unlink'}
+                </button>
+                <button
+                  onClick={() => setDisassociateConfirm(false)}
+                  className="text-sm text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             )}
             {onDelete && !deleteConfirm && (
               <button

@@ -846,6 +846,7 @@ export default function DashboardPage() {
             ) ?? []
           }
           weightLog={weightLog}
+          workoutsOnDate={workouts.filter(w => w.date === selectedWorkout.date && w.id !== selectedWorkout.id)}
           onClose={() => setSelectedWorkout(null)}
           onChat={() => {
             setChatWorkout(selectedWorkout)
