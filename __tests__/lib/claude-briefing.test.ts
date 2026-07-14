@@ -102,6 +102,27 @@ describe('generatePostRideNote — enriched detail', () => {
   })
 })
 
+describe('generatePostRideNote — session count excludes pending optional workouts', () => {
+  it('excludes a pending optional workout from the "sessions today" count', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text: 'Nice work.' }] })
+    const ctx: BriefingContext = {
+      ...basePostRideCtx,
+      todayWorkouts: [
+        makeWorkout({ id: 'w1', date: '2026-05-28', status: 'completed', optional: false }),
+        makeWorkout({ id: 'w2', date: '2026-05-28', status: 'completed', optional: false }),
+        makeWorkout({ id: 'w3', date: '2026-05-28', status: 'planned', optional: true }),
+      ],
+      completedRides: [
+        { name: 'Ride A', avg_power: 200, weighted_avg_power: 210, tss: 60, moving_time: 3600, elevation_m: 50, execution: null },
+        { name: 'Ride B', avg_power: 180, weighted_avg_power: 190, tss: 40, moving_time: 1800, elevation_m: 20, execution: null },
+      ],
+    }
+    await generateBriefing(ctx)
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toContain('Sessions today: 2 of 2 sessions completed')
+  })
+})
+
 describe('generateMorningBriefing — structured verdict', () => {
   it('parses verdict, headline and note from a JSON response', async () => {
     mockCreate.mockResolvedValue({ content: [{ type: 'text', text:
