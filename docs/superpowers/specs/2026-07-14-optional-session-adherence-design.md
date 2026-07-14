@@ -6,14 +6,15 @@ Optional workouts (`workouts.optional === true`, used for sparse continue-traini
 
 ## Background
 
-Four separate places compute a "sessions completed vs planned" ratio:
+Five separate places compute a "sessions completed vs planned" ratio:
 
 1. **Season-level adherence** — `computeProgressMetrics`'s `adherence` field (`lib/progress/metrics.ts:92-99`), fed by `planWorkouts` fetched in `lib/progress/brief-generator.ts:49-53` via `select('status, date').eq('plan_id', plan.id)`. Rendered by `components/ProgressStats.tsx`.
 2. **Weekly progress** — `weeklyProgress.sessionsTotal`/`sessionsCompleted` (`app/dashboard/page.tsx:486-492`), derived from `weekWorkoutsWP = workouts.filter(w => weekDates.includes(w.date))`. Rendered by `components/ProgressStats.tsx`.
 3. **Plan-page "sessions hit %"** — `consistency()`'s `hitPct` (`lib/plan/progress.ts:84-106`), fed by `WeekBucket.plannedSessions`/`completedSessions` as built in `buildWeekBuckets` (`lib/plan/progress.ts:46-73`). Rendered by `components/plan/ConsistencyStrip.tsx` via `app/plan/page.tsx`. Also feeds `weekState`'s `'done'`/`'partial'`/`'missed'` classification (`lib/plan/progress.ts:75-82`) and the plan page's own streak.
 4. **Weekly Review Banner** — `lastWeekStats.completed`/`total` (`app/dashboard/page.tsx:229-233`), a raw filter over last week's workouts, rendered by `components/WeeklyReviewBanner.tsx:20` as "X of Y workouts completed last week."
+5. **Post-ride AI briefing narration** — `generatePostRideNote`'s `sessionsPlanned`/`sessionSummary` (`lib/claude/briefing.ts:235-237`), a raw `.length` over today's workouts, embedded in the Claude prompt as "Sessions today: X of Y sessions completed" (`lib/claude/briefing.ts:271`) and so indirectly shapes the AI's post-ride coaching note.
 
-None of the four currently reads `optional`, so an optional workout is counted in every total the moment it's scheduled, and drags each ratio down if it's never done — exactly what the field comment says shouldn't happen. (Sites 3 and 4 were found during two rounds of final whole-branch review of this feature — the user chose to extend the fix to both rather than leave any screen inconsistent with the others.)
+None of the five currently reads `optional`, so an optional workout is counted in every total the moment it's scheduled, and drags each ratio down if it's never done — exactly what the field comment says shouldn't happen. (Sites 3, 4, and 5 were found during three rounds of final whole-branch review of this feature — the user chose to extend the fix to each rather than leave any screen or AI-facing narration inconsistent with the others. Site 5 is narrower in kind than 1-4 — it's ephemeral same-day AI prompt text, not a persisted adherence metric — but the underlying bug shape and fix are identical, so it's included here rather than tracked as a separate feature.)
 
 ## Rule
 
@@ -34,6 +35,7 @@ Concretely, per workout `w`:
 - **`weeklyProgress.sessionsCompleted`'s underlying `completedWP`** stays as-is for every other stat it feeds (`tssActual`, `distanceKm`, `elevationM`, `timeActualMins`) — only the `sessionsCompleted` count itself gets the optional+needs_review numerator rule above; the other stats keep using the existing "literal completed" filter.
 - **`lib/plan/progress.ts`'s `plannedTss`/`WeekBucket.plannedTss`** — same load-vs-count distinction as above: `buildWeekBuckets` keeps adding every workout's `plannedTss` unconditionally; only `plannedSessions`/`completedSessions` (the counts `hitPct`, `weekState`, and the plan-page streak derive from) apply the countable/numerator rule.
 - **`lib/plan/progress.ts`'s local `isDone` helper and `planHours`** — `isDone` (`status === 'completed' || status === 'needs_review'`, no optional check) is a separate, pre-existing "done" definition used only by `planHours` (hours trained across the plan — a load metric, not a session count). Left untouched; not unified with `isSessionCompleted` as part of this feature.
+- **`lib/claude/briefing.ts`'s `generateMorningBriefing`** — its `sessionCount`/`sessionLine` (`lib/claude/briefing.ts:127-133`) describes what's scheduled *today* ("2 sessions: X, Y") for the morning briefing, before anything has happened yet. It is not a completed-vs-planned ratio (no numerator/denominator, no "completed" concept at all) and must stay untouched — an optional session still scheduled for today should still appear in the morning's description of today's plan.
 
 ## Implementation sketch
 
@@ -42,9 +44,11 @@ Concretely, per workout `w`:
 - `app/dashboard/page.tsx`: compute `sessionsTotal`/`sessionsCompleted` from the countable/numerator logic above applied to `weekWorkoutsWP`, without changing `weekWorkoutsWP` itself (so `tssPlanned`/`timePlannedMins` and `completedWP`'s other consumers are untouched).
 - `lib/plan/progress.ts`: in `buildWeekBuckets`'s per-workout loop, keep `buckets[i].plannedTss += plannedTss(w)` unconditional, but only increment `plannedSessions` (and, inside that, `completedSessions`) when the workout passes the countable/numerator logic above. `weekState` and `consistency` need no direct changes — both already derive purely from `plannedSessions`/`completedSessions`, so they inherit the fix automatically.
 - `app/dashboard/page.tsx`: apply the same countable/numerator logic to `lastWeekStats.completed`/`total` (currently a raw `status === 'completed'` filter over last week's workouts) — reusing the `isSessionCountable`/`isSessionCompleted` import already added for `weeklyProgress`, no new import needed.
+- `lib/claude/briefing.ts`: in `generatePostRideNote`, replace `sessionsPlanned`'s raw `ctx.todayWorkouts?.length ?? (ctx.todayWorkout ? 1 : 0)` with a count that only includes countable-per-`isSessionCountable` workouts. `rideCount` (from `ctx.completedRides`) needs no change — it already only reflects rides that actually happened. Only `isSessionCountable` is needed here (not `isSessionCompleted`) since the numerator is `rideCount`, a separately-sourced "actually happened" count, not derived from `todayWorkouts`' statuses.
 
 ## Testing
 
 - `__tests__/lib/progress-metrics.test.ts`: extend the existing adherence test coverage with cases for an optional workout that's `planned` (excluded from total), `skipped` (excluded from total), `needs_review` (counted in both total and numerator), and `completed` (counted in both, unchanged), alongside a mix with non-optional workouts to confirm those are unaffected.
 - `app/dashboard/page.tsx`'s `weeklyProgress` and `lastWeekStats` calculations have no dedicated test file — consistent with this codebase's established convention for large interactive page components (no automated test; verified via typecheck + manual reasoning about the derivation).
 - `__tests__/lib/plan-progress.test.ts`: extend `buildWeekBuckets`'s test coverage with a pending optional workout (excluded from `plannedSessions`/`completedSessions`, but its `plannedTss` still counted) and a completed optional workout (counted in both, same as non-optional).
+- `__tests__/lib/claude-briefing.test.ts`: add a case asserting the generated prompt's "Sessions today: ..." line excludes a pending optional workout from the denominator (following the existing pattern in this file of asserting on `mockCreate.mock.calls[0][0].messages[0].content`).

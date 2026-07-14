@@ -722,3 +722,114 @@ Expected: all suites pass, no regressions
 git add app/dashboard/page.tsx
 git commit -m "feat: exclude pending optional workouts from weekly review banner stats"
 ```
+
+---
+
+### Task 7: Extend the fix to the post-ride AI briefing's session count
+
+**Added after the third whole-branch review of Tasks 1-6 found a fifth site with the same bug** — `lib/claude/briefing.ts`'s `generatePostRideNote`, which builds the "Sessions today: X of Y sessions completed" line embedded in the Claude prompt for the post-ride coaching note. Same bug as the other four sites: a pending optional workout scheduled today inflates the denominator without being "missed" in any real sense. This site is narrower in kind than sites 1-4 (ephemeral same-day AI prompt text, not a persisted adherence metric) but the fix is identical. See `docs/superpowers/specs/2026-07-14-optional-session-adherence-design.md`'s Background/Out-of-scope/Implementation sketch (updated) for the full rationale, including why `generateMorningBriefing`'s separate `sessionCount`/`sessionLine` (today's schedule description, not a completed/total ratio) is explicitly NOT touched by this task.
+
+**Files:**
+- Modify: `lib/claude/briefing.ts:1,235`
+- Test: `__tests__/lib/claude-briefing.test.ts`
+
+**Interfaces:**
+- Consumes: `isSessionCountable` from `lib/progress/session-counting.ts` (Task 1). Only `isSessionCountable` is needed — `rideCount` (the numerator) is already sourced from `ctx.completedRides`, a separate "actually happened" data source, not derived from `todayWorkouts`' statuses.
+- Produces: no change to `generatePostRideNote`'s exported behavior beyond the corrected count, no change to `BriefingResult` or any exported type.
+
+- [ ] **Step 1: Write the failing test**
+
+Open `__tests__/lib/claude-briefing.test.ts`. Add a new describe block after the existing `describe('generatePostRideNote — enriched detail', ...)` block (which ends around line 103):
+
+```typescript
+describe('generatePostRideNote — session count excludes pending optional workouts', () => {
+  it('excludes a pending optional workout from the "sessions today" count', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text: 'Nice work.' }] })
+    const ctx: BriefingContext = {
+      ...basePostRideCtx,
+      todayWorkouts: [
+        makeWorkout({ id: 'w1', date: '2026-05-28', status: 'completed', optional: false }),
+        makeWorkout({ id: 'w2', date: '2026-05-28', status: 'completed', optional: false }),
+        makeWorkout({ id: 'w3', date: '2026-05-28', status: 'planned', optional: true }),
+      ],
+      completedRides: [
+        { name: 'Ride A', avg_power: 200, weighted_avg_power: 210, tss: 60, moving_time: 3600, elevation_m: 50, execution: null },
+        { name: 'Ride B', avg_power: 180, weighted_avg_power: 190, tss: 40, moving_time: 1800, elevation_m: 20, execution: null },
+      ],
+    }
+    await generateBriefing(ctx)
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toContain('Sessions today: 2 of 2 sessions completed')
+  })
+})
+```
+
+Note: before this fix, this test would produce `'Sessions today: 2 of 3 sessions completed'` (all 3 `todayWorkouts` counted in the denominator, including the pending optional one) — the assertion above (`2 of 2`) is what the fix must produce.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx jest __tests__/lib/claude-briefing.test.ts`
+Expected: FAIL — the new test's assertion `toContain('Sessions today: 2 of 2 sessions completed')` fails because the actual prompt contains `'Sessions today: 2 of 3 sessions completed'`.
+
+- [ ] **Step 3: Write the implementation**
+
+In `lib/claude/briefing.ts`, change the import block at the top of the file from:
+
+```typescript
+import { anthropic, MODEL } from './client'
+import type { BriefingContext } from '@/types'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
+import { formatWeatherForPrompt } from '@/lib/weather/format'
+import { labelDate } from '@/lib/calendar-helpers'
+import { formatStrainForPrompt, formatStrainHistoryForPrompt } from '@/lib/strain'
+import { formatWellnessForPrompt } from '@/lib/claude/wellness-prompt'
+```
+
+to:
+
+```typescript
+import { anthropic, MODEL } from './client'
+import type { BriefingContext } from '@/types'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
+import { formatWeatherForPrompt } from '@/lib/weather/format'
+import { labelDate } from '@/lib/calendar-helpers'
+import { formatStrainForPrompt, formatStrainHistoryForPrompt } from '@/lib/strain'
+import { formatWellnessForPrompt } from '@/lib/claude/wellness-prompt'
+import { isSessionCountable } from '@/lib/progress/session-counting'
+```
+
+Change line 235 (inside `generatePostRideNote`) from:
+
+```typescript
+  const sessionsPlanned = ctx.todayWorkouts?.length ?? (ctx.todayWorkout ? 1 : 0)
+```
+
+to:
+
+```typescript
+  const sessionsPlanned = ctx.todayWorkouts
+    ? ctx.todayWorkouts.filter(isSessionCountable).length
+    : (ctx.todayWorkout && isSessionCountable(ctx.todayWorkout) ? 1 : 0)
+```
+
+Do not touch `generateMorningBriefing`'s `sessionCount`/`sessionLine` (a different function, lines 118-134) — it describes today's schedule before anything has happened, not a completed/total ratio, and is explicitly out of scope per the spec.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npx jest __tests__/lib/claude-briefing.test.ts`
+Expected: PASS (all tests, including the new one and every pre-existing test in the file unchanged)
+
+- [ ] **Step 5: Run typecheck and the full suite**
+
+Run: `npm run typecheck`
+Expected: no errors
+
+Run: `npx jest`
+Expected: all suites pass, no regressions
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/claude/briefing.ts __tests__/lib/claude-briefing.test.ts
+git commit -m "feat: exclude pending optional workouts from post-ride briefing session count"
+```
