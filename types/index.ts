@@ -520,6 +520,11 @@ export interface ActivityMetrics {
   distance_m: number | null
   elevation_m: number | null   // total_elevation_gain
   lr_balance: number | null    // left %
+  elapsed_secs?: number | null   // seconds; includes stopped time
+  max_speed_ms?: number | null   // m/s, raw from API
+  avg_temp_c?: number | null
+  min_temp_c?: number | null
+  max_temp_c?: number | null
   // Tier 2 — power-curve best efforts, sampled to canonical durations
   best_efforts: Array<{ secs: number; watts: number }> | null
   // Tier 3 — detected intervals (laps)

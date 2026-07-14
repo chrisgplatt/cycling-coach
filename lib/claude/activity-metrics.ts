@@ -12,7 +12,7 @@ const CANONICAL_SECS = [5, 15, 60, 300, 600, 1200, 3600]
 // new derived fields, etc.). The backfill re-enriches rows below this version so
 // existing rides pick up the change once — without churning rows that can't
 // produce a given field (the version stamp lands regardless).
-export const METRICS_VERSION = 2
+export const METRICS_VERSION = 3
 
 function sampleBest(curve: ICUPowerCurvePoint[], target: number): { secs: number; watts: number } | null {
   if (!curve.length) return null
@@ -44,6 +44,11 @@ export function extractActivityMetrics(
     distance_m: act.distance ?? null,
     elevation_m: act.total_elevation_gain ?? null,
     lr_balance: act.left_right_balance ?? null,
+    elapsed_secs: act.elapsed_time ?? null,
+    max_speed_ms: act.max_speed ?? null,
+    avg_temp_c: act.average_temp ?? null,
+    min_temp_c: act.min_temp ?? null,
+    max_temp_c: act.max_temp ?? null,
     best_efforts: best.length ? best : null,
     intervals: intervals?.length ? intervals : null,
     decoupling_pct: null,
