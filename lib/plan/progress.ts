@@ -1,4 +1,5 @@
 import type { Workout, ICUActivity, WorkoutType } from '@/types'
+import { isSessionCountable, isSessionCompleted } from '@/lib/progress/session-counting'
 
 export interface WeekBucket {
   weekIndex: number
@@ -57,8 +58,9 @@ export function buildWeekBuckets(
     const i = weekIndexOf(w.date, planStart)
     if (i < 0 || i >= totalWeeks) continue
     buckets[i].plannedTss += plannedTss(w)
+    if (!isSessionCountable(w)) continue
     buckets[i].plannedSessions += 1
-    if (isDone(w.status)) buckets[i].completedSessions += 1
+    if (isSessionCompleted(w)) buckets[i].completedSessions += 1
   }
   for (const a of activities) {
     const i = weekIndexOf(a.start_date_local, planStart)
