@@ -170,10 +170,15 @@ describe('computeProgressMetrics', () => {
   })
 
   it('uses 6-week fallback baseline when there is no plan', () => {
-    // Today is 2026-06-14; 6 weeks ago = 2026-05-03
+    // Baseline is 42 days before the current date, computed at test-run time
+    // to avoid hardcoded dates drifting out of the fallback window.
+    const withinWindow = new Date()
+    withinWindow.setDate(withinWindow.getDate() - 10)
+    const outsideWindow = new Date()
+    outsideWindow.setDate(outsideWindow.getDate() - 50)
     const activities = [
-      act('2026-06-01'), // within 6 weeks → counted
-      act('2026-04-01'), // older than 6 weeks → NOT counted
+      act(withinWindow.toISOString().split('T')[0]), // within 6 weeks → counted
+      act(outsideWindow.toISOString().split('T')[0]), // older than 6 weeks → NOT counted
     ]
     const result = computeProgressMetrics([], 245, 73.5, null, [], [], activities, 3)
     expect(result.totalRides).toBe(1)
