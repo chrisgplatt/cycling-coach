@@ -659,3 +659,66 @@ Expected: all suites pass, no regressions
 git add lib/plan/progress.ts __tests__/lib/plan-progress.test.ts
 git commit -m "feat: exclude pending optional workouts from plan-page sessions-hit rate"
 ```
+
+---
+
+### Task 6: Extend the fix to the Weekly Review Banner
+
+**Added after the final whole-branch review of Tasks 1-5 found a fourth "sessions completed vs planned" ratio** — `lastWeekStats.completed`/`total` in `app/dashboard/page.tsx`, rendered by `components/WeeklyReviewBanner.tsx` as "X of Y workouts completed last week." Same bug as the other three sites: a pending or skipped optional workout scheduled last week inflates the total without contributing to the completed count. See `docs/superpowers/specs/2026-07-14-optional-session-adherence-design.md`'s Background/Implementation sketch (updated) for the full rationale.
+
+**Files:**
+- Modify: `app/dashboard/page.tsx:229-233`
+
+**Interfaces:**
+- Consumes: `isSessionCountable`, `isSessionCompleted` from `lib/progress/session-counting.ts` (Task 1) — already imported into this file by Task 4, no new import statement needed.
+- Produces: no change to `lastWeekStats`'s shape (`{ completed: number; total: number }`) or to `WeeklyReviewBanner`'s props.
+
+This component has no dedicated test file — consistent with this codebase's established convention for large interactive page components. Verification is typecheck plus manual reasoning about the derivation, matching Task 4's approach.
+
+- [ ] **Step 1: Rewire the last-week stats calculation**
+
+In `app/dashboard/page.tsx`, change lines 229-233 from:
+
+```typescript
+      const lastWeek = plan.workouts.filter((w: Workout) => w.date >= lwStart && w.date <= lwEnd)
+      setLastWeekStats({
+        completed: lastWeek.filter((w: Workout) => w.status === 'completed').length,
+        total: lastWeek.length,
+      })
+```
+
+to:
+
+```typescript
+      const lastWeek = plan.workouts.filter((w: Workout) => w.date >= lwStart && w.date <= lwEnd)
+      const countableLastWeek = lastWeek.filter(isSessionCountable)
+      setLastWeekStats({
+        completed: countableLastWeek.filter(isSessionCompleted).length,
+        total: countableLastWeek.length,
+      })
+```
+
+- [ ] **Step 2: Manual verification checklist**
+
+Trace through by reading the code (no dev server needed for this):
+1. A non-optional workout from last week, any status: `isSessionCountable` returns `true` (first clause `!w.optional`) → included in `total`. Matches today's existing behavior.
+2. An optional workout from last week still `status: 'planned'` or `'skipped'`: `isSessionCountable` returns `false` → excluded from `countableLastWeek`, so it does not inflate `total` or drag down the ratio. This is the requested fix.
+3. An optional workout from last week that was completed (or `needs_review`): counted in both `total` and `completed`, same treatment as the other three sites.
+4. `reviewEstimatedWorkouts` (set separately, a few lines below at the original line 234-236) is untouched — it's a forward-looking count of upcoming planned workouts, not a completed/total ratio, and was never in scope.
+
+- [ ] **Step 3: Run typecheck**
+
+Run: `npm run typecheck`
+Expected: no errors
+
+- [ ] **Step 4: Run the full test suite**
+
+Run: `npx jest`
+Expected: all suites pass, no regressions
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add app/dashboard/page.tsx
+git commit -m "feat: exclude pending optional workouts from weekly review banner stats"
+```

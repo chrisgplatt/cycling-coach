@@ -6,13 +6,14 @@ Optional workouts (`workouts.optional === true`, used for sparse continue-traini
 
 ## Background
 
-Three separate places compute a "sessions completed vs planned" ratio:
+Four separate places compute a "sessions completed vs planned" ratio:
 
 1. **Season-level adherence** — `computeProgressMetrics`'s `adherence` field (`lib/progress/metrics.ts:92-99`), fed by `planWorkouts` fetched in `lib/progress/brief-generator.ts:49-53` via `select('status, date').eq('plan_id', plan.id)`. Rendered by `components/ProgressStats.tsx`.
 2. **Weekly progress** — `weeklyProgress.sessionsTotal`/`sessionsCompleted` (`app/dashboard/page.tsx:486-492`), derived from `weekWorkoutsWP = workouts.filter(w => weekDates.includes(w.date))`. Rendered by `components/ProgressStats.tsx`.
 3. **Plan-page "sessions hit %"** — `consistency()`'s `hitPct` (`lib/plan/progress.ts:84-106`), fed by `WeekBucket.plannedSessions`/`completedSessions` as built in `buildWeekBuckets` (`lib/plan/progress.ts:46-73`). Rendered by `components/plan/ConsistencyStrip.tsx` via `app/plan/page.tsx`. Also feeds `weekState`'s `'done'`/`'partial'`/`'missed'` classification (`lib/plan/progress.ts:75-82`) and the plan page's own streak.
+4. **Weekly Review Banner** — `lastWeekStats.completed`/`total` (`app/dashboard/page.tsx:229-233`), a raw filter over last week's workouts, rendered by `components/WeeklyReviewBanner.tsx:20` as "X of Y workouts completed last week."
 
-None of the three currently reads `optional`, so an optional workout is counted in every total the moment it's scheduled, and drags each ratio down if it's never done — exactly what the field comment says shouldn't happen. (This third site was found during the final whole-branch review of this feature's first implementation pass, which had scoped only to the two `ProgressStats.tsx` tiles — the user chose to extend the fix here rather than leave the Plan page inconsistent with the dashboard.)
+None of the four currently reads `optional`, so an optional workout is counted in every total the moment it's scheduled, and drags each ratio down if it's never done — exactly what the field comment says shouldn't happen. (Sites 3 and 4 were found during two rounds of final whole-branch review of this feature — the user chose to extend the fix to both rather than leave any screen inconsistent with the others.)
 
 ## Rule
 
@@ -40,9 +41,10 @@ Concretely, per workout `w`:
 - `lib/progress/brief-generator.ts`: add `optional` to the `planWorkouts` select (`select('status, date, optional')`) and to the inline `Array<{ status: WorkoutStatus; date: string }>` type annotation.
 - `app/dashboard/page.tsx`: compute `sessionsTotal`/`sessionsCompleted` from the countable/numerator logic above applied to `weekWorkoutsWP`, without changing `weekWorkoutsWP` itself (so `tssPlanned`/`timePlannedMins` and `completedWP`'s other consumers are untouched).
 - `lib/plan/progress.ts`: in `buildWeekBuckets`'s per-workout loop, keep `buckets[i].plannedTss += plannedTss(w)` unconditional, but only increment `plannedSessions` (and, inside that, `completedSessions`) when the workout passes the countable/numerator logic above. `weekState` and `consistency` need no direct changes — both already derive purely from `plannedSessions`/`completedSessions`, so they inherit the fix automatically.
+- `app/dashboard/page.tsx`: apply the same countable/numerator logic to `lastWeekStats.completed`/`total` (currently a raw `status === 'completed'` filter over last week's workouts) — reusing the `isSessionCountable`/`isSessionCompleted` import already added for `weeklyProgress`, no new import needed.
 
 ## Testing
 
 - `__tests__/lib/progress-metrics.test.ts`: extend the existing adherence test coverage with cases for an optional workout that's `planned` (excluded from total), `skipped` (excluded from total), `needs_review` (counted in both total and numerator), and `completed` (counted in both, unchanged), alongside a mix with non-optional workouts to confirm those are unaffected.
-- `app/dashboard/page.tsx`'s `weeklyProgress` calculation has no dedicated test file — consistent with this codebase's established convention for large interactive page components (no automated test; verified via typecheck + manual reasoning about the derivation).
+- `app/dashboard/page.tsx`'s `weeklyProgress` and `lastWeekStats` calculations have no dedicated test file — consistent with this codebase's established convention for large interactive page components (no automated test; verified via typecheck + manual reasoning about the derivation).
 - `__tests__/lib/plan-progress.test.ts`: extend `buildWeekBuckets`'s test coverage with a pending optional workout (excluded from `plannedSessions`/`completedSessions`, but its `plannedTss` still counted) and a completed optional workout (counted in both, same as non-optional).
