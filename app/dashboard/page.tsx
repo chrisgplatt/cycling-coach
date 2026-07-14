@@ -227,9 +227,10 @@ export default function DashboardPage() {
       const lwEnd = lastSunEnd.toISOString().split('T')[0]
 
       const lastWeek = plan.workouts.filter((w: Workout) => w.date >= lwStart && w.date <= lwEnd)
+      const countableLastWeek = lastWeek.filter(isSessionCountable)
       setLastWeekStats({
-        completed: lastWeek.filter((w: Workout) => w.status === 'completed').length,
-        total: lastWeek.length,
+        completed: countableLastWeek.filter(isSessionCompleted).length,
+        total: countableLastWeek.length,
       })
       setReviewEstimatedWorkouts(
         plan.workouts.filter((w: Workout) => w.date >= today && w.status === 'planned').length
