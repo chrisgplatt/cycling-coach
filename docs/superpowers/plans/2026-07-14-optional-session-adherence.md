@@ -551,3 +551,111 @@ Expected: all suites pass, no regressions (this component has no dedicated test 
 git add app/dashboard/page.tsx
 git commit -m "feat: exclude pending optional workouts from weekly sessions count"
 ```
+
+---
+
+### Task 5: Extend the fix to the Plan page's "sessions hit %"
+
+**Added after the final whole-branch review of Tasks 1-4 found a third "sessions completed vs planned" ratio that the original plan didn't cover** — `lib/plan/progress.ts`'s `consistency()`/`hitPct`, rendered on the Plan page. Without this task, the dashboard's two "Sessions" tiles would correctly ignore a pending optional workout while the Plan page's "sessions hit %" kept counting it as a miss — an inconsistency across screens. See `docs/superpowers/specs/2026-07-14-optional-session-adherence-design.md`'s Background/Out-of-scope sections (updated) for the full rationale.
+
+**Files:**
+- Modify: `lib/plan/progress.ts:1,55-62`
+- Test: `__tests__/lib/plan-progress.test.ts`
+
+**Interfaces:**
+- Consumes: `isSessionCountable`, `isSessionCompleted` from `lib/progress/session-counting.ts` (Task 1).
+- Produces: no change to `buildWeekBuckets`'s exported signature or `WeekBucket`'s shape. `weekState` and `consistency` need no direct code changes — both already derive purely from `WeekBucket.plannedSessions`/`completedSessions`, so they inherit this fix automatically once `buildWeekBuckets` is corrected.
+
+- [ ] **Step 1: Write the failing tests**
+
+Open `__tests__/lib/plan-progress.test.ts`. Inside the existing `describe('buildWeekBuckets', ...)` block (starting at line 27), immediately after the existing test that ends at line 38 (`})`), insert these two new tests:
+
+```typescript
+  it('excludes a pending optional workout from planned/completed session counts, but still counts its planned TSS', () => {
+    const workouts = [
+      makeWorkout({ id: 'w1', date: '2026-05-02', status: 'completed', steps: [{ label: 's', duration_minutes: 60, power_pct_ftp: 100 }] }),
+      makeWorkout({ id: 'w2', date: '2026-05-03', status: 'planned', optional: true, steps: [{ label: 's', duration_minutes: 60, power_pct_ftp: 100 }] }),
+    ]
+    const buckets = buildWeekBuckets(workouts, [], planStart, 1)
+    expect(buckets[0]).toMatchObject({ weekIndex: 0, plannedTss: 200, plannedSessions: 1, completedSessions: 1 })
+  })
+
+  it('counts a completed optional workout the same as a non-optional one', () => {
+    const workouts = [
+      makeWorkout({ id: 'w1', date: '2026-05-02', status: 'completed', optional: true, steps: [{ label: 's', duration_minutes: 60, power_pct_ftp: 100 }] }),
+    ]
+    const buckets = buildWeekBuckets(workouts, [], planStart, 1)
+    expect(buckets[0]).toMatchObject({ plannedSessions: 1, completedSessions: 1 })
+  })
+```
+
+Note: the pre-existing test at lines 29-38 uses `makeWorkout` without an explicit `optional` field — `__tests__/support/factories.ts:25` defaults `optional: false`, so that test is unaffected by this change and needs no modification.
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npx jest __tests__/lib/plan-progress.test.ts`
+Expected: FAIL — the first new test gets `plannedSessions: 2, completedSessions: 1` (both workouts currently counted in `plannedSessions` regardless of `optional`) instead of `plannedSessions: 1, completedSessions: 1`.
+
+- [ ] **Step 3: Write the implementation**
+
+In `lib/plan/progress.ts`, change the import at line 1 from:
+
+```typescript
+import type { Workout, ICUActivity, WorkoutType } from '@/types'
+```
+
+to:
+
+```typescript
+import type { Workout, ICUActivity, WorkoutType } from '@/types'
+import { isSessionCountable, isSessionCompleted } from '@/lib/progress/session-counting'
+```
+
+Change the per-workout loop inside `buildWeekBuckets` (lines 55-62) from:
+
+```typescript
+  for (const w of workouts) {
+    if (!w.plan_id) continue
+    const i = weekIndexOf(w.date, planStart)
+    if (i < 0 || i >= totalWeeks) continue
+    buckets[i].plannedTss += plannedTss(w)
+    buckets[i].plannedSessions += 1
+    if (isDone(w.status)) buckets[i].completedSessions += 1
+  }
+```
+
+to:
+
+```typescript
+  for (const w of workouts) {
+    if (!w.plan_id) continue
+    const i = weekIndexOf(w.date, planStart)
+    if (i < 0 || i >= totalWeeks) continue
+    buckets[i].plannedTss += plannedTss(w)
+    if (!isSessionCountable(w)) continue
+    buckets[i].plannedSessions += 1
+    if (isSessionCompleted(w)) buckets[i].completedSessions += 1
+  }
+```
+
+`plannedTss` stays unconditional (out of scope, same as the dashboard's `tssPlanned`/`timePlannedMins`) — only `plannedSessions`/`completedSessions` gain the countable/numerator gate. The local `isDone` helper (`lib/plan/progress.ts:22-24`) stays in the file unchanged — it's still used by `planHours` (a separate hours-trained metric, out of scope for this feature).
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx jest __tests__/lib/plan-progress.test.ts`
+Expected: PASS (all tests, including the 2 new ones and every pre-existing test in the file unchanged)
+
+- [ ] **Step 5: Run typecheck and the full suite**
+
+Run: `npm run typecheck`
+Expected: no errors
+
+Run: `npx jest`
+Expected: all suites pass, no regressions
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/plan/progress.ts __tests__/lib/plan-progress.test.ts
+git commit -m "feat: exclude pending optional workouts from plan-page sessions-hit rate"
+```
