@@ -551,3 +551,285 @@ Expected: all suites pass, no regressions (this component has no dedicated test 
 git add app/dashboard/page.tsx
 git commit -m "feat: exclude pending optional workouts from weekly sessions count"
 ```
+
+---
+
+### Task 5: Extend the fix to the Plan page's "sessions hit %"
+
+**Added after the final whole-branch review of Tasks 1-4 found a third "sessions completed vs planned" ratio that the original plan didn't cover** — `lib/plan/progress.ts`'s `consistency()`/`hitPct`, rendered on the Plan page. Without this task, the dashboard's two "Sessions" tiles would correctly ignore a pending optional workout while the Plan page's "sessions hit %" kept counting it as a miss — an inconsistency across screens. See `docs/superpowers/specs/2026-07-14-optional-session-adherence-design.md`'s Background/Out-of-scope sections (updated) for the full rationale.
+
+**Files:**
+- Modify: `lib/plan/progress.ts:1,55-62`
+- Test: `__tests__/lib/plan-progress.test.ts`
+
+**Interfaces:**
+- Consumes: `isSessionCountable`, `isSessionCompleted` from `lib/progress/session-counting.ts` (Task 1).
+- Produces: no change to `buildWeekBuckets`'s exported signature or `WeekBucket`'s shape. `weekState` and `consistency` need no direct code changes — both already derive purely from `WeekBucket.plannedSessions`/`completedSessions`, so they inherit this fix automatically once `buildWeekBuckets` is corrected.
+
+- [ ] **Step 1: Write the failing tests**
+
+Open `__tests__/lib/plan-progress.test.ts`. Inside the existing `describe('buildWeekBuckets', ...)` block (starting at line 27), immediately after the existing test that ends at line 38 (`})`), insert these two new tests:
+
+```typescript
+  it('excludes a pending optional workout from planned/completed session counts, but still counts its planned TSS', () => {
+    const workouts = [
+      makeWorkout({ id: 'w1', date: '2026-05-02', status: 'completed', steps: [{ label: 's', duration_minutes: 60, power_pct_ftp: 100 }] }),
+      makeWorkout({ id: 'w2', date: '2026-05-03', status: 'planned', optional: true, steps: [{ label: 's', duration_minutes: 60, power_pct_ftp: 100 }] }),
+    ]
+    const buckets = buildWeekBuckets(workouts, [], planStart, 1)
+    expect(buckets[0]).toMatchObject({ weekIndex: 0, plannedTss: 200, plannedSessions: 1, completedSessions: 1 })
+  })
+
+  it('counts a completed optional workout the same as a non-optional one', () => {
+    const workouts = [
+      makeWorkout({ id: 'w1', date: '2026-05-02', status: 'completed', optional: true, steps: [{ label: 's', duration_minutes: 60, power_pct_ftp: 100 }] }),
+    ]
+    const buckets = buildWeekBuckets(workouts, [], planStart, 1)
+    expect(buckets[0]).toMatchObject({ plannedSessions: 1, completedSessions: 1 })
+  })
+```
+
+Note: the pre-existing test at lines 29-38 uses `makeWorkout` without an explicit `optional` field — `__tests__/support/factories.ts:25` defaults `optional: false`, so that test is unaffected by this change and needs no modification.
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npx jest __tests__/lib/plan-progress.test.ts`
+Expected: FAIL — the first new test gets `plannedSessions: 2, completedSessions: 1` (both workouts currently counted in `plannedSessions` regardless of `optional`) instead of `plannedSessions: 1, completedSessions: 1`.
+
+- [ ] **Step 3: Write the implementation**
+
+In `lib/plan/progress.ts`, change the import at line 1 from:
+
+```typescript
+import type { Workout, ICUActivity, WorkoutType } from '@/types'
+```
+
+to:
+
+```typescript
+import type { Workout, ICUActivity, WorkoutType } from '@/types'
+import { isSessionCountable, isSessionCompleted } from '@/lib/progress/session-counting'
+```
+
+Change the per-workout loop inside `buildWeekBuckets` (lines 55-62) from:
+
+```typescript
+  for (const w of workouts) {
+    if (!w.plan_id) continue
+    const i = weekIndexOf(w.date, planStart)
+    if (i < 0 || i >= totalWeeks) continue
+    buckets[i].plannedTss += plannedTss(w)
+    buckets[i].plannedSessions += 1
+    if (isDone(w.status)) buckets[i].completedSessions += 1
+  }
+```
+
+to:
+
+```typescript
+  for (const w of workouts) {
+    if (!w.plan_id) continue
+    const i = weekIndexOf(w.date, planStart)
+    if (i < 0 || i >= totalWeeks) continue
+    buckets[i].plannedTss += plannedTss(w)
+    if (!isSessionCountable(w)) continue
+    buckets[i].plannedSessions += 1
+    if (isSessionCompleted(w)) buckets[i].completedSessions += 1
+  }
+```
+
+`plannedTss` stays unconditional (out of scope, same as the dashboard's `tssPlanned`/`timePlannedMins`) — only `plannedSessions`/`completedSessions` gain the countable/numerator gate. The local `isDone` helper (`lib/plan/progress.ts:22-24`) stays in the file unchanged — it's still used by `planHours` (a separate hours-trained metric, out of scope for this feature).
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx jest __tests__/lib/plan-progress.test.ts`
+Expected: PASS (all tests, including the 2 new ones and every pre-existing test in the file unchanged)
+
+- [ ] **Step 5: Run typecheck and the full suite**
+
+Run: `npm run typecheck`
+Expected: no errors
+
+Run: `npx jest`
+Expected: all suites pass, no regressions
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/plan/progress.ts __tests__/lib/plan-progress.test.ts
+git commit -m "feat: exclude pending optional workouts from plan-page sessions-hit rate"
+```
+
+---
+
+### Task 6: Extend the fix to the Weekly Review Banner
+
+**Added after the final whole-branch review of Tasks 1-5 found a fourth "sessions completed vs planned" ratio** — `lastWeekStats.completed`/`total` in `app/dashboard/page.tsx`, rendered by `components/WeeklyReviewBanner.tsx` as "X of Y workouts completed last week." Same bug as the other three sites: a pending or skipped optional workout scheduled last week inflates the total without contributing to the completed count. See `docs/superpowers/specs/2026-07-14-optional-session-adherence-design.md`'s Background/Implementation sketch (updated) for the full rationale.
+
+**Files:**
+- Modify: `app/dashboard/page.tsx:229-233`
+
+**Interfaces:**
+- Consumes: `isSessionCountable`, `isSessionCompleted` from `lib/progress/session-counting.ts` (Task 1) — already imported into this file by Task 4, no new import statement needed.
+- Produces: no change to `lastWeekStats`'s shape (`{ completed: number; total: number }`) or to `WeeklyReviewBanner`'s props.
+
+This component has no dedicated test file — consistent with this codebase's established convention for large interactive page components. Verification is typecheck plus manual reasoning about the derivation, matching Task 4's approach.
+
+- [ ] **Step 1: Rewire the last-week stats calculation**
+
+In `app/dashboard/page.tsx`, change lines 229-233 from:
+
+```typescript
+      const lastWeek = plan.workouts.filter((w: Workout) => w.date >= lwStart && w.date <= lwEnd)
+      setLastWeekStats({
+        completed: lastWeek.filter((w: Workout) => w.status === 'completed').length,
+        total: lastWeek.length,
+      })
+```
+
+to:
+
+```typescript
+      const lastWeek = plan.workouts.filter((w: Workout) => w.date >= lwStart && w.date <= lwEnd)
+      const countableLastWeek = lastWeek.filter(isSessionCountable)
+      setLastWeekStats({
+        completed: countableLastWeek.filter(isSessionCompleted).length,
+        total: countableLastWeek.length,
+      })
+```
+
+- [ ] **Step 2: Manual verification checklist**
+
+Trace through by reading the code (no dev server needed for this):
+1. A non-optional workout from last week, any status: `isSessionCountable` returns `true` (first clause `!w.optional`) → included in `total`. Matches today's existing behavior.
+2. An optional workout from last week still `status: 'planned'` or `'skipped'`: `isSessionCountable` returns `false` → excluded from `countableLastWeek`, so it does not inflate `total` or drag down the ratio. This is the requested fix.
+3. An optional workout from last week that was completed (or `needs_review`): counted in both `total` and `completed`, same treatment as the other three sites.
+4. `reviewEstimatedWorkouts` (set separately, a few lines below at the original line 234-236) is untouched — it's a forward-looking count of upcoming planned workouts, not a completed/total ratio, and was never in scope.
+
+- [ ] **Step 3: Run typecheck**
+
+Run: `npm run typecheck`
+Expected: no errors
+
+- [ ] **Step 4: Run the full test suite**
+
+Run: `npx jest`
+Expected: all suites pass, no regressions
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add app/dashboard/page.tsx
+git commit -m "feat: exclude pending optional workouts from weekly review banner stats"
+```
+
+---
+
+### Task 7: Extend the fix to the post-ride AI briefing's session count
+
+**Added after the third whole-branch review of Tasks 1-6 found a fifth site with the same bug** — `lib/claude/briefing.ts`'s `generatePostRideNote`, which builds the "Sessions today: X of Y sessions completed" line embedded in the Claude prompt for the post-ride coaching note. Same bug as the other four sites: a pending optional workout scheduled today inflates the denominator without being "missed" in any real sense. This site is narrower in kind than sites 1-4 (ephemeral same-day AI prompt text, not a persisted adherence metric) but the fix is identical. See `docs/superpowers/specs/2026-07-14-optional-session-adherence-design.md`'s Background/Out-of-scope/Implementation sketch (updated) for the full rationale, including why `generateMorningBriefing`'s separate `sessionCount`/`sessionLine` (today's schedule description, not a completed/total ratio) is explicitly NOT touched by this task.
+
+**Files:**
+- Modify: `lib/claude/briefing.ts:1,235`
+- Test: `__tests__/lib/claude-briefing.test.ts`
+
+**Interfaces:**
+- Consumes: `isSessionCountable` from `lib/progress/session-counting.ts` (Task 1). Only `isSessionCountable` is needed — `rideCount` (the numerator) is already sourced from `ctx.completedRides`, a separate "actually happened" data source, not derived from `todayWorkouts`' statuses.
+- Produces: no change to `generatePostRideNote`'s exported behavior beyond the corrected count, no change to `BriefingResult` or any exported type.
+
+- [ ] **Step 1: Write the failing test**
+
+Open `__tests__/lib/claude-briefing.test.ts`. Add a new describe block after the existing `describe('generatePostRideNote — enriched detail', ...)` block (which ends around line 103):
+
+```typescript
+describe('generatePostRideNote — session count excludes pending optional workouts', () => {
+  it('excludes a pending optional workout from the "sessions today" count', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text: 'Nice work.' }] })
+    const ctx: BriefingContext = {
+      ...basePostRideCtx,
+      todayWorkouts: [
+        makeWorkout({ id: 'w1', date: '2026-05-28', status: 'completed', optional: false }),
+        makeWorkout({ id: 'w2', date: '2026-05-28', status: 'completed', optional: false }),
+        makeWorkout({ id: 'w3', date: '2026-05-28', status: 'planned', optional: true }),
+      ],
+      completedRides: [
+        { name: 'Ride A', avg_power: 200, weighted_avg_power: 210, tss: 60, moving_time: 3600, elevation_m: 50, execution: null },
+        { name: 'Ride B', avg_power: 180, weighted_avg_power: 190, tss: 40, moving_time: 1800, elevation_m: 20, execution: null },
+      ],
+    }
+    await generateBriefing(ctx)
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toContain('Sessions today: 2 of 2 sessions completed')
+  })
+})
+```
+
+Note: before this fix, this test would produce `'Sessions today: 2 of 3 sessions completed'` (all 3 `todayWorkouts` counted in the denominator, including the pending optional one) — the assertion above (`2 of 2`) is what the fix must produce.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx jest __tests__/lib/claude-briefing.test.ts`
+Expected: FAIL — the new test's assertion `toContain('Sessions today: 2 of 2 sessions completed')` fails because the actual prompt contains `'Sessions today: 2 of 3 sessions completed'`.
+
+- [ ] **Step 3: Write the implementation**
+
+In `lib/claude/briefing.ts`, change the import block at the top of the file from:
+
+```typescript
+import { anthropic, MODEL } from './client'
+import type { BriefingContext } from '@/types'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
+import { formatWeatherForPrompt } from '@/lib/weather/format'
+import { labelDate } from '@/lib/calendar-helpers'
+import { formatStrainForPrompt, formatStrainHistoryForPrompt } from '@/lib/strain'
+import { formatWellnessForPrompt } from '@/lib/claude/wellness-prompt'
+```
+
+to:
+
+```typescript
+import { anthropic, MODEL } from './client'
+import type { BriefingContext } from '@/types'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
+import { formatWeatherForPrompt } from '@/lib/weather/format'
+import { labelDate } from '@/lib/calendar-helpers'
+import { formatStrainForPrompt, formatStrainHistoryForPrompt } from '@/lib/strain'
+import { formatWellnessForPrompt } from '@/lib/claude/wellness-prompt'
+import { isSessionCountable } from '@/lib/progress/session-counting'
+```
+
+Change line 235 (inside `generatePostRideNote`) from:
+
+```typescript
+  const sessionsPlanned = ctx.todayWorkouts?.length ?? (ctx.todayWorkout ? 1 : 0)
+```
+
+to:
+
+```typescript
+  const sessionsPlanned = ctx.todayWorkouts
+    ? ctx.todayWorkouts.filter(isSessionCountable).length
+    : (ctx.todayWorkout && isSessionCountable(ctx.todayWorkout) ? 1 : 0)
+```
+
+Do not touch `generateMorningBriefing`'s `sessionCount`/`sessionLine` (a different function, lines 118-134) — it describes today's schedule before anything has happened, not a completed/total ratio, and is explicitly out of scope per the spec.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npx jest __tests__/lib/claude-briefing.test.ts`
+Expected: PASS (all tests, including the new one and every pre-existing test in the file unchanged)
+
+- [ ] **Step 5: Run typecheck and the full suite**
+
+Run: `npm run typecheck`
+Expected: no errors
+
+Run: `npx jest`
+Expected: all suites pass, no regressions
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/claude/briefing.ts __tests__/lib/claude-briefing.test.ts
+git commit -m "feat: exclude pending optional workouts from post-ride briefing session count"
+```

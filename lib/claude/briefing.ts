@@ -5,6 +5,7 @@ import { formatWeatherForPrompt } from '@/lib/weather/format'
 import { labelDate } from '@/lib/calendar-helpers'
 import { formatStrainForPrompt, formatStrainHistoryForPrompt } from '@/lib/strain'
 import { formatWellnessForPrompt } from '@/lib/claude/wellness-prompt'
+import { isSessionCountable } from '@/lib/progress/session-counting'
 
 export type ReadinessVerdict = 'green' | 'amber' | 'red'
 
@@ -232,7 +233,9 @@ async function generatePostRideNote(ctx: BriefingContext): Promise<string> {
   const rides = ctx.completedRides?.length ? ctx.completedRides : ctx.completedRide ? [ctx.completedRide] : []
   const rideCount = rides.length
 
-  const sessionsPlanned = ctx.todayWorkouts?.length ?? (ctx.todayWorkout ? 1 : 0)
+  const sessionsPlanned = ctx.todayWorkouts
+    ? ctx.todayWorkouts.filter(isSessionCountable).length
+    : (ctx.todayWorkout && isSessionCountable(ctx.todayWorkout) ? 1 : 0)
   const sessionSummary = sessionsPlanned > 1
     ? `${rideCount} of ${sessionsPlanned} sessions completed`
     : ctx.todayWorkout

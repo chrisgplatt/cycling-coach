@@ -15,6 +15,7 @@ import { computeDailyActivityLoad } from '@/lib/strain'
 import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { estimateTss } from '@/lib/estimate-tss'
+import { isSessionCountable, isSessionCompleted } from '@/lib/progress/session-counting'
 import { isGarminSyncStale, formatGarminSyncTime } from '@/lib/garmin/sync-staleness'
 import { formatRelativeSyncTime } from '@/lib/format-sync-time'
 import { eventCoversDate } from '@/lib/events'
@@ -226,9 +227,10 @@ export default function DashboardPage() {
       const lwEnd = lastSunEnd.toISOString().split('T')[0]
 
       const lastWeek = plan.workouts.filter((w: Workout) => w.date >= lwStart && w.date <= lwEnd)
+      const countableLastWeek = lastWeek.filter(isSessionCountable)
       setLastWeekStats({
-        completed: lastWeek.filter((w: Workout) => w.status === 'completed').length,
-        total: lastWeek.length,
+        completed: countableLastWeek.filter(isSessionCompleted).length,
+        total: countableLastWeek.length,
       })
       setReviewEstimatedWorkouts(
         plan.workouts.filter((w: Workout) => w.date >= today && w.status === 'planned').length
@@ -485,11 +487,12 @@ export default function DashboardPage() {
 
   const weekWorkoutsWP = workouts.filter(w => weekDates.includes(w.date))
   const completedWP = weekWorkoutsWP.filter(w => w.status === 'completed')
+  const countableSessionsWP = weekWorkoutsWP.filter(isSessionCountable)
   const linkedActivityIds = new Set(weekWorkoutsWP.map(w => w.icu_activity_id).filter((id): id is string => id != null))
   const recentCtl = [...(syncData?.wellness ?? [])].sort((a, b) => b.id.localeCompare(a.id)).find(w => w.ctl != null)?.ctl ?? null
   const weeklyProgress: WeeklyProgress | null = weekWorkoutsWP.length > 0 ? {
-    sessionsCompleted: completedWP.length,
-    sessionsTotal: weekWorkoutsWP.length,
+    sessionsCompleted: countableSessionsWP.filter(isSessionCompleted).length,
+    sessionsTotal: countableSessionsWP.length,
     tssActual: Math.round(completedWP.filter(w => w.tss !== null).reduce((s, w) => s + (w.tss ?? 0), 0)),
     tssPlanned: weekWorkoutsWP.reduce((s, w) => s + estimateTss(w.type, w.duration_minutes), 0),
     distanceKm: Math.round(completedWP.reduce((s, w) => s + ((w.activity_metrics?.distance_m ?? 0) / 1000), 0) * 10) / 10,

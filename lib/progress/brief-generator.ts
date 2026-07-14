@@ -40,7 +40,7 @@ export async function maybeGenerateProgressBrief(
 
   const weightLog: WeightEntry[] = (rawWeightLog ?? []) as WeightEntry[]
 
-  let planWorkouts: Array<{ status: WorkoutStatus; date: string }> = []
+  let planWorkouts: Array<{ status: WorkoutStatus; date: string; optional: boolean }> = []
   // syncData.activities is always just the trailing 6-week sync window, which
   // undercounts "rides since start" once a plan has run longer than that — so
   // whenever a plan is active, fetch its full actual duration directly instead.
@@ -48,9 +48,9 @@ export async function maybeGenerateProgressBrief(
   if (plan) {
     const { data: workouts } = await supabase
       .from('workouts')
-      .select('status, date')
+      .select('status, date, optional')
       .eq('plan_id', plan.id)
-    planWorkouts = (workouts ?? []) as Array<{ status: WorkoutStatus; date: string }>
+    planWorkouts = (workouts ?? []) as Array<{ status: WorkoutStatus; date: string; optional: boolean }>
 
     const planStartDate = plan.created_at.split('T')[0]
     const todayStr = new Date().toISOString().split('T')[0]

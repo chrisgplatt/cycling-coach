@@ -36,6 +36,23 @@ describe('buildWeekBuckets', () => {
     expect(buckets[0]).toMatchObject({ weekIndex: 0, plannedTss: 100, actualTss: 70, plannedSessions: 1, completedSessions: 1 })
     expect(buckets[1]).toMatchObject({ weekIndex: 1, plannedTss: 100, plannedSessions: 1, completedSessions: 0 })
   })
+
+  it('excludes a pending optional workout from planned/completed session counts, but still counts its planned TSS', () => {
+    const workouts = [
+      makeWorkout({ id: 'w1', date: '2026-05-02', status: 'completed', steps: [{ label: 's', duration_minutes: 60, power_pct_ftp: 100 }] }),
+      makeWorkout({ id: 'w2', date: '2026-05-03', status: 'planned', optional: true, steps: [{ label: 's', duration_minutes: 60, power_pct_ftp: 100 }] }),
+    ]
+    const buckets = buildWeekBuckets(workouts, [], planStart, 1)
+    expect(buckets[0]).toMatchObject({ weekIndex: 0, plannedTss: 200, plannedSessions: 1, completedSessions: 1 })
+  })
+
+  it('counts a completed optional workout the same as a non-optional one', () => {
+    const workouts = [
+      makeWorkout({ id: 'w1', date: '2026-05-02', status: 'completed', optional: true, steps: [{ label: 's', duration_minutes: 60, power_pct_ftp: 100 }] }),
+    ]
+    const buckets = buildWeekBuckets(workouts, [], planStart, 1)
+    expect(buckets[0]).toMatchObject({ plannedSessions: 1, completedSessions: 1 })
+  })
 })
 
 describe('weekState', () => {
