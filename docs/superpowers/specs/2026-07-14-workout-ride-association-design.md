@@ -33,7 +33,7 @@ Both existing detail views for these already render through the same `components
      ftp_at_completion: <computed in step 5>,
    }
    ```
-7. **Then update** the original workout, reverting it to its pre-match state: `{ status: 'planned', icu_activity_id: null, tss: null, actual_duration_minutes: null, ftp_at_completion: null }`. Everything else on the row (`type`, `duration_minutes`, `description`, `target_zones`, `steps`, `name`, `coaching_notes`, `intervals_icu_event_id`) is untouched — the plan's own structure survives disassociation intact.
+7. **Then update** the original workout, reverting it to its pre-match state: `{ status: 'planned', icu_activity_id: null, tss: null, actual_duration_minutes: null, ftp_at_completion: null, activity_metrics: null }`. Everything else on the row (`type`, `duration_minutes`, `description`, `target_zones`, `steps`, `name`, `coaching_notes`, `intervals_icu_event_id`) is untouched — the plan's own structure survives disassociation intact.
 8. Return `{ ok: true }`.
 
 **Error handling / ordering:** insert-then-update, not update-then-insert or a single transaction (this codebase doesn't use DB transactions for multi-row mutations elsewhere, e.g. `matchWorkoutsToActivities`'s caller). If the insert fails, nothing has changed — safely retryable. If the update fails after a successful insert, the worst case is both rows temporarily showing the ride (recoverable by retrying or manually deleting the duplicate) rather than silently losing the completed ride's record.

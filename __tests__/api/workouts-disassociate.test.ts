@@ -90,7 +90,7 @@ describe('POST /api/workouts/[id]/disassociate', () => {
 
     await POST(makeRequest(), makeParams('w1'))
     expect(updateSpy).toHaveBeenCalledWith({
-      status: 'planned', icu_activity_id: null, tss: null, actual_duration_minutes: null, ftp_at_completion: null,
+      status: 'planned', icu_activity_id: null, tss: null, actual_duration_minutes: null, ftp_at_completion: null, activity_metrics: null,
     })
   })
 

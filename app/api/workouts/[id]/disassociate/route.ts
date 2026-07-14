@@ -63,7 +63,7 @@ export async function POST(
 
   const { error: updateError } = await supabase
     .from('workouts')
-    .update({ status: 'planned', icu_activity_id: null, tss: null, actual_duration_minutes: null, ftp_at_completion: null })
+    .update({ status: 'planned', icu_activity_id: null, tss: null, actual_duration_minutes: null, ftp_at_completion: null, activity_metrics: null })
     .eq('id', id)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 

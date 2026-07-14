@@ -83,7 +83,7 @@ export default function WorkoutDetailModal({
   const isMatchedPlanned = workout.plan_id != null && hasRide
   const isUnmatchedPlanned = workout.plan_id != null && !workout.icu_activity_id && workout.status === 'planned'
   const isUnplannedRide = workout.plan_id == null
-  const sameDayUnplannedRides = (workoutsOnDate ?? []).filter(w => w.plan_id == null)
+  const sameDayUnplannedRides = (workoutsOnDate ?? []).filter(w => w.plan_id == null && !!w.icu_activity_id)
   const sameDayUnmatchedWorkouts = (workoutsOnDate ?? []).filter(w => w.plan_id != null && !w.icu_activity_id && w.status === 'planned')
 
   // Guards against losing in-progress, unsubmitted feedback if the tab or PWA
