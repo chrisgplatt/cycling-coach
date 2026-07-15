@@ -124,10 +124,10 @@ export default function HrvChart({
             {yTickYs.map((y, i) => (
               <g key={yTicks[i]}>
                 <line x1={svgLeft} y1={y} x2={svgRight} y2={y} stroke="#f3f4f6" strokeWidth="1" />
-                <text x={svgLeft - 4} y={y + 4} fontSize="9" fill="#d1d5db" textAnchor="end">{yTicks[i]}</text>
+                <text x={svgLeft - 4} y={y + 4} fontSize="9" fill="#9ca3af" textAnchor="end">{yTicks[i]}</text>
               </g>
             ))}
-            <text x={6} y={svgTop + 2} fontSize="8" fill="#d1d5db" textAnchor="start">ms</text>
+            <text x={6} y={svgTop + 2} fontSize="8" fill="#9ca3af" textAnchor="start">ms</text>
             {lo !== null && hi !== null && (
               <rect x={svgLeft} y={yOf(hi)} width={chartW} height={Math.max(0, yOf(lo) - yOf(hi))}
                 fill="#ede9fe" opacity="0.7" />
@@ -146,7 +146,7 @@ export default function HrvChart({
             ))}
             {/* X-axis scale: month labels */}
             {monthLabels.map(ml => (
-              <text key={ml.label + ml.x} x={ml.x} y={svgBottom + 18} fontSize="8" fill="#d1d5db" textAnchor="middle">{ml.label}</text>
+              <text key={ml.label + ml.x} x={ml.x} y={svgBottom + 18} fontSize="8" fill="#9ca3af" textAnchor="middle">{ml.label}</text>
             ))}
             {/* Invisible per-day hit targets for the tap/hover tooltip */}
             {data.map((w, i) => (
