@@ -680,6 +680,7 @@ export default function DashboardPage() {
             strainHistory={chartsData?.dailyStrain}
             hrvStatus={hrvStatus}
             todayDailyWellness={todayDailyWellnessForCard}
+            wellnessHistory={wellnessArr}
           />
           <HrvStatusChip embedded />
           <CtlTrendStrip embedded chartsData={chartsData} />
