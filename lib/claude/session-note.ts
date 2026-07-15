@@ -2,9 +2,7 @@ import { anthropic, MODEL } from './client'
 import type { Workout, ReportedSignals } from '@/types'
 import { formatReportedSignals } from './feedback-signals'
 
-export interface SessionSignals extends ReportedSignals {
-  mood?: number | null
-}
+export type SessionSignals = ReportedSignals
 
 export interface SessionNoteResult {
   note: string
@@ -23,9 +21,7 @@ export async function assessSession(
   signals: SessionSignals,
   rideExecution: string,
 ): Promise<SessionNoteResult> {
-  const signalsLine = formatReportedSignals(signals)
-  const moodLine = signals.mood != null ? `Mood ${signals.mood}/4` : ''
-  const reported = [signalsLine, moodLine].filter(Boolean).join(' · ')
+  const reported = formatReportedSignals(signals)
 
   const prompt = `Session: ${workout.date} ${workout.type} ${workout.duration_minutes}min
 Planned: ${workout.description}

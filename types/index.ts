@@ -165,6 +165,7 @@ export interface ReportedSignals {
   feel?: number | null
   completion?: FeedbackCompletion | null
   tags?: FeedbackTag[] | null
+  mood?: number | null
 }
 
 export interface SessionFeedback {

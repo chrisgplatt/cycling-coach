@@ -72,6 +72,7 @@ describe('assessSession', () => {
     expect(prompt).toContain('Actual intervals: Work 20:00 avg 248W')
     expect(prompt).toContain('RPE 8/10')
     expect(prompt).toContain('legs tired (4/5)')
+    expect(prompt).toContain('mood neutral (3/4)')
     expect(prompt).toContain('poor sleep')
     expect(prompt).toContain('legs were heavy but pushed through')
   })

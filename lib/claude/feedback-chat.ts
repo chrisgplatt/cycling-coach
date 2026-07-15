@@ -13,9 +13,7 @@ export function buildFeedbackChatSystemPrompt(
   coachNote: string,
   memoryBlock = '',
 ): string {
-  const signalsLine = formatReportedSignals(signals)
-  const moodLine = signals.mood != null ? `Mood ${signals.mood}/4` : ''
-  const reported = [signalsLine, moodLine].filter(Boolean).join(' · ')
+  const reported = formatReportedSignals(signals)
 
   const lines: string[] = [
     buildCoachContext(memoryBlock, ''),

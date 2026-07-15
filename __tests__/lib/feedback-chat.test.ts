@@ -25,6 +25,20 @@ describe('buildFeedbackChatSystemPrompt', () => {
     expect(prompt).toContain('poor sleep')
     expect(prompt).toContain('Actual intervals: Work 20:00 avg 248W')
     expect(prompt).toContain('Solid threshold work — you held the back half well.')
+    // mood=2 is the 🙂 face (MOOD_FACES: 1=best/4=worst) — must be labeled, not a bare
+    // fraction, since "2/4" alone reads as a middling-to-good score either direction.
+    expect(prompt).toContain('mood good (2/4)')
+  })
+
+  it('labels a low mood score with unambiguous sentiment, not just a bare fraction', () => {
+    const prompt = buildFeedbackChatSystemPrompt(
+      workout,
+      { rpe: 7, feel: 3, completion: 'as_planned', tags: [], mood: 4 },
+      '',
+      '',
+    )
+    // mood=4 is the 😞 face — the worst mood score — must not read as a good score.
+    expect(prompt).toContain('mood low (4/4)')
   })
 
   it('instructs the coach to discuss the session and take usefulness feedback', () => {

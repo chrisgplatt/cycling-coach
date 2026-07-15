@@ -16,8 +16,15 @@ describe('formatReportedSignals', () => {
     expect(formatReportedSignals({ feel: 1 })).toBe('legs great (1/5)')
   })
 
+  it('labels a low mood score with unambiguous sentiment, not just a bare fraction', () => {
+    // mood=4 corresponds to the 😞 face (WorkoutFeedbackTab's MOOD_FACES, 1=best/4=worst) —
+    // a bare "mood 4/4" reads as a top score to anyone without that scale's context.
+    expect(formatReportedSignals({ mood: 4 })).toBe('mood low (4/4)')
+    expect(formatReportedSignals({ mood: 1 })).toBe('mood loved it (1/4)')
+  })
+
   it('omits null/empty parts', () => {
-    expect(formatReportedSignals({ rpe: 4, feel: null, completion: null, tags: [] }))
+    expect(formatReportedSignals({ rpe: 4, feel: null, completion: null, tags: [], mood: null }))
       .toBe('RPE 4/10')
   })
 
