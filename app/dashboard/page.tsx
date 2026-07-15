@@ -43,6 +43,7 @@ import AddEventModal from '@/components/AddEventModal'
 import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import HrvStatusChip from '@/components/HrvStatusChip'
+import HrvTrendPanel from '@/components/HrvTrendPanel'
 import StrainBreakdownSheet from '@/components/StrainBreakdownSheet'
 import ProgressStats from '@/components/ProgressStats'
 import WellnessCard from '@/components/WellnessCard'
@@ -680,9 +681,9 @@ export default function DashboardPage() {
             strainHistory={chartsData?.dailyStrain}
             hrvStatus={hrvStatus}
             todayDailyWellness={todayDailyWellnessForCard}
-            wellnessHistory={wellnessArr}
           />
           <HrvStatusChip embedded />
+          <HrvTrendPanel wellness={wellnessArr} />
           <CtlTrendStrip embedded chartsData={chartsData} />
         </div>
       )}

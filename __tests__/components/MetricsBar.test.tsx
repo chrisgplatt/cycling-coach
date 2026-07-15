@@ -70,34 +70,6 @@ describe('MetricsBar strain trend tooltip', () => {
   })
 })
 
-describe('MetricsBar HRV trend panel', () => {
-  function daysAgo(n: number): string {
-    return new Date(Date.now() - n * 864e5).toISOString().split('T')[0]
-  }
-
-  function makeWellnessHistory(n: number): ICUWellness[] {
-    return Array.from({ length: n }, (_, i) => ({
-      id: daysAgo(n - 1 - i), ctl: null, atl: null, form: null, hrv: 50 + i, resting_hr: null,
-      sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null,
-      stress_high: null, garmin_training_load: null, sleep_score: null,
-    }))
-  }
-
-  it('does not show the HRV trend toggle when there is no HRV history', () => {
-    render(<MetricsBar wellness={wellness} wellnessHistory={[]} />)
-    expect(screen.queryByText('HRV trend')).not.toBeInTheDocument()
-  })
-
-  it('shows the HRV trend toggle and expands the chart on tap', () => {
-    render(<MetricsBar wellness={wellness} wellnessHistory={makeWellnessHistory(10)} />)
-    expect(screen.getByText('HRV trend')).toBeInTheDocument()
-    expect(screen.queryByText('Building baseline')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByText('HRV trend'))
-    expect(screen.getByText('Building baseline')).toBeInTheDocument()
-  })
-})
-
 describe('MetricsBar Wellbeing signal wiring', () => {
   const barebonesWellness: ICUWellness = {
     id: '2026-07-05', ctl: 65, atl: 72, form: -7, hrv: null, resting_hr: 52,

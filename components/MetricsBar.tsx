@@ -5,7 +5,6 @@ import type { ICUWellness, DailyStrainPoint } from '@/types'
 import type { HrvStatus } from '@/lib/hrv/baseline'
 import { computeDailyStrain, computeDailyLifeLoad, strainLabel } from '@/lib/strain'
 import { isoWeekStart } from '@/lib/chart-helpers'
-import HrvChart from '@/components/HrvChart'
 
 interface MetricProps {
   label: string
@@ -362,7 +361,6 @@ export default function MetricsBar({
   strainHistory,
   hrvStatus,
   todayDailyWellness,
-  wellnessHistory,
 }: {
   wellness: ICUWellness | null
   stale?: { hrv?: boolean; restingHr?: boolean }
@@ -372,13 +370,10 @@ export default function MetricsBar({
   strainHistory?: DailyStrainPoint[]
   hrvStatus?: HrvStatus | null
   todayDailyWellness?: { energy: number | null; leg_freshness: number | null } | null
-  wellnessHistory?: ICUWellness[]
 }) {
   const [trendOpen, setTrendOpen] = useState(false)
   const [trendTab, setTrendTab] = useState<'1w' | '1m' | '3m'>('1w')
-  const [hrvOpen, setHrvOpen] = useState(false)
   const hasStrainHistory = (strainHistory?.length ?? 0) > 0
-  const hasHrvHistory = (wellnessHistory ?? []).some(w => w.hrv !== null)
 
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
@@ -473,31 +468,6 @@ export default function MetricsBar({
           <Metric label="Resting HR" value={wellness.resting_hr} valueClass="text-rose-500" unit="bpm" stale={stale.restingHr} />
         )}
       </div>
-
-      {hasHrvHistory && (
-        <>
-          <div
-            className="flex items-center justify-between px-3.5 py-2 cursor-pointer select-none"
-            onClick={() => setHrvOpen(o => !o)}
-          >
-            <span className={`text-[11px] font-bold uppercase tracking-[0.06em] ${hrvOpen ? 'text-gray-600' : 'text-gray-400'}`}>
-              HRV trend
-            </span>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              {hrvOpen
-                ? <path d="M3 9l4-4 4 4" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                : <path d="M3 5l4 4 4-4" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              }
-            </svg>
-          </div>
-
-          {hrvOpen && (
-            <div className="border-t border-gray-100">
-              <HrvChart wellness={wellnessHistory ?? []} defaultRangeDays={7} />
-            </div>
-          )}
-        </>
-      )}
 
       {wellness?.garmin_training_status && TRAINING_STATUS_CONFIG[wellness.garmin_training_status] && (
         <div className="px-4 pb-2 flex items-center gap-1.5">
