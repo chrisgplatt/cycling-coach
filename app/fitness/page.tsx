@@ -179,6 +179,7 @@ function PMCChart({ wellness }: { wellness: ICUWellness[] }) {
 }
 
 const HRV_RANGES: { label: string; days: number }[] = [
+  { label: '1w', days: 7 }, { label: '1m', days: 30 },
   { label: '3m', days: 91 }, { label: '6m', days: 182 }, { label: '12m', days: 365 },
 ]
 const HRV_STATUS_STYLE: Record<string, { text: string; label: string }> = {
