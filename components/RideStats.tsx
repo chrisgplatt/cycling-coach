@@ -15,6 +15,12 @@ export interface RideStatsData {
   lrBalanceRight: number | null  // right-side %, e.g. 47.7 (intervals.icu stores right-side %)
   npWkg: number | null
   avgWkg: number | null
+  avgSpeedKph: number | null
+  maxSpeedKph: number | null
+  elapsedSecs: number | null
+  avgTempC: number | null
+  minTempC: number | null
+  maxTempC: number | null
 }
 
 // Formats a duration in seconds as "1h 30m" (not to be confused with
@@ -44,6 +50,12 @@ export function rideStatsFromActivity(a: ICUActivity): RideStatsData {
     lrBalanceRight: a.left_right_balance,
     npWkg: null,
     avgWkg: null,
+    avgSpeedKph: (a.distance != null && a.moving_time > 0) ? (a.distance / 1000) / (a.moving_time / 3600) : null,
+    maxSpeedKph: a.max_speed != null ? a.max_speed * 3.6 : null,
+    elapsedSecs: a.elapsed_time ?? null,
+    avgTempC: a.average_temp ?? null,
+    minTempC: a.min_temp ?? null,
+    maxTempC: a.max_temp ?? null,
   }
 }
 
@@ -63,6 +75,12 @@ export function rideStatsFromMetrics(m: ActivityMetrics, durationSecs: number, t
     lrBalanceRight: m.lr_balance,
     npWkg: null,
     avgWkg: null,
+    avgSpeedKph: (m.distance_m != null && durationSecs > 0) ? (m.distance_m / 1000) / (durationSecs / 3600) : null,
+    maxSpeedKph: m.max_speed_ms != null ? m.max_speed_ms * 3.6 : null,
+    elapsedSecs: m.elapsed_secs ?? null,
+    avgTempC: m.avg_temp_c ?? null,
+    minTempC: m.min_temp_c ?? null,
+    maxTempC: m.max_temp_c ?? null,
   }
 }
 
@@ -96,6 +114,8 @@ export function SectionCard({ title, children, accent }: { title: string; childr
 // whose data is absent are hidden. Shared by the stats page and the ride modals.
 export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsData; effectiveMaxHr?: number | null }) {
   const hasBest = data.best.p1 != null || data.best.p5 != null || data.best.p10 != null || data.best.p20 != null
+  const hasSpeed = data.avgSpeedKph !== null || data.maxSpeedKph !== null
+  const hasTemp = data.avgTempC !== null || data.minTempC !== null || data.maxTempC !== null
   const balance = data.lrBalanceRight !== null
     ? `${(100 - data.lrBalanceRight).toFixed(1)}% L / ${data.lrBalanceRight.toFixed(1)}% R`
     : null
@@ -138,7 +158,25 @@ export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsDat
           <StatCell label="Elevation" value={data.elevationM !== null ? String(Math.floor(data.elevationM)) : '—'} unit={data.elevationM !== null ? 'm' : undefined} valueClass="text-emerald-600" />
           <StatCell label="Duration" value={formatHrsMins(data.durationSecs)} valueClass="text-violet-600" />
         </div>
+        {data.elapsedSecs !== null && (
+          <div className="flex divide-x divide-gray-100 border-t border-gray-100">
+            <StatCell label="Elapsed" value={formatHrsMins(data.elapsedSecs)} valueClass="text-violet-400" />
+          </div>
+        )}
       </SectionCard>
+
+      {hasSpeed && (
+        <SectionCard title="Speed" accent="bg-cyan-500">
+          <div className="flex divide-x divide-gray-100">
+            {data.avgSpeedKph !== null && (
+              <StatCell label="Avg Speed" value={data.avgSpeedKph.toFixed(1)} unit="km/h" valueClass="text-cyan-600" />
+            )}
+            {data.maxSpeedKph !== null && (
+              <StatCell label="Max Speed" value={data.maxSpeedKph.toFixed(1)} unit="km/h" valueClass="text-cyan-600" />
+            )}
+          </div>
+        </SectionCard>
+      )}
 
       {(data.avgHr !== null || data.maxHr !== null) && (
         <SectionCard title="Heart Rate" accent="bg-red-400">
@@ -148,6 +186,22 @@ export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsDat
             {data.maxHr !== null && <StatCell label="Max HR" value={num(data.maxHr)} unit="bpm" valueClass="text-red-600" />}
             {data.maxHr !== null && effectiveMaxHr != null && effectiveMaxHr > 0 && (
               <StatCell label="% of Max" value={String(Math.round((data.maxHr / effectiveMaxHr) * 100))} valueClass="text-red-400" unit="%" />
+            )}
+          </div>
+        </SectionCard>
+      )}
+
+      {hasTemp && (
+        <SectionCard title="Temperature" accent="bg-amber-500">
+          <div className="flex divide-x divide-gray-100">
+            {data.minTempC !== null && (
+              <StatCell label="Min Temp" value={String(Math.round(data.minTempC))} unit="°C" valueClass="text-amber-500" />
+            )}
+            {data.avgTempC !== null && (
+              <StatCell label="Avg Temp" value={String(Math.round(data.avgTempC))} unit="°C" valueClass="text-amber-600" />
+            )}
+            {data.maxTempC !== null && (
+              <StatCell label="Max Temp" value={String(Math.round(data.maxTempC))} unit="°C" valueClass="text-amber-700" />
             )}
           </div>
         </SectionCard>
