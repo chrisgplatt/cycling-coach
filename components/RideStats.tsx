@@ -110,8 +110,8 @@ export function SectionCard({ title, children, accent }: { title: string; childr
   )
 }
 
-// Per-ride stat cards (Power / Best Power / Totals / Heart Rate / L-R Balance). Cards
-// whose data is absent are hidden. Shared by the stats page and the ride modals.
+// Per-ride stat cards (Totals / Power / Best Power / Speed / Heart Rate / Temperature /
+// L-R Balance). Cards whose data is absent are hidden. Shared by the stats page and the ride modals.
 export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsData; effectiveMaxHr?: number | null }) {
   const hasBest = data.best.p1 != null || data.best.p5 != null || data.best.p10 != null || data.best.p20 != null
   const hasSpeed = data.avgSpeedKph !== null || data.maxSpeedKph !== null
@@ -123,6 +123,19 @@ export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsDat
 
   return (
     <div className="space-y-4">
+      <SectionCard title="Ride Totals" accent="bg-blue-500">
+        <div className="flex divide-x divide-gray-100">
+          <StatCell label="Distance" value={data.distanceM !== null ? (Math.round(data.distanceM / 100) / 10).toFixed(1) : '—'} unit={data.distanceM !== null ? 'km' : undefined} valueClass="text-blue-600" />
+          <StatCell label="Elevation" value={data.elevationM !== null ? String(Math.floor(data.elevationM)) : '—'} unit={data.elevationM !== null ? 'm' : undefined} valueClass="text-emerald-600" />
+        </div>
+        <div className="flex divide-x divide-gray-100 border-t border-gray-100">
+          <StatCell label="Duration" value={formatHrsMins(data.durationSecs)} valueClass="text-violet-600" />
+          {data.elapsedSecs !== null && (
+            <StatCell label="Elapsed" value={formatHrsMins(data.elapsedSecs)} valueClass="text-violet-400" />
+          )}
+        </div>
+      </SectionCard>
+
       <SectionCard title="Power" accent="bg-orange-400">
         <div className="flex divide-x divide-gray-100">
           <StatCell label="Avg W" value={num(data.avgWatts)} unit={data.avgWatts !== null ? 'w' : undefined} valueClass="text-orange-500" />
@@ -151,19 +164,6 @@ export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsDat
           </div>
         </SectionCard>
       )}
-
-      <SectionCard title="Ride Totals" accent="bg-blue-500">
-        <div className="flex divide-x divide-gray-100">
-          <StatCell label="Distance" value={data.distanceM !== null ? (Math.round(data.distanceM / 100) / 10).toFixed(1) : '—'} unit={data.distanceM !== null ? 'km' : undefined} valueClass="text-blue-600" />
-          <StatCell label="Elevation" value={data.elevationM !== null ? String(Math.floor(data.elevationM)) : '—'} unit={data.elevationM !== null ? 'm' : undefined} valueClass="text-emerald-600" />
-          <StatCell label="Duration" value={formatHrsMins(data.durationSecs)} valueClass="text-violet-600" />
-        </div>
-        {data.elapsedSecs !== null && (
-          <div className="flex divide-x divide-gray-100 border-t border-gray-100">
-            <StatCell label="Elapsed" value={formatHrsMins(data.elapsedSecs)} valueClass="text-violet-400" />
-          </div>
-        )}
-      </SectionCard>
 
       {hasSpeed && (
         <SectionCard title="Speed" accent="bg-cyan-500">
