@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { resolveFallbackFtpForWorkout } from '@/lib/ftp/resolve-ftp'
+import { enrichActivity } from '@/lib/intervals/enrich'
 
 export async function POST(
   _req: NextRequest,
@@ -45,7 +46,7 @@ export async function POST(
 
   const ftpAtCompletion = activity.ftp ?? await resolveFallbackFtpForWorkout(supabase, workout.date, null)
 
-  const { error: insertError } = await supabase.from('workouts').insert({
+  const { data: inserted, error: insertError } = await supabase.from('workouts').insert({
     user_id: user.id,
     plan_id: null,
     date: workout.date,
@@ -58,14 +59,26 @@ export async function POST(
     tss: activity.training_load,
     steps: null,
     ftp_at_completion: ftpAtCompletion,
-  })
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+  }).select('id').single()
+  if (insertError || !inserted) return NextResponse.json({ error: insertError?.message ?? 'Insert failed' }, { status: 500 })
 
   const { error: updateError } = await supabase
     .from('workouts')
     .update({ status: 'planned', icu_activity_id: null, tss: null, actual_duration_minutes: null, ftp_at_completion: null, activity_metrics: null })
     .eq('id', id)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+
+  // Compute full ride stats (power curve, best efforts, stream-derived insights) right
+  // away, rather than leaving the new standalone row waiting for the next sync's
+  // backfill pass to fill in activity_metrics. Non-fatal: the row still has its basic
+  // stats (tss/duration/ftp) even if this fails, and a later sync will retry it.
+  try {
+    const lthr = await client.getRideLthr().catch(() => null)
+    const metrics = await enrichActivity(client, activity, ftpAtCompletion, lthr, null)
+    await supabase.from('workouts').update({ activity_metrics: metrics }).eq('id', inserted.id)
+  } catch (err) {
+    console.error('[disassociate] activity-metrics enrichment failed:', err)
+  }
 
   return NextResponse.json({ ok: true })
 }

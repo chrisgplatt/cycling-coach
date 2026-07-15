@@ -1,5 +1,17 @@
 import type { ICUActivity } from '@/types'
 
+// Drops activities already linked to an existing workout row (matched or standalone)
+// before matching runs. Without this, a ride the user just manually disassociated from
+// a workout gets silently re-matched to it on the very next sync — the reverted
+// workout is "pending" again, and this is still the only ride for that date, so
+// matchWorkoutsToActivities would otherwise pair them right back together.
+export function excludeClaimedActivities(
+  activities: ICUActivity[],
+  claimedActivityIds: Set<string>,
+): ICUActivity[] {
+  return activities.filter(a => !claimedActivityIds.has(a.id))
+}
+
 export interface PendingWorkout {
   id: string
   date: string

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { importUnplannedRides } from '@/lib/intervals/import-rides'
-import { matchWorkoutsToActivities } from '@/lib/sync/match-workouts'
+import { matchWorkoutsToActivities, excludeClaimedActivities } from '@/lib/sync/match-workouts'
 import { resolveFallbackFtpForWorkout } from '@/lib/ftp/resolve-ftp'
 import { backfillActivityMetrics } from '@/lib/intervals/enrich'
 import { maybeGenerateProgressBrief } from '@/lib/progress/brief-generator'
@@ -120,8 +120,19 @@ export async function POST(req: Request) {
   try {
     const syncData = await client.sync(6)
 
+    const syncedActivityIds = syncData.activities.map(a => a.id)
+    const claimedActivityIds = new Set<string>()
+    if (syncedActivityIds.length) {
+      const { data: claimedRows } = await supabase
+        .from('workouts')
+        .select('icu_activity_id')
+        .in('icu_activity_id', syncedActivityIds)
+      for (const r of claimedRows ?? []) claimedActivityIds.add(r.icu_activity_id as string)
+    }
+    const matchableActivities = excludeClaimedActivities(syncData.activities, claimedActivityIds)
+
     const actsByDate = new Map<string, ICUActivity[]>()
-    for (const act of syncData.activities) {
+    for (const act of matchableActivities) {
       const date = act.start_date_local.split('T')[0]
       const existing = actsByDate.get(date) ?? []
       actsByDate.set(date, [...existing, act])

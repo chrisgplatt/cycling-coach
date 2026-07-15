@@ -1,4 +1,4 @@
-import { matchWorkoutsToActivities, type PendingWorkout } from '@/lib/sync/match-workouts'
+import { matchWorkoutsToActivities, excludeClaimedActivities, type PendingWorkout } from '@/lib/sync/match-workouts'
 import type { ICUActivity } from '@/types'
 
 function makeActivity(overrides: Partial<ICUActivity> = {}): ICUActivity {
@@ -127,5 +127,37 @@ describe('matchWorkoutsToActivities', () => {
     const acts = new Map([['2026-07-06', [makeActivity({ id: 'run1', type: 'Run' })]]])
 
     expect(matchWorkoutsToActivities(workouts, acts)).toEqual([])
+  })
+})
+
+describe('excludeClaimedActivities', () => {
+  it('drops activities already linked to an existing workout row', () => {
+    const activities = [makeActivity({ id: 'act1' }), makeActivity({ id: 'act2' })]
+    const claimed = new Set(['act1'])
+
+    const result = excludeClaimedActivities(activities, claimed)
+    expect(result.map(a => a.id)).toEqual(['act2'])
+  })
+
+  it('keeps every activity when nothing is claimed', () => {
+    const activities = [makeActivity({ id: 'act1' }), makeActivity({ id: 'act2' })]
+
+    expect(excludeClaimedActivities(activities, new Set())).toEqual(activities)
+  })
+
+  it('prevents a just-disassociated ride from being re-matched to its original workout', () => {
+    // The reverted workout is "pending" again, and its ride is still the only ride
+    // for that date — without the exclusion, matchWorkoutsToActivities would pair
+    // them right back together, silently undoing the disassociation.
+    const workouts = [makeWorkout({ id: 'w1' })]
+    const disassociatedRide = makeActivity({ id: 'act1', training_load: 70, moving_time: 4500 })
+    const acts = new Map([['2026-07-06', [disassociatedRide]]])
+
+    const matchable = excludeClaimedActivities([disassociatedRide], new Set(['act1']))
+    const matchableByDate = new Map([['2026-07-06', matchable]])
+
+    expect(matchWorkoutsToActivities(workouts, matchableByDate)).toEqual([])
+    // Sanity check: without the exclusion, the same inputs WOULD re-match them.
+    expect(matchWorkoutsToActivities(workouts, acts)).toHaveLength(1)
   })
 })
