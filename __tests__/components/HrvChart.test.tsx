@@ -42,4 +42,32 @@ describe('HrvChart', () => {
     // default 91-day range should exclude the two oldest points from the start.
     expect(container.querySelectorAll('circle').length).toBeLessThan(10)
   })
+
+  it('shows a tooltip with the date and exact HRV value when a point is tapped', () => {
+    render(<HrvChart wellness={makeWellness(10)} />)
+    fireEvent.click(screen.getByTestId('hrv-hit-9')) // most recent day, hrv = 59
+
+    const tooltip = screen.getByTestId('hrv-tooltip')
+    expect(tooltip).toHaveTextContent('59ms')
+  })
+
+  it('closes the tooltip when the same point is tapped again', () => {
+    render(<HrvChart wellness={makeWellness(10)} />)
+    const point = screen.getByTestId('hrv-hit-9')
+
+    fireEvent.click(point)
+    expect(screen.getByTestId('hrv-tooltip')).toBeInTheDocument()
+
+    fireEvent.click(point)
+    expect(screen.queryByTestId('hrv-tooltip')).not.toBeInTheDocument()
+  })
+
+  it('resets the open tooltip when the range changes', () => {
+    render(<HrvChart wellness={makeWellness(10)} />)
+    fireEvent.click(screen.getByTestId('hrv-hit-9'))
+    expect(screen.getByTestId('hrv-tooltip')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('1w'))
+    expect(screen.queryByTestId('hrv-tooltip')).not.toBeInTheDocument()
+  })
 })
