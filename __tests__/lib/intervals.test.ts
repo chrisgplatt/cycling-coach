@@ -51,6 +51,41 @@ describe('IntervalsClient', () => {
     expect(activities[0].ftp).toBe(245)
   })
 
+  it('maps elapsed_time, max_speed, and temperature fields', async () => {
+    const mockActivities = [
+      { id: 'act1', start_date_local: '2026-05-01T08:00:00', type: 'Ride',
+        moving_time: 3600, name: 'Morning Ride', average_watts: 200,
+        max_watts: 350, weighted_average_watts: 210, average_heartrate: 145,
+        icu_training_load: 85, elapsed_time: 3720, max_speed: 15.5,
+        average_temp: 18, min_temp: 14, max_temp: 22 },
+    ]
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockActivities })
+
+    const activities = await client.getActivities('2026-04-01', '2026-05-11')
+    expect(activities[0].elapsed_time).toBe(3720)
+    expect(activities[0].max_speed).toBe(15.5)
+    expect(activities[0].average_temp).toBe(18)
+    expect(activities[0].min_temp).toBe(14)
+    expect(activities[0].max_temp).toBe(22)
+  })
+
+  it('defaults elapsed_time, max_speed, and temperature fields to null when absent', async () => {
+    const mockActivities = [
+      { id: 'act1', start_date_local: '2026-05-01T08:00:00', type: 'Ride',
+        moving_time: 3600, name: 'Morning Ride', average_watts: 200,
+        max_watts: 350, weighted_average_watts: 210, average_heartrate: 145,
+        icu_training_load: 85 },
+    ]
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockActivities })
+
+    const activities = await client.getActivities('2026-04-01', '2026-05-11')
+    expect(activities[0].elapsed_time).toBeNull()
+    expect(activities[0].max_speed).toBeNull()
+    expect(activities[0].average_temp).toBeNull()
+    expect(activities[0].min_temp).toBeNull()
+    expect(activities[0].max_temp).toBeNull()
+  })
+
   it('updateRideMaxHr PUTs max_hr to the Ride sport-settings entry', async () => {
     mockFetch
       .mockResolvedValueOnce({ ok: true, json: async () => ([

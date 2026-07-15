@@ -65,6 +65,31 @@ describe('extractActivityMetrics', () => {
     const m = extractActivityMetrics(act, curve, intervals)
     expect(m.intervals).toEqual(intervals)
   })
+
+  it('maps elapsed time, max speed, and temperature from the activity', () => {
+    const m = extractActivityMetrics(
+      { ...act, elapsed_time: 3720, max_speed: 15.5, average_temp: 18, min_temp: 14, max_temp: 22 },
+      curve, intervals,
+    )
+    expect(m.elapsed_secs).toBe(3720)
+    expect(m.max_speed_ms).toBe(15.5)
+    expect(m.avg_temp_c).toBe(18)
+    expect(m.min_temp_c).toBe(14)
+    expect(m.max_temp_c).toBe(22)
+  })
+
+  it('defaults elapsed time, max speed, and temperature to null when absent from the activity', () => {
+    const m = extractActivityMetrics(act, curve, intervals)
+    expect(m.elapsed_secs).toBeNull()
+    expect(m.max_speed_ms).toBeNull()
+    expect(m.avg_temp_c).toBeNull()
+    expect(m.min_temp_c).toBeNull()
+    expect(m.max_temp_c).toBeNull()
+  })
+
+  it('bumps METRICS_VERSION to 3', () => {
+    expect(METRICS_VERSION).toBe(3)
+  })
 })
 
 describe('formatActivityMetrics', () => {

@@ -69,3 +69,87 @@ describe('RideStats render', () => {
     expect(screen.queryByText('% of Max')).not.toBeInTheDocument()
   })
 })
+
+describe('RideStats adapters — speed, elapsed time, temperature', () => {
+  it('derives average speed from distance and moving time, and maps max speed / elapsed / temperature from an ICUActivity', () => {
+    const d = rideStatsFromActivity({
+      ...activity, moving_time: 3600, distance: 36000,
+      elapsed_time: 3720, max_speed: 15.5, average_temp: 18, min_temp: 14, max_temp: 22,
+    })
+    expect(d.avgSpeedKph).toBeCloseTo(36, 5)
+    expect(d.maxSpeedKph).toBeCloseTo(55.8, 1)
+    expect(d.elapsedSecs).toBe(3720)
+    expect(d.avgTempC).toBe(18)
+    expect(d.minTempC).toBe(14)
+    expect(d.maxTempC).toBe(22)
+  })
+
+  it('nulls speed, elapsed, and temperature fields when absent from an ICUActivity', () => {
+    const d = rideStatsFromActivity(activity)
+    expect(d.maxSpeedKph).toBeNull()
+    expect(d.elapsedSecs).toBeNull()
+    expect(d.avgTempC).toBeNull()
+    expect(d.minTempC).toBeNull()
+    expect(d.maxTempC).toBeNull()
+  })
+
+  it('returns null average speed when distance is unavailable', () => {
+    const d = rideStatsFromActivity({ ...activity, distance: null })
+    expect(d.avgSpeedKph).toBeNull()
+  })
+
+  it('derives average speed from distance and the supplied duration, and maps max speed / elapsed / temperature from ActivityMetrics', () => {
+    const d = rideStatsFromMetrics({
+      ...metrics, distance_m: 36000, max_speed_ms: 15.5,
+      elapsed_secs: 3720, avg_temp_c: 18, min_temp_c: 14, max_temp_c: 22,
+    }, 3600, 85)
+    expect(d.avgSpeedKph).toBeCloseTo(36, 5)
+    expect(d.maxSpeedKph).toBeCloseTo(55.8, 1)
+    expect(d.elapsedSecs).toBe(3720)
+    expect(d.avgTempC).toBe(18)
+    expect(d.minTempC).toBe(14)
+    expect(d.maxTempC).toBe(22)
+  })
+})
+
+describe('RideStats render — speed and temperature cards', () => {
+  it('shows the Speed card when speed data is present', () => {
+    const d = rideStatsFromActivity({ ...activity, max_speed: 15.5 })
+    render(<RideStats data={d} />)
+    expect(screen.getByText('Speed')).toBeInTheDocument()
+    expect(screen.getByText('Avg Speed')).toBeInTheDocument()
+    expect(screen.getByText('Max Speed')).toBeInTheDocument()
+  })
+
+  it('hides the Speed card when both average and max speed are absent', () => {
+    const d = rideStatsFromActivity({ ...activity, distance: null, max_speed: null })
+    render(<RideStats data={d} />)
+    expect(screen.queryByText('Speed')).toBeNull()
+  })
+
+  it('shows the Elapsed stat in Ride Totals when present', () => {
+    const d = rideStatsFromActivity({ ...activity, elapsed_time: 3720 })
+    render(<RideStats data={d} />)
+    expect(screen.getByText('Elapsed')).toBeInTheDocument()
+    expect(screen.getByText('1h 2m')).toBeInTheDocument()
+  })
+
+  it('hides the Elapsed stat when absent', () => {
+    render(<RideStats data={rideStatsFromActivity(activity)} />)
+    expect(screen.queryByText('Elapsed')).toBeNull()
+  })
+
+  it('shows the Temperature card with only the fields that are present', () => {
+    const d = rideStatsFromActivity({ ...activity, average_temp: 18, min_temp: null, max_temp: null })
+    render(<RideStats data={d} />)
+    expect(screen.getByText('Temperature')).toBeInTheDocument()
+    expect(screen.getByText('Avg Temp')).toBeInTheDocument()
+    expect(screen.queryByText('Min Temp')).toBeNull()
+    expect(screen.queryByText('Max Temp')).toBeNull()
+  })
+
+  it('hides the Temperature card when all three values are absent', () => {
+    render(<RideStats data={rideStatsFromActivity(activity)} />)
+    expect(screen.queryByText('Temperature')).toBeNull()
+  })
+})

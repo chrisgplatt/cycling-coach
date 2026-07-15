@@ -243,6 +243,11 @@ export class IntervalsClient {
       distance: (a.distance ?? null) as number | null,
       total_elevation_gain: (a.total_elevation_gain ?? null) as number | null,
       left_right_balance: (a.avg_lr_balance ?? null) as number | null,
+      elapsed_time: (a.elapsed_time ?? null) as number | null,
+      max_speed: (a.max_speed ?? null) as number | null,
+      average_temp: (a.average_temp ?? null) as number | null,
+      min_temp: (a.min_temp ?? null) as number | null,
+      max_temp: (a.max_temp ?? null) as number | null,
     }
   }
 

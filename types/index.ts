@@ -277,6 +277,11 @@ export interface ICUActivity {
   power_5min?: number | null
   power_10min?: number | null
   power_20min?: number | null
+  elapsed_time?: number | null   // seconds; includes stopped time, unlike moving_time
+  max_speed?: number | null      // m/s, raw from API
+  average_temp?: number | null   // °C
+  min_temp?: number | null       // °C
+  max_temp?: number | null       // °C
 }
 
 export interface ICUWellness {
@@ -515,6 +520,11 @@ export interface ActivityMetrics {
   distance_m: number | null
   elevation_m: number | null   // total_elevation_gain
   lr_balance: number | null    // left %
+  elapsed_secs?: number | null   // seconds; includes stopped time
+  max_speed_ms?: number | null   // m/s, raw from API
+  avg_temp_c?: number | null
+  min_temp_c?: number | null
+  max_temp_c?: number | null
   // Tier 2 — power-curve best efforts, sampled to canonical durations
   best_efforts: Array<{ secs: number; watts: number }> | null
   // Tier 3 — detected intervals (laps)
