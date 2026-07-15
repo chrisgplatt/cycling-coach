@@ -2,6 +2,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import FitnessPage from '@/app/fitness/page'
 
 // Minimal fetch mock — the page fetches /api/ftp, /api/profile, /api/charts, /api/weight-log, /api/hrv/improvement
+// Wellness entry id is computed relative to now (not hardcoded) — FitnessPage's Sleep/Recovery
+// sections filter wellness to the last 14 days, so a fixed past date drifts out of range and
+// silently stops rendering the "Sleep"/"Recovery" headings every test here waits on.
 beforeEach(() => {
   ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
     if (url.includes('/api/charts')) {
@@ -11,7 +14,7 @@ beforeEach(() => {
           charts: {
             wellness: [
               {
-                id: '2026-06-30',
+                id: new Date(Date.now() - 2 * 864e5).toISOString().split('T')[0],
                 ctl: 60, atl: 65, form: -5, hrv: 52, resting_hr: 58,
                 sleep_secs: 28800, body_battery_low: 30, body_battery_high: 85,
                 stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null,
@@ -117,7 +120,7 @@ describe('FTP prediction confirm-before-save flow', () => {
             charts: {
               wellness: [
                 {
-                  id: '2026-06-30',
+                  id: new Date(Date.now() - 2 * 864e5).toISOString().split('T')[0],
                   ctl: 60, atl: 65, form: -5, hrv: 52, resting_hr: 58,
                   sleep_secs: 28800, body_battery_low: 30, body_battery_high: 85,
                   stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null,
