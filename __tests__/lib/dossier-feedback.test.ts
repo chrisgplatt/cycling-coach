@@ -6,7 +6,7 @@ describe('formatDossierFeedbackSection', () => {
       { created_at: '2026-06-01T18:00:00Z', feedback_text: 'legs were empty',
         rpe: 7, feel: 2, completion: 'cut_short', tags: ['poor_sleep'] },
     ])
-    expect(out).toBe('2026-06-01: RPE 7/10 · legs 2/5 · cut short · flags: poor sleep "legs were empty"')
+    expect(out).toBe('2026-06-01: RPE 7/10 · legs good (2/5) · cut short · flags: poor sleep "legs were empty"')
   })
 
   it('falls back to just the quoted text when no signal present', () => {

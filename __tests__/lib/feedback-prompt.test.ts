@@ -30,7 +30,7 @@ describe('analyseFeedback prompt', () => {
     await analyseFeedback(workout, 'felt rough', null, null, null, [], [], '', '', {
       rpe: 8, feel: 2, completion: 'cut_short', tags: ['poor_sleep'],
     })
-    expect(sentPrompt()).toContain('Athlete-reported: RPE 8/10 · legs 2/5 · cut short · flags: poor sleep')
+    expect(sentPrompt()).toContain('Athlete-reported: RPE 8/10 · legs good (2/5) · cut short · flags: poor sleep')
   })
 
   it('omits the reported-signal line when nothing is reported', async () => {
