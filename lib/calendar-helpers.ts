@@ -117,6 +117,19 @@ export function getDayWorkoutColor(dateStr: string, workouts: Workout[]): string
   return TYPE_COLOR[hardest.type] ?? null
 }
 
+// Picks which workout to feature as "today's session" out of every workout row on
+// a single date. Defaults to the first entry (matching plan.workouts ordering ahead
+// of unassociated rides), but if the scheduled session was marked missed and the
+// athlete rode something else (unassociated) that day, surfaces that completed ride
+// instead — a missed session shouldn't keep hiding a ride the athlete actually did.
+export function pickTodayWorkout(dateWorkouts: Workout[]): Workout | null {
+  const scheduled = dateWorkouts.find(w => w.plan_id != null) ?? null
+  const unassociatedCompletedRide =
+    dateWorkouts.find(w => w.plan_id == null && w.status === 'completed') ?? null
+  if (scheduled?.status === 'skipped' && unassociatedCompletedRide) return unassociatedCompletedRide
+  return dateWorkouts[0] ?? null
+}
+
 export interface WeeklySummary {
   actualTss: number
   actualMins: number

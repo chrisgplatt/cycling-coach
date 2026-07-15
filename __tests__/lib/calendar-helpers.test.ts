@@ -10,6 +10,7 @@ import {
   weekStartsAfter,
   getDayWorkoutColor,
   getWeeklySummary,
+  pickTodayWorkout,
 } from '@/lib/calendar-helpers'
 import type { Workout, ICUActivity } from '@/types'
 
@@ -204,6 +205,47 @@ describe('getDayWorkoutColor', () => {
       w({ date: '2026-06-16', type: 'intervals' }),
     ]
     expect(getDayWorkoutColor('2026-06-16', workouts)).toBe('bg-orange-500')
+  })
+})
+
+// ─── pickTodayWorkout ──────────────────────────────────────────────────────────
+
+describe('pickTodayWorkout', () => {
+  it('returns null when there are no workouts that day', () => {
+    expect(pickTodayWorkout([])).toBeNull()
+  })
+
+  it('returns the scheduled workout when it has not been missed', () => {
+    const scheduled = w({ id: 'sched', plan_id: 'p1', status: 'planned' })
+    expect(pickTodayWorkout([scheduled])).toBe(scheduled)
+  })
+
+  it('returns the scheduled workout even if an unassociated ride exists, when not missed', () => {
+    const scheduled = w({ id: 'sched', plan_id: 'p1', status: 'planned' })
+    const ride = w({ id: 'ride', plan_id: null, status: 'completed', icu_activity_id: 'a1' })
+    expect(pickTodayWorkout([scheduled, ride])).toBe(scheduled)
+  })
+
+  it('returns the unassociated completed ride when the scheduled workout was marked missed', () => {
+    const scheduled = w({ id: 'sched', plan_id: 'p1', status: 'skipped', missed_reason: 'illness' })
+    const ride = w({ id: 'ride', plan_id: null, status: 'completed', icu_activity_id: 'a1' })
+    expect(pickTodayWorkout([scheduled, ride])).toBe(ride)
+  })
+
+  it('still returns the missed workout when no unassociated completed ride exists', () => {
+    const scheduled = w({ id: 'sched', plan_id: 'p1', status: 'skipped', missed_reason: 'illness' })
+    expect(pickTodayWorkout([scheduled])).toBe(scheduled)
+  })
+
+  it('does not treat a still-planned unassociated ride as a completed ride', () => {
+    const scheduled = w({ id: 'sched', plan_id: 'p1', status: 'skipped', missed_reason: 'illness' })
+    const plannedRide = w({ id: 'ride', plan_id: null, status: 'planned' })
+    expect(pickTodayWorkout([scheduled, plannedRide])).toBe(scheduled)
+  })
+
+  it('returns the single unassociated ride when nothing is scheduled that day', () => {
+    const ride = w({ id: 'ride', plan_id: null, status: 'completed', icu_activity_id: 'a1' })
+    expect(pickTodayWorkout([ride])).toBe(ride)
   })
 })
 

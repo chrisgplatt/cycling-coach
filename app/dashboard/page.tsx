@@ -19,6 +19,7 @@ import { isSessionCountable, isSessionCompleted } from '@/lib/progress/session-c
 import { isGarminSyncStale, formatGarminSyncTime } from '@/lib/garmin/sync-staleness'
 import { formatRelativeSyncTime } from '@/lib/format-sync-time'
 import { eventCoversDate } from '@/lib/events'
+import { pickTodayWorkout } from '@/lib/calendar-helpers'
 import type { GeneratedPlan } from '@/types'
 import {
   DndContext,
@@ -474,8 +475,9 @@ export default function DashboardPage() {
     ? todayActivities.map((a: ICUActivity) => a.name).filter(Boolean).join(' · ') || undefined
     : undefined
 
-  const todayWorkout = workouts.find(w => w.date === todayStr) ?? null
-  const todaySessionCount = workouts.filter(w => w.date === todayStr).length
+  const todayWorkouts = workouts.filter(w => w.date === todayStr)
+  const todayWorkout = pickTodayWorkout(todayWorkouts)
+  const todaySessionCount = todayWorkouts.length
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const today = new Date()
