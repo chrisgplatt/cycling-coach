@@ -469,9 +469,6 @@ export default function DashboardPage() {
   const todayActivities = (syncData?.activities ?? []).filter((a: ICUActivity) =>
     a.start_date_local.startsWith(todayStr)
   )
-  const activitySummary: string | undefined = todayActivities.length > 0
-    ? todayActivities.map((a: ICUActivity) => a.name).filter(Boolean).join(' · ') || undefined
-    : undefined
 
   const todayWorkouts = workouts.filter(w => w.date === todayStr)
   const todayWorkout = pickTodayWorkout(todayWorkouts)
@@ -969,12 +966,17 @@ export default function DashboardPage() {
         />
       )}
 
-      {strainSheetOpen && latestWellnessWithLoad && (
+      {strainSheetOpen && strainToday && (
         <StrainBreakdownSheet
-          wellness={latestWellnessWithLoad}
-          activitySummary={activitySummary}
-          hrvStatus={hrvStatus}
-          todayDailyWellness={todayDailyWellnessForCard}
+          strainToday={strainToday}
+          activities={todayActivities.map((a: ICUActivity) => ({
+            name: a.name,
+            durationMin: a.moving_time / 60,
+            avgHr: a.average_heartrate,
+            trainingLoad: a.training_load,
+          }))}
+          maxHr={effectiveMaxHr}
+          restingHr={latestWellnessWithLoad?.garmin_resting_hr ?? latestWellnessWithLoad?.resting_hr ?? null}
           onClose={() => setStrainSheetOpen(false)}
         />
       )}
