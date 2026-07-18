@@ -234,7 +234,7 @@ export async function GET(req: NextRequest) {
       .maybeSingle(),
     supabase
       .from('daily_wellness')
-      .select('date, daily_trimp')
+      .select('date, daily_trimp, trimp_ref, workout_strain')
       .eq('user_id', user.id)
       .gte('date', twentyOneDaysAgo)
       .lt('date', today),
@@ -271,13 +271,32 @@ export async function GET(req: NextRequest) {
     const todayTrimp = computeDailyTrimp(activitiesForDate(today), maxHr, todayRestingHr)
     dailyStrain = computeWorkoutStrain(todayTrimp, trimpRef)
 
-    strainHistory = strainWellness.map(w => ({
-      date: w.id,
-      strain: computeWorkoutStrain(
-        computeDailyTrimp(activitiesForDate(w.id), maxHr, w.garmin_resting_hr ?? w.resting_hr),
-        trimpRef,
-      ),
-    }))
+    // Past days: read the frozen workout_strain from daily_wellness so this history
+    // matches what the dashboard chart shows (each day frozen against its own rolling
+    // trimpRef at freeze time) rather than re-deriving every day against today's trimpRef.
+    // Only today (never frozen) and any not-yet-backfilled date fall back to a live
+    // recompute using the same trimpRef this route already derived above.
+    const frozenByDate = new Map(
+      (strainDailyWellnessRows ?? []).map(r => [
+        r.date as string,
+        r as { daily_trimp: number | null; trimp_ref: number | null; workout_strain: number | null },
+      ])
+    )
+
+    strainHistory = strainWellness.map(w => {
+      if (w.id === today) return { date: w.id, strain: dailyStrain }
+      const frozen = frozenByDate.get(w.id)
+      if (frozen && frozen.daily_trimp != null && frozen.trimp_ref != null && frozen.workout_strain != null) {
+        return { date: w.id, strain: frozen.workout_strain }
+      }
+      return {
+        date: w.id,
+        strain: computeWorkoutStrain(
+          computeDailyTrimp(activitiesForDate(w.id), maxHr, w.garmin_resting_hr ?? w.resting_hr),
+          trimpRef,
+        ),
+      }
+    })
   }
 
   const recoveryResult = computeRecoveryScore({
