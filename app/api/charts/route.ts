@@ -3,11 +3,12 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { isoWeekStart } from '@/lib/chart-helpers'
 import { mergeGarminIntoWellness } from '@/lib/garmin-wellness-merge'
-import { computeHrvBaseline } from '@/lib/hrv/baseline'
+import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import type { ChartsData, WeeklyTss, RidePoint, DailyStrainPoint, ActivitySummary } from '@/types'
 import {
-  computeDailyActivityLoad,
-  computeStrainComponents,
+  computeWorkoutStrainSeries,
+  type StrainSeriesDayInput,
+  type DailyActivityInput,
 } from '@/lib/strain'
 
 export const dynamic = 'force-dynamic'
@@ -19,7 +20,7 @@ export async function GET() {
 
   const { data: profile, error: profileError } = await supabase
     .from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp, max_hr_manual, observed_max_hr, date_of_birth')
     .maybeSingle()
 
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
@@ -50,7 +51,7 @@ export async function GET() {
         .lte('date', newest),
       supabase
         .from('daily_wellness')
-        .select('date, energy, leg_freshness')
+        .select('date, daily_trimp, trimp_ref, workout_strain')
         .eq('user_id', user.id)
         .gte('date', oldest)
         .lte('date', newest),
@@ -92,37 +93,69 @@ export async function GET() {
       movingTimeSecs: a.moving_time,
     }))
 
-    // Daily strain — combine per-day activity load with wellness life signals
-    const ftp: number | null = (profile as { current_ftp?: number | null }).current_ftp ?? null
-    const dailyStrain: DailyStrainPoint[] = wellness
-      .map((w): DailyStrainPoint | null => {
-        const activityLoad = computeDailyActivityLoad(activities, w.id, ftp)
-        const g = garminByDate.get(w.id)
-        // True rolling baseline per historical day — computeHrvBaseline already
-        // accepts an `asOf` date, so this is as accurate as a live baseline lookup,
-        // not an approximation.
-        const dayHrvStatus = computeHrvBaseline(rawWellness, { asOf: w.id })
-        const dw = dailyWellnessByDate.get(w.id)
-        const components = computeStrainComponents(activityLoad > 0 ? activityLoad : null, {
-          sleepScore: w.sleep_score,
-          bodyBatteryHigh: w.body_battery_high,
-          sleepSecs: w.sleep_secs,
-          hrv: dayHrvStatus.today,
-          hrvBaseline: dayHrvStatus.baselineMean,
-          energy: dw?.energy ?? null,
-          legFreshness: dw?.leg_freshness ?? null,
-          batteryDrained: g?.garmin_body_battery_drained ?? null,
-        })
-        if (!components) return null
+    // Daily strain — pure HR-Reserve TRIMP load, computed chronologically so each
+    // day's personalized reference sees the correctly-ordered trailing window.
+    const maxHr = resolveMaxHrFromProfile(profile as { max_hr_manual?: number | null; date_of_birth?: string | null; observed_max_hr?: number | null })?.value ?? null
+    const activitiesByDate = new Map<string, DailyActivityInput[]>()
+    for (const a of activities) {
+      const date = a.start_date_local.slice(0, 10)
+      const arr = activitiesByDate.get(date) ?? []
+      arr.push({
+        name: a.name,
+        durationMin: a.moving_time / 60,
+        avgHr: a.average_heartrate,
+        trainingLoad: a.training_load,
+      })
+      activitiesByDate.set(date, arr)
+    }
+
+    const seriesInput: StrainSeriesDayInput[] = wellness
+      .slice()
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((w): StrainSeriesDayInput => {
+        const dw = dailyWellnessByDate.get(w.id) as { daily_trimp?: number | null; trimp_ref?: number | null; workout_strain?: number | null } | undefined
         return {
           date: w.id,
-          workout: components.workoutPts,
-          life: components.lifePts,
-          total: components.total,
-          workoutLoad: components.workoutLoad,
-          sleepScore: components.sleepScore,
-          sleepSecs: components.sleepSecs,
-          bodyBatteryHigh: components.bodyBatteryHigh,
+          activities: activitiesByDate.get(w.id) ?? [],
+          restingHr: w.garmin_resting_hr ?? w.resting_hr,
+          frozenDailyTrimp: dw?.daily_trimp ?? null,
+          frozenTrimpRef: dw?.trimp_ref ?? null,
+          frozenWorkoutStrain: dw?.workout_strain ?? null,
+        }
+      })
+
+    const seriesResults = computeWorkoutStrainSeries(seriesInput, maxHr, newest)
+
+    const toFreeze = seriesResults.filter(r => r.needsFreeze)
+    if (toFreeze.length > 0) {
+      const { error: freezeError } = await supabase
+        .from('daily_wellness')
+        .upsert(
+          toFreeze.map(r => ({
+            user_id: user.id,
+            date: r.date,
+            daily_trimp: r.dailyTrimp,
+            trimp_ref: r.trimpRef,
+            workout_strain: r.workoutStrain,
+          })),
+          { onConflict: 'user_id,date' },
+        )
+      // Freezing is a cache-write, not the source of truth for this response — log
+      // and continue with the in-memory results rather than failing the whole request.
+      if (freezeError) console.error('Failed to freeze historical strain values:', freezeError.message)
+    }
+
+    const seriesByDate = new Map(seriesResults.map(r => [r.date, r]))
+    const dailyStrain: DailyStrainPoint[] = wellness
+      .map((w): DailyStrainPoint | null => {
+        const r = seriesByDate.get(w.id)
+        if (!r || r.workoutStrain <= 0) return null
+        const g = garminByDate.get(w.id)
+        return {
+          date: w.id,
+          dailyTrimp: r.dailyTrimp,
+          trimpRef: r.trimpRef,
+          workoutStrain: r.workoutStrain,
           garminReadiness: g?.garmin_training_readiness ?? null,
           garminRecoveryTimeMins: g?.garmin_recovery_time_mins ?? null,
           garminBatteryCharged: g?.garmin_body_battery_charged ?? null,
@@ -130,7 +163,7 @@ export async function GET() {
           garminStressMax: g?.garmin_stress_max ?? null,
         }
       })
-      .filter((p): p is DailyStrainPoint => p !== null && (p.total > 0 || p.life > 0 || p.workout > 0))
+      .filter((p): p is DailyStrainPoint => p !== null)
 
     const charts: ChartsData = { wellness, weeklyTss, rides, dailyStrain, activities: activitySummaries }
     return NextResponse.json({ charts })

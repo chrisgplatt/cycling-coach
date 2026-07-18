@@ -453,13 +453,9 @@ export interface RidePoint {
 
 export interface DailyStrainPoint {
   date: string
-  workout: number
-  life: number
-  total: number
-  workoutLoad: number
-  sleepScore: number | null
-  sleepSecs: number | null
-  bodyBatteryHigh: number | null
+  dailyTrimp: number
+  trimpRef: number
+  workoutStrain: number
   garminReadiness?: number | null
   garminRecoveryTimeMins?: number | null
   garminBatteryCharged?: number | null
