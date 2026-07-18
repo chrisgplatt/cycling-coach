@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
+import { mergeGarminIntoWellness } from '@/lib/garmin-wellness-merge'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { computeWorkoutStrainSeries, type StrainSeriesDayInput, type DailyActivityInput } from '@/lib/strain'
 
@@ -26,9 +27,14 @@ export async function POST() {
   const oldest = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
-  const [wellness, activities, { data: dailyWellnessRows }] = await Promise.all([
+  const [rawWellness, activities, { data: garminHistory }, { data: dailyWellnessRows }] = await Promise.all([
     client.getWellness(oldest, today),
     client.getActivities(oldest, today),
+    supabase
+      .from('garmin_wellness')
+      .select('date, garmin_training_readiness, garmin_recovery_time_mins, garmin_training_status, garmin_body_battery_current, garmin_body_battery_charged, garmin_body_battery_drained, garmin_stress_avg, garmin_stress_max, garmin_hrv_overnight, garmin_hrv_status, garmin_resting_hr, garmin_sleep_deep_secs, garmin_sleep_light_secs, garmin_sleep_rem_secs, garmin_sleep_awake_secs, garmin_sleep_respiration_avg')
+      .gte('date', oldest)
+      .lte('date', today),
     supabase
       .from('daily_wellness')
       .select('date, daily_trimp, trimp_ref, workout_strain')
@@ -36,6 +42,9 @@ export async function POST() {
       .gte('date', oldest)
       .lte('date', today),
   ])
+  // Garmin sleep stages, HRV overnight, and training readiness live only in garmin_wellness —
+  // intervals.icu's wellness endpoint never returns them (lib/intervals/client.ts getWellness()).
+  const wellness = mergeGarminIntoWellness(rawWellness, garminHistory ?? [])
 
   const dailyWellnessByDate = new Map((dailyWellnessRows ?? []).map(w => [w.date as string, w]))
   const activitiesByDate = new Map<string, DailyActivityInput[]>()
