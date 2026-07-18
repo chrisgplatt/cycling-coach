@@ -1,4 +1,4 @@
-# Whoop-Aligned Daily Strain — Design
+# Whoop-Aligned Strain & Dashboard Redesign — Design
 
 **Date:** 2026-07-18
 **Status:** Proposed
@@ -20,7 +20,7 @@ Sources: [WHOOP Strain support article](https://support.whoop.com/s/article/WHOO
 
 ## Goal
 
-Rebuild Strain as a pure workout/cardio load score using an HR-Reserve-weighted exponential TRIMP calculation (the standard sports-science approximation of Whoop's described cardiovascular-load mechanism), personalized to the athlete's own historical load range, on a logarithmic 0–21 scale. Recovery/life signals stay entirely in the existing, separate Recovery Score (`lib/recovery-score.ts`) — nothing changes there.
+Rebuild Strain as a pure workout/cardio load score using an HR-Reserve-weighted exponential TRIMP calculation (the standard sports-science approximation of Whoop's described cardiovascular-load mechanism), personalized to the athlete's own historical load range, on a logarithmic 0–21 scale. Recovery/life signals stay entirely in the existing, separate Recovery Score (`lib/recovery-score.ts`) — nothing changes there. Additionally, redesign the dashboard's headline metrics into a Whoop-style Recovery/Strain/Sleep ring strip, replacing the scattered small indicators (band, dot) that show these numbers today.
 
 ## Architecture
 
@@ -82,11 +82,39 @@ strainLabel: 0–9 = 'light', 10–13 = 'moderate', 14–17 = 'high', 18–21 = 
 
 ## UI changes
 
-**Dashboard band (`MetricsBar.tsx`):** same chip, now reflects `workoutStrain` only. Color bands follow the new 4-zone thresholds.
-
 **Breakdown sheet (`StrainBreakdownSheet.tsx`):** the donut currently splits Workout (14pt) vs Wellbeing (7pt, sleep/battery/HRV/wellness slices). Replace with a **per-activity TRIMP breakdown** — each of today's tracked activities as a slice sized by its contribution to `dailyTrimp`, plus a visible `trimpRef` reference line/label so the athlete can see how today compares to their own recent hard-day baseline. Sleep/HRV/battery context is dropped from this sheet entirely — it already lives on the Recovery Score card, nothing new to build.
 
 **Trend chart (`/api/charts` `dailyStrain[]`):** past dates read the frozen `workout_strain` column directly instead of recomputing live, eliminating the staleness-window edge case noted in the earlier bug investigation. Today's point is still computed live (see freeze rule above) and freezes retroactively once the date rolls over.
+
+The Strain band in `MetricsBar.tsx` isn't just recolored — it's removed entirely and replaced by the ring strip below, which becomes the athlete's one source for Strain, Recovery, and Sleep at a glance.
+
+## Dashboard ring-strip redesign
+
+Alongside the formula rework, the dashboard gets a Whoop-style "Recovery / Strain / Sleep" summary, decided via mockups in a brainstorming session with the athlete (`.superpowers/brainstorm/` session, not committed).
+
+**Layout:** a new full-width card containing three equal circular rings side by side — Recovery, Strain, Sleep — each with a big number centered in the ring and a label/band underneath. Reuses the CSS `conic-gradient` ring technique already established in `StrainBreakdownSheet.tsx` (single-color arc against a `#e2e8f0` remainder, no new charting library).
+
+**Placement:** a new standalone card (own `bg-white rounded-xl border shadow-sm`, not merged into the existing `divide-y` grouping), inserted in `app/dashboard/page.tsx` immediately above the current "Fitness stats" card — i.e. at the position where that card currently begins. The Fitness stats card itself is unchanged in structure (`MetricsBar → HrvStatusChip → HrvTrendPanel → CtlTrendStrip`, still `divide-y`); `MetricsBar` keeps its CTL/ATL/Form/HRV/Resting-HR chip row, training-status pill, and collapsible strain trend chart, but loses its old colored band header (now redundant with the Strain ring).
+
+**Removed duplicates:** `TodayCard.tsx`'s small Recovery dot indicator (header, lines ~152–174) is removed — the Recovery ring is now the single source. `MetricsBar.tsx`'s colored Strain band is removed per above.
+
+**New shared component:** `components/MetricRing.tsx` — no reusable ring component exists today (verified: the only ring in the codebase is the one-off donut in `StrainBreakdownSheet.tsx`). Props: `value`, `max`, `label`, `band` (for color), `onTap` (opens the relevant breakdown modal). Used 3× in the new strip; `StrainBreakdownSheet`'s multi-segment donut stays as its own bespoke visualization (different shape — multi-segment breakdown vs. single-value ring — not a candidate for the shared component).
+
+**Tap targets:**
+- Recovery ring → existing `RecoveryBreakdownModal` (no changes needed)
+- Strain ring → existing `StrainBreakdownSheet` (already being redesigned per above)
+- Sleep ring → **new** `SleepBreakdownModal`, following the same modal pattern (`fixed inset-0 z-50`, `bg-white rounded-2xl max-h-[92vh] overflow-y-auto`), showing sleep duration and stage breakdown (deep/REM/light/awake) — data already fetched and currently shown inline in `StrainBreakdownSheet`'s sub-signal rows; this pulls it out into its own dedicated view.
+
+**Sleep ring value:** reuses Garmin's existing `sleep_score` (0–100) directly — no new sleep-need/debt calculation. A true Whoop-style "time asleep ÷ personalized sleep need" metric would be a similarly-sized project to the Strain rework itself and is explicitly out of scope here.
+
+**Color mapping:** Recovery and Sleep keep the existing 3-tier emerald/amber/red bands (consistent with `RecoveryScore`'s `band` field). Strain's new 4-tier Whoop bands map onto the same family to stay visually consistent with the rest of the app rather than introducing Whoop's actual blue/yellow/red scheme:
+
+```
+light    → emerald-600
+moderate → amber-500
+high     → orange-500   (reuses MetricsBar's existing "overreaching" orange)
+all_out  → red-600
+```
 
 ## Function signatures
 
@@ -125,9 +153,12 @@ export function strainLabel(score: number): 'light' | 'moderate' | 'high' | 'all
 | `lib/strain.ts` | Replace workout/life formulas with TRIMP + log-scale functions; delete life-load code |
 | `supabase/migrations/` | New migration: `daily_trimp`, `trimp_ref`, `workout_strain` columns on `daily_wellness` |
 | `app/api/sync/route.ts` (or nightly job) | Compute-and-freeze on first request per date |
-| `components/MetricsBar.tsx` | Read frozen `workout_strain`; drop life-load call |
+| `components/MetricsBar.tsx` | Read frozen `workout_strain`; drop life-load call; remove colored Strain band header |
 | `components/StrainBreakdownSheet.tsx` | Per-activity TRIMP donut instead of workout/wellbeing split |
-| `app/dashboard/page.tsx` | Wire frozen value through instead of live `computeDailyStrain` |
+| `components/TodayCard.tsx` | Remove small Recovery dot indicator from header |
+| `components/MetricRing.tsx` | **New** — shared single-value ring component (conic-gradient), used 3× |
+| `components/SleepBreakdownModal.tsx` | **New** — sleep duration/stage breakdown, opened by the Sleep ring |
+| `app/dashboard/page.tsx` | Add ring strip in place of `MetricsBar`'s old position; wire frozen strain value through instead of live `computeDailyStrain` |
 | `app/api/charts/route.ts` | Read frozen `workout_strain` per day instead of recomputing |
 | `app/api/briefing/today/route.ts`, `lib/claude/briefing.ts` | Drop sleep/battery context params from `formatStrainForPrompt` (Recovery Score already covers this) |
 | `lib/progress/brief-generator.ts` | Update to new strain shape |
