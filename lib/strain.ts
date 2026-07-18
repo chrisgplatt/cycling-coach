@@ -1,219 +1,134 @@
-import { computeHrvIndex, computeWellnessIndex } from '@/lib/recovery-score'
+export const TRIMP_COEFF_A = 0.64   // Banister male coefficients — fixed default,
+export const TRIMP_COEFF_B = 1.92   // no sex field on the profile to branch on
+export const TRIMP_PER_TSS_FALLBACK = 1.0   // tunable — activities without HR data
 
-export const STRAIN_TRAINING_LOAD_MAX = 150
-export const STRAIN_NONPOWER_LOAD_MAX = 50 // ceiling for walks, runs, HR-only activities
-export const STRAIN_WORKOUT_WEIGHT = 14
-export const STRAIN_LIFE_WEIGHT = 7
-
-export const STRAIN_SLEEP_WEIGHT = 2.0
-export const STRAIN_BATTERY_WEIGHT = 1.5
-export const STRAIN_SLEEP_DURATION_WEIGHT = 1.0
-export const STRAIN_HRV_WEIGHT = 2.0
-export const STRAIN_WELLNESS_WEIGHT = 1.0
-export const STRAIN_DRAIN_WEIGHT = 1.0
-export const STRAIN_SLEEP_DURATION_TARGET_SECS = 27000 // 7.5h = no penalty
-export const STRAIN_SLEEP_DURATION_MIN_SECS = 18000 // 5h = max penalty
-
-// 0–100 recovery score for sleep duration. 7.5h+ = 100, 5h = 0, linear between.
-function sleepDurationScore(secs: number): number {
-  return Math.max(0, Math.min(100,
-    ((secs - STRAIN_SLEEP_DURATION_MIN_SECS) /
-     (STRAIN_SLEEP_DURATION_TARGET_SECS - STRAIN_SLEEP_DURATION_MIN_SECS)) * 100,
-  ))
+function clamp01(v: number): number {
+  return Math.max(0, Math.min(1, v))
 }
 
-// Non-power activities (runs, walks, HR-only rides) report training_load on a 0–50 scale.
-// Scale them up to the 0–150 power-based range so they're comparable to cycling TSS.
-export function computeDailyActivityLoad(
-  activities: Array<{
-    start_date_local: string
-    training_load: number | null
-    weighted_average_watts: number | null
-    rolling_ftp: number | null
-  }>,
-  date: string,
-  ftpWatts?: number | null,
+export interface DailyActivityInput {
+  name: string
+  durationMin: number
+  avgHr: number | null
+  trainingLoad: number | null
+}
+
+/** Per-activity Banister HRR-exponential TRIMP; falls back to a scaled training_load estimate when HR data isn't available. */
+function activityTrimp(a: DailyActivityInput, maxHr: number | null, restingHr: number | null): number {
+  if (a.avgHr != null && maxHr != null && restingHr != null && maxHr > restingHr) {
+    const hrr = clamp01((a.avgHr - restingHr) / (maxHr - restingHr))
+    return a.durationMin * hrr * TRIMP_COEFF_A * Math.exp(TRIMP_COEFF_B * hrr)
+  }
+  if (a.trainingLoad != null) return a.trainingLoad * TRIMP_PER_TSS_FALLBACK
+  return 0
+}
+
+export function computeDailyTrimp(
+  activities: DailyActivityInput[],
+  maxHr: number | null,
+  restingHr: number | null,
 ): number {
-  const nonPowerScale = STRAIN_TRAINING_LOAD_MAX / STRAIN_NONPOWER_LOAD_MAX
+  return activities.reduce((sum, a) => sum + activityTrimp(a, maxHr, restingHr), 0)
+}
+
+export function computeActivityTrimpBreakdown(
+  activities: DailyActivityInput[],
+  maxHr: number | null,
+  restingHr: number | null,
+): Array<{ name: string; trimp: number }> {
   return activities
-    .filter(a => a.start_date_local.startsWith(date))
-    .reduce((sum, a) => {
-      const load = a.training_load ?? 0
-      if (load === 0) return sum
-      const ftp = ftpWatts ?? a.rolling_ftp
-      if (a.weighted_average_watts && ftp && ftp > 0) {
-        const intensityFactor = Math.min(1.5, a.weighted_average_watts / ftp)
-        return sum + load * intensityFactor
-      }
-      return sum + load * nonPowerScale
-    }, 0)
+    .map(a => ({ name: a.name, trimp: activityTrimp(a, maxHr, restingHr) }))
+    .filter(a => a.trimp > 0)
 }
 
-export interface LifeLoadInputs {
-  sleepScore: number | null
-  bodyBatteryHigh: number | null
-  sleepSecs?: number | null
-  hrv?: number | null
-  hrvBaseline?: number | null
-  energy?: number | null
-  legFreshness?: number | null
-  batteryDrained?: number | null
+export const TRIMP_REF_MIN_SAMPLES = 5
+export const TRIMP_REF_COLD_START_DEFAULT = 150   // tunable — pending a first real hard-day sample
+export const TRIMP_REF_PERCENTILE = 0.95
+export const TRIMP_REF_WINDOW_DAYS = 21
+
+export function computeTrimpRef(trailingDailyTrimp: number[]): number {
+  const valid = trailingDailyTrimp.filter(v => v > 0)
+  if (valid.length < TRIMP_REF_MIN_SAMPLES) return TRIMP_REF_COLD_START_DEFAULT
+  const sorted = [...valid].sort((a, b) => a - b)
+  const idx = Math.min(sorted.length - 1, Math.ceil(TRIMP_REF_PERCENTILE * sorted.length) - 1)
+  return sorted[idx]
 }
 
-interface LifeLoadParts {
-  sleepRawPts: number
-  sleepDurationRawPts: number
-  batteryRawPts: number
-  hrvRawPts: number
-  wellnessRawPts: number
-  drainRawPts: number
-  availableWeight: number
+export function computeWorkoutStrain(dailyTrimp: number, trimpRef: number): number {
+  if (dailyTrimp <= 0) return 0
+  const ref = Math.max(trimpRef, 1)
+  return Math.min(21, Math.round(21 * Math.log(1 + dailyTrimp) / Math.log(1 + ref)))
 }
 
-// Blends every present life-load signal into raw (un-normalised) points plus the
-// total weight of signals actually available. Signals are combined using a
-// weighted-average blend: each present signal contributes its raw points and its
-// weight to the denominator; absent signals are excluded rather than counted as
-// zero, so a missing value doesn't drag the score.
-function computeLifeLoadParts(inputs: LifeLoadInputs): LifeLoadParts {
-  const {
-    sleepScore, bodyBatteryHigh, sleepSecs = null,
-    hrv = null, hrvBaseline = null, energy = null, legFreshness = null, batteryDrained = null,
-  } = inputs
+export function strainLabel(score: number): 'light' | 'moderate' | 'high' | 'all_out' {
+  if (score <= 9) return 'light'
+  if (score <= 13) return 'moderate'
+  if (score <= 17) return 'high'
+  return 'all_out'
+}
 
-  let sleepRawPts = 0
-  let sleepDurationRawPts = 0
-  let batteryRawPts = 0
-  let hrvRawPts = 0
-  let wellnessRawPts = 0
-  let drainRawPts = 0
-  let availableWeight = 0
+export interface StrainSeriesDayInput {
+  date: string
+  activities: DailyActivityInput[]
+  restingHr: number | null
+  frozenDailyTrimp: number | null
+  frozenTrimpRef: number | null
+  frozenWorkoutStrain: number | null
+}
 
-  if (sleepScore != null) {
-    sleepRawPts = ((100 - sleepScore) / 100) * STRAIN_SLEEP_WEIGHT
-    availableWeight += STRAIN_SLEEP_WEIGHT
+export interface StrainSeriesDayResult {
+  date: string
+  dailyTrimp: number
+  trimpRef: number
+  workoutStrain: number
+  needsFreeze: boolean
+}
+
+/** `days` must be sorted chronologically ascending. Frozen past days pass through untouched;
+ * unfrozen past days and today are computed live against a rolling window of the trailing
+ * `TRIMP_REF_WINDOW_DAYS` daily_trimp values seen so far in this same series. */
+export function computeWorkoutStrainSeries(
+  days: StrainSeriesDayInput[],
+  maxHr: number | null,
+  today: string,
+): StrainSeriesDayResult[] {
+  const window: number[] = []
+  const results: StrainSeriesDayResult[] = []
+
+  for (const day of days) {
+    const isPast = day.date < today
+    const alreadyFrozen = isPast
+      && day.frozenDailyTrimp != null && day.frozenTrimpRef != null && day.frozenWorkoutStrain != null
+
+    let dailyTrimp: number
+    let trimpRef: number
+    let workoutStrain: number
+    let needsFreeze: boolean
+
+    if (alreadyFrozen) {
+      dailyTrimp = day.frozenDailyTrimp!
+      trimpRef = day.frozenTrimpRef!
+      workoutStrain = day.frozenWorkoutStrain!
+      needsFreeze = false
+    } else {
+      dailyTrimp = computeDailyTrimp(day.activities, maxHr, day.restingHr)
+      trimpRef = computeTrimpRef(window)
+      workoutStrain = computeWorkoutStrain(dailyTrimp, trimpRef)
+      needsFreeze = isPast
+    }
+
+    results.push({ date: day.date, dailyTrimp, trimpRef, workoutStrain, needsFreeze })
+
+    window.push(dailyTrimp)
+    if (window.length > TRIMP_REF_WINDOW_DAYS) window.shift()
   }
-  if (sleepSecs != null) {
-    sleepDurationRawPts = ((100 - sleepDurationScore(sleepSecs)) / 100) * STRAIN_SLEEP_DURATION_WEIGHT
-    availableWeight += STRAIN_SLEEP_DURATION_WEIGHT
-  }
-  if (bodyBatteryHigh != null) {
-    batteryRawPts = ((100 - bodyBatteryHigh) / 100) * STRAIN_BATTERY_WEIGHT
-    availableWeight += STRAIN_BATTERY_WEIGHT
-  }
-  const hrvGoodness = computeHrvIndex({ hrv, hrvBaseline })
-  if (hrvGoodness != null) {
-    hrvRawPts = ((100 - hrvGoodness) / 100) * STRAIN_HRV_WEIGHT
-    availableWeight += STRAIN_HRV_WEIGHT
-  }
-  const wellnessGoodness = computeWellnessIndex({ energy, leg_freshness: legFreshness })
-  if (wellnessGoodness != null) {
-    wellnessRawPts = ((100 - wellnessGoodness) / 100) * STRAIN_WELLNESS_WEIGHT
-    availableWeight += STRAIN_WELLNESS_WEIGHT
-  }
-  if (batteryDrained != null) {
-    drainRawPts = (Math.max(0, Math.min(100, batteryDrained)) / 100) * STRAIN_DRAIN_WEIGHT
-    availableWeight += STRAIN_DRAIN_WEIGHT
-  }
 
-  return { sleepRawPts, sleepDurationRawPts, batteryRawPts, hrvRawPts, wellnessRawPts, drainRawPts, availableWeight }
+  return results
 }
 
-export function computeDailyLifeLoad(inputs: LifeLoadInputs): number | null {
-  const { sleepScore, bodyBatteryHigh, sleepSecs = null, hrv = null, energy = null, legFreshness = null, batteryDrained = null } = inputs
-  if (sleepScore == null && bodyBatteryHigh == null && sleepSecs == null
-    && hrv == null && energy == null && legFreshness == null && batteryDrained == null) return null
-  const parts = computeLifeLoadParts(inputs)
-  const rawLife = parts.sleepRawPts + parts.sleepDurationRawPts + parts.batteryRawPts
-    + parts.hrvRawPts + parts.wellnessRawPts + parts.drainRawPts
-  return parts.availableWeight > 0 ? (rawLife / parts.availableWeight) * STRAIN_LIFE_WEIGHT : null
-}
-
-export interface StrainComponents {
-  total: number             // final strain score 0–21
-  workoutPts: number
-  workoutLoad: number
-  lifePts: number
-  sleepRawPts: number       // un-normalised sleep quality pts (for donut)
-  sleepDurationRawPts: number
-  batteryRawPts: number
-  hrvRawPts: number
-  wellnessRawPts: number
-  drainRawPts: number
-  sleepScore: number | null
-  sleepSecs: number | null
-  bodyBatteryHigh: number | null  // daily peak battery (post-sleep), not the midnight trough
-  hrv: number | null
-  hrvBaseline: number | null
-  energy: number | null
-  legFreshness: number | null
-  batteryDrained: number | null
-}
-
-export function computeStrainComponents(
-  activityLoad: number | null,
-  inputs: LifeLoadInputs,
-): StrainComponents | null {
-  const {
-    sleepScore, bodyBatteryHigh, sleepSecs = null,
-    hrv = null, hrvBaseline = null, energy = null, legFreshness = null, batteryDrained = null,
-  } = inputs
-  if (activityLoad == null && sleepScore == null && bodyBatteryHigh == null && sleepSecs == null
-    && hrv == null && energy == null && legFreshness == null && batteryDrained == null) return null
-
-  const load = activityLoad ?? 0
-  const workoutPts = Math.min(STRAIN_WORKOUT_WEIGHT, (load / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT)
-
-  const parts = computeLifeLoadParts(inputs)
-  const rawLife = parts.sleepRawPts + parts.sleepDurationRawPts + parts.batteryRawPts
-    + parts.hrvRawPts + parts.wellnessRawPts + parts.drainRawPts
-  const lifePts = parts.availableWeight > 0 ? (rawLife / parts.availableWeight) * STRAIN_LIFE_WEIGHT : 0
-  const total = Math.min(21, Math.round(workoutPts + lifePts))
-
-  return {
-    total, workoutPts, workoutLoad: load, lifePts,
-    sleepRawPts: parts.sleepRawPts,
-    sleepDurationRawPts: parts.sleepDurationRawPts,
-    batteryRawPts: parts.batteryRawPts,
-    hrvRawPts: parts.hrvRawPts,
-    wellnessRawPts: parts.wellnessRawPts,
-    drainRawPts: parts.drainRawPts,
-    sleepScore, sleepSecs, bodyBatteryHigh,
-    hrv, hrvBaseline, energy, legFreshness, batteryDrained,
-  }
-}
-
-export function computeDailyStrain(
-  activityLoad: number | null,
-  lifeLoad: number | null,
-): number | null {
-  if (activityLoad == null && lifeLoad == null) return null
-  // No activity load and life signals not yet synced — nothing meaningful to show
-  if ((activityLoad == null || activityLoad === 0) && lifeLoad == null) return null
-  const workout = Math.min(STRAIN_WORKOUT_WEIGHT, ((activityLoad ?? 0) / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT)
-  const life = lifeLoad ?? 0
-  return Math.min(21, Math.round(workout + life))
-}
-
-export function strainLabel(score: number): 'low' | 'moderate' | 'high' {
-  if (score < 9) return 'low'
-  if (score <= 14) return 'moderate'
-  return 'high'
-}
-
-export function formatStrainForPrompt(
-  strain: number | null,
-  sleepScore?: number | null,
-  bodyBatteryHigh?: number | null,
-  sleepSecs?: number | null,
-): string {
+export function formatStrainForPrompt(strain: number | null): string {
   if (strain == null) return ''
-  const parts: string[] = []
-  if (sleepScore != null && sleepScore < 70) parts.push(`sleep ${sleepScore}/100`)
-  if (sleepSecs != null && sleepSecs < 21600) parts.push(`slept ${(sleepSecs / 3600).toFixed(1)}h`)
-  if (bodyBatteryHigh != null && bodyBatteryHigh < 50) parts.push(`body battery peak ${bodyBatteryHigh}%`)
-  const context = parts.length ? ` — ${parts.join(', ')}` : ''
-  return `Daily Strain: ${strain}/21 (${strainLabel(strain)})${context}`
+  return `Daily Strain: ${strain}/21 (${strainLabel(strain)})`
 }
 
 export function formatStrainHistoryForPrompt(

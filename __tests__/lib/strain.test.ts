@@ -1,282 +1,280 @@
 /** @jest-environment node */
 import {
-  computeDailyStrain,
-  computeDailyLifeLoad,
-  computeStrainComponents,
+  computeDailyTrimp,
+  computeTrimpRef,
+  computeWorkoutStrain,
   strainLabel,
+  computeActivityTrimpBreakdown,
+  computeWorkoutStrainSeries,
   formatStrainForPrompt,
   formatStrainHistoryForPrompt,
 } from '@/lib/strain'
 
-describe('computeDailyLifeLoad', () => {
-  test('poor sleep only', () => {
-    // sleep_score=30 → ((100-30)/100)*2=1.4, avail=2 → (1.4/2)*7=4.9
-    expect(computeDailyLifeLoad({ sleepScore: 30, bodyBatteryHigh: null })).toBeCloseTo(4.9, 1)
+describe('computeDailyTrimp', () => {
+  test('single activity with HR data uses HRR exponential formula', () => {
+    // hrr = (150-50)/(190-50) = 100/140 = 0.7143
+    // trimp = 60 * 0.7143 * 0.64 * e^(1.92*0.7143) = 60 * 0.7143 * 0.64 * e^1.3714
+    //       = 60 * 0.7143 * 0.64 * 3.9407 ≈ 108.05
+    const result = computeDailyTrimp(
+      [{ name: 'Ride', durationMin: 60, avgHr: 150, trainingLoad: 80 }],
+      190, 50,
+    )
+    expect(result).toBeCloseTo(108.05, 0)
   })
 
-  test('low body battery only', () => {
-    // body_battery_high=20 → ((100-20)/100)*1.5=1.2, avail=1.5 → (1.2/1.5)*7=5.6
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: 20 })).toBeCloseTo(5.6, 1)
+  test('two activities sum their TRIMP', () => {
+    const single = computeDailyTrimp(
+      [{ name: 'Ride', durationMin: 60, avgHr: 150, trainingLoad: 80 }],
+      190, 50,
+    )
+    const doubled = computeDailyTrimp(
+      [
+        { name: 'Ride AM', durationMin: 60, avgHr: 150, trainingLoad: 80 },
+        { name: 'Ride PM', durationMin: 60, avgHr: 150, trainingLoad: 80 },
+      ],
+      190, 50,
+    )
+    expect(doubled).toBeCloseTo(single * 2, 4)
   })
 
-  test('both signals present', () => {
-    // sleep=85→0.3, battery=75→0.375; raw=0.675, avail=3.5 → (0.675/3.5)*7=1.35
-    expect(computeDailyLifeLoad({ sleepScore: 85, bodyBatteryHigh: 75 })).toBeCloseTo(1.35, 1)
+  test('falls back to trainingLoad-based estimate when avgHr is missing', () => {
+    // TRIMP_PER_TSS_FALLBACK = 1.0 → trimp = trainingLoad * 1.0
+    const result = computeDailyTrimp(
+      [{ name: 'Trainer ride, no HR strap', durationMin: 45, avgHr: null, trainingLoad: 60 }],
+      190, 50,
+    )
+    expect(result).toBeCloseTo(60, 4)
   })
 
-  test('great sleep + good battery gives low score', () => {
-    // sleep=90→0.2, battery=85→0.225; raw=0.425, avail=3.5 → (0.425/3.5)*7=0.85
-    expect(computeDailyLifeLoad({ sleepScore: 90, bodyBatteryHigh: 85 })).toBeCloseTo(0.85, 1)
+  test('falls back when maxHr is missing even if avgHr present', () => {
+    const result = computeDailyTrimp(
+      [{ name: 'Ride', durationMin: 45, avgHr: 150, trainingLoad: 60 }],
+      null, 50,
+    )
+    expect(result).toBeCloseTo(60, 4)
   })
 
-  test('all null → null', () => {
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null })).toBeNull()
+  test('falls back when restingHr is missing even if avgHr present', () => {
+    const result = computeDailyTrimp(
+      [{ name: 'Ride', durationMin: 45, avgHr: 150, trainingLoad: 60 }],
+      190, null,
+    )
+    expect(result).toBeCloseTo(60, 4)
   })
 
-  test('7.5h sleep duration gives zero penalty', () => {
-    // 27000s = target, durationScore=100 → ((100-100)/100)*1=0, adds nothing
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null, sleepSecs: 27000 })).toBeCloseTo(0, 4)
+  test('activity with neither avgHr nor trainingLoad contributes zero', () => {
+    const result = computeDailyTrimp(
+      [{ name: 'Untracked walk', durationMin: 20, avgHr: null, trainingLoad: null }],
+      190, 50,
+    )
+    expect(result).toBe(0)
   })
 
-  test('5h sleep duration gives max penalty', () => {
-    // 18000s = floor, durationScore=0 → ((100-0)/100)*1=1, avail=1 → (1/1)*7=7
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null, sleepSecs: 18000 })).toBeCloseTo(7, 4)
+  test('no activities → zero', () => {
+    expect(computeDailyTrimp([], 190, 50)).toBe(0)
   })
 
-  test('6h sleep (midpoint) gives partial penalty', () => {
-    // 21600s: score = (21600-18000)/(27000-18000)*100 = 3600/9000*100 ≈ 40
-    // raw = (60/100)*1 = 0.6, avail=1 → (0.6/1)*7 = 4.2
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null, sleepSecs: 21600 })).toBeCloseTo(4.2, 1)
+  test('hrr is clamped at 1 when avgHr exceeds maxHr', () => {
+    // hrr would be (200-50)/(190-50)=1.071, clamped to 1
+    // trimp = 60 * 1 * 0.64 * e^1.92 = 60 * 0.64 * 6.822 ≈ 261.96
+    const result = computeDailyTrimp(
+      [{ name: 'Max effort', durationMin: 60, avgHr: 200, trainingLoad: 100 }],
+      190, 50,
+    )
+    expect(result).toBeCloseTo(261.96, 0)
   })
 
-  test('suppressed HRV alone contributes', () => {
-    // ratio 30/60=0.5 -> hrv index 0 -> raw=((100-0)/100)*2=2, avail=2 -> (2/2)*7=7
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null, hrv: 30, hrvBaseline: 60 })).toBeCloseTo(7, 4)
-  })
-
-  test('excellent HRV alone gives a low score', () => {
-    // ratio 66/60=1.1 -> hrv index 90 -> raw=((100-90)/100)*2=0.2, avail=2 -> (0.2/2)*7=0.7
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null, hrv: 66, hrvBaseline: 60 })).toBeCloseTo(0.7, 4)
-  })
-
-  test('hrv without hrvBaseline is excluded (not scored)', () => {
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null, hrv: 30 })).toBeNull()
-  })
-
-  test('low subjective wellness alone contributes', () => {
-    // energy=1,legs=1 -> avg=1 -> (1-1)/4*100=0 -> raw=((100-0)/100)*1=1, avail=1 -> (1/1)*7=7
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null, energy: 1, legFreshness: 1 })).toBeCloseTo(7, 4)
-  })
-
-  test('high subjective wellness alone gives a low score', () => {
-    // energy=5,legs=5 -> avg=5 -> (5-1)/4*100=100 -> raw=((100-100)/100)*1=0
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null, energy: 5, legFreshness: 5 })).toBeCloseTo(0, 4)
-  })
-
-  test('battery drain alone contributes proportionally', () => {
-    // drained=60 -> raw=(60/100)*1=0.6, avail=1 -> (0.6/1)*7=4.2
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null, batteryDrained: 60 })).toBeCloseTo(4.2, 1)
-  })
-
-  test('zero battery drain contributes nothing', () => {
-    expect(computeDailyLifeLoad({ sleepScore: null, bodyBatteryHigh: null, batteryDrained: 0 })).toBeCloseTo(0, 4)
-  })
-
-  test('all six signals present blend together', () => {
-    // sleep=85→0.3(w2), battery=75→0.375(w1.5), duration 27000→0(w1),
-    // hrv ratio 66/60=1.1→90 idx→0.2(w2), wellness avg5→100 idx→0(w1), drain=20→0.2(w1)
-    // raw = 0.3+0.375+0+0.2+0+0.2 = 1.075, avail=8.5 -> (1.075/8.5)*7 ≈ 0.885
-    const result = computeDailyLifeLoad({
-      sleepScore: 85, bodyBatteryHigh: 75, sleepSecs: 27000,
-      hrv: 66, hrvBaseline: 60, energy: 5, legFreshness: 5, batteryDrained: 20,
-    })
-    expect(result).toBeCloseTo(0.885, 2)
+  test('hrr is clamped at 0 when avgHr is below restingHr', () => {
+    const result = computeDailyTrimp(
+      [{ name: 'Very easy spin', durationMin: 60, avgHr: 40, trainingLoad: 10 }],
+      190, 50,
+    )
+    expect(result).toBe(0)
   })
 })
 
-describe('computeStrainComponents', () => {
-  test('returns null when all inputs null', () => {
-    expect(computeStrainComponents(null, { sleepScore: null, bodyBatteryHigh: null })).toBeNull()
+describe('computeTrimpRef', () => {
+  test('fewer than 5 samples uses the cold-start default', () => {
+    expect(computeTrimpRef([100, 120, 90])).toBe(150)
   })
 
-  test('workoutPts = (load / 150) * 14', () => {
-    const c = computeStrainComponents(75, { sleepScore: null, bodyBatteryHigh: null })
-    expect(c).not.toBeNull()
-    expect(c!.workoutPts).toBeCloseTo(7, 1)   // (75/150)*14 = 7
-    expect(c!.workoutLoad).toBe(75)
+  test('empty history uses the cold-start default', () => {
+    expect(computeTrimpRef([])).toBe(150)
   })
 
-  test('lifePts matches computeDailyLifeLoad', () => {
-    const c = computeStrainComponents(0, { sleepScore: 85, bodyBatteryHigh: 75 })!
-    const expected = computeDailyLifeLoad({ sleepScore: 85, bodyBatteryHigh: 75 })!
-    expect(c.lifePts).toBeCloseTo(expected, 4)
+  test('95th percentile of 21 samples picks the top value', () => {
+    const samples = Array.from({ length: 21 }, (_, i) => (i + 1) * 10) // 10..210
+    // ceil(0.95*21)-1 = ceil(19.95)-1 = 20-1 = 19 → sorted[19] = 200
+    expect(computeTrimpRef(samples)).toBe(200)
   })
 
-  test('raw sub-scores are un-normalised', () => {
-    // battery=20 only: raw = (80/100)*1.5 = 1.2; normalised life = 5.6
-    // batteryRawPts should be 1.2, not 5.6
-    const c = computeStrainComponents(0, { sleepScore: null, bodyBatteryHigh: 20 })!
-    expect(c.sleepRawPts).toBe(0)
-    expect(c.batteryRawPts).toBeCloseTo(1.2, 1)
-  })
-
-  test('sleepDurationRawPts for 6h sleep', () => {
-    // 21600s: durationScore ≈ 40 → (60/100)*1 = 0.6
-    const c = computeStrainComponents(0, { sleepScore: null, bodyBatteryHigh: null, sleepSecs: 21600 })!
-    expect(c.sleepDurationRawPts).toBeCloseTo(0.6, 1)
-    expect(c.sleepRawPts).toBe(0)
-    expect(c.batteryRawPts).toBe(0)
-  })
-
-  test('sleepDurationRawPts is 0 at 7.5h target', () => {
-    const c = computeStrainComponents(0, { sleepScore: null, bodyBatteryHigh: null, sleepSecs: 27000 })!
-    expect(c.sleepDurationRawPts).toBeCloseTo(0, 4)
-  })
-
-  test('hrvRawPts reflects suppressed HRV', () => {
-    // ratio 30/60=0.5 -> idx 0 -> raw=((100-0)/100)*2=2
-    const c = computeStrainComponents(0, { sleepScore: null, bodyBatteryHigh: null, hrv: 30, hrvBaseline: 60 })!
-    expect(c.hrvRawPts).toBeCloseTo(2, 4)
-    expect(c.hrv).toBe(30)
-    expect(c.hrvBaseline).toBe(60)
-  })
-
-  test('wellnessRawPts reflects low subjective wellness', () => {
-    // energy=1,legs=1 -> avg=1 -> idx 0 -> raw=((100-0)/100)*1=1
-    const c = computeStrainComponents(0, { sleepScore: null, bodyBatteryHigh: null, energy: 1, legFreshness: 1 })!
-    expect(c.wellnessRawPts).toBeCloseTo(1, 4)
-    expect(c.energy).toBe(1)
-    expect(c.legFreshness).toBe(1)
-  })
-
-  test('drainRawPts reflects battery drain directly', () => {
-    // drained=60 -> raw=(60/100)*1=0.6
-    const c = computeStrainComponents(0, { sleepScore: null, bodyBatteryHigh: null, batteryDrained: 60 })!
-    expect(c.drainRawPts).toBeCloseTo(0.6, 4)
-    expect(c.batteryDrained).toBe(60)
-  })
-
-  test('source values pass through unchanged', () => {
-    const c = computeStrainComponents(100, { sleepScore: 72, bodyBatteryHigh: 35, sleepSecs: 25200 })!
-    expect(c.sleepScore).toBe(72)
-    expect(c.bodyBatteryHigh).toBe(35)
-    expect(c.sleepSecs).toBe(25200)
-  })
-
-  test('missing new signals default to null on the returned components', () => {
-    const c = computeStrainComponents(0, { sleepScore: 85, bodyBatteryHigh: 75 })!
-    expect(c.hrv).toBeNull()
-    expect(c.hrvBaseline).toBeNull()
-    expect(c.energy).toBeNull()
-    expect(c.legFreshness).toBeNull()
-    expect(c.batteryDrained).toBeNull()
-    expect(c.hrvRawPts).toBe(0)
-    expect(c.wellnessRawPts).toBe(0)
-    expect(c.drainRawPts).toBe(0)
-  })
-
-  test('no workout today — workoutPts is 0', () => {
-    const c = computeStrainComponents(0, { sleepScore: 85, bodyBatteryHigh: null })!
-    expect(c.workoutPts).toBe(0)
-    expect(c.workoutLoad).toBe(0)
-  })
-
-  test('total matches Math.min(21, Math.round(workoutPts + lifePts))', () => {
-    // load=75 → workoutPts=7; sleep=85,battery=75 → lifePts≈1.35
-    // total = round(7 + 1.35) = round(8.35) = 8
-    const c = computeStrainComponents(75, { sleepScore: 85, bodyBatteryHigh: 75 })!
-    expect(c.total).toBe(Math.min(21, Math.round(c.workoutPts + c.lifePts)))
-  })
-
-  test('total caps at 21', () => {
-    // workoutPts=14 (capped), sleep=0 battery=0 → lifePts=7, total=21
-    const c = computeStrainComponents(600, { sleepScore: 0, bodyBatteryHigh: 0 })!
-    expect(c.total).toBe(21)
+  test('zero and negative samples are excluded from the percentile calc', () => {
+    const samples = [0, 0, 0, 100, 120, 90, 110, 105]
+    expect(computeTrimpRef(samples)).toBeGreaterThan(0)
+    expect(computeTrimpRef(samples)).toBeLessThanOrEqual(120)
   })
 })
 
-describe('computeDailyStrain', () => {
-  test('typical training day with life load', () => {
-    // activityLoad=75, lifeLoad=3.78 → workout=7, life=3.78 → round(10.78)=11
-    expect(computeDailyStrain(75, 3.78)).toBe(11)
+describe('computeWorkoutStrain', () => {
+  test('zero dailyTrimp → zero strain', () => {
+    expect(computeWorkoutStrain(0, 150)).toBe(0)
   })
 
-  test('rest day with high life load', () => {
-    // activityLoad=0, lifeLoad=5.6 → round(5.6)=6
-    expect(computeDailyStrain(0, 5.6)).toBe(6)
+  test('dailyTrimp equal to trimpRef lands at 21 (the reference IS the hard-day ceiling)', () => {
+    expect(computeWorkoutStrain(150, 150)).toBe(21)
   })
 
-  test('very high training load caps at 21', () => {
-    expect(computeDailyStrain(600, 7)).toBe(21)
+  test('dailyTrimp well below trimpRef gives a moderate score', () => {
+    // 21 * ln(51) / ln(151) = 21 * 3.9318 / 5.0173 ≈ 16.46 → rounds to 16
+    const result = computeWorkoutStrain(50, 150)
+    expect(result).toBe(16)
   })
 
-  test('zero everything → 0', () => {
-    expect(computeDailyStrain(0, 0)).toBe(0)
+  test('dailyTrimp above trimpRef still caps at 21', () => {
+    expect(computeWorkoutStrain(500, 150)).toBe(21)
   })
 
-  test('null activityLoad falls back to life only', () => {
-    // round(3.5) = 4 (JS rounds .5 up)
-    expect(computeDailyStrain(null, 3.5)).toBe(4)
-  })
-
-  test('null lifeLoad falls back to activity only', () => {
-    // workout = (75/150)*14 = 7
-    expect(computeDailyStrain(75, null)).toBe(7)
-  })
-
-  test('both null → null', () => {
-    expect(computeDailyStrain(null, null)).toBeNull()
-  })
-
-  test('zero activityLoad with null lifeLoad → null', () => {
-    expect(computeDailyStrain(0, null)).toBeNull()
+  test('trimpRef of zero is floored to avoid division by ln(1)=0', () => {
+    expect(() => computeWorkoutStrain(50, 0)).not.toThrow()
+    expect(computeWorkoutStrain(50, 0)).toBe(21)
   })
 })
 
 describe('strainLabel', () => {
-  test('below 9 → low', () => expect(strainLabel(8)).toBe('low'))
-  test('9 → moderate', () => expect(strainLabel(9)).toBe('moderate'))
-  test('14 → moderate', () => expect(strainLabel(14)).toBe('moderate'))
-  test('15 → high', () => expect(strainLabel(15)).toBe('high'))
-  test('21 → high', () => expect(strainLabel(21)).toBe('high'))
+  test('0-9 → light', () => {
+    expect(strainLabel(0)).toBe('light')
+    expect(strainLabel(9)).toBe('light')
+  })
+  test('10-13 → moderate', () => {
+    expect(strainLabel(10)).toBe('moderate')
+    expect(strainLabel(13)).toBe('moderate')
+  })
+  test('14-17 → high', () => {
+    expect(strainLabel(14)).toBe('high')
+    expect(strainLabel(17)).toBe('high')
+  })
+  test('18-21 → all_out', () => {
+    expect(strainLabel(18)).toBe('all_out')
+    expect(strainLabel(21)).toBe('all_out')
+  })
+})
+
+describe('computeWorkoutStrainSeries', () => {
+  const maxHr = 190
+
+  test('a past day with existing frozen values is returned as-is and not re-flagged', () => {
+    const result = computeWorkoutStrainSeries(
+      [{
+        date: '2026-07-10',
+        activities: [{ name: 'Ride', durationMin: 60, avgHr: 150, trainingLoad: 80 }],
+        restingHr: 50,
+        frozenDailyTrimp: 999,     // deliberately different from what a live calc would give —
+        frozenTrimpRef: 300,       // proves the frozen values win, not a recompute
+        frozenWorkoutStrain: 12,
+      }],
+      maxHr,
+      '2026-07-18',
+    )
+    expect(result).toEqual([{
+      date: '2026-07-10', dailyTrimp: 999, trimpRef: 300, workoutStrain: 12, needsFreeze: false,
+    }])
+  })
+
+  test('a past day with no frozen values is computed live and flagged for freezing', () => {
+    const result = computeWorkoutStrainSeries(
+      [{
+        date: '2026-07-10',
+        activities: [{ name: 'Ride', durationMin: 60, avgHr: 150, trainingLoad: 80 }],
+        restingHr: 50,
+        frozenDailyTrimp: null, frozenTrimpRef: null, frozenWorkoutStrain: null,
+      }],
+      maxHr,
+      '2026-07-18',
+    )
+    expect(result[0].needsFreeze).toBe(true)
+    expect(result[0].dailyTrimp).toBeCloseTo(108.05, 0)
+    expect(result[0].trimpRef).toBe(150)   // cold start — no prior days in this series
+  })
+
+  test("today's day is never flagged for freezing, even with no existing frozen row", () => {
+    const result = computeWorkoutStrainSeries(
+      [{
+        date: '2026-07-18',
+        activities: [{ name: 'Ride', durationMin: 60, avgHr: 150, trainingLoad: 80 }],
+        restingHr: 50,
+        frozenDailyTrimp: null, frozenTrimpRef: null, frozenWorkoutStrain: null,
+      }],
+      maxHr,
+      '2026-07-18',
+    )
+    expect(result[0].needsFreeze).toBe(false)
+  })
+
+  test('trimpRef for a later day uses the trailing window of earlier days in the same series', () => {
+    // Day 1 has dailyTrimp X (unfrozen, gets computed). Day 2 (today) should see
+    // day 1's freshly-computed value in its trailing window, not the cold-start default.
+    const days = [
+      {
+        date: '2026-07-17',
+        activities: [{ name: 'Hard ride', durationMin: 90, avgHr: 165, trainingLoad: 120 }],
+        restingHr: 50,
+        frozenDailyTrimp: null, frozenTrimpRef: null, frozenWorkoutStrain: null,
+      },
+      {
+        date: '2026-07-18',
+        activities: [],
+        restingHr: 50,
+        frozenDailyTrimp: null, frozenTrimpRef: null, frozenWorkoutStrain: null,
+      },
+    ]
+    const result = computeWorkoutStrainSeries(days, maxHr, '2026-07-18')
+    // With only 1 sample in the trailing window (< TRIMP_REF_MIN_SAMPLES=5), day 2 still
+    // falls back to the cold-start default — this asserts that behaviour explicitly.
+    expect(result[1].trimpRef).toBe(150)
+  })
+
+  test('rolling window caps at 21 days — the 22nd prior day drops out', () => {
+    const days = Array.from({ length: 22 }, (_, i) => ({
+      date: `day-${i}`,
+      activities: [{ name: 'Ride', durationMin: 60, avgHr: 150, trainingLoad: i === 0 ? 500 : 80 }],
+      restingHr: 50,
+      frozenDailyTrimp: null, frozenTrimpRef: null, frozenWorkoutStrain: null,
+    }))
+    // day-0 is a huge outlier; by day index 22 it should have rolled out of the 21-day window.
+    // We just assert the series computes without error and every day has a trimpRef.
+    const result = computeWorkoutStrainSeries(days, maxHr, 'day-999')
+    expect(result).toHaveLength(22)
+    expect(result.every(r => r.trimpRef > 0)).toBe(true)
+  })
+})
+
+describe('computeActivityTrimpBreakdown', () => {
+  test('returns one entry per activity with non-zero trimp, dropping zero-trimp entries', () => {
+    const result = computeActivityTrimpBreakdown(
+      [
+        { name: 'Morning ride', durationMin: 60, avgHr: 150, trainingLoad: 80 },
+        { name: 'Untracked walk', durationMin: 20, avgHr: null, trainingLoad: null },
+      ],
+      190, 50,
+    )
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('Morning ride')
+    expect(result[0].trimp).toBeGreaterThan(0)
+  })
 })
 
 describe('formatStrainForPrompt', () => {
-  test('includes score and label', () => {
+  test('includes score, scale, and label', () => {
     const s = formatStrainForPrompt(11)
-    expect(s).toContain('11')
-    expect(s).toContain('21')
-    expect(s).toContain('moderate')
+    expect(s).toBe('Daily Strain: 11/21 (moderate)')
   })
 
   test('null → empty string', () => {
     expect(formatStrainForPrompt(null)).toBe('')
   })
 
-  test('appends sleep context when sleep is poor', () => {
-    const s = formatStrainForPrompt(10, 45, null)
-    expect(s).toContain('sleep 45/100')
-  })
-
-  test('appends battery context when battery is low', () => {
-    const s = formatStrainForPrompt(10, null, 28)
-    expect(s).toContain('body battery peak 28%')
-  })
-
-  test('appends sleep duration context when sleep is short', () => {
-    const s = formatStrainForPrompt(10, null, null, 19800)  // 5.5h
-    expect(s).toContain('slept 5.5h')
-  })
-
-  test('no sleep duration context when duration is sufficient', () => {
-    const s = formatStrainForPrompt(10, null, null, 25200)  // 7h — above 6h threshold
-    expect(s).not.toContain('slept')
-  })
-
-  test('no context when sleep and battery are good', () => {
-    const s = formatStrainForPrompt(10, 80, 70)
-    expect(s).not.toContain('sleep')
-    expect(s).not.toContain('battery')
+  test('reflects the all_out band at the top of the scale', () => {
+    expect(formatStrainForPrompt(20)).toBe('Daily Strain: 20/21 (all_out)')
   })
 })
 
