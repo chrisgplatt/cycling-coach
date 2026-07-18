@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import type { ICUWellness, DailyStrainPoint } from '@/types'
 import type { HrvStatus } from '@/lib/hrv/baseline'
-import { computeDailyStrain, computeDailyLifeLoad, strainLabel } from '@/lib/strain'
+import { strainLabel } from '@/lib/strain'
 import { isoWeekStart } from '@/lib/chart-helpers'
 
 interface MetricProps {
@@ -42,24 +42,9 @@ function dayLabel(d: Date): string {
   return `${dow} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`
 }
 
-function avgOrNull(vals: Array<number | null>): number | null {
-  const present = vals.filter((v): v is number => v != null)
-  return present.length ? present.reduce((a, b) => a + b, 0) / present.length : null
-}
-
 interface StrainChartPoint {
   label: string
-  workout: number
-  life: number
-  total: number
-  workoutLoad: number
-  sleepScore: number | null
-  sleepSecs: number | null
-  bodyBatteryHigh: number | null
-  garminReadiness: number | null
-  garminRecoveryTimeMins: number | null
-  garminBatteryCharged: number | null
-  garminBatteryDrained: number | null
+  workoutStrain: number
   dateLabel: string
 }
 
@@ -87,17 +72,7 @@ function strainChartData(
         const n = pts.length
         return {
           label,
-          workout: pts.reduce((s, p) => s + p.workout, 0) / n,
-          life: pts.reduce((s, p) => s + p.life, 0) / n,
-          total: Math.round(pts.reduce((s, p) => s + p.total, 0) / n),
-          workoutLoad: pts.reduce((s, p) => s + p.workoutLoad, 0) / n,
-          sleepScore: avgOrNull(pts.map(p => p.sleepScore)),
-          sleepSecs: avgOrNull(pts.map(p => p.sleepSecs)),
-          bodyBatteryHigh: avgOrNull(pts.map(p => p.bodyBatteryHigh)),
-          garminReadiness: avgOrNull(pts.map(p => p.garminReadiness ?? null)),
-          garminRecoveryTimeMins: avgOrNull(pts.map(p => p.garminRecoveryTimeMins ?? null)),
-          garminBatteryCharged: avgOrNull(pts.map(p => p.garminBatteryCharged ?? null)),
-          garminBatteryDrained: avgOrNull(pts.map(p => p.garminBatteryDrained ?? null)),
+          workoutStrain: Math.round(pts.reduce((s, p) => s + p.workoutStrain, 0) / n),
           dateLabel: label,
         }
       })
@@ -119,24 +94,12 @@ function strainChartData(
     let label = ''
     if (tab === '1w') {
       label = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]
-    } else {
-      if (i % 7 === 0) {
-        label = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`
-      }
+    } else if (i % 7 === 0) {
+      label = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`
     }
     result.push({
       label,
-      workout: found?.workout ?? 0,
-      life: found?.life ?? 0,
-      total: found?.total ?? 0,
-      workoutLoad: found?.workoutLoad ?? 0,
-      sleepScore: found?.sleepScore ?? null,
-      sleepSecs: found?.sleepSecs ?? null,
-      bodyBatteryHigh: found?.bodyBatteryHigh ?? null,
-      garminReadiness: found?.garminReadiness ?? null,
-      garminRecoveryTimeMins: found?.garminRecoveryTimeMins ?? null,
-      garminBatteryCharged: found?.garminBatteryCharged ?? null,
-      garminBatteryDrained: found?.garminBatteryDrained ?? null,
+      workoutStrain: found?.workoutStrain ?? 0,
       dateLabel: dayLabel(d),
     })
   }
@@ -193,29 +156,18 @@ function StrainChart({
     const bx = (cx - barW / 2).toFixed(1)
     const bwStr = barW.toFixed(1)
 
-    if (d.life > 0) {
-      const h = (d.life / Y_MAX * CH).toFixed(1)
-      bars.push(
-        <rect key={`life-${i}`}
-          x={bx} y={yOf(d.life).toFixed(1)}
-          width={bwStr} height={h}
-          fill="#f59e0b" rx="1.5"
-        />
-      )
-    }
-    if (d.workout > 0) {
-      const stackTop = d.life + d.workout
-      const h = (d.workout / Y_MAX * CH).toFixed(1)
+    if (d.workoutStrain > 0) {
+      const h = (d.workoutStrain / Y_MAX * CH).toFixed(1)
       bars.push(
         <rect key={`work-${i}`}
-          x={bx} y={yOf(stackTop).toFixed(1)}
+          x={bx} y={yOf(d.workoutStrain).toFixed(1)}
           width={bwStr} height={h}
           fill="#3b82f6" rx="1.5"
         />
       )
     }
 
-    linePoints.push(`${cx.toFixed(1)},${yOf(d.total).toFixed(1)}`)
+    linePoints.push(`${cx.toFixed(1)},${yOf(d.workoutStrain).toFixed(1)}`)
 
     // x-axis labels rendered in HTML overlay below
   })
@@ -225,7 +177,7 @@ function StrainChart({
     const r = n > 15 ? '1.6' : '2.4'
     return (
       <circle key={`dot-${i}`}
-        cx={cx.toFixed(1)} cy={yOf(d.total).toFixed(1)}
+        cx={cx.toFixed(1)} cy={yOf(d.workoutStrain).toFixed(1)}
         r={r} fill="#fff" stroke="#374151" strokeWidth="1.4"
       />
     )
@@ -303,29 +255,10 @@ function StrainChart({
             <div
               data-testid="strain-tooltip"
               className="absolute z-10 bg-gray-900 text-white text-[10px] leading-snug rounded-lg px-2.5 py-2 shadow-lg pointer-events-none whitespace-nowrap"
-              style={{ top: yPct(yOf(d.total)), ...posStyle }}
+              style={{ top: yPct(yOf(d.workoutStrain)), ...posStyle }}
             >
               <div className="font-bold mb-1">{d.dateLabel}</div>
-              <div>
-                Workout <span className="text-blue-300">{(Math.round(d.workout * 10) / 10).toFixed(1)}/14</span>
-                {d.workoutLoad > 0 && ` (${Math.round(d.workoutLoad)} TSS)`}
-              </div>
-              <div>Wellbeing <span className="text-amber-300">{(Math.round(d.life * 10) / 10).toFixed(1)}/7</span></div>
-              {d.sleepScore != null && <div className="pl-2 text-gray-300">Sleep {Math.round(d.sleepScore)}/100</div>}
-              {d.sleepSecs != null && <div className="pl-2 text-gray-300">Duration {(d.sleepSecs / 3600).toFixed(1)}h</div>}
-              {d.garminBatteryCharged != null || d.garminBatteryDrained != null
-                ? <div className="pl-2 text-gray-300">Battery ↑{d.garminBatteryCharged ?? '?'} / ↓{d.garminBatteryDrained ?? '?'}</div>
-                : d.bodyBatteryHigh != null
-                  ? <div className="pl-2 text-gray-300">Peak battery {Math.round(d.bodyBatteryHigh)}%</div>
-                  : null
-              }
-              {d.garminReadiness != null && (
-                <div className="pl-2 text-gray-300">
-                  Readiness {d.garminReadiness}/100
-                  {d.garminRecoveryTimeMins != null && ` · recover in ${(d.garminRecoveryTimeMins / 60).toFixed(1)}h`}
-                </div>
-              )}
-              <div className="font-bold mt-1">Total {d.total}/21</div>
+              <div className="font-bold">Strain {d.workoutStrain}/21</div>
             </div>
           )
         })()}
@@ -335,13 +268,14 @@ function StrainChart({
 }
 
 const BAND_BG: Record<string, string> = {
-  low:      'bg-emerald-600',
+  light:    'bg-emerald-600',
   moderate: 'bg-amber-600',
-  high:     'bg-red-600',
+  high:     'bg-orange-600',
+  all_out:  'bg-red-600',
 }
 
 const BAND_LABEL: Record<string, string> = {
-  low: 'Low', moderate: 'Moderate', high: 'High',
+  light: 'Light', moderate: 'Moderate', high: 'High', all_out: 'All Out',
 }
 
 const TRAINING_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
@@ -359,8 +293,8 @@ export default function MetricsBar({
   lastRideLabel,
   onStrainTap,
   strainHistory,
+  strainToday,
   hrvStatus,
-  todayDailyWellness,
 }: {
   wellness: ICUWellness | null
   stale?: { hrv?: boolean; restingHr?: boolean }
@@ -368,8 +302,8 @@ export default function MetricsBar({
   lastRideLabel?: string
   onStrainTap?: () => void
   strainHistory?: DailyStrainPoint[]
+  strainToday?: DailyStrainPoint | null
   hrvStatus?: HrvStatus | null
-  todayDailyWellness?: { energy: number | null; leg_freshness: number | null } | null
 }) {
   const [trendOpen, setTrendOpen] = useState(false)
   const [trendTab, setTrendTab] = useState<'1w' | '1m' | '3m'>('1w')
@@ -378,17 +312,7 @@ export default function MetricsBar({
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
   const formPositive = form !== null && form >= 0
-  const lifeLoad = computeDailyLifeLoad({
-    sleepScore: wellness.sleep_score,
-    bodyBatteryHigh: wellness.body_battery_high,
-    sleepSecs: wellness.sleep_secs,
-    hrv: hrvStatus?.today ?? null,
-    hrvBaseline: hrvStatus?.baselineMean ?? null,
-    energy: todayDailyWellness?.energy ?? null,
-    legFreshness: todayDailyWellness?.leg_freshness ?? null,
-    batteryDrained: wellness.garmin_body_battery_drained ?? null,
-  })
-  const dailyStrain = computeDailyStrain(wellness.garmin_training_load, lifeLoad)
+  const dailyStrain = strainToday?.workoutStrain ?? null
   const strainCategory = dailyStrain !== null ? strainLabel(dailyStrain) : null
 
   return (
@@ -526,12 +450,8 @@ export default function MetricsBar({
               {/* Legend */}
               <div className="flex gap-3 justify-center pb-2.5 pt-1">
                 <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                  <div className="w-2 h-2 rounded-[2px]" style={{ background: '#f59e0b' }} />
-                  Wellbeing
-                </div>
-                <div className="flex items-center gap-1 text-[10px] text-gray-500">
                   <div className="w-2 h-2 rounded-[2px]" style={{ background: '#3b82f6' }} />
-                  Workout
+                  Strain
                 </div>
                 <div className="flex items-center gap-1 text-[10px] text-gray-500">
                   <svg width="14" height="8" style={{ flexShrink: 0 }}>

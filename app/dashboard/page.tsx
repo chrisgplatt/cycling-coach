@@ -11,7 +11,6 @@ import PlanReviewModal from '@/components/PlanReviewModal'
 import { isoWeek } from '@/lib/iso-week'
 import { getWeekBounds } from '@/lib/week-bounds'
 import { localDateStr } from '@/lib/local-date'
-import { computeDailyActivityLoad } from '@/lib/strain'
 import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { estimateTss } from '@/lib/estimate-tss'
@@ -446,11 +445,10 @@ export default function DashboardPage() {
   }
 
   const todayStr = localDateStr(new Date())
-  const todayActivityLoad = computeDailyActivityLoad(syncData?.activities ?? [], todayStr, currentFTP)
+  const strainToday = chartsData?.dailyStrain.find(d => d.date === todayStr) ?? null
   const latestWellnessWithLoad: ICUWellness | null = latestWellness
     ? {
         ...latestWellness,
-        garmin_training_load: todayActivityLoad > 0 ? todayActivityLoad : null,
         // Merge Garmin data from today's sync if available
         garmin_training_readiness: syncData?.garmin_today?.garmin_training_readiness ?? latestWellness.garmin_training_readiness,
         garmin_training_status: syncData?.garmin_today?.garmin_training_status ?? latestWellness.garmin_training_status,
@@ -681,8 +679,8 @@ export default function DashboardPage() {
             lastRideLabel={lastRide ? formatLastRide() : undefined}
             onStrainTap={() => setStrainSheetOpen(true)}
             strainHistory={chartsData?.dailyStrain}
+            strainToday={strainToday}
             hrvStatus={hrvStatus}
-            todayDailyWellness={todayDailyWellnessForCard}
           />
           <HrvStatusChip embedded />
           <HrvTrendPanel wellness={wellnessArr} />
