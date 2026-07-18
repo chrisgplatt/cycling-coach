@@ -3,8 +3,6 @@ import { useEffect, useRef, useState } from 'react'
 import WorkoutCard from '@/components/WorkoutCard'
 import ReadinessBadge from '@/components/ReadinessBadge'
 import WeatherStrip from '@/components/WeatherStrip'
-import RecoveryBreakdownModal from '@/components/RecoveryBreakdownModal'
-import { computeRecoveryScore } from '@/lib/recovery-score'
 import type { Workout, ICUWellness, TrainingEvent, WeatherSummary } from '@/types'
 import type { ReadinessVerdict } from '@/lib/claude/briefing'
 
@@ -14,29 +12,16 @@ interface Props {
   todayEvent?: TrainingEvent | null
   extraSessionCount?: number
   ftp?: number
-  hrvBaseline?: number | null
   todayDailyWellness?: { energy: number | null; leg_freshness: number | null }
   onWorkoutClick?: (workout: Workout) => void
   onChatWithCoach?: () => void
 }
 
-const BAND_COLOUR = {
-  high: 'text-emerald-600',
-  moderate: 'text-amber-500',
-  low: 'text-red-500',
-} as const
-
-const BAND_DOT = {
-  high: 'bg-emerald-500',
-  moderate: 'bg-amber-500',
-  low: 'bg-red-500',
-} as const
-
 const BRIEFING_CACHE_KEY = 'cycling_coach_briefing'
 
 export default function TodayCard({
   workout, wellness, todayEvent, extraSessionCount, ftp,
-  hrvBaseline, todayDailyWellness,
+  todayDailyWellness,
   onWorkoutClick, onChatWithCoach,
 }: Props) {
   const [coachNote, setCoachNote] = useState<string | null>(null)
@@ -47,7 +32,6 @@ export default function TodayCard({
   const [refreshing, setRefreshing] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
   const [cacheWorkoutCompleted, setCacheWorkoutCompleted] = useState<boolean | null>(null)
-  const [showRecoveryBreakdown, setShowRecoveryBreakdown] = useState(false)
   const hasAutoRefreshed = useRef(false)
 
   async function fetchNote(refresh = false) {
@@ -118,25 +102,6 @@ export default function TodayCard({
     await fetchNote(true)
   }
 
-  const tsb = wellness?.form ?? (
-    wellness?.ctl !== null && wellness?.atl !== null && wellness?.ctl !== undefined && wellness?.atl !== undefined
-      ? wellness.ctl - wellness.atl
-      : null
-  )
-
-  const recovery = computeRecoveryScore({
-    hrv: wellness?.hrv ?? null,
-    hrvBaseline: hrvBaseline ?? null,
-    garmin_sleep_deep_secs: wellness?.garmin_sleep_deep_secs ?? null,
-    garmin_sleep_light_secs: wellness?.garmin_sleep_light_secs ?? null,
-    garmin_sleep_rem_secs: wellness?.garmin_sleep_rem_secs ?? null,
-    garmin_sleep_awake_secs: wellness?.garmin_sleep_awake_secs ?? null,
-    body_battery_high: wellness?.body_battery_high ?? null,
-    energy: todayDailyWellness?.energy ?? null,
-    leg_freshness: todayDailyWellness?.leg_freshness ?? null,
-    tsb,
-  })
-
   const today = new Date()
   const dateLabel = today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
   const dayType = workout
@@ -149,28 +114,9 @@ export default function TodayCard({
     <>
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Today</p>
-          <p className="text-sm font-medium text-slate-700 mt-0.5">{dateLabel} · {dayType}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowRecoveryBreakdown(true)}
-          className="text-right min-h-[44px] px-1 -mr-1"
-          aria-label="Recovery score breakdown"
-        >
-          <p className="text-xs text-slate-400 mb-0.5">Recovery</p>
-          <div className="flex items-center justify-end gap-1.5" data-testid="recovery-score">
-            <span className={`w-2 h-2 rounded-full ${BAND_DOT[recovery.band]}`} aria-hidden="true" />
-            <span className={`text-sm font-semibold ${BAND_COLOUR[recovery.band]}`}>
-              {recovery.score} <span className="capitalize">{recovery.band}</span>
-            </span>
-          </div>
-          {recovery.explanation ? (
-            <p className="text-[11px] text-slate-400 mt-0.5 max-w-[140px] text-right">{recovery.explanation}</p>
-          ) : null}
-        </button>
+      <div>
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Today</p>
+        <p className="text-sm font-medium text-slate-700 mt-0.5">{dateLabel} · {dayType}</p>
       </div>
 
       {/* Today's workout or event */}
@@ -263,9 +209,6 @@ export default function TodayCard({
         )}
       </div>
     </div>
-    {showRecoveryBreakdown && (
-      <RecoveryBreakdownModal recovery={recovery} onClose={() => setShowRecoveryBreakdown(false)} />
-    )}
     </>
   )
 }

@@ -660,7 +660,6 @@ export default function DashboardPage() {
           todayEvent={events.find(e => eventCoversDate(e, todayStr)) ?? null}
           extraSessionCount={todaySessionCount - 1}
           ftp={currentFTP}
-          hrvBaseline={hrvStatus.baselineMean}
           todayDailyWellness={todayDailyWellnessForCard}
           onWorkoutClick={w => setSelectedWorkout(w)}
           onChatWithCoach={todayWorkout ? () => setChatWorkout(todayWorkout) : undefined}
