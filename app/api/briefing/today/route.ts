@@ -6,7 +6,7 @@ import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-mod
 import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
-import { computeDailyStrain, computeDailyActivityLoad, computeDailyLifeLoad } from '@/lib/strain'
+import { computeDailyTrimp, computeTrimpRef, computeWorkoutStrain, type DailyActivityInput } from '@/lib/strain'
 import { computeRecoveryScore } from '@/lib/recovery-score'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { eventCoversDate, eventEndDate } from '@/lib/events'
@@ -217,8 +217,8 @@ export async function GET(req: NextRequest) {
   }
 
   const twoDaysAgo = new Date(Date.now() - 2 * 864e5).toISOString().split('T')[0]
-  const sevenDaysAgoForStrain = new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0]
-  const [{ data: wellnessRows }, { data: garminRow }, { data: strainWellnessRows }, { data: strainGarminRows }] = await Promise.all([
+  const twentyOneDaysAgo = new Date(Date.now() - 21 * 864e5).toISOString().split('T')[0]
+  const [{ data: wellnessRows }, { data: garminRow }, { data: strainDailyWellnessRows }] = await Promise.all([
     supabase
       .from('daily_wellness')
       .select('*')
@@ -234,19 +234,11 @@ export async function GET(req: NextRequest) {
       .maybeSingle(),
     supabase
       .from('daily_wellness')
-      .select('date, energy, leg_freshness')
+      .select('date, daily_trimp')
       .eq('user_id', user.id)
-      .gte('date', sevenDaysAgoForStrain)
-      .lte('date', today),
-    supabase
-      .from('garmin_wellness')
-      .select('date, garmin_body_battery_drained')
-      .eq('user_id', user.id)
-      .gte('date', sevenDaysAgoForStrain)
-      .lte('date', today),
+      .gte('date', twentyOneDaysAgo)
+      .lt('date', today),
   ])
-  const strainWellnessByDate = new Map((strainWellnessRows ?? []).map(w => [w.date as string, w]))
-  const strainDrainByDate = new Map((strainGarminRows ?? []).map(g => [g.date as string, g.garmin_body_battery_drained as number | null]))
   const todayGarmin = garminRow as Pick<GarminWellness,
     | 'garmin_training_readiness' | 'garmin_recovery_time_mins' | 'garmin_training_status'
     | 'garmin_body_battery_current' | 'garmin_body_battery_charged' | 'garmin_body_battery_drained'
@@ -261,42 +253,31 @@ export async function GET(req: NextRequest) {
   const maxHrProfile = profile as { date_of_birth?: string | null; max_hr_manual?: number | null; observed_max_hr?: number | null } | null
   const maxHr = resolveMaxHrFromProfile(maxHrProfile)?.value ?? null
 
-  // Daily Strain — computed here (not in the ICU block above) since it needs
-  // hrvStatus, subjective wellness, and Garmin battery drain, all fetched above.
+  // Daily Strain — pure TRIMP load. strainActivities/strainWellness were already
+  // fetched in the ICU block above (7 days back); the trailing trimp window for
+  // trimpRef comes from already-frozen daily_wellness rows, matching the charts route.
   if (strainWellness.length > 0 || strainActivities.length > 0) {
-    const latestStrainWellness: ICUWellness | undefined = strainWellness.at(-1)
-    const todayLoad = computeDailyActivityLoad(strainActivities, today)
-    const todayStrainDw = strainWellnessByDate.get(today)
-    const todayLifeLoad = computeDailyLifeLoad({
-      sleepScore: latestStrainWellness?.sleep_score ?? null,
-      bodyBatteryHigh: latestStrainWellness?.body_battery_high ?? null,
-      sleepSecs: latestStrainWellness?.sleep_secs ?? null,
-      hrv,
-      hrvBaseline: hrvStatus?.baselineMean ?? null,
-      energy: todayStrainDw?.energy ?? null,
-      legFreshness: todayStrainDw?.leg_freshness ?? null,
-      batteryDrained: todayGarmin?.garmin_body_battery_drained ?? null,
-    })
-    dailyStrain = computeDailyStrain(todayLoad > 0 ? todayLoad : null, todayLifeLoad)
-    strainHistory = strainWellness.map(w => {
-      const dw = strainWellnessByDate.get(w.id)
-      return {
-        date: w.id,
-        strain: computeDailyStrain(
-          computeDailyActivityLoad(strainActivities, w.id) || null,
-          computeDailyLifeLoad({
-            sleepScore: w.sleep_score,
-            bodyBatteryHigh: w.body_battery_high,
-            sleepSecs: w.sleep_secs,
-            hrv: w.hrv,
-            hrvBaseline: hrvStatus?.baselineMean ?? null,
-            energy: dw?.energy ?? null,
-            legFreshness: dw?.leg_freshness ?? null,
-            batteryDrained: strainDrainByDate.get(w.id) ?? null,
-          }),
-        ),
-      }
-    })
+    const trailingTrimp = (strainDailyWellnessRows ?? [])
+      .map(r => (r as { daily_trimp: number | null }).daily_trimp)
+      .filter((v): v is number => v != null)
+    const trimpRef = computeTrimpRef(trailingTrimp)
+
+    const activitiesForDate = (date: string): DailyActivityInput[] =>
+      strainActivities
+        .filter(a => a.start_date_local.slice(0, 10) === date)
+        .map(a => ({ name: a.name, durationMin: a.moving_time / 60, avgHr: a.average_heartrate, trainingLoad: a.training_load }))
+
+    const todayRestingHr = todayGarmin?.garmin_resting_hr ?? strainWellness.at(-1)?.resting_hr ?? null
+    const todayTrimp = computeDailyTrimp(activitiesForDate(today), maxHr, todayRestingHr)
+    dailyStrain = computeWorkoutStrain(todayTrimp, trimpRef)
+
+    strainHistory = strainWellness.map(w => ({
+      date: w.id,
+      strain: computeWorkoutStrain(
+        computeDailyTrimp(activitiesForDate(w.id), maxHr, w.garmin_resting_hr ?? w.resting_hr),
+        trimpRef,
+      ),
+    }))
   }
 
   const recoveryResult = computeRecoveryScore({
