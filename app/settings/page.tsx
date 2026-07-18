@@ -54,6 +54,8 @@ export default function SettingsPage() {
   const [zonesResult, setZonesResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [ftpBackfilling, setFtpBackfilling] = useState(false)
   const [ftpBackfillResult, setFtpBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [strainBackfilling, setStrainBackfilling] = useState(false)
+  const [strainBackfillResult, setStrainBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [locationLabel, setLocationLabel] = useState('')
@@ -390,6 +392,27 @@ export default function SettingsPage() {
     }
   }
 
+  async function runBackfillStrain() {
+    setStrainBackfilling(true)
+    setStrainBackfillResult(null)
+    try {
+      const res = await fetch('/api/admin/backfill-strain', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setStrainBackfillResult({
+          ok: true,
+          message: data.backfilled === 0 ? 'All days already backfilled.' : `${data.backfilled} of ${data.totalDays} days backfilled.`,
+        })
+      } else {
+        setStrainBackfillResult({ ok: false, message: data.error ?? 'Backfill failed.' })
+      }
+    } catch {
+      setStrainBackfillResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setStrainBackfilling(false)
+    }
+  }
+
   async function previewZonesFix() {
     setZonesFixing(true)
     setZonesResult(null)
@@ -560,6 +583,9 @@ export default function SettingsPage() {
         ftpBackfilling={ftpBackfilling}
         ftpBackfillResult={ftpBackfillResult}
         onRunBackfillFtp={runBackfillFtp}
+        strainBackfilling={strainBackfilling}
+        strainBackfillResult={strainBackfillResult}
+        onRunBackfillStrain={runBackfillStrain}
       />
 
       {/* Location for weather */}
