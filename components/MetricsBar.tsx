@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import type { ICUWellness, DailyStrainPoint } from '@/types'
 import type { HrvStatus } from '@/lib/hrv/baseline'
-import { strainLabel } from '@/lib/strain'
 import { isoWeekStart } from '@/lib/chart-helpers'
 
 interface MetricProps {
@@ -267,17 +266,6 @@ function StrainChart({
   )
 }
 
-const BAND_BG: Record<string, string> = {
-  light:    'bg-emerald-600',
-  moderate: 'bg-amber-600',
-  high:     'bg-orange-600',
-  all_out:  'bg-red-600',
-}
-
-const BAND_LABEL: Record<string, string> = {
-  light: 'Light', moderate: 'Moderate', high: 'High', all_out: 'All Out',
-}
-
 const TRAINING_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   PEAKING:        { label: 'Peaking',        bg: 'bg-emerald-100', text: 'text-emerald-700' },
   MAINTAINING:    { label: 'Maintaining',    bg: 'bg-blue-100',    text: 'text-blue-700' },
@@ -290,19 +278,13 @@ export default function MetricsBar({
   wellness,
   stale = {},
   embedded = false,
-  lastRideLabel,
-  onStrainTap,
   strainHistory,
-  strainToday,
   hrvStatus,
 }: {
   wellness: ICUWellness | null
   stale?: { hrv?: boolean; restingHr?: boolean }
   embedded?: boolean
-  lastRideLabel?: string
-  onStrainTap?: () => void
   strainHistory?: DailyStrainPoint[]
-  strainToday?: DailyStrainPoint | null
   hrvStatus?: HrvStatus | null
 }) {
   const [trendOpen, setTrendOpen] = useState(false)
@@ -312,55 +294,9 @@ export default function MetricsBar({
   if (!wellness) return null
   const form = wellness.form ?? (wellness.ctl !== null && wellness.atl !== null ? wellness.ctl - wellness.atl : null)
   const formPositive = form !== null && form >= 0
-  const dailyStrain = strainToday?.workoutStrain ?? null
-  const strainCategory = dailyStrain !== null ? strainLabel(dailyStrain) : null
 
   return (
     <div className={embedded ? 'overflow-hidden' : 'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden'}>
-
-      {strainCategory ? (
-        <>
-          {/* Coloured strain band */}
-          <div className={`flex items-center justify-between px-4 py-3.5 ${BAND_BG[strainCategory]}${onStrainTap ? ' cursor-pointer active:opacity-90' : ''}`} onClick={onStrainTap}>
-            <div>
-              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/60 mb-1.5">Strain</div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-4xl font-black tracking-tight text-white leading-none">
-                  {dailyStrain}
-                </span>
-                <span className="text-lg font-medium text-white/55">/21</span>
-                <span className="ml-1 text-sm font-bold uppercase tracking-wide text-white/90">
-                  {BAND_LABEL[strainCategory]}
-                </span>
-              </div>
-            </div>
-            <div className="text-right">
-              {lastRideLabel && (
-                <div className="text-[11px] text-white/60">
-                  Last ride: <span className="font-semibold text-white/85">{lastRideLabel}</span>
-                </div>
-              )}
-            </div>
-          </div>
-          {/* Progress bar */}
-          <div className="h-[3px] bg-black/10">
-            <div
-              className="h-full bg-white/40 transition-all"
-              style={{ width: `${Math.round((dailyStrain! / 21) * 100)}%` }}
-            />
-          </div>
-        </>
-      ) : (
-        /* Fallback gray header when no strain data */
-        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-          <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Fitness Stats</h2>
-          <div className="text-right">
-            {lastRideLabel && (
-              <div className="text-[11px] text-gray-400">Last ride: <span className="font-medium text-gray-500">{lastRideLabel}</span></div>
-            )}
-          </div>
-        </div>
-      )}
 
       <div className="flex divide-x divide-gray-100">
         <Metric label="CTL" value={wellness.ctl} valueClass="text-blue-600" />

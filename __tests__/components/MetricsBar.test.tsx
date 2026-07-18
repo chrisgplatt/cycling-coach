@@ -1,7 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import MetricsBar from '@/components/MetricsBar'
 import type { ICUWellness, DailyStrainPoint } from '@/types'
-import type { HrvStatus } from '@/lib/hrv/baseline'
 
 const wellness: ICUWellness = {
   id: '2026-05-11', ctl: 65, atl: 72, form: -7, hrv: 68, resting_hr: 52, sleep_secs: 28800, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null,
@@ -64,53 +63,5 @@ describe('MetricsBar strain trend tooltip', () => {
 
     fireEvent.click(point)
     expect(screen.queryByTestId('strain-tooltip')).not.toBeInTheDocument()
-  })
-})
-
-describe('MetricsBar strain band', () => {
-  const barebonesWellness: ICUWellness = {
-    id: '2026-07-05', ctl: 65, atl: 72, form: -7, hrv: null, resting_hr: 52,
-    sleep_secs: null, body_battery_low: null, body_battery_high: null,
-    stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null,
-  }
-
-  const suppressedHrvStatus: HrvStatus = {
-    label: 'suppressed', sufficient: true, daysOfData: 60, today: 30, sevenDayAvg: 32,
-    baselineMean: 60, lowerBound: 54, upperBound: 66, trend: 'falling', baselineDrift: 'stable',
-  }
-
-  function strainPoint(workoutStrain: number): DailyStrainPoint {
-    return {
-      date: '2026-07-05',
-      dailyTrimp: 0,
-      trimpRef: 150,
-      workoutStrain,
-      garminReadiness: null,
-      garminRecoveryTimeMins: null,
-      garminBatteryCharged: null,
-      garminBatteryDrained: null,
-      garminStressMax: null,
-    }
-  }
-
-  it('reads the strain score from the strainToday prop, not from wellness/hrv', () => {
-    render(<MetricsBar wellness={barebonesWellness} hrvStatus={suppressedHrvStatus} strainToday={strainPoint(7)} />)
-    expect(screen.getByText('7')).toBeInTheDocument()
-    expect(screen.getByText('Light')).toBeInTheDocument()
-  })
-
-  it('shows the "Moderate" band label for a mid-range score', () => {
-    render(<MetricsBar wellness={barebonesWellness} strainToday={strainPoint(11)} />)
-    expect(screen.getByText('Moderate')).toBeInTheDocument()
-  })
-
-  it('shows the "High" band label for a high score', () => {
-    render(<MetricsBar wellness={barebonesWellness} strainToday={strainPoint(15)} />)
-    expect(screen.getByText('High')).toBeInTheDocument()
-  })
-
-  it('shows the "All Out" band label for a max score', () => {
-    render(<MetricsBar wellness={barebonesWellness} strainToday={strainPoint(19)} />)
-    expect(screen.getByText('All Out')).toBeInTheDocument()
   })
 })

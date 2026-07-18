@@ -706,9 +706,7 @@ export default function DashboardPage() {
             wellness={latestWellnessWithLoad}
             stale={wellnessStale}
             embedded
-            lastRideLabel={lastRide ? formatLastRide() : undefined}
             strainHistory={chartsData?.dailyStrain}
-            strainToday={strainToday}
             hrvStatus={hrvStatus}
           />
           <HrvStatusChip embedded />
