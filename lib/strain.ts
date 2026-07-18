@@ -190,7 +190,7 @@ export function computeDailyStrain(
   if (activityLoad == null && lifeLoad == null) return null
   // No activity load and life signals not yet synced — nothing meaningful to show
   if ((activityLoad == null || activityLoad === 0) && lifeLoad == null) return null
-  const workout = ((activityLoad ?? 0) / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT
+  const workout = Math.min(STRAIN_WORKOUT_WEIGHT, ((activityLoad ?? 0) / STRAIN_TRAINING_LOAD_MAX) * STRAIN_WORKOUT_WEIGHT)
   const life = lifeLoad ?? 0
   return Math.min(21, Math.round(workout + life))
 }
