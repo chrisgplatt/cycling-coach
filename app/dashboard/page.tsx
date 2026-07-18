@@ -13,6 +13,7 @@ import { getWeekBounds } from '@/lib/week-bounds'
 import { localDateStr } from '@/lib/local-date'
 import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
+import { computeRecoveryScore } from '@/lib/recovery-score'
 import { estimateTss } from '@/lib/estimate-tss'
 import { isSessionCountable, isSessionCompleted } from '@/lib/progress/session-counting'
 import { isGarminSyncStale, formatGarminSyncTime } from '@/lib/garmin/sync-staleness'
@@ -44,7 +45,7 @@ import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import HrvStatusChip from '@/components/HrvStatusChip'
 import HrvTrendPanel from '@/components/HrvTrendPanel'
-import StrainBreakdownSheet from '@/components/StrainBreakdownSheet'
+import StrainRingStrip from '@/components/StrainRingStrip'
 import ProgressStats from '@/components/ProgressStats'
 import WellnessCard from '@/components/WellnessCard'
 import WellnessSheet from '@/components/WellnessSheet'
@@ -124,7 +125,6 @@ export default function DashboardPage() {
   const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(null)
   const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<ICUActivity | null>(null)
-  const [strainSheetOpen, setStrainSheetOpen] = useState(false)
   const [chartsData, setChartsData] = useState<import('@/types').ChartsData | null>(null)
   const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
   const [syncVersion, setSyncVersion] = useState(0)
@@ -565,6 +565,24 @@ export default function DashboardPage() {
     ? { energy: todayDailyWellnessEntry.energy, leg_freshness: todayDailyWellnessEntry.leg_freshness }
     : undefined
 
+  const tsbForRecovery = latestWellnessWithLoad?.form ?? (
+    latestWellnessWithLoad?.ctl != null && latestWellnessWithLoad?.atl != null
+      ? latestWellnessWithLoad.ctl - latestWellnessWithLoad.atl
+      : null
+  )
+  const recovery = computeRecoveryScore({
+    hrv: latestWellnessWithLoad?.hrv ?? null,
+    hrvBaseline: hrvStatus.baselineMean,
+    garmin_sleep_deep_secs: latestWellnessWithLoad?.garmin_sleep_deep_secs ?? null,
+    garmin_sleep_light_secs: latestWellnessWithLoad?.garmin_sleep_light_secs ?? null,
+    garmin_sleep_rem_secs: latestWellnessWithLoad?.garmin_sleep_rem_secs ?? null,
+    garmin_sleep_awake_secs: latestWellnessWithLoad?.garmin_sleep_awake_secs ?? null,
+    body_battery_high: latestWellnessWithLoad?.body_battery_high ?? null,
+    energy: todayDailyWellnessForCard?.energy ?? null,
+    leg_freshness: todayDailyWellnessForCard?.leg_freshness ?? null,
+    tsb: tsbForRecovery,
+  })
+
   const garminStale = !!garminEmail && isGarminSyncStale(garminLastSyncAt)
   const garminSyncLine = garminEmail
     ? (garminLastSyncAt ? `Garmin: synced ${formatRelativeSyncTime(new Date(garminLastSyncAt))}` : 'Garmin: not yet synced')
@@ -667,13 +685,28 @@ export default function DashboardPage() {
       </div>
 
       {latestWellnessWithLoad && (
+        <StrainRingStrip
+          recovery={recovery}
+          strainToday={strainToday}
+          wellness={latestWellnessWithLoad}
+          activities={todayActivities.map((a: ICUActivity) => ({
+            name: a.name,
+            durationMin: a.moving_time / 60,
+            avgHr: a.average_heartrate,
+            trainingLoad: a.training_load,
+          }))}
+          maxHr={effectiveMaxHr}
+          restingHr={latestWellnessWithLoad.garmin_resting_hr ?? latestWellnessWithLoad.resting_hr ?? null}
+        />
+      )}
+
+      {latestWellnessWithLoad && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-200">
           <MetricsBar
             wellness={latestWellnessWithLoad}
             stale={wellnessStale}
             embedded
             lastRideLabel={lastRide ? formatLastRide() : undefined}
-            onStrainTap={() => setStrainSheetOpen(true)}
             strainHistory={chartsData?.dailyStrain}
             strainToday={strainToday}
             hrvStatus={hrvStatus}
@@ -962,21 +995,6 @@ export default function DashboardPage() {
           estimatedWorkouts={reviewEstimatedWorkouts}
           onApprove={handleReviewApprove}
           onReject={() => { setShowReviewModal(false); setReviewPlan(null) }}
-        />
-      )}
-
-      {strainSheetOpen && strainToday && (
-        <StrainBreakdownSheet
-          strainToday={strainToday}
-          activities={todayActivities.map((a: ICUActivity) => ({
-            name: a.name,
-            durationMin: a.moving_time / 60,
-            avgHr: a.average_heartrate,
-            trainingLoad: a.training_load,
-          }))}
-          maxHr={effectiveMaxHr}
-          restingHr={latestWellnessWithLoad?.garmin_resting_hr ?? latestWellnessWithLoad?.resting_hr ?? null}
-          onClose={() => setStrainSheetOpen(false)}
         />
       )}
 
