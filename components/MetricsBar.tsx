@@ -453,13 +453,6 @@ export default function MetricsBar({
                   <div className="w-2 h-2 rounded-[2px]" style={{ background: '#3b82f6' }} />
                   Strain
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                  <svg width="14" height="8" style={{ flexShrink: 0 }}>
-                    <line x1="0" y1="4" x2="14" y2="4" stroke="#374151" strokeWidth="1.6"/>
-                    <circle cx="7" cy="4" r="2" fill="#fff" stroke="#374151" strokeWidth="1.3"/>
-                  </svg>
-                  Total
-                </div>
               </div>
             </div>
           )}
