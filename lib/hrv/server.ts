@@ -1,5 +1,6 @@
 import { IntervalsClient } from '@/lib/intervals/client'
 import { computeHrvBaseline, type HrvStatus } from './baseline'
+import { computeHrvStatusBestSource } from './best-source'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const HRV_WINDOW_DAYS = 90
@@ -11,11 +12,11 @@ export async function fetchHrvStatus(client: IntervalsClient, today: string): Pr
   return computeHrvBaseline(wellness, { asOf: today })
 }
 
-export async function fetchHrvStatusFromGarmin(
+async function fetchGarminHrvHistory(
   supabase: SupabaseClient,
   userId: string,
   today: string,
-): Promise<HrvStatus> {
+): Promise<{ id: string; hrv: number | null }[]> {
   const start = new Date(new Date(today + 'T00:00:00Z').getTime() - HRV_WINDOW_DAYS * 864e5)
     .toISOString().split('T')[0]
   const { data } = await supabase
@@ -26,7 +27,15 @@ export async function fetchHrvStatusFromGarmin(
     .lte('date', today)
     .order('date', { ascending: true })
   const rows = (data ?? []) as { date: string; garmin_hrv_overnight: number | null }[]
-  const mapped = rows.map(r => ({ id: r.date, hrv: r.garmin_hrv_overnight }))
+  return rows.map(r => ({ id: r.date, hrv: r.garmin_hrv_overnight }))
+}
+
+export async function fetchHrvStatusFromGarmin(
+  supabase: SupabaseClient,
+  userId: string,
+  today: string,
+): Promise<HrvStatus> {
+  const mapped = await fetchGarminHrvHistory(supabase, userId, today)
   return computeHrvBaseline(mapped, { asOf: today })
 }
 
@@ -35,10 +44,15 @@ export async function fetchHrvStatusBestSource(
   garminParams: { supabase: SupabaseClient; userId: string } | null,
   icuClient: IntervalsClient | null,
 ): Promise<HrvStatus> {
-  if (garminParams) {
-    const status = await fetchHrvStatusFromGarmin(garminParams.supabase, garminParams.userId, today)
-    if (status.sufficient) return status
-  }
-  if (icuClient) return fetchHrvStatus(icuClient, today)
-  return computeHrvBaseline([], { asOf: today })
+  const garminHistory = garminParams
+    ? await fetchGarminHrvHistory(garminParams.supabase, garminParams.userId, today)
+    : []
+  const garminStatus = computeHrvBaseline(garminHistory, { asOf: today })
+  if (garminStatus.sufficient) return garminStatus
+  if (!icuClient) return garminStatus
+  const start = new Date(new Date(today + 'T00:00:00Z').getTime() - HRV_WINDOW_DAYS * 864e5)
+    .toISOString().split('T')[0]
+  const icuWellness = await icuClient.getWellness(start, today)
+  const icuWellnessHrv = icuWellness.map(w => ({ id: w.id, hrv: w.hrv }))
+  return computeHrvStatusBestSource(icuWellnessHrv, garminHistory, today)
 }
