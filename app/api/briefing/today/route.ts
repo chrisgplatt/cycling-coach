@@ -6,7 +6,7 @@ import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-mod
 import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
-import { computeDailyTrimp, computeTrimpRef, computeWorkoutStrain, type DailyActivityInput } from '@/lib/strain'
+import { computeDailyTrimp, computeTrimpRef, computeWorkoutStrain, computeStrainTarget, type DailyActivityInput } from '@/lib/strain'
 import { computeRecoveryScore } from '@/lib/recovery-score'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { eventCoversDate, eventEndDate } from '@/lib/events'
@@ -312,6 +312,8 @@ export async function GET(req: NextRequest) {
     tsb,
   })
 
+  const strainTarget = computeStrainTarget(recoveryResult.score)
+
   const ctx: BriefingContext = {
     today,
     todayWorkout,
@@ -334,6 +336,8 @@ export async function GET(req: NextRequest) {
     athleteModel: formatAthleteModel(beliefs),
     weather,
     dailyStrain,
+    strainTargetLow: strainTarget.low,
+    strainTargetHigh: strainTarget.high,
     strainHistory,
     currentPhase: currentPhaseFromPlan,
     currentPhaseWeek,

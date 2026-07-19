@@ -638,6 +638,8 @@ export interface BriefingContext {
   hrv: number | null
   hrvStatus?: import('@/lib/hrv/baseline').HrvStatus | null
   dailyStrain: number | null
+  strainTargetLow: number | null
+  strainTargetHigh: number | null
   strainHistory?: Array<{ date: string; strain: number | null }>
   recentWorkouts: Array<{
     date: string
