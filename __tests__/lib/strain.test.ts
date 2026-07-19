@@ -3,6 +3,7 @@ import {
   computeDailyTrimp,
   computeTrimpRef,
   computeWorkoutStrain,
+  computeStrainTarget,
   strainLabel,
   computeActivityTrimpBreakdown,
   computeWorkoutStrainSeries,
@@ -305,5 +306,38 @@ describe('formatStrainHistoryForPrompt', () => {
       strain,
     }))
     expect(formatStrainHistoryForPrompt(history)).toContain('rising')
+  })
+})
+
+describe('computeStrainTarget', () => {
+  test('recovery 70 gives a range close to Whoop\'s disclosed 8.3-16.3 example', () => {
+    // low = round(0.70 * 14) = round(9.8) = 10; high = min(21, 10+7) = 17
+    expect(computeStrainTarget(70)).toEqual({ low: 10, high: 17 })
+  })
+
+  test('recovery 100 reaches the top of the scale', () => {
+    // low = round(1.00 * 14) = 14; high = min(21, 14+7) = 21
+    expect(computeStrainTarget(100)).toEqual({ low: 14, high: 21 })
+  })
+
+  test('recovery 34 (Whoop\'s red cutoff) stays light-to-moderate', () => {
+    // low = round(0.34 * 14) = round(4.76) = 5; high = min(21, 5+7) = 12
+    expect(computeStrainTarget(34)).toEqual({ low: 5, high: 12 })
+  })
+
+  test('recovery 0 gives the lowest possible range', () => {
+    expect(computeStrainTarget(0)).toEqual({ low: 0, high: 7 })
+  })
+
+  test('high is capped at 21 even if low+width would exceed it', () => {
+    // Not reachable with the current constants at recoveryScore<=100, but the
+    // cap must still hold if STRAIN_TARGET_LOW_MAX/RANGE_WIDTH are ever retuned.
+    const { high } = computeStrainTarget(100)
+    expect(high).toBeLessThanOrEqual(21)
+  })
+
+  test('out-of-range recoveryScore is clamped rather than producing a negative or >14 low', () => {
+    expect(computeStrainTarget(-10)).toEqual({ low: 0, high: 7 })
+    expect(computeStrainTarget(150)).toEqual({ low: 14, high: 21 })
   })
 })

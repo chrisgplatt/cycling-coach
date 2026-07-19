@@ -60,6 +60,15 @@ export function computeWorkoutStrain(dailyTrimp: number, trimpRef: number): numb
   return Math.min(21, Math.round(21 * Math.log(1 + dailyTrimp) / Math.log(1 + ref)))
 }
 
+export const STRAIN_TARGET_LOW_MAX = 14     // recovery=100 → low bound approaches 14
+export const STRAIN_TARGET_RANGE_WIDTH = 7  // range width, tunable — matches Whoop's ~8pt example
+
+export function computeStrainTarget(recoveryScore: number): { low: number; high: number } {
+  const low = Math.round(clamp01(recoveryScore / 100) * STRAIN_TARGET_LOW_MAX)
+  const high = Math.min(21, low + STRAIN_TARGET_RANGE_WIDTH)
+  return { low, high }
+}
+
 export function strainLabel(score: number): 'light' | 'moderate' | 'high' | 'all_out' {
   if (score <= 9) return 'light'
   if (score <= 13) return 'moderate'
