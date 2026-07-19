@@ -471,12 +471,27 @@ export interface ActivitySummary {
   movingTimeSecs: number
 }
 
+export interface RecoveryHistoryPoint {
+  date: string
+  score: number
+  band: 'high' | 'moderate' | 'low'
+  explanation: string
+  components: {
+    sleep: number | null
+    hrv: number | null
+    wellness: number | null
+    tsb: number | null
+    bodyBattery: number | null
+  }
+}
+
 export interface ChartsData {
   wellness: ICUWellness[]
   weeklyTss: WeeklyTss[]
   rides: RidePoint[]
   dailyStrain: DailyStrainPoint[]
   activities: ActivitySummary[]   // all-type activities for last 365 days
+  recoveryHistory: RecoveryHistoryPoint[]
 }
 
 export interface ICUPowerCurvePoint {
