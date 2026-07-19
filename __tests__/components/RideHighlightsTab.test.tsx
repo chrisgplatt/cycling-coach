@@ -32,4 +32,14 @@ describe('RideHighlightsTab', () => {
     const { container } = render(<RideHighlightsTab highlights={[]} />)
     expect(container.querySelectorAll('[data-testid="highlight-card"]')).toHaveLength(0)
   })
+
+  it('applies a highlight style to the card at activeIndex and registers refs', () => {
+    const registered: Array<[number, boolean]> = []
+    const onRegisterRef = (index: number, el: HTMLDivElement | null) => registered.push([index, el !== null])
+    render(<RideHighlightsTab highlights={highlights} activeIndex={1} onRegisterRef={onRegisterRef} />)
+    const cards = screen.getAllByTestId('highlight-card')
+    expect(cards[1]).toHaveClass('ring-2')
+    expect(cards[0]).not.toHaveClass('ring-2')
+    expect(registered.some(([index, mounted]) => index === 1 && mounted)).toBe(true)
+  })
 })
