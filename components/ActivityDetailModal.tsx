@@ -5,6 +5,8 @@ import RideStats, { rideStatsFromActivity } from './RideStats'
 import RideMapGraph from './ride/RideMapGraph'
 import SessionHistogram from './SessionHistogram'
 import TabBar from './TabBar'
+import RideHighlightsTab from './RideHighlightsTab'
+import { buildHighlightList, type RideHighlight } from '@/lib/ride-highlights'
 
 interface Props {
   activity: ICUActivity
@@ -18,10 +20,11 @@ export default function ActivityDetailModal({ activity, onClose, effectiveMaxHr 
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   })
 
-  const [tab, setTab] = useState<'stats' | 'map'>('stats')
+  const [tab, setTab] = useState<'stats' | 'map' | 'highlights'>('stats')
   const [streams, setStreams] = useState<RideStreams | null>(null)
   const [streamsError, setStreamsError] = useState(false)
   const [distributions, setDistributions] = useState<SessionDistributions | null>(null)
+  const [highlights, setHighlights] = useState<RideHighlight[]>([])
 
   // Distributions live on the linked workout row (keyed by activity id); fetch them
   // so the Stats tab can show the histogram. Null when the ride has no enriched row.
@@ -31,6 +34,19 @@ export default function ActivityDetailModal({ activity, onClose, effectiveMaxHr 
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (!cancelled && d) setDistributions(d.distributions ?? null) })
       .catch(() => { /* no histogram if it can't be loaded */ })
+    return () => { cancelled = true }
+  }, [activity.id])
+
+  // Ride highlights (climbs, effort periods, sprints, personal bests) live on
+  // the same linked workout row as distributions; fetched separately since
+  // they're a distinct concern with their own route, matching this file's
+  // existing per-concern fetch convention.
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/rides/activity/${activity.id}/highlights`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled && d) setHighlights(buildHighlightList(d)) })
+      .catch(() => { /* no highlights if they can't be loaded */ })
     return () => { cancelled = true }
   }, [activity.id])
 
@@ -64,9 +80,13 @@ export default function ActivityDetailModal({ activity, onClose, effectiveMaxHr 
         </div>
 
         <TabBar
-          tabs={[{ id: 'stats', label: 'Stats' }, { id: 'map', label: 'Map' }]}
+          tabs={[
+            { id: 'stats', label: 'Stats' },
+            { id: 'map', label: 'Map' },
+            ...(highlights.length ? [{ id: 'highlights', label: 'Highlights' }] : []),
+          ]}
           activeId={tab}
-          onSelect={(id) => setTab(id as 'stats' | 'map')}
+          onSelect={(id) => setTab(id as 'stats' | 'map' | 'highlights')}
         />
 
         {tab === 'map' ? (
@@ -74,6 +94,10 @@ export default function ActivityDetailModal({ activity, onClose, effectiveMaxHr 
             {streams
               ? <RideMapGraph streams={streams} fit />
               : <p className="p-6 text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>}
+          </div>
+        ) : tab === 'highlights' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto p-6 pt-4">
+            <RideHighlightsTab highlights={highlights} />
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto p-6 pt-4 space-y-4">
