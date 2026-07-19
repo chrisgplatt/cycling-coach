@@ -176,6 +176,9 @@ describe('insight formatting', () => {
     climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 }],
     shape: [{ label: 'Work', planned_w: 250, actual_w: 238 }],
     distributions: null,
+    effort_periods: null,
+    sprints: null,
+    personal_bests: null,
     synced_at: '2026-05-31T00:00:00Z',
   }
 

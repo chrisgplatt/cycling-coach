@@ -56,6 +56,9 @@ export function extractActivityMetrics(
     time_in_zone: null,
     shape: null,
     distributions: null,
+    effort_periods: null,   // filled by extractStreamInsights (Task 2)
+    sprints: null,          // filled below in this function (Task 3)
+    personal_bests: null,   // filled by enrichActivity after a 90-day curve fetch (Task 5)
     metrics_version: METRICS_VERSION,
     synced_at: new Date().toISOString(),
   }

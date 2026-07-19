@@ -547,6 +547,10 @@ export interface ActivityMetrics {
   time_in_zone: { z1: number; z2: number; z3: number; z4: number; z5: number; z6: number } | null  // seconds per zone
   shape: Array<{ label: string; planned_w: number; actual_w: number }> | null  // structured rides only
   distributions: SessionDistributions | null  // Tier-4 within-session histograms
+  // Tier 5 — ride highlights (climbs reuse Tier 4's `climbs`; these three are new)
+  effort_periods: EffortPeriod[] | null    // sustained Z4+ blocks
+  sprints: RideSprint[] | null             // 5s/15s best-effort power, no location data
+  personal_bests: PersonalBest[] | null    // 90-day rolling PBs, anchored on this ride's date
   metrics_version?: number  // computation version; drives one-time backfill refresh
   synced_at: string
 }
@@ -557,6 +561,24 @@ export interface ClimbSegment {
   elev_gain_m: number
   avg_watts: number | null
   vam: number            // vertical ascent metres / hour
+}
+
+export interface EffortPeriod {
+  start_km: number
+  duration_secs: number
+  avg_watts: number
+  zone: 'z4' | 'z5' | 'z6'
+}
+
+export interface RideSprint {
+  duration_secs: number   // 5 or 15
+  watts: number
+}
+
+export interface PersonalBest {
+  duration_secs: number   // one of the canonical best-effort durations (5,15,60,300,600,1200,3600)
+  watts: number
+  window_days: number     // 90
 }
 
 export interface RideStreams {
