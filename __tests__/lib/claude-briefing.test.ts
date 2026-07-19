@@ -36,6 +36,8 @@ const basePostRideCtx: BriefingContext = {
   recentWorkouts: [],
   upcomingEvents: [],
   dailyStrain: null,
+  strainTargetLow: null,
+  strainTargetHigh: null,
 }
 
 const baseMorningCtx: BriefingContext = {
@@ -58,6 +60,8 @@ const baseMorningCtx: BriefingContext = {
   recentWorkouts: [],
   upcomingEvents: [],
   dailyStrain: null,
+  strainTargetLow: null,
+  strainTargetHigh: null,
 }
 
 describe('generateMorningBriefing — HRV awareness', () => {
@@ -216,6 +220,8 @@ describe('buildTodayBriefingPrompt with recovery score', () => {
       readinessLabel: 'Moderate',
       hrv: 52,
       dailyStrain: null,
+      strainTargetLow: null,
+      strainTargetHigh: null,
       recentWorkouts: [],
       upcomingEvents: [],
       today: '2026-06-30',
@@ -256,5 +262,30 @@ describe('generateMorningBriefing — Max HR', () => {
     await generateBriefing(baseMorningCtx)
     const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
     expect(prompt).not.toContain('Max HR')
+  })
+})
+
+describe('buildLoadString with Strain target range', () => {
+  it('appends the target range to the Strain line when both bounds are present', async () => {
+    mockCreate.mockResolvedValueOnce({ content: [{ type: 'text', text: 'GREEN: All good.' }] })
+    await generateBriefing({ ...baseMorningCtx, dailyStrain: 13, strainTargetLow: 10, strainTargetHigh: 17 })
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toContain('Daily Strain: 13/21 (moderate) — target 10-17')
+  })
+
+  it('omits the target range when strainTargetLow/High are null', async () => {
+    mockCreate.mockResolvedValueOnce({ content: [{ type: 'text', text: 'GREEN: All good.' }] })
+    await generateBriefing({ ...baseMorningCtx, dailyStrain: 13, strainTargetLow: null, strainTargetHigh: null })
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toContain('Daily Strain: 13/21 (moderate)')
+    expect(prompt).not.toContain('target')
+  })
+
+  it('omits the target range when dailyStrain itself is null, even if bounds are present', async () => {
+    mockCreate.mockResolvedValueOnce({ content: [{ type: 'text', text: 'GREEN: All good.' }] })
+    await generateBriefing({ ...baseMorningCtx, dailyStrain: null, strainTargetLow: 10, strainTargetHigh: 17 })
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).not.toContain('Daily Strain')
+    expect(prompt).not.toContain('target')
   })
 })
