@@ -1,12 +1,10 @@
 'use client'
 import { useEffect, useState, type ReactNode } from 'react'
 import { normalizeY, isoWeekStart } from '@/lib/chart-helpers'
-import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss, WeightEntry, PredictionDraft } from '@/types'
+import type { FTPPrediction, ChartsData, ICUWellness, WeeklyTss, WeightEntry, PredictionDraft, RecoveryHistoryPoint } from '@/types'
 import WeightHistoryChart from '@/components/WeightHistoryChart'
 import HrvChart from '@/components/HrvChart'
 import type { HrvImprovement } from '@/lib/hrv/improvement'
-import { computeHrvBaseline, type HrvStatus } from '@/lib/hrv/baseline'
-import { computeRecoveryScore } from '@/lib/recovery-score'
 import AnimatedLogo from '@/components/AnimatedLogo'
 
 const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000
@@ -448,33 +446,15 @@ const BAND_COLOUR_MAP = {
   low: '#ef4444',
 } as const
 
-function RecoverySection({ wellness }: { wellness: ICUWellness[] }) {
+function RecoverySection({ recoveryHistory }: { recoveryHistory: RecoveryHistoryPoint[] }) {
   const [rangeDays, setRangeDays] = useState(14)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
 
-  const hrvStatus = computeHrvBaseline(wellness)
-  const hrvBaseline = hrvStatus.baselineMean
-
   const cutoff = new Date(Date.now() - rangeDays * 864e5).toISOString().split('T')[0]
-  const data = wellness.filter(w => w.id >= cutoff).sort((a, b) => a.id.localeCompare(b.id))
-
-  // energy/leg_freshness unavailable in ICUWellness — today's trend score will differ
-  // from the Dashboard chip which includes logged subjective wellness (by design).
-  const scored = data.map(w => ({
-    id: w.id,
-    result: computeRecoveryScore({
-      hrv: w.hrv ?? null,
-      hrvBaseline,
-      garmin_sleep_deep_secs: w.garmin_sleep_deep_secs ?? null,
-      garmin_sleep_light_secs: w.garmin_sleep_light_secs ?? null,
-      garmin_sleep_rem_secs: w.garmin_sleep_rem_secs ?? null,
-      garmin_sleep_awake_secs: w.garmin_sleep_awake_secs ?? null,
-      body_battery_high: w.body_battery_high ?? null,
-      energy: null,
-      leg_freshness: null,
-      tsb: w.form ?? null,
-    }),
-  }))
+  const scored = recoveryHistory
+    .filter(r => r.date >= cutoff)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(r => ({ id: r.date, result: r }))
 
   const latest = scored.at(-1)
 
@@ -1055,7 +1035,7 @@ export default function FitnessPage() {
 
           <SleepSection wellness={charts.wellness} />
 
-          <RecoverySection wellness={charts.wellness} />
+          <RecoverySection recoveryHistory={charts.recoveryHistory} />
 
           <SectionCard title="Weekly Training Load" accent="bg-violet-500">
             <WeeklyTssChart weeklyTss={charts.weeklyTss} />

@@ -16,6 +16,7 @@ const mockCharts: ChartsData = {
   rides: [],
   dailyStrain: [],
   activities: [],
+  recoveryHistory: [],
 }
 
 global.fetch = jest.fn()
@@ -69,7 +70,7 @@ describe('FitnessPage charts', () => {
 
   it('shows placeholder when wellness is empty', async () => {
     ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
-      if (url === '/api/charts') return Promise.resolve({ json: async () => ({ charts: { wellness: [], weeklyTss: [] } }) })
+      if (url === '/api/charts') return Promise.resolve({ json: async () => ({ charts: { wellness: [], weeklyTss: [], recoveryHistory: [] } }) })
       if (url === '/api/weight-log') return Promise.resolve({ json: async () => ({ entries: [] }) })
       return Promise.resolve({ json: async () => [] })
     })

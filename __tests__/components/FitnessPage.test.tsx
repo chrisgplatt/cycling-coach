@@ -5,6 +5,20 @@ import FitnessPage from '@/app/fitness/page'
 // Wellness entry id is computed relative to now (not hardcoded) — FitnessPage's Sleep/Recovery
 // sections filter wellness to the last 14 days, so a fixed past date drifts out of range and
 // silently stops rendering the "Sleep"/"Recovery" headings every test here waits on.
+// recoveryHistory needs a matching entry too — RecoverySection now reads its trend from this
+// field instead of computing it from wellness, and a Sleep component score is required so the
+// hover/tap breakdown tests below (which assert on "Sleep \d+") have something to find.
+const RECOVERY_DATE = new Date(Date.now() - 2 * 864e5).toISOString().split('T')[0]
+const mockRecoveryHistory = [
+  {
+    date: RECOVERY_DATE,
+    score: 72,
+    band: 'moderate' as const,
+    explanation: 'Test recovery point.',
+    components: { sleep: 85, hrv: 60, wellness: null, tsb: -5, bodyBattery: 85 },
+  },
+]
+
 beforeEach(() => {
   ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
     if (url.includes('/api/charts')) {
@@ -14,7 +28,7 @@ beforeEach(() => {
           charts: {
             wellness: [
               {
-                id: new Date(Date.now() - 2 * 864e5).toISOString().split('T')[0],
+                id: RECOVERY_DATE,
                 ctl: 60, atl: 65, form: -5, hrv: 52, resting_hr: 58,
                 sleep_secs: 28800, body_battery_low: 30, body_battery_high: 85,
                 stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null,
@@ -23,6 +37,7 @@ beforeEach(() => {
               },
             ],
             weeklyTss: [],
+            recoveryHistory: mockRecoveryHistory,
           },
         }),
       })
@@ -120,7 +135,7 @@ describe('FTP prediction confirm-before-save flow', () => {
             charts: {
               wellness: [
                 {
-                  id: new Date(Date.now() - 2 * 864e5).toISOString().split('T')[0],
+                  id: RECOVERY_DATE,
                   ctl: 60, atl: 65, form: -5, hrv: 52, resting_hr: 58,
                   sleep_secs: 28800, body_battery_low: 30, body_battery_high: 85,
                   stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null,
@@ -129,6 +144,7 @@ describe('FTP prediction confirm-before-save flow', () => {
                 },
               ],
               weeklyTss: [],
+              recoveryHistory: mockRecoveryHistory,
             },
           }),
         })
