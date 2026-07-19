@@ -301,12 +301,8 @@ export async function GET(req: NextRequest) {
   // row computed yet, and falling back to a neutral default in that case would show
   // a different Recovery picture than the dashboard on the same morning.
   const recoveryFrom = new Date(new Date(today + 'T00:00:00Z').getTime() - 3 * 864e5).toISOString().split('T')[0]
-  const recoveryInputsResult = profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key
-    ? await fetchRecoveryInputsForRange(
-        supabase, user.id,
-        new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key),
-        { from: recoveryFrom, to: today },
-      )
+  const recoveryInputsResult = icuClient
+    ? await fetchRecoveryInputsForRange(supabase, user.id, icuClient, { from: recoveryFrom, to: today })
     : []
   const recoveryResult = computeRecoveryScore(
     recoveryInputsResult.at(-1)?.inputs ?? {
