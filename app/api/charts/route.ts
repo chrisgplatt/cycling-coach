@@ -4,12 +4,14 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { isoWeekStart } from '@/lib/chart-helpers'
 import { mergeGarminIntoWellness } from '@/lib/garmin-wellness-merge'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
-import type { ChartsData, WeeklyTss, RidePoint, DailyStrainPoint, ActivitySummary } from '@/types'
+import type { ChartsData, WeeklyTss, RidePoint, DailyStrainPoint, ActivitySummary, RecoveryHistoryPoint } from '@/types'
 import {
   computeWorkoutStrainSeries,
   type StrainSeriesDayInput,
   type DailyActivityInput,
 } from '@/lib/strain'
+import { fetchRecoveryInputsForRange } from '@/lib/recovery-inputs'
+import { computeRecoveryScore } from '@/lib/recovery-score'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +22,7 @@ export async function GET() {
 
   const { data: profile, error: profileError } = await supabase
     .from('user_profile')
-    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp, max_hr_manual, observed_max_hr, date_of_birth')
+    .select('intervals_icu_athlete_id, intervals_icu_api_key, current_ftp, max_hr_manual, observed_max_hr, date_of_birth, timezone')
     .maybeSingle()
 
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
@@ -34,6 +36,9 @@ export async function GET() {
   // Both wellness and activities fetched for 365 days so all time windows are covered
   const oldest = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000)
     .toISOString().split('T')[0]
+
+  const tz = (profile as { timezone?: string } | null)?.timezone ?? 'Europe/London'
+  const recoveryToday = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date())
 
   const client = new IntervalsClient(
     profile.intervals_icu_athlete_id,
@@ -165,7 +170,17 @@ export async function GET() {
       })
       .filter((p): p is DailyStrainPoint => p !== null)
 
-    const charts: ChartsData = { wellness, weeklyTss, rides, dailyStrain, activities: activitySummaries }
+    // Recovery — computed once here, shared by the dashboard, fitness page, and (via the
+    // same fetchRecoveryInputsForRange function) the briefing route. See
+    // docs/superpowers/specs/2026-07-19-unified-recovery-inputs-design.md for why this
+    // route owns the canonical computation.
+    const recoveryInputsResult = await fetchRecoveryInputsForRange(supabase, user.id, client, { from: oldest, to: recoveryToday })
+    const recoveryHistory: RecoveryHistoryPoint[] = recoveryInputsResult.map(r => {
+      const score = computeRecoveryScore(r.inputs)
+      return { date: r.date, ...score }
+    })
+
+    const charts: ChartsData = { wellness, weeklyTss, rides, dailyStrain, activities: activitySummaries, recoveryHistory }
     return NextResponse.json({ charts })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
