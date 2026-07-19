@@ -19,3 +19,19 @@ test('renders without a button role when onTap is not provided', () => {
   render(<MetricRing displayValue="85" pct={85} label="Sleep" bandLabel="Good" color="#059669" />)
   expect(screen.queryByRole('button')).not.toBeInTheDocument()
 })
+
+test('renders tick marks when targetLowPct/targetHighPct are provided', () => {
+  render(
+    <MetricRing displayValue="13" pct={62} label="Strain" bandLabel="Moderate" color="#d97706"
+      targetLowPct={47.6} targetHighPct={81}
+    />
+  )
+  expect(screen.getByTestId('ring-tick-low')).toBeInTheDocument()
+  expect(screen.getByTestId('ring-tick-high')).toBeInTheDocument()
+})
+
+test('renders no tick marks when targetLowPct/targetHighPct are not provided', () => {
+  render(<MetricRing displayValue="13" pct={62} label="Strain" bandLabel="Moderate" color="#d97706" />)
+  expect(screen.queryByTestId('ring-tick-low')).not.toBeInTheDocument()
+  expect(screen.queryByTestId('ring-tick-high')).not.toBeInTheDocument()
+})
