@@ -1,7 +1,7 @@
 // Pure, dependency-free formatters for enriched completed-ride detail.
 // Kept free of the intervals.icu and Anthropic clients so prompt builders can
 // import it without dragging in network/SDK code (mirrors lib/claude/zones.ts).
-import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment, DistributionBin, SessionDistributions } from '@/types'
+import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment, DistributionBin, SessionDistributions, EffortPeriod, RideSprint, PersonalBest } from '@/types'
 import { alignPlannedToLaps } from '@/lib/ride/planned-actual'
 
 // Best-effort durations we sample the power curve down to (seconds): 5s, 15s,
@@ -12,7 +12,7 @@ const CANONICAL_SECS = [5, 15, 60, 300, 600, 1200, 3600]
 // new derived fields, etc.). The backfill re-enriches rows below this version so
 // existing rides pick up the change once — without churning rows that can't
 // produce a given field (the version stamp lands regardless).
-export const METRICS_VERSION = 3
+export const METRICS_VERSION = 4
 
 function sampleBest(curve: ICUPowerCurvePoint[], target: number): { secs: number; watts: number } | null {
   if (!curve.length) return null
@@ -24,6 +24,13 @@ function sampleBest(curve: ICUPowerCurvePoint[], target: number): { secs: number
   // so a 20-minute ride never reports a fabricated 60-minute best.
   if (Math.abs(nearest.secs - target) > target * 0.2) return null
   return { secs: target, watts: Math.round(nearest.watts) }
+}
+
+function extractSprints(best: Array<{ secs: number; watts: number }>): RideSprint[] | null {
+  const out = best
+    .filter(e => e.secs === 5 || e.secs === 15)
+    .map(e => ({ duration_secs: e.secs, watts: e.watts }))
+  return out.length ? out : null
 }
 
 export function extractActivityMetrics(
@@ -56,9 +63,27 @@ export function extractActivityMetrics(
     time_in_zone: null,
     shape: null,
     distributions: null,
+    effort_periods: null,   // filled by extractStreamInsights (Task 2)
+    sprints: extractSprints(best),
+    personal_bests: null,   // filled by enrichActivity after a 90-day curve fetch (Task 5)
     metrics_version: METRICS_VERSION,
     synced_at: new Date().toISOString(),
   }
+}
+
+export function detectPersonalBests(
+  rideBestEfforts: Array<{ secs: number; watts: number }> | null,
+  ninetyDayCurve: ICUPowerCurvePoint[] | null,
+): PersonalBest[] | null {
+  if (!rideBestEfforts?.length || !ninetyDayCurve?.length) return null
+  const out: PersonalBest[] = []
+  for (const e of rideBestEfforts) {
+    const best = sampleBest(ninetyDayCurve, e.secs)
+    if (best && best.watts <= e.watts) {
+      out.push({ duration_secs: e.secs, watts: e.watts, window_days: 90 })
+    }
+  }
+  return out.length ? out : null
 }
 
 function findBest(m: ActivityMetrics, secs: number): number | null {
@@ -149,6 +174,38 @@ function zoneOf(pct: number): ZoneKey {
   return 'z6'
 }
 
+// 30s centred rolling average — raw per-second power is too spiky for direct
+// threshold classification (a single second of soft-pedalling mid-interval
+// would fragment one hard block into several tiny ones); this is the same
+// smoothing convention Normalized Power itself is built on. O(n) via a
+// two-pointer sliding window (time is monotonically increasing).
+function smoothPower(power: number[], time: number[], windowSecs: number): number[] {
+  const half = windowSecs / 2
+  const out = new Array(power.length).fill(NaN)
+  let lo = 0, hi = 0, sum = 0, n = 0
+  for (let i = 0; i < power.length; i++) {
+    while (hi < power.length && time[hi] - time[i] <= half) {
+      if (Number.isFinite(power[hi])) { sum += power[hi]; n++ }
+      hi++
+    }
+    while (lo < i && time[i] - time[lo] > half) {
+      if (Number.isFinite(power[lo])) { sum -= power[lo]; n-- }
+      lo++
+    }
+    out[i] = n ? sum / n : NaN
+  }
+  return out
+}
+
+// Clamps zoneOf's output up to the qualifying effort-period range. Only
+// matters for the rare edge case where a run's *average* power (computed from
+// raw, unsmoothed samples) lands a hair below the smoothed classification
+// that qualified it in the first place.
+function qualifyingZone(ratio: number): 'z4' | 'z5' | 'z6' {
+  const z = zoneOf(ratio)
+  return z === 'z1' || z === 'z2' || z === 'z3' ? 'z4' : z
+}
+
 function avgRatio(power: number[], hr: number[], lo: number, hi: number): number | null {
   let ps = 0, hs = 0, n = 0
   for (let i = lo; i < hi; i++) {
@@ -227,6 +284,42 @@ function detectClimbs(
   return out.length ? out : null
 }
 
+function detectEffortPeriods(
+  power: number[] | null, distance: number[] | null, time: number[], ftp: number | null,
+): EffortPeriod[] | null {
+  if (!power || !distance || !ftp || power.length < 2) return null
+  const MIN_SECS = 180
+  const smoothed = smoothPower(power, time, 30)
+  const inEffort = smoothed.map(p => {
+    if (!Number.isFinite(p)) return false
+    const z = zoneOf(p / ftp)
+    return z === 'z4' || z === 'z5' || z === 'z6'
+  })
+  const out: EffortPeriod[] = []
+  let start = -1
+  for (let i = 0; i <= inEffort.length; i++) {
+    if (i < inEffort.length && inEffort[i]) {
+      if (start === -1) start = i
+    } else if (start !== -1) {
+      const end = i - 1
+      const duration_secs = time[end] - time[start]
+      if (duration_secs >= MIN_SECS) {
+        let ps = 0, pn = 0
+        for (let k = start; k <= end; k++) if (Number.isFinite(power[k])) { ps += power[k]; pn++ }
+        const avg_watts = pn ? Math.round(ps / pn) : 0
+        out.push({
+          start_km: Math.round((distance[start] / 1000) * 10) / 10,
+          duration_secs,
+          avg_watts,
+          zone: qualifyingZone(avg_watts / ftp),
+        })
+      }
+      start = -1
+    }
+  }
+  return out.length ? out : null
+}
+
 // Resolve each lap to a single representative power. Detected laps usually carry
 // their own average; when one doesn't, fall back to the stream over the lap's
 // positional window (cumulative lap durations from the start).
@@ -294,12 +387,13 @@ function computeShape(
 export function extractStreamInsights(
   s: RideStreams, ftp: number | null, plannedSteps: WorkoutStep[] | null,
   laps: ActivityInterval[] | null = null,
-): Pick<ActivityMetrics, 'decoupling_pct' | 'climbs' | 'time_in_zone' | 'shape'> {
+): Pick<ActivityMetrics, 'decoupling_pct' | 'climbs' | 'time_in_zone' | 'shape' | 'effort_periods'> {
   return {
     decoupling_pct: computeDecoupling(s.power, s.hr, s.time),
     time_in_zone: computeTimeInZone(s.power, s.time, ftp),
     climbs: detectClimbs(s.altitude, s.distance, s.power, s.time),
     shape: computeShape(plannedSteps, laps, s.power, s.time, ftp),
+    effort_periods: detectEffortPeriods(s.power, s.distance, s.time, ftp),
   }
 }
 

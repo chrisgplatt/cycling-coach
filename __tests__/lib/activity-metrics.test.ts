@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { extractActivityMetrics, formatActivityMetrics, formatRideExecution, METRICS_VERSION } from '@/lib/claude/activity-metrics'
+import { extractActivityMetrics, formatActivityMetrics, formatRideExecution, detectPersonalBests, METRICS_VERSION } from '@/lib/claude/activity-metrics'
 import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, WorkoutStep, ActivityMetrics } from '@/types'
 import { makeActivityMetrics } from '../support/factories'
 
@@ -87,8 +87,54 @@ describe('extractActivityMetrics', () => {
     expect(m.max_temp_c).toBeNull()
   })
 
-  it('bumps METRICS_VERSION to 3', () => {
-    expect(METRICS_VERSION).toBe(3)
+  it('bumps METRICS_VERSION to 4', () => {
+    expect(METRICS_VERSION).toBe(4)
+  })
+
+  it('extracts 5s and 15s sprint entries from best_efforts', () => {
+    const m = extractActivityMetrics(act, curve, intervals)
+    expect(m.sprints).toEqual([
+      { duration_secs: 5, watts: 600 },
+      { duration_secs: 15, watts: 520 },
+    ])
+  })
+
+  it('returns null sprints when the curve has no 5s/15s points', () => {
+    const shortCurve = curve.filter(c => c.secs !== 5 && c.secs !== 15)
+    const m = extractActivityMetrics(act, shortCurve, intervals)
+    expect(m.sprints).toBeNull()
+  })
+
+  it('returns null sprints when there is no curve at all', () => {
+    const m = extractActivityMetrics(act, null, intervals)
+    expect(m.sprints).toBeNull()
+  })
+})
+
+describe('detectPersonalBests', () => {
+  const rideBest = [{ secs: 300, watts: 312 }, { secs: 1200, watts: 264 }]
+
+  it('flags a duration where this ride ties or beats the 90-day curve max', () => {
+    const ninetyDayCurve: ICUPowerCurvePoint[] = [
+      { secs: 300, watts: 312 },   // this ride currently holds the best
+      { secs: 1200, watts: 290 },  // a different day was better — not a PB
+    ]
+    expect(detectPersonalBests(rideBest, ninetyDayCurve)).toEqual([
+      { duration_secs: 300, watts: 312, window_days: 90 },
+    ])
+  })
+
+  it('returns null when no duration qualifies', () => {
+    const ninetyDayCurve: ICUPowerCurvePoint[] = [
+      { secs: 300, watts: 340 }, { secs: 1200, watts: 290 },
+    ]
+    expect(detectPersonalBests(rideBest, ninetyDayCurve)).toBeNull()
+  })
+
+  it('returns null when best_efforts or the curve is null/empty', () => {
+    expect(detectPersonalBests(null, [{ secs: 300, watts: 312 }])).toBeNull()
+    expect(detectPersonalBests(rideBest, null)).toBeNull()
+    expect(detectPersonalBests(rideBest, [])).toBeNull()
   })
 })
 
@@ -164,7 +210,7 @@ describe('formatRideExecution', () => {
   })
 })
 
-import { formatRideShape } from '@/lib/claude/activity-metrics'
+import { formatRideShape, extractStreamInsights } from '@/lib/claude/activity-metrics'
 import type { ActivityMetrics as AM } from '@/types'
 
 describe('insight formatting', () => {
@@ -176,6 +222,9 @@ describe('insight formatting', () => {
     climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 }],
     shape: [{ label: 'Work', planned_w: 250, actual_w: 238 }],
     distributions: null,
+    effort_periods: null,
+    sprints: null,
+    personal_bests: null,
     synced_at: '2026-05-31T00:00:00Z',
   }
 
@@ -189,5 +238,41 @@ describe('insight formatting', () => {
   it('formatRideShape renders planned vs actual per step', () => {
     expect(formatRideShape(m.shape)).toContain('Work: planned 250W, actual 238W')
     expect(formatRideShape(null)).toBe('')
+  })
+})
+
+describe('effort period detection (via extractStreamInsights)', () => {
+  // 10 samples, 30s apart (dt=30s). At this spacing the 30s centred rolling
+  // average only ever includes the sample itself (its neighbours are exactly
+  // 30s away, outside the ±15s half-window), so smoothed power === raw power
+  // here — keeping the fixture's expected output simple to reason about.
+  const time = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270]
+  const distance = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]
+  const ftp = 250
+
+  it('detects a sustained Z4+ block lasting at least 180s', () => {
+    // indices 2..8 (7 points) = 230W (92% FTP, Z4); rest = 150W (60% FTP, Z2).
+    // time[8]-time[2] = 240-60 = 180s, exactly meeting the minimum.
+    const power = [150, 150, 230, 230, 230, 230, 230, 230, 230, 150]
+    const s = { time, distance, latlng: null, power, hr: null, altitude: null, cadence: null, velocity: null }
+    const insights = extractStreamInsights(s, ftp, null, null)
+    expect(insights.effort_periods).toEqual([
+      { start_km: 0.4, duration_secs: 180, avg_watts: 230, zone: 'z4' },
+    ])
+  })
+
+  it('does not emit a block shorter than 180s', () => {
+    // indices 2..6 (5 points) = 230W; duration = time[6]-time[2] = 150-60 = 90s.
+    const power = [150, 150, 230, 230, 230, 230, 230, 150, 150, 150]
+    const s = { time, distance, latlng: null, power, hr: null, altitude: null, cadence: null, velocity: null }
+    const insights = extractStreamInsights(s, ftp, null, null)
+    expect(insights.effort_periods).toBeNull()
+  })
+
+  it('returns null when power or ftp is unavailable', () => {
+    const s = { time, distance, latlng: null, power: null, hr: null, altitude: null, cadence: null, velocity: null }
+    expect(extractStreamInsights(s, ftp, null, null).effort_periods).toBeNull()
+    const s2 = { time, distance, latlng: null, power: [200, 200, 200, 200, 200, 200, 200, 200, 200, 200], hr: null, altitude: null, cadence: null, velocity: null }
+    expect(extractStreamInsights(s2, null, null, null).effort_periods).toBeNull()
   })
 })

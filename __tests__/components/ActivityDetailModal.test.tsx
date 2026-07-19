@@ -40,4 +40,30 @@ describe('ActivityDetailModal', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Map' }))
     await waitFor(() => expect(fetchMock.mock.calls.some(c => String((c as unknown[])[0]).includes('/api/rides/activity/a1/streams'))).toBe(true))
   })
+
+  it('shows a Highlights tab when the highlights fetch returns at least one highlight', async () => {
+    global.fetch = jest.fn((url: string) =>
+      String(url).includes('/highlights')
+        ? Promise.resolve({ ok: true, json: async () => ({
+            climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 }],
+            effort_periods: null, sprints: null, personal_bests: null,
+          }) })
+        : Promise.resolve({ ok: true, json: async () => ({ streams: null }) }),
+    ) as never
+    render(<ActivityDetailModal activity={activity} onClose={() => {}} />)
+    expect(await screen.findByRole('tab', { name: 'Highlights' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Highlights' }))
+    expect(screen.getByText(/Climb/)).toBeInTheDocument()
+  })
+
+  it('hides the Highlights tab when the highlights fetch returns nothing', async () => {
+    global.fetch = jest.fn((url: string) =>
+      String(url).includes('/highlights')
+        ? Promise.resolve({ ok: true, json: async () => ({ climbs: null, effort_periods: null, sprints: null, personal_bests: null }) })
+        : Promise.resolve({ ok: true, json: async () => ({ streams: null }) }),
+    ) as never
+    render(<ActivityDetailModal activity={activity} onClose={() => {}} />)
+    await screen.findByRole('tab', { name: 'Stats' })
+    expect(screen.queryByRole('tab', { name: 'Highlights' })).toBeNull()
+  })
 })

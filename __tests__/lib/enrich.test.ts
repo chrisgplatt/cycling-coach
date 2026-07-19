@@ -154,6 +154,19 @@ describe('backfillActivityMetrics', () => {
     expect(gteSpy).not.toHaveBeenCalled()
   })
 
+  it('fetches a 90-day power curve anchored on the ride\'s own date, not today', async () => {
+    const updateSpy = jest.fn()
+    const supabase = makeSupabase([{ id: 'w1', icu_activity_id: 'a1', steps: null }], updateSpy)
+    const client = makeClient()
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, client as any, 'u1')
+
+    // a1's start_date_local (from makeClient's getActivity mock) is 2026-05-20;
+    // 90 days before that is 2026-02-19, independent of the current wall-clock date.
+    expect(client.getPowerCurve).toHaveBeenCalledWith('2026-02-19', '2026-05-20')
+  })
+
   it('writes an empty distributions object (not null) when the ride has no streams', async () => {
     const updateSpy = jest.fn()
     const supabase = makeSupabase([{ id: 'w1', icu_activity_id: 'a1', steps: null }], updateSpy)
