@@ -476,4 +476,33 @@ describe('WorkoutDetailModal tabs', () => {
     await screen.findByRole('tab', { name: /feedback/i })
     expect(screen.queryByTestId('tab-dot-feedback')).not.toBeInTheDocument()
   })
+
+  it('shows a Highlights tab when the linked ride has at least one highlight', async () => {
+    const withClimb = {
+      ...completedLinked,
+      activity_metrics: makeActivityMetrics({
+        climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 }],
+      }),
+    }
+    global.fetch = jest.fn((url: string) =>
+      String(url).includes('/weather/')
+        ? Promise.resolve({ ok: false })
+        : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
+    ) as never
+    render(<WorkoutDetailModal workout={withClimb} athleteId="i1" ftp={250} onClose={() => {}} />)
+    expect(await screen.findByRole('tab', { name: 'Highlights' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Highlights' }))
+    expect(screen.getByText(/Climb/)).toBeInTheDocument()
+  })
+
+  it('hides the Highlights tab when the linked ride has no highlights', async () => {
+    global.fetch = jest.fn((url: string) =>
+      String(url).includes('/weather/')
+        ? Promise.resolve({ ok: false })
+        : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
+    ) as never
+    render(<WorkoutDetailModal workout={completedLinked} athleteId="i1" ftp={250} onClose={() => {}} />)
+    await screen.findByRole('tab', { name: 'Stats' })
+    expect(screen.queryByRole('tab', { name: 'Highlights' })).toBeNull()
+  })
 })
