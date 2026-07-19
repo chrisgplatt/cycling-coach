@@ -90,6 +90,25 @@ describe('extractActivityMetrics', () => {
   it('bumps METRICS_VERSION to 3', () => {
     expect(METRICS_VERSION).toBe(3)
   })
+
+  it('extracts 5s and 15s sprint entries from best_efforts', () => {
+    const m = extractActivityMetrics(act, curve, intervals)
+    expect(m.sprints).toEqual([
+      { duration_secs: 5, watts: 600 },
+      { duration_secs: 15, watts: 520 },
+    ])
+  })
+
+  it('returns null sprints when the curve has no 5s/15s points', () => {
+    const shortCurve = curve.filter(c => c.secs !== 5 && c.secs !== 15)
+    const m = extractActivityMetrics(act, shortCurve, intervals)
+    expect(m.sprints).toBeNull()
+  })
+
+  it('returns null sprints when there is no curve at all', () => {
+    const m = extractActivityMetrics(act, null, intervals)
+    expect(m.sprints).toBeNull()
+  })
 })
 
 describe('formatActivityMetrics', () => {

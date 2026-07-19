@@ -1,7 +1,7 @@
 // Pure, dependency-free formatters for enriched completed-ride detail.
 // Kept free of the intervals.icu and Anthropic clients so prompt builders can
 // import it without dragging in network/SDK code (mirrors lib/claude/zones.ts).
-import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment, DistributionBin, SessionDistributions, EffortPeriod } from '@/types'
+import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment, DistributionBin, SessionDistributions, EffortPeriod, RideSprint } from '@/types'
 import { alignPlannedToLaps } from '@/lib/ride/planned-actual'
 
 // Best-effort durations we sample the power curve down to (seconds): 5s, 15s,
@@ -24,6 +24,13 @@ function sampleBest(curve: ICUPowerCurvePoint[], target: number): { secs: number
   // so a 20-minute ride never reports a fabricated 60-minute best.
   if (Math.abs(nearest.secs - target) > target * 0.2) return null
   return { secs: target, watts: Math.round(nearest.watts) }
+}
+
+function extractSprints(best: Array<{ secs: number; watts: number }>): RideSprint[] | null {
+  const out = best
+    .filter(e => e.secs === 5 || e.secs === 15)
+    .map(e => ({ duration_secs: e.secs, watts: e.watts }))
+  return out.length ? out : null
 }
 
 export function extractActivityMetrics(
@@ -57,7 +64,7 @@ export function extractActivityMetrics(
     shape: null,
     distributions: null,
     effort_periods: null,   // filled by extractStreamInsights (Task 2)
-    sprints: null,          // filled below in this function (Task 3)
+    sprints: extractSprints(best),
     personal_bests: null,   // filled by enrichActivity after a 90-day curve fetch (Task 5)
     metrics_version: METRICS_VERSION,
     synced_at: new Date().toISOString(),
