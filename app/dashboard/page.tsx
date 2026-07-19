@@ -13,7 +13,6 @@ import { getWeekBounds } from '@/lib/week-bounds'
 import { localDateStr } from '@/lib/local-date'
 import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
-import { computeRecoveryScore } from '@/lib/recovery-score'
 import { estimateTss } from '@/lib/estimate-tss'
 import { isSessionCountable, isSessionCompleted } from '@/lib/progress/session-counting'
 import { isGarminSyncStale, formatGarminSyncTime } from '@/lib/garmin/sync-staleness'
@@ -565,23 +564,7 @@ export default function DashboardPage() {
     ? { energy: todayDailyWellnessEntry.energy, leg_freshness: todayDailyWellnessEntry.leg_freshness }
     : undefined
 
-  const tsbForRecovery = latestWellnessWithLoad?.form ?? (
-    latestWellnessWithLoad?.ctl != null && latestWellnessWithLoad?.atl != null
-      ? latestWellnessWithLoad.ctl - latestWellnessWithLoad.atl
-      : null
-  )
-  const recovery = computeRecoveryScore({
-    hrv: latestWellnessWithLoad?.hrv ?? null,
-    hrvBaseline: hrvStatus.baselineMean,
-    garmin_sleep_deep_secs: latestWellnessWithLoad?.garmin_sleep_deep_secs ?? null,
-    garmin_sleep_light_secs: latestWellnessWithLoad?.garmin_sleep_light_secs ?? null,
-    garmin_sleep_rem_secs: latestWellnessWithLoad?.garmin_sleep_rem_secs ?? null,
-    garmin_sleep_awake_secs: latestWellnessWithLoad?.garmin_sleep_awake_secs ?? null,
-    body_battery_high: latestWellnessWithLoad?.body_battery_high ?? null,
-    energy: todayDailyWellnessForCard?.energy ?? null,
-    leg_freshness: todayDailyWellnessForCard?.leg_freshness ?? null,
-    tsb: tsbForRecovery,
-  })
+  const recovery = chartsData?.recoveryHistory.at(-1) ?? null
 
   const garminStale = !!garminEmail && isGarminSyncStale(garminLastSyncAt)
   const garminSyncLine = garminEmail
@@ -684,7 +667,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      {latestWellnessWithLoad && (
+      {latestWellnessWithLoad && recovery && (
         <StrainRingStrip
           recovery={recovery}
           strainToday={strainToday}
