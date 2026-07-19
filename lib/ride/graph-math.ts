@@ -100,3 +100,34 @@ export function formatClockDuration(secs: number): string {
   const mm = h > 0 ? String(m).padStart(2, '0') : String(m)
   return `${h > 0 ? h + ':' : ''}${mm}:${String(sec).padStart(2, '0')}`
 }
+
+// Shared between RouteMap (Leaflet) and RideGraph (SVG) so the two marker
+// surfaces never visually drift out of sync with each other.
+export interface HighlightMarker {
+  arrayIndex: number    // this highlight's position in the RideHighlight[] array
+  streamIndex: number   // resolved index into the ride's stream arrays
+  kind: 'climb' | 'effort'
+}
+
+export const HIGHLIGHT_MARKER_COLOR: Record<'climb' | 'effort', string> = {
+  climb: '#c2410c',
+  effort: '#f59e0b',
+}
+
+export const HIGHLIGHT_MARKER_ICON: Record<'climb' | 'effort', string> = {
+  climb: '🏔️',
+  effort: '⚡',
+}
+
+// Maps a highlight's start_km to the nearest stream sample index, reusing the
+// same fraction-based nearest-match already used for pointer scrubbing —
+// keeps this in lock-step with how the rest of the chart positions samples.
+export function nearestIndexForKm(distance: number[], km: number): number {
+  const targetM = km * 1000
+  const fractions = axisFractions(distance)
+  if (fractions.length === 0) return 0
+  const lo = distance[0]
+  const span = distance[distance.length - 1] - lo
+  const f = span <= 0 ? 0 : Math.min(1, Math.max(0, (targetM - lo) / span))
+  return nearestIndexForFraction(fractions, f)
+}
