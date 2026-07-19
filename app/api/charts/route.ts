@@ -37,6 +37,9 @@ export async function GET() {
   const oldest = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000)
     .toISOString().split('T')[0]
 
+  // Recovery uses its own profile-timezone "today" — Strain's existing UTC-based
+  // newest/oldest above are intentionally left untouched (see
+  // docs/superpowers/plans/2026-07-19-unified-recovery-inputs.md's Global Constraints).
   const tz = (profile as { timezone?: string } | null)?.timezone ?? 'Europe/London'
   const recoveryToday = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date())
 
