@@ -295,15 +295,21 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  // Widen the fetch range and take the last available entry (mirroring the
+  // dashboard's chartsData.recoveryHistory.at(-1) semantics) rather than requiring
+  // an exact match on `today` — intervals.icu doesn't always have today's wellness
+  // row computed yet, and falling back to a neutral default in that case would show
+  // a different Recovery picture than the dashboard on the same morning.
+  const recoveryFrom = new Date(new Date(today + 'T00:00:00Z').getTime() - 3 * 864e5).toISOString().split('T')[0]
   const recoveryInputsResult = profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key
     ? await fetchRecoveryInputsForRange(
         supabase, user.id,
         new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key),
-        { from: today, to: today },
+        { from: recoveryFrom, to: today },
       )
     : []
   const recoveryResult = computeRecoveryScore(
-    recoveryInputsResult[0]?.inputs ?? {
+    recoveryInputsResult.at(-1)?.inputs ?? {
       hrv: null, hrvBaseline: null, garmin_sleep_deep_secs: null, garmin_sleep_light_secs: null,
       garmin_sleep_rem_secs: null, garmin_sleep_awake_secs: null, body_battery_high: null,
       energy: null, leg_freshness: null, tsb: null,
