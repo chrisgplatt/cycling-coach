@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { extractActivityMetrics, formatActivityMetrics, formatRideExecution, METRICS_VERSION } from '@/lib/claude/activity-metrics'
+import { extractActivityMetrics, formatActivityMetrics, formatRideExecution, detectPersonalBests, METRICS_VERSION } from '@/lib/claude/activity-metrics'
 import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, WorkoutStep, ActivityMetrics } from '@/types'
 import { makeActivityMetrics } from '../support/factories'
 
@@ -108,6 +108,33 @@ describe('extractActivityMetrics', () => {
   it('returns null sprints when there is no curve at all', () => {
     const m = extractActivityMetrics(act, null, intervals)
     expect(m.sprints).toBeNull()
+  })
+})
+
+describe('detectPersonalBests', () => {
+  const rideBest = [{ secs: 300, watts: 312 }, { secs: 1200, watts: 264 }]
+
+  it('flags a duration where this ride ties or beats the 90-day curve max', () => {
+    const ninetyDayCurve: ICUPowerCurvePoint[] = [
+      { secs: 300, watts: 312 },   // this ride currently holds the best
+      { secs: 1200, watts: 290 },  // a different day was better — not a PB
+    ]
+    expect(detectPersonalBests(rideBest, ninetyDayCurve)).toEqual([
+      { duration_secs: 300, watts: 312, window_days: 90 },
+    ])
+  })
+
+  it('returns null when no duration qualifies', () => {
+    const ninetyDayCurve: ICUPowerCurvePoint[] = [
+      { secs: 300, watts: 340 }, { secs: 1200, watts: 290 },
+    ]
+    expect(detectPersonalBests(rideBest, ninetyDayCurve)).toBeNull()
+  })
+
+  it('returns null when best_efforts or the curve is null/empty', () => {
+    expect(detectPersonalBests(null, [{ secs: 300, watts: 312 }])).toBeNull()
+    expect(detectPersonalBests(rideBest, null)).toBeNull()
+    expect(detectPersonalBests(rideBest, [])).toBeNull()
   })
 })
 

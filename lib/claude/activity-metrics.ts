@@ -1,7 +1,7 @@
 // Pure, dependency-free formatters for enriched completed-ride detail.
 // Kept free of the intervals.icu and Anthropic clients so prompt builders can
 // import it without dragging in network/SDK code (mirrors lib/claude/zones.ts).
-import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment, DistributionBin, SessionDistributions, EffortPeriod, RideSprint } from '@/types'
+import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment, DistributionBin, SessionDistributions, EffortPeriod, RideSprint, PersonalBest } from '@/types'
 import { alignPlannedToLaps } from '@/lib/ride/planned-actual'
 
 // Best-effort durations we sample the power curve down to (seconds): 5s, 15s,
@@ -69,6 +69,21 @@ export function extractActivityMetrics(
     metrics_version: METRICS_VERSION,
     synced_at: new Date().toISOString(),
   }
+}
+
+export function detectPersonalBests(
+  rideBestEfforts: Array<{ secs: number; watts: number }> | null,
+  ninetyDayCurve: ICUPowerCurvePoint[] | null,
+): PersonalBest[] | null {
+  if (!rideBestEfforts?.length || !ninetyDayCurve?.length) return null
+  const out: PersonalBest[] = []
+  for (const e of rideBestEfforts) {
+    const best = sampleBest(ninetyDayCurve, e.secs)
+    if (best && best.watts <= e.watts) {
+      out.push({ duration_secs: e.secs, watts: e.watts, window_days: 90 })
+    }
+  }
+  return out.length ? out : null
 }
 
 function findBest(m: ActivityMetrics, secs: number): number | null {
