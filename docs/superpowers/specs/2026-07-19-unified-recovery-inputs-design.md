@@ -72,32 +72,28 @@ export function computeHrvStatusBestSource(
 
 ### `/api/charts` gains `recoveryHistory`
 
+**Correction found while writing the implementation plan:** the fitness page's Recovery trend chart already has a tap-a-point-for-detail feature (`RecoverySection`'s `displayed.result.components.*`) that needs the *full* `RecoveryScore` breakdown — sleep/HRV/wellness/TSB/body-battery components and the explanation string — for every historical day, not just a score and band. The original draft of this section assumed the trend chart "only plots score" and planned a slimmed-down `RecoveryPoint`; that assumption was wrong, so the per-day shape below carries the full breakdown instead:
+
 ```typescript
-export interface RecoveryPoint {
+export interface RecoveryHistoryPoint extends RecoveryScore {   // score, band, explanation, components
   date: string
-  score: number
-  band: 'high' | 'moderate' | 'low'
 }
 
 export interface ChartsData {
   // ...existing fields unchanged...
-  recoveryHistory: RecoveryPoint[]
+  recoveryHistory: RecoveryHistoryPoint[]
 }
 ```
 
-`app/api/charts/route.ts` calls `fetchRecoveryInputsForRange` for its existing 365-day window, then `computeRecoveryScore` per date, and includes the result. No freezing/persistence needed here — unlike Strain's `trimpRef`, Recovery's HRV baseline is a same-day rolling computation with no drifting reference window, so recomputing fresh on every request is correct and matches how the charts route already treats HRV-based strain history today.
+`app/api/charts/route.ts` calls `fetchRecoveryInputsForRange` for its existing 365-day window, then `computeRecoveryScore` per date, and includes the full result per day. No freezing/persistence needed here — unlike Strain's `trimpRef`, Recovery's HRV baseline is a same-day rolling computation with no drifting reference window, so recomputing fresh on every request is correct and matches how the charts route already treats HRV-based strain history today. (A 365-day array of small objects — a handful of numbers and a short string each — is not a meaningful payload concern; the app already returns comparably-shaped `dailyStrain` history over the same window.)
 
-### Consumers stop computing Recovery themselves
+### Consumers stop computing Recovery themselves — and `RecoveryBreakdownModal` needs no local computation at all
 
-- **`app/dashboard/page.tsx`**: deletes its `RecoveryInputs`-assembly block (`tsbForRecovery` and the manual field-by-field construction) entirely — the inputs are now server-computed. It still calls `computeRecoveryScore`, but on `chartsData.recoveryInputsToday` (server-provided, already-unified inputs) rather than on its own hand-built object; see the `RecoveryBreakdownModal` section below for why this stays a local call rather than also moving server-side. `StrainRingStrip` and `RecoveryBreakdownModal` both keep receiving the same full `RecoveryScore` shape they do today — no prop-contract changes to either.
-- **`app/fitness/page.tsx`**: `RecoverySection` deletes its own `computeRecoveryScore`/`computeHrvBaseline` calls and the hardcoded `energy: null, leg_freshness: null` (fixed as a side effect — the shared fetcher includes real `daily_wellness` lookups for the whole range). Reads `chartsData.recoveryHistory` directly for its trend chart.
+Because `recoveryHistory` now carries the full breakdown per day, there is no longer a need for a separate "today's raw inputs" field or any client-side `computeRecoveryScore` call anywhere — every consumer just reads the entry it needs directly.
+
+- **`app/dashboard/page.tsx`**: deletes its `RecoveryInputs`-assembly block (`tsbForRecovery` and the manual field-by-field construction) and its `computeRecoveryScore` call entirely. Reads today's entry directly from `chartsData.recoveryHistory` (the last entry, since the range always ends at today) and passes it straight through to `StrainRingStrip`/`RecoveryBreakdownModal` — both keep their existing `RecoveryScore`-shaped prop contract unchanged, just sourced differently.
+- **`app/fitness/page.tsx`**: `RecoverySection` deletes its own `computeRecoveryScore`/`computeHrvBaseline` calls and the hardcoded `energy: null, leg_freshness: null` (fixed as a side effect — the shared fetcher includes real `daily_wellness` lookups for the whole range). Takes `recoveryHistory: RecoveryHistoryPoint[]` as its prop instead of `wellness: ICUWellness[]`, filters by the selected 14/30-day range client-side (unchanged UI behavior), and reads `.components`/`.explanation` directly off each point for the tap-detail feature — no shape change needed there since `RecoveryHistoryPoint` already includes everything `RecoveryScore` did.
 - **`app/api/briefing/today/route.ts`**: replaces its own `RecoveryInputs` assembly (currently built from `hrv`, `hrvStatus?.baselineMean`, `todayGarmin`, `bodyBatteryHigh`, `todayDailyWellness`, `tsb`, each independently fetched) with a call to `fetchRecoveryInputsForRange(..., { from: today, to: today })`, then `computeRecoveryScore` on the single result. The route's separate `fetchHrvStatusBestSource` call (used to populate `ctx.hrvStatus`, which is a distinct prompt field from Recovery and stays as-is) is unaffected by this change — it's a different consumer of the same underlying pure HRV logic, not touched here beyond the internal refactor above.
-
-### `RecoveryBreakdownModal` and the loss of `RecoveryScore.components`
-
-`RecoveryPoint` (the new `/api/charts` shape) intentionally carries only `{date, score, band}` — a full `RecoveryScore` (with its `components`/`explanation` breakdown) for *every historical day* would be a meaningfully larger payload for no current use (the trend chart only plots `score`). But `RecoveryBreakdownModal` (opened by tapping the Recovery ring) needs the full breakdown for **today** specifically.
-
-**Decision:** `ChartsData` gains one more field, `recoveryInputsToday: RecoveryInputs | null` — today's raw inputs (not yet scored), from the same `fetchRecoveryInputsForRange` call that builds `recoveryHistory`. The dashboard calls the existing, already-client-side-imported `computeRecoveryScore(chartsData.recoveryInputsToday)` locally to get the full `RecoveryScore` object (score, band, components, explanation) whenever it's needed — for the ring's display and for `RecoveryBreakdownModal`'s full breakdown alike. This is a synchronous, pure, cheap call on data already in memory, not a second fetch — `RecoveryBreakdownModal`'s existing prop contract (`{ recovery: RecoveryScore, onClose }`) is unchanged. `recoveryHistory`'s per-day `score`/`band` are still computed server-side (by the same `computeRecoveryScore` call, applied to each day) so the trend chart doesn't need to run the scoring function client-side for 30+ historical points.
 
 ## Files to change
 
@@ -106,10 +102,10 @@ export interface ChartsData {
 | `lib/hrv/best-source.ts` | **New** — pure `computeHrvStatusBestSource` |
 | `lib/hrv/server.ts` | `fetchHrvStatusBestSource` refactored to call the new pure function internally; public behavior unchanged |
 | `lib/recovery-inputs.ts` | **New** — `fetchRecoveryInputsForRange`, the single shared I/O function |
-| `types/index.ts` | Add `RecoveryPoint`, add `recoveryHistory: RecoveryPoint[]` and `recoveryInputsToday: RecoveryInputs \| null` to `ChartsData` |
-| `app/api/charts/route.ts` | Call `fetchRecoveryInputsForRange`, compute and include `recoveryHistory` and `recoveryInputsToday` |
-| `app/dashboard/page.tsx` | Remove client-side `RecoveryInputs` assembly; compute `computeRecoveryScore(chartsData.recoveryInputsToday)` locally for the ring/modal; read `chartsData.recoveryHistory` where only score/band across history is needed |
-| `app/fitness/page.tsx` | `RecoverySection` reads `chartsData.recoveryHistory` instead of computing; removes the hardcoded `energy: null, leg_freshness: null` |
+| `types/index.ts` | Add `RecoveryHistoryPoint` (`RecoveryScore & {date}`), add `recoveryHistory: RecoveryHistoryPoint[]` to `ChartsData` |
+| `app/api/charts/route.ts` | Call `fetchRecoveryInputsForRange`, compute full `RecoveryScore` per date, include as `recoveryHistory` |
+| `app/dashboard/page.tsx` | Remove client-side `RecoveryInputs` assembly and `computeRecoveryScore` call entirely; read today's entry from `chartsData.recoveryHistory` |
+| `app/fitness/page.tsx` | `RecoverySection` takes `recoveryHistory` as a prop instead of `wellness`, removes its own `computeRecoveryScore`/`computeHrvBaseline` calls and the hardcoded `energy: null, leg_freshness: null` |
 | `app/api/briefing/today/route.ts` | Replace manual `RecoveryInputs` assembly with `fetchRecoveryInputsForRange(..., {from: today, to: today})` |
 | Tests | New tests for `computeHrvStatusBestSource` and `fetchRecoveryInputsForRange`; updated tests for all four consumer sites |
 
