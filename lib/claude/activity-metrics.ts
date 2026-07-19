@@ -12,7 +12,7 @@ const CANONICAL_SECS = [5, 15, 60, 300, 600, 1200, 3600]
 // new derived fields, etc.). The backfill re-enriches rows below this version so
 // existing rides pick up the change once — without churning rows that can't
 // produce a given field (the version stamp lands regardless).
-export const METRICS_VERSION = 3
+export const METRICS_VERSION = 4
 
 function sampleBest(curve: ICUPowerCurvePoint[], target: number): { secs: number; watts: number } | null {
   if (!curve.length) return null

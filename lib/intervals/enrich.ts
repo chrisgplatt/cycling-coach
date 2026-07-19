@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ICUActivity, ActivityMetrics, WorkoutStep, RideStreams } from '@/types'
 import type { IntervalsClient } from './client'
-import { extractActivityMetrics, extractStreamInsights, extractDistributions, METRICS_VERSION } from '@/lib/claude/activity-metrics'
+import { extractActivityMetrics, extractStreamInsights, extractDistributions, detectPersonalBests, METRICS_VERSION } from '@/lib/claude/activity-metrics'
 
 // An empty streams object: lets a stream-less ride still produce a (fully-null)
 // distributions object instead of a bare null, so the backfill predicate
@@ -21,19 +21,27 @@ export async function enrichActivity(
   plannedSteps: WorkoutStep[] | null,
 ): Promise<ActivityMetrics> {
   const date = activity.start_date_local.split('T')[0]
-  const [curve, intervals, streams] = await Promise.all([
+  // Anchored on the RIDE's own date, not "now" — critical for backfilling old
+  // rides correctly, where each ride's 90-day PB window must end on its own
+  // date, not on today's.
+  const ninetyDaysBefore = new Date(new Date(`${date}T00:00:00Z`).getTime() - 90 * 86400000)
+    .toISOString().split('T')[0]
+  const [curve, intervals, streams, ninetyDayCurve] = await Promise.all([
     client.getPowerCurve(date, date).catch(() => null),
     client.getActivityIntervals(activity.id).catch(() => null),
     client.getActivityStreams(activity.id).catch(() => null),
+    client.getPowerCurve(ninetyDaysBefore, date).catch(() => null),
   ])
   const base = extractActivityMetrics(activity, curve, intervals)
+  const personal_bests = detectPersonalBests(base.best_efforts, ninetyDayCurve)
   if (!streams) {
-    return { ...base, distributions: extractDistributions(EMPTY_STREAMS, ftp, lthr, base.np, base.avg_power) }
+    return { ...base, distributions: extractDistributions(EMPTY_STREAMS, ftp, lthr, base.np, base.avg_power), personal_bests }
   }
   return {
     ...base,
     ...extractStreamInsights(streams, ftp, plannedSteps, intervals),
     distributions: extractDistributions(streams, ftp, lthr, base.np, base.avg_power),
+    personal_bests,
   }
 }
 

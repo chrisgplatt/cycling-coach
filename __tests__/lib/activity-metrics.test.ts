@@ -87,8 +87,8 @@ describe('extractActivityMetrics', () => {
     expect(m.max_temp_c).toBeNull()
   })
 
-  it('bumps METRICS_VERSION to 3', () => {
-    expect(METRICS_VERSION).toBe(3)
+  it('bumps METRICS_VERSION to 4', () => {
+    expect(METRICS_VERSION).toBe(4)
   })
 
   it('extracts 5s and 15s sprint entries from best_efforts', () => {
