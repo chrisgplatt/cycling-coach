@@ -4,7 +4,7 @@ import MetricRing from '@/components/MetricRing'
 import StrainBreakdownSheet from '@/components/StrainBreakdownSheet'
 import RecoveryBreakdownModal from '@/components/RecoveryBreakdownModal'
 import SleepBreakdownModal from '@/components/SleepBreakdownModal'
-import { strainLabel } from '@/lib/strain'
+import { strainLabel, computeStrainTarget } from '@/lib/strain'
 import type { RecoveryScore } from '@/lib/recovery-score'
 import type { ICUWellness, DailyStrainPoint } from '@/types'
 
@@ -51,6 +51,10 @@ export default function StrainRingStrip({ recovery, strainToday, wellness, activ
   const sleepScore = wellness.sleep_score
   const sleepBandKey = sleepScore != null ? sleepBand(sleepScore) : null
 
+  const strainTarget = computeStrainTarget(recovery.score)
+  const targetLowPct = (strainTarget.low / 21) * 100
+  const targetHighPct = (strainTarget.high / 21) * 100
+
   return (
     <>
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
@@ -70,6 +74,8 @@ export default function StrainRingStrip({ recovery, strainToday, wellness, activ
             bandLabel={strainCategory ? titleCase(strainCategory) : '—'}
             color={strainCategory ? STRAIN_COLOR[strainCategory] : '#9ca3af'}
             onTap={strainToday ? () => setOpen('strain') : undefined}
+            targetLowPct={targetLowPct}
+            targetHighPct={targetHighPct}
           />
           <MetricRing
             displayValue={sleepScore != null ? String(sleepScore) : '—'}

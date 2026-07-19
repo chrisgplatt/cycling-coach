@@ -50,3 +50,15 @@ test('renders placeholder dashes when strainToday is null', () => {
   )
   expect(screen.getAllByText('—').length).toBeGreaterThan(0)
 })
+
+test('passes a converted target range to the Strain ring as percentages', () => {
+  // recovery.score=78 → computeStrainTarget(78) = { low: round(0.78*14)=11, high: 18 }
+  // as percentages of 21: low 11/21*100≈52.38, high 18/21*100≈85.71
+  render(
+    <StrainRingStrip recovery={recovery} strainToday={strainToday} wellness={wellness} activities={[]} maxHr={190} restingHr={50} />
+  )
+  screen.getByRole('button', { name: /Strain breakdown/i }).closest('div') as HTMLElement
+  // The two ticks render inside the Strain ring only — Recovery and Sleep rings get none.
+  expect(screen.getAllByTestId('ring-tick-low')).toHaveLength(1)
+  expect(screen.getAllByTestId('ring-tick-high')).toHaveLength(1)
+})
