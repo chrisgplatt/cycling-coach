@@ -164,7 +164,7 @@ describe('formatRideExecution', () => {
   })
 })
 
-import { formatRideShape } from '@/lib/claude/activity-metrics'
+import { formatRideShape, extractStreamInsights } from '@/lib/claude/activity-metrics'
 import type { ActivityMetrics as AM } from '@/types'
 
 describe('insight formatting', () => {
@@ -192,5 +192,41 @@ describe('insight formatting', () => {
   it('formatRideShape renders planned vs actual per step', () => {
     expect(formatRideShape(m.shape)).toContain('Work: planned 250W, actual 238W')
     expect(formatRideShape(null)).toBe('')
+  })
+})
+
+describe('effort period detection (via extractStreamInsights)', () => {
+  // 10 samples, 30s apart (dt=30s). At this spacing the 30s centred rolling
+  // average only ever includes the sample itself (its neighbours are exactly
+  // 30s away, outside the ±15s half-window), so smoothed power === raw power
+  // here — keeping the fixture's expected output simple to reason about.
+  const time = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270]
+  const distance = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]
+  const ftp = 250
+
+  it('detects a sustained Z4+ block lasting at least 180s', () => {
+    // indices 2..8 (7 points) = 230W (92% FTP, Z4); rest = 150W (60% FTP, Z2).
+    // time[8]-time[2] = 240-60 = 180s, exactly meeting the minimum.
+    const power = [150, 150, 230, 230, 230, 230, 230, 230, 230, 150]
+    const s = { time, distance, latlng: null, power, hr: null, altitude: null, cadence: null, velocity: null }
+    const insights = extractStreamInsights(s, ftp, null, null)
+    expect(insights.effort_periods).toEqual([
+      { start_km: 0.4, duration_secs: 180, avg_watts: 230, zone: 'z4' },
+    ])
+  })
+
+  it('does not emit a block shorter than 180s', () => {
+    // indices 2..6 (5 points) = 230W; duration = time[6]-time[2] = 150-60 = 90s.
+    const power = [150, 150, 230, 230, 230, 230, 230, 150, 150, 150]
+    const s = { time, distance, latlng: null, power, hr: null, altitude: null, cadence: null, velocity: null }
+    const insights = extractStreamInsights(s, ftp, null, null)
+    expect(insights.effort_periods).toBeNull()
+  })
+
+  it('returns null when power or ftp is unavailable', () => {
+    const s = { time, distance, latlng: null, power: null, hr: null, altitude: null, cadence: null, velocity: null }
+    expect(extractStreamInsights(s, ftp, null, null).effort_periods).toBeNull()
+    const s2 = { time, distance, latlng: null, power: [200, 200, 200, 200, 200, 200, 200, 200, 200, 200], hr: null, altitude: null, cadence: null, velocity: null }
+    expect(extractStreamInsights(s2, null, null, null).effort_periods).toBeNull()
   })
 })
