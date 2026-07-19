@@ -8,6 +8,7 @@ import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { computeDailyTrimp, computeTrimpRef, computeWorkoutStrain, computeStrainTarget, type DailyActivityInput } from '@/lib/strain'
 import { computeRecoveryScore } from '@/lib/recovery-score'
+import { fetchRecoveryInputsForRange } from '@/lib/recovery-inputs'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { eventCoversDate, eventEndDate } from '@/lib/events'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness, DailyWellness, GarminWellness } from '@/types'
@@ -88,7 +89,6 @@ export async function GET(req: NextRequest) {
   let atl: number | null = null
   let tsb: number | null = null
   let hrv: number | null = null
-  let bodyBatteryHigh: number | null = null
   let hrvStatus: BriefingContext['hrvStatus'] = null
   let recentWorkouts: BriefingContext['recentWorkouts'] = []
   let dailyStrain: number | null = null
@@ -111,7 +111,6 @@ export async function GET(req: NextRequest) {
       atl = latest?.atl ?? null
       tsb = latest?.form ?? (ctl !== null && atl !== null ? ctl - atl : null)
       hrv = latest?.hrv ?? null
-      bodyBatteryHigh = latest?.body_battery_high ?? null
       recentWorkouts = activities
         .filter((a: ICUActivity) => /ride/i.test(a.type))
         .sort((a: ICUActivity, b: ICUActivity) => b.start_date_local.localeCompare(a.start_date_local))
@@ -247,9 +246,6 @@ export async function GET(req: NextRequest) {
     | 'garmin_sleep_rem_secs' | 'garmin_sleep_awake_secs' | 'garmin_sleep_respiration_avg'
   > | null
 
-  const todayDailyWellness = (wellnessRows ?? []).find(
-    (w): w is DailyWellness => (w as DailyWellness).date === today
-  )
   const maxHrProfile = profile as { date_of_birth?: string | null; max_hr_manual?: number | null; observed_max_hr?: number | null } | null
   const maxHr = resolveMaxHrFromProfile(maxHrProfile)?.value ?? null
 
@@ -299,18 +295,20 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  const recoveryResult = computeRecoveryScore({
-    hrv,
-    hrvBaseline: hrvStatus?.baselineMean ?? null,
-    garmin_sleep_deep_secs: todayGarmin?.garmin_sleep_deep_secs ?? null,
-    garmin_sleep_light_secs: todayGarmin?.garmin_sleep_light_secs ?? null,
-    garmin_sleep_rem_secs: todayGarmin?.garmin_sleep_rem_secs ?? null,
-    garmin_sleep_awake_secs: todayGarmin?.garmin_sleep_awake_secs ?? null,
-    body_battery_high: bodyBatteryHigh,
-    energy: todayDailyWellness?.energy ?? null,
-    leg_freshness: todayDailyWellness?.leg_freshness ?? null,
-    tsb,
-  })
+  const recoveryInputsResult = profile?.intervals_icu_athlete_id && profile?.intervals_icu_api_key
+    ? await fetchRecoveryInputsForRange(
+        supabase, user.id,
+        new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key),
+        { from: today, to: today },
+      )
+    : []
+  const recoveryResult = computeRecoveryScore(
+    recoveryInputsResult[0]?.inputs ?? {
+      hrv: null, hrvBaseline: null, garmin_sleep_deep_secs: null, garmin_sleep_light_secs: null,
+      garmin_sleep_rem_secs: null, garmin_sleep_awake_secs: null, body_battery_high: null,
+      energy: null, leg_freshness: null, tsb: null,
+    },
+  )
 
   const strainTarget = computeStrainTarget(recoveryResult.score)
 
