@@ -477,7 +477,7 @@ describe('WorkoutDetailModal tabs', () => {
     expect(screen.queryByTestId('tab-dot-feedback')).not.toBeInTheDocument()
   })
 
-  it('shows a Highlights tab when the linked ride has at least one highlight', async () => {
+  it('never shows a Highlights tab (highlights moved into the Map tab)', async () => {
     const withClimb = {
       ...completedLinked,
       activity_metrics: makeActivityMetrics({
@@ -490,19 +490,29 @@ describe('WorkoutDetailModal tabs', () => {
         : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
     ) as never
     render(<WorkoutDetailModal workout={withClimb} athleteId="i1" ftp={250} onClose={() => {}} />)
-    expect(await screen.findByRole('tab', { name: 'Highlights' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'Highlights' }))
-    expect(screen.getByText(/Climb/)).toBeInTheDocument()
-  })
-
-  it('hides the Highlights tab when the linked ride has no highlights', async () => {
-    global.fetch = jest.fn((url: string) =>
-      String(url).includes('/weather/')
-        ? Promise.resolve({ ok: false })
-        : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
-    ) as never
-    render(<WorkoutDetailModal workout={completedLinked} athleteId="i1" ftp={250} onClose={() => {}} />)
     await screen.findByRole('tab', { name: 'Stats' })
     expect(screen.queryByRole('tab', { name: 'Highlights' })).toBeNull()
+  })
+
+  it('renders highlight cards under the Map tab when the linked ride has highlights', async () => {
+    const withClimb = {
+      ...completedLinked,
+      activity_metrics: makeActivityMetrics({
+        climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 }],
+      }),
+    }
+    global.fetch = jest.fn((url: string) =>
+      String(url).includes('/streams')
+        ? Promise.resolve({ ok: true, json: async () => ({
+            streams: { time: [0, 60, 120], distance: [0, 2500, 5000], latlng: null, power: [100, 100, 100], hr: null, altitude: null, cadence: null, velocity: null },
+            intervals: [],
+          }) })
+        : String(url).includes('/weather/')
+          ? Promise.resolve({ ok: false })
+          : Promise.resolve({ ok: true, json: async () => ({ feedback: null }) }),
+    ) as never
+    render(<WorkoutDetailModal workout={withClimb} athleteId="i1" ftp={250} onClose={() => {}} />)
+    fireEvent.click(await screen.findByRole('tab', { name: 'Map' }))
+    expect(await screen.findByText(/Climb/)).toBeInTheDocument()
   })
 })

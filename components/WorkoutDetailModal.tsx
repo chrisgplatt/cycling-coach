@@ -9,7 +9,6 @@ import RideStats, { rideStatsFromMetrics } from './RideStats'
 import SessionHistogram from './SessionHistogram'
 import RideMapGraph from './ride/RideMapGraph'
 import TabBar from './TabBar'
-import RideHighlightsTab from './RideHighlightsTab'
 import { buildHighlightList } from '@/lib/ride-highlights'
 import PlannedVsActualChart from './PlannedVsActualChart'
 import PlannedVsActualList from './PlannedVsActualList'
@@ -70,7 +69,7 @@ export default function WorkoutDetailModal({
   const [actualUnavailable, setActualUnavailable] = useState(false)
   const [streams, setStreams] = useState<RideStreams | null>(null)
   const [streamsError, setStreamsError] = useState(false)
-  const [tab, setTab] = useState<'overview' | 'stats' | 'map' | 'feedback' | 'highlights'>('overview')
+  const [tab, setTab] = useState<'overview' | 'stats' | 'map' | 'feedback'>('overview')
   const [feedbackSaved, setFeedbackSaved] = useState(false)
   const [weather, setWeather] = useState<ActivityWeather | null>(null)
   const [weatherLoading, setWeatherLoading] = useState(false)
@@ -467,14 +466,13 @@ export default function WorkoutDetailModal({
           const tabs = [
             { id: 'overview', label: 'Overview' },
             ...(hasRide ? [{ id: 'stats', label: 'Stats' }, { id: 'map', label: 'Map' }] : []),
-            ...(highlights.length ? [{ id: 'highlights', label: 'Highlights' }] : []),
             ...(isCompleted ? [{ id: 'feedback', label: 'Feedback', dot: hasFeedbackDot }] : []),
           ]
           return tabs.length > 1 ? (
             <TabBar
               tabs={tabs}
               activeId={tab}
-              onSelect={(id) => setTab(id as 'overview' | 'stats' | 'map' | 'feedback' | 'highlights')}
+              onSelect={(id) => setTab(id as 'overview' | 'stats' | 'map' | 'feedback')}
             />
           ) : null
         })()}
@@ -482,12 +480,8 @@ export default function WorkoutDetailModal({
         {hasRide && tab === 'map' ? (
           <div className="flex-1 min-h-0 overflow-y-auto">
             {streams
-              ? <RideMapGraph streams={streams} fit />
+              ? <RideMapGraph streams={streams} highlights={highlights} fit />
               : <p className="p-5 text-sm text-slate-400">{streamsError ? 'Could not load ride data.' : 'Loading ride…'}</p>}
-          </div>
-        ) : tab === 'highlights' ? (
-          <div className="flex-1 min-h-0 overflow-y-auto p-5">
-            <RideHighlightsTab highlights={highlights} />
           </div>
         ) : tab === 'feedback' ? (
           <div className="flex-1 min-h-0 overflow-y-auto p-5">
