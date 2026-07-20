@@ -5,11 +5,10 @@ import 'leaflet/dist/leaflet.css'
 import type { HighlightMarker } from '@/lib/ride/graph-math'
 import { HIGHLIGHT_MARKER_COLOR } from '@/lib/ride/graph-math'
 
-const FOCUS_ZOOM = 16
+const FOCUS_ZOOM = 16   // fallback when a focus request resolves to a single point
 
 export interface FocusRequest {
-  lat: number
-  lng: number
+  points: [number, number][]   // the highlight's full extent; 2+ points fit-bounds, 1 point falls back to FOCUS_ZOOM
   seq: number   // increments per request, so re-focusing the same point still re-triggers
 }
 
@@ -97,13 +96,20 @@ export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], o
     if (markerRef.current && pt) markerRef.current.setLatLng(pt)
   }, [cursorIndex, latlng])
 
-  // Pans/zooms to a highlight's location when its card is clicked (see
+  // Pans/zooms to a highlight's full extent when its card is clicked (see
   // RideMapGraph.handleCardClick). Keyed on the whole focusRequest object
   // (including `seq`) so re-clicking the same highlight after manually panning
-  // away still re-triggers the focus, even though lat/lng didn't change.
+  // away still re-triggers the focus, even though the points didn't change.
+  // 2+ points fit the map to the highlight's whole stretch; a single point
+  // (or a highlight with no resolvable extent) falls back to a fixed zoom
+  // rather than fitBounds zooming in on an effectively-zero-width box.
   useEffect(() => {
-    if (!focusRequest || !mapRef.current) return
-    mapRef.current.setView([focusRequest.lat, focusRequest.lng], FOCUS_ZOOM)
+    if (!focusRequest || !mapRef.current || focusRequest.points.length === 0) return
+    if (focusRequest.points.length >= 2) {
+      mapRef.current.fitBounds(focusRequest.points, { padding: [40, 40] })
+    } else {
+      mapRef.current.setView(focusRequest.points[0], FOCUS_ZOOM)
+    }
     setIsFocused(true)
   }, [focusRequest])
 

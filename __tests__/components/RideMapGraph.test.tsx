@@ -63,4 +63,11 @@ describe('RideMapGraph card-click focus', () => {
     fireEvent.click(card)
     expect(screen.getByText('0.0km')).toBeInTheDocument()
   })
+
+  it('always scrolls back to the top of the map section on a card click', () => {
+    render(<RideMapGraph streams={streams} highlights={highlights} />)
+    ;(Element.prototype.scrollIntoView as jest.Mock).mockClear()
+    fireEvent.click(screen.getByTestId('highlight-card'))
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+  })
 })

@@ -5,7 +5,7 @@ import type { RideStreams } from '@/types'
 import type { RideHighlight } from '@/lib/ride-highlights'
 import RideGraph from './RideGraph'
 import RideHighlightsTab from '../RideHighlightsTab'
-import { formatClockDuration, nearestIndexForKm, type HighlightMarker } from '@/lib/ride/graph-math'
+import { formatClockDuration, nearestIndexForKm, nearestIndexForDuration, type HighlightMarker } from '@/lib/ride/graph-math'
 import type { FocusRequest } from './RouteMap'
 
 const RouteMap = dynamic(() => import('./RouteMap'), { ssr: false })
@@ -39,6 +39,7 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
   const cardRefs = useRef(new Map<number, HTMLDivElement>())
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const focusSeqRef = useRef(0)
+  const topRef = useRef<HTMLDivElement>(null)
 
   // Only climbs/effort periods carry a start_km; sprints/personal-bests have no
   // resolvable position and never get a marker (they still render in the card
@@ -66,20 +67,28 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
     flashTimer.current = setTimeout(() => setActiveHighlightIndex(null), HIGHLIGHT_FLASH_MS)
   }, [])
 
-  // Reverse of handleMarkerTap: clicking a card moves the chart cursor to that
-  // point and (if the ride has GPS) asks RouteMap to pan/zoom there. `seq`
-  // increments on every qualifying click so re-clicking the same highlight after
-  // manually panning away still re-triggers the focus.
+  // Reverse of handleMarkerTap: clicking a card always scrolls the screen back
+  // to the top of this section and moves the chart cursor to that point; if the
+  // ride has GPS, it also asks RouteMap to fit the highlight's whole extent
+  // (start to end, resolved via nearestIndexForDuration since climbs/efforts
+  // carry a duration but not an explicit end position). `seq` increments on
+  // every qualifying click so re-clicking the same highlight after manually
+  // panning away still re-triggers the focus.
   const handleCardClick = useCallback((arrayIndex: number) => {
     const marker = highlightMarkers.find(m => m.arrayIndex === arrayIndex)
     if (!marker) return
     setCursor(marker.streamIndex)
-    const pt = streams.latlng?.[marker.streamIndex]
-    if (pt) {
-      focusSeqRef.current += 1
-      setFocusRequest({ lat: pt[0], lng: pt[1], seq: focusSeqRef.current })
+    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (streams.latlng) {
+      const durationSecs = highlights[arrayIndex]?.data.duration_secs ?? 0
+      const endIndex = nearestIndexForDuration(streams.time, marker.streamIndex, durationSecs)
+      const points = streams.latlng.slice(marker.streamIndex, endIndex + 1)
+      if (points.length > 0) {
+        focusSeqRef.current += 1
+        setFocusRequest({ points, seq: focusSeqRef.current })
+      }
     }
-  }, [highlightMarkers, streams.latlng])
+  }, [highlightMarkers, streams.latlng, streams.time, highlights])
 
   const at = (arr: number[] | null) => (arr && arr[cursor] != null ? arr[cursor] : null)
   const power = at(streams.power)
@@ -89,7 +98,7 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
   const t = at(streams.time)
 
   return (
-    <div className={`flex flex-col ${fit ? 'min-h-full' : ''}`}>
+    <div ref={topRef} className={`flex flex-col ${fit ? 'min-h-full' : ''}`}>
       {/* `isolate` contains Leaflet's high z-index panes so the app nav/menu stays on top */}
       <div className={`bg-slate-100 relative isolate ${fit ? 'flex-1 min-h-[150px]' : 'h-[40vh] min-h-[220px]'}`}>
         {hasGps ? (
