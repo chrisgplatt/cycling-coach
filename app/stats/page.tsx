@@ -6,6 +6,7 @@ import { weightAtDate } from '@/lib/weight-helpers'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import YearView from '@/components/YearView'
 import ActivityLogView from '@/components/ActivityLogView'
+import AllTimeBestsTab from '@/components/AllTimeBestsTab'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 
 function formatRideTabLabel(dateStr: string): string {
@@ -157,7 +158,7 @@ export default function StatsPage() {
   const [stats, setStats] = useState<RidingStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'year' | 'log' | '28d' | number>('year')
+  const [activeTab, setActiveTab] = useState<'year' | 'log' | '28d' | 'bests' | number>('year')
   const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
   const [effectiveMaxHr, setEffectiveMaxHr] = useState<number | null>(null)
 
@@ -203,11 +204,12 @@ export default function StatsPage() {
 
   const rides = stats.recent_rides ?? []
 
-  type TabId = 'year' | 'log' | '28d' | number
+  type TabId = 'year' | 'log' | '28d' | 'bests' | number
   const tabs: { id: TabId; label: string }[] = [
     { id: 'year', label: 'This Year' },
     { id: 'log', label: 'Activity Log' },
     { id: '28d', label: '28 Days' },
+    { id: 'bests', label: 'Bests' },
     ...rides.map((r, i) => ({ id: i as TabId, label: formatRideTabLabel(r.start_date_local) })),
   ]
 
@@ -217,6 +219,8 @@ export default function StatsPage() {
     ? 'All activities'
     : activeTab === '28d'
     ? `Last 28 days · ${stats.ride_count} ride${stats.ride_count !== 1 ? 's' : ''}`
+    : activeTab === 'bests'
+    ? 'All-time and yearly bests'
     : formatRideTabLabel((stats.recent_rides ?? [])[activeTab as number]?.start_date_local ?? '')
 
   return (
@@ -252,6 +256,8 @@ export default function StatsPage() {
           <AggregateView stats={stats} />
           <CrossTrainingSummary groups={stats.cross_training} />
         </>
+      ) : activeTab === 'bests' ? (
+        <AllTimeBestsTab />
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-gray-500 font-medium truncate">{rides[activeTab as number].name}</p>
