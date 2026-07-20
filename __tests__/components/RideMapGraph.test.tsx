@@ -12,6 +12,11 @@ const highlights: RideHighlight[] = [
   { kind: 'climb', start_km: 2.5, data: { start_km: 2.5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 } },
 ]
 
+const twoClimbs: RideHighlight[] = [
+  { kind: 'climb', start_km: 0, data: { start_km: 0, duration_secs: 60, elev_gain_m: 40, avg_watts: 200, vam: 500 } },
+  { kind: 'climb', start_km: 5, data: { start_km: 5, duration_secs: 60, elev_gain_m: 50, avg_watts: 220, vam: 550 } },
+]
+
 beforeAll(() => {
   // jsdom does not implement scrollIntoView.
   Element.prototype.scrollIntoView = jest.fn()
@@ -78,5 +83,55 @@ describe('RideMapGraph card-click focus', () => {
     expect(card).toHaveClass('ring-2')
     const activeCircle = document.querySelector('[data-testid="graph-marker"] circle[r="9"]')
     expect(activeCircle).toHaveAttribute('stroke', '#60a5fa')
+  })
+})
+
+describe('RideMapGraph highlight selection toggle', () => {
+  it('clicking the active card again deselects it: ring and dot outline clear, no extra scroll', () => {
+    render(<RideMapGraph streams={streams} highlights={highlights} />)
+    const card = screen.getByTestId('highlight-card')
+    fireEvent.click(card)
+    expect(card).toHaveClass('ring-2')
+    ;(Element.prototype.scrollIntoView as jest.Mock).mockClear()
+
+    fireEvent.click(card)
+    expect(card).not.toHaveClass('ring-2')
+    const circle = document.querySelector('[data-testid="graph-marker"] circle[r="9"]')
+    expect(circle).toHaveAttribute('stroke', '#fff')
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('tapping the active marker again deselects it: card ring clears, no extra scroll', () => {
+    render(<RideMapGraph streams={streams} highlights={highlights} />)
+    const marker = document.querySelector('[data-testid="graph-marker"]')!
+    fireEvent.click(marker)
+    const card = screen.getByTestId('highlight-card')
+    expect(card).toHaveClass('ring-2')
+    ;(Element.prototype.scrollIntoView as jest.Mock).mockClear()
+
+    fireEvent.click(marker)
+    expect(card).not.toHaveClass('ring-2')
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it('clicking a different card replaces the active selection instead of toggling it off', () => {
+    render(<RideMapGraph streams={streams} highlights={twoClimbs} />)
+    const cards = screen.getAllByTestId('highlight-card')
+    fireEvent.click(cards[0])
+    expect(cards[0]).toHaveClass('ring-2')
+
+    fireEvent.click(cards[1])
+    expect(cards[0]).not.toHaveClass('ring-2')
+    expect(cards[1]).toHaveClass('ring-2')
+  })
+
+  it('selecting a card moves the cursor and scrolls, but re-clicking to deselect does not move it again', () => {
+    render(<RideMapGraph streams={streams} highlights={highlights} />)
+    const card = screen.getByTestId('highlight-card')
+    fireEvent.click(card)
+    const distAfterSelect = screen.getByText(/km$/).textContent
+
+    fireEvent.click(card)
+    expect(screen.getByText(/km$/).textContent).toBe(distAfterSelect)
   })
 })

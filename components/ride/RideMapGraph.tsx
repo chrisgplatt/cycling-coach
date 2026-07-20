@@ -10,8 +10,6 @@ import type { FocusRequest } from './RouteMap'
 
 const RouteMap = dynamic(() => import('./RouteMap'), { ssr: false })
 
-const HIGHLIGHT_FLASH_MS = 2000
-
 function Chip({ label, value, colour }: { label: string; value: string; colour: string }) {
   return (
     <div className="flex items-center gap-1.5">
@@ -50,14 +48,13 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
 }) {
   const [cursor, setCursor] = useState(0)
   const [show, setShow] = useState({ power: true, hr: true, elevation: true })
+  // Persists until a different highlight is selected, or the same one is
+  // clicked again to deselect — drives the dot outline, card ring, and the
+  // red route-segment overlay together (see activeSegmentPoints below).
   const [activeHighlightIndex, setActiveHighlightIndex] = useState<number | null>(null)
-  // Unlike activeHighlightIndex (a 2s flash), this persists until a different
-  // highlight is selected — it drives the red route-segment overlay.
-  const [selectedHighlightIndex, setSelectedHighlightIndex] = useState<number | null>(null)
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
   const hasGps = !!streams.latlng && streams.latlng.length > 0
   const cardRefs = useRef(new Map<number, HTMLDivElement>())
-  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const focusSeqRef = useRef(0)
   const topRef = useRef<HTMLDivElement>(null)
 
@@ -75,56 +72,47 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
       : null))
     .filter((m): m is HighlightMarker => m !== null), [highlights, streams.distance])
 
-  // The selected highlight's full lat/lng extent, for the persistent red
+  // The active highlight's full lat/lng extent, for the persistent red
   // route-segment overlay in RouteMap — reuses resolveHighlightExtent, the
   // same start/end resolution the one-shot focus request uses, just applied
-  // to whichever highlight is currently selected rather than the one just
-  // clicked. Requires at least 2 points (a single point can't form a line).
+  // to whichever highlight is currently active. Requires at least 2 points
+  // (a single point can't form a line).
   const activeSegmentPoints = useMemo(() => {
-    if (selectedHighlightIndex == null) return null
-    const marker = highlightMarkers.find(m => m.arrayIndex === selectedHighlightIndex)
+    if (activeHighlightIndex == null) return null
+    const marker = highlightMarkers.find(m => m.arrayIndex === activeHighlightIndex)
     if (!marker) return null
-    const points = resolveHighlightExtent(streams.latlng, streams.time, highlights[selectedHighlightIndex], marker)
+    const points = resolveHighlightExtent(streams.latlng, streams.time, highlights[activeHighlightIndex], marker)
     return points && points.length >= 2 ? points : null
-  }, [selectedHighlightIndex, highlightMarkers, streams.latlng, streams.time, highlights])
+  }, [activeHighlightIndex, highlightMarkers, streams.latlng, streams.time, highlights])
 
   const registerCardRef = useCallback((index: number, el: HTMLDivElement | null) => {
     if (el) cardRefs.current.set(index, el)
     else cardRefs.current.delete(index)
   }, [])
 
-  // Sets the active highlight (drives the card's blue ring and the matching
-  // marker's blue outline on both the map and chart) for HIGHLIGHT_FLASH_MS,
-  // then clears it; also sets the persistent "selected" highlight, which
-  // drives the red route-segment overlay below and does NOT auto-clear — it
-  // stays until a different highlight is selected. Shared by both trigger
-  // directions below.
+  // Toggles the active highlight: re-selecting the currently-active index
+  // clears it (deselect); any other index replaces it (select). Shared by
+  // both trigger directions below.
   const activateHighlight = useCallback((arrayIndex: number) => {
-    setActiveHighlightIndex(arrayIndex)
-    setSelectedHighlightIndex(arrayIndex)
-    if (flashTimer.current) clearTimeout(flashTimer.current)
-    flashTimer.current = setTimeout(() => setActiveHighlightIndex(null), HIGHLIGHT_FLASH_MS)
+    setActiveHighlightIndex(prev => (prev === arrayIndex ? null : arrayIndex))
   }, [])
 
   const handleMarkerTap = useCallback((arrayIndex: number) => {
+    const wasActive = activeHighlightIndex === arrayIndex
     activateHighlight(arrayIndex)
+    if (wasActive) return
     cardRefs.current.get(arrayIndex)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [activateHighlight])
+  }, [activateHighlight, activeHighlightIndex])
 
-  // Reverse of handleMarkerTap: clicking a card activates the same highlight
-  // (so its marker picks up the blue outline too) and always scrolls the
-  // screen back to the top of this section and moves the chart cursor to that
-  // point — but does not scroll to the card itself, since the user just
-  // scrolled up to see the map. If the ride has GPS, it also asks RouteMap to
-  // fit the highlight's whole extent (start to end, resolved via
-  // nearestIndexForDuration since climbs/efforts carry a duration but not an
-  // explicit end position). `seq` increments on every qualifying click so
-  // re-clicking the same highlight after manually panning away still
-  // re-triggers the focus.
+  // Reverse of handleMarkerTap. Deselecting (re-clicking the active card)
+  // clears the selection with no other side-effects — no cursor move, no
+  // scroll, no map focus — leaving the view exactly where it was.
   const handleCardClick = useCallback((arrayIndex: number) => {
     const marker = highlightMarkers.find(m => m.arrayIndex === arrayIndex)
     if (!marker) return
+    const wasActive = activeHighlightIndex === arrayIndex
     activateHighlight(arrayIndex)
+    if (wasActive) return
     setCursor(marker.streamIndex)
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     const points = resolveHighlightExtent(streams.latlng, streams.time, highlights[arrayIndex], marker)
@@ -132,7 +120,7 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
       focusSeqRef.current += 1
       setFocusRequest({ points, seq: focusSeqRef.current })
     }
-  }, [highlightMarkers, streams.latlng, streams.time, highlights, activateHighlight])
+  }, [highlightMarkers, streams.latlng, streams.time, highlights, activateHighlight, activeHighlightIndex])
 
   const at = (arr: number[] | null) => (arr && arr[cursor] != null ? arr[cursor] : null)
   const power = at(streams.power)
