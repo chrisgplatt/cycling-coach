@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Map as LMap, CircleMarker, LatLngBounds, Polyline } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { HighlightMarker } from '@/lib/ride/graph-math'
-import { HIGHLIGHT_MARKER_COLOR } from '@/lib/ride/graph-math'
+import { HIGHLIGHT_MARKER_COLOR, ACTIVE_HIGHLIGHT_COLOR } from '@/lib/ride/graph-math'
 
 const FOCUS_ZOOM = 16   // fallback when a focus request resolves to a single point
 
@@ -18,16 +18,21 @@ interface Props {
   highlightMarkers?: HighlightMarker[]
   onMarkerTap?: (arrayIndex: number) => void
   focusRequest?: FocusRequest | null
+  activeArrayIndex?: number | null
 }
 
 // Leaflet touches `window`, so this component must only ever render client-side.
 // The parent imports it via next/dynamic({ ssr: false }). We use circleMarker +
 // polyline (no image marker assets, avoiding bundler icon-path issues).
-export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], onMarkerTap, focusRequest }: Props) {
+export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], onMarkerTap, focusRequest, activeArrayIndex }: Props) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LMap | null>(null)
   const markerRef = useRef<CircleMarker | null>(null)
   const boundsRef = useRef<LatLngBounds | null>(null)
+  // Persists highlight markers by arrayIndex beyond the init effect's own
+  // closure, so a separate effect (below) can update an individual marker's
+  // stroke on activation without touching the init effect at all.
+  const highlightMarkerRefs = useRef(new Map<number, CircleMarker>())
   const [isFocused, setIsFocused] = useState(false)
   // Track the latest cursor so the marker starts at the right place even if the
   // user scrubbed during the async Leaflet load (the init effect only deps on latlng).
@@ -66,6 +71,7 @@ export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], o
         }).addTo(map)
         marker.on('click', () => onMarkerTapRef.current?.(m.arrayIndex))
         highlightMarkerInstances.push(marker)
+        highlightMarkerRefs.current.set(m.arrayIndex, marker)
       }
       // import('leaflet') resolves from the module cache as a microtask — before
       // the browser has done a layout pass — so the container may have 0 dimensions
@@ -87,6 +93,7 @@ export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], o
       if (timer) clearTimeout(timer)
       ro?.disconnect()
       highlightMarkerInstances.forEach(m => m.remove())
+      highlightMarkerRefs.current.clear()
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; markerRef.current = null }
     }
   }, [latlng, highlightMarkers])
@@ -95,6 +102,17 @@ export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], o
     const pt = latlng[cursorIndex]
     if (markerRef.current && pt) markerRef.current.setLatLng(pt)
   }, [cursorIndex, latlng])
+
+  // Updates only the previously- and newly-active markers' stroke (never their
+  // fillColor, which stays kind-coloured) — deliberately independent of the
+  // init effect above, so activating a highlight never tears down and
+  // rebuilds the whole map.
+  useEffect(() => {
+    highlightMarkerRefs.current.forEach((marker, arrayIndex) => {
+      const isActive = arrayIndex === activeArrayIndex
+      marker.setStyle({ color: isActive ? ACTIVE_HIGHLIGHT_COLOR : '#fff', weight: isActive ? 4 : 2 })
+    })
+  }, [activeArrayIndex])
 
   // Pans/zooms to a highlight's full extent when its card is clicked (see
   // RideMapGraph.handleCardClick). Keyed on the whole focusRequest object
