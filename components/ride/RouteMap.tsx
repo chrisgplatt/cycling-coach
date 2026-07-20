@@ -19,12 +19,13 @@ interface Props {
   onMarkerTap?: (arrayIndex: number) => void
   focusRequest?: FocusRequest | null
   activeArrayIndex?: number | null
+  activeSegmentPoints?: [number, number][] | null
 }
 
 // Leaflet touches `window`, so this component must only ever render client-side.
 // The parent imports it via next/dynamic({ ssr: false }). We use circleMarker +
 // polyline (no image marker assets, avoiding bundler icon-path issues).
-export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], onMarkerTap, focusRequest, activeArrayIndex }: Props) {
+export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], onMarkerTap, focusRequest, activeArrayIndex, activeSegmentPoints }: Props) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LMap | null>(null)
   const markerRef = useRef<CircleMarker | null>(null)
@@ -33,6 +34,7 @@ export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], o
   // closure, so a separate effect (below) can update an individual marker's
   // stroke on activation without touching the init effect at all.
   const highlightMarkerRefs = useRef(new Map<number, CircleMarker>())
+  const segmentLineRef = useRef<Polyline | null>(null)
   const [isFocused, setIsFocused] = useState(false)
   // Track the latest cursor so the marker starts at the right place even if the
   // user scrubbed during the async Leaflet load (the init effect only deps on latlng).
@@ -113,6 +115,33 @@ export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], o
       marker.setStyle({ color: isActive ? ACTIVE_HIGHLIGHT_COLOR : '#fff', weight: isActive ? 4 : 2 })
     })
   }, [activeArrayIndex])
+
+  // Draws a red overlay polyline over the currently-selected highlight's exact
+  // stretch (its full start-to-end extent, computed once in RideMapGraph and
+  // reused here) — persists until a different highlight is selected, unlike
+  // the marker's blue outline above, which flashes and clears. Needs its own
+  // Leaflet import since L isn't otherwise in scope in this effect; resolves
+  // instantly from the module cache after the map's own init effect has
+  // already loaded it once. Deliberately independent of the init effect
+  // above, so selecting a highlight never tears down and rebuilds the map.
+  useEffect(() => {
+    if (!mapRef.current) return
+    let cancelled = false
+    import('leaflet').then(L => {
+      if (cancelled || !mapRef.current) return
+      segmentLineRef.current?.remove()
+      segmentLineRef.current = activeSegmentPoints && activeSegmentPoints.length >= 2
+        ? L.polyline(activeSegmentPoints, { color: '#dc2626', weight: 6 }).addTo(mapRef.current)
+        : null
+      // Keeps the dots visible on top of the thicker segment line.
+      highlightMarkerRefs.current.forEach(m => m.bringToFront())
+    })
+    return () => {
+      cancelled = true
+      segmentLineRef.current?.remove()
+      segmentLineRef.current = null
+    }
+  }, [activeSegmentPoints])
 
   // Pans/zooms to a highlight's full extent when its card is clicked (see
   // RideMapGraph.handleCardClick). Keyed on the whole focusRequest object
