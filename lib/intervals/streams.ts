@@ -46,3 +46,13 @@ export function downsampleStreams(s: RideStreams, maxPoints: number): RideStream
     velocity: pick(s.velocity),
   }
 }
+
+// Even-stride downsample for a single array (e.g. a climb's lat/lng path).
+// Same technique as downsampleStreams' internal `pick`, generalized to one
+// array instead of a whole multi-channel RideStreams object.
+export function downsamplePoints<T>(points: T[], maxPoints: number): T[] {
+  const n = points.length
+  if (n <= maxPoints) return points
+  const stride = Math.ceil(n / maxPoints)
+  return points.filter((_, i) => i % stride === 0)
+}

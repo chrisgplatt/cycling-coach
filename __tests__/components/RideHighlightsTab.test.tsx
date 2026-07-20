@@ -4,7 +4,7 @@ import type { RideHighlight } from '@/lib/ride-highlights'
 
 const highlights: RideHighlight[] = [
   { kind: 'effort', start_km: 5, data: { start_km: 5, duration_secs: 300, avg_watts: 230, zone: 'z4' } },
-  { kind: 'climb', start_km: 10, data: { start_km: 10, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 } },
+  { kind: 'climb', start_km: 10, data: { start_km: 10, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675, length_km: 3.2, path: null } },
   { kind: 'sprint', start_km: null, data: { duration_secs: 5, watts: 890 } },
   { kind: 'personal_best', start_km: null, data: { duration_secs: 300, watts: 312, window_days: 90 } },
 ]

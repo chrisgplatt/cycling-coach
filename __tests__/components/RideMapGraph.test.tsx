@@ -9,12 +9,12 @@ const streams: RideStreams = {
 }
 
 const highlights: RideHighlight[] = [
-  { kind: 'climb', start_km: 2.5, data: { start_km: 2.5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 } },
+  { kind: 'climb', start_km: 2.5, data: { start_km: 2.5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675, length_km: 3.2, path: null } },
 ]
 
 const twoClimbs: RideHighlight[] = [
-  { kind: 'climb', start_km: 0, data: { start_km: 0, duration_secs: 60, elev_gain_m: 40, avg_watts: 200, vam: 500 } },
-  { kind: 'climb', start_km: 5, data: { start_km: 5, duration_secs: 60, elev_gain_m: 50, avg_watts: 220, vam: 550 } },
+  { kind: 'climb', start_km: 0, data: { start_km: 0, duration_secs: 60, elev_gain_m: 40, avg_watts: 200, vam: 500, length_km: 1.1, path: null } },
+  { kind: 'climb', start_km: 5, data: { start_km: 5, duration_secs: 60, elev_gain_m: 50, avg_watts: 220, vam: 550, length_km: 1.4, path: null } },
 ]
 
 beforeAll(() => {

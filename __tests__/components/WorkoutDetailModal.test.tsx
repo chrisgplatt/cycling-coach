@@ -481,7 +481,7 @@ describe('WorkoutDetailModal tabs', () => {
     const withClimb = {
       ...completedLinked,
       activity_metrics: makeActivityMetrics({
-        climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 }],
+        climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675, length_km: 3.2, path: null }],
       }),
     }
     global.fetch = jest.fn((url: string) =>
@@ -498,7 +498,7 @@ describe('WorkoutDetailModal tabs', () => {
     const withClimb = {
       ...completedLinked,
       activity_metrics: makeActivityMetrics({
-        climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 }],
+        climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675, length_km: 3.2, path: null }],
       }),
     }
     global.fetch = jest.fn((url: string) =>

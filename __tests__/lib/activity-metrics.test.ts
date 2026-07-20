@@ -87,8 +87,13 @@ describe('extractActivityMetrics', () => {
     expect(m.max_temp_c).toBeNull()
   })
 
-  it('bumps METRICS_VERSION to 4', () => {
-    expect(METRICS_VERSION).toBe(4)
+  it('bumps METRICS_VERSION to 5', () => {
+    expect(METRICS_VERSION).toBe(5)
+  })
+
+  it('sets speed_bests to null in the base extraction (filled later by extractStreamInsights)', () => {
+    const m = extractActivityMetrics(act, curve, intervals)
+    expect(m.speed_bests).toBeNull()
   })
 
   it('extracts 5s and 15s sprint entries from best_efforts', () => {
@@ -219,11 +224,12 @@ describe('insight formatting', () => {
     elevation_m: 500, lr_balance: 50, best_efforts: null, intervals: null,
     decoupling_pct: 6.2,
     time_in_zone: { z1: 0, z2: 6800, z3: 2200, z4: 800, z5: 0, z6: 0 },
-    climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 }],
+    climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675, length_km: 3.2, path: null }],
     shape: [{ label: 'Work', planned_w: 250, actual_w: 238 }],
     distributions: null,
     effort_periods: null,
     sprints: null,
+    speed_bests: null,
     personal_bests: null,
     synced_at: '2026-05-31T00:00:00Z',
   }
@@ -274,5 +280,141 @@ describe('effort period detection (via extractStreamInsights)', () => {
     expect(extractStreamInsights(s, ftp, null, null).effort_periods).toBeNull()
     const s2 = { time, distance, latlng: null, power: [200, 200, 200, 200, 200, 200, 200, 200, 200, 200], hr: null, altitude: null, cadence: null, velocity: null }
     expect(extractStreamInsights(s2, null, null, null).effort_periods).toBeNull()
+  })
+})
+
+describe('climb length/path detection (via extractStreamInsights)', () => {
+  it('computes length_km and a downsampled path for a detected climb', () => {
+    // 15 samples, 30s apart, 125m apart. Flat 0-250m (idx 0-1), climbing at a
+    // steady 5% grade from 250m (idx 2) to 1750m (idx 14), altitude plateauing
+    // at idx 11+. The climb-detection algorithm's forward-looking 200m window
+    // means the detected climb boundary lands at idx 2..8 (not the full
+    // idx 2..10 physical climb) — verified empirically against the real
+    // algorithm, not hand-derived, since the forward-window lookahead
+    // truncates the tail before the grade drops below threshold.
+    const time =     [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 420]
+    const distance = [0, 125, 250, 375, 500, 625, 750, 875, 1000, 1125, 1250, 1375, 1500, 1625, 1750]
+    const altitude: number[] = []
+    for (let i = 0; i < distance.length; i++) {
+      if (i <= 1) altitude.push(100)
+      else if (i <= 10) altitude.push(100 + (distance[i] - 250) * 0.05)
+      else altitude.push(altitude[10])
+    }
+    const latlng: [number, number][] = distance.map((_, i) => [51.5 + i * 0.001, -0.1 + i * 0.001])
+    const power = distance.map(() => 220)
+    const s = { time, distance, latlng, power, hr: null, altitude, cadence: null, velocity: null }
+    const insights = extractStreamInsights(s, 250, null, null)
+    expect(insights.climbs).toEqual([
+      {
+        start_km: 0.3,
+        duration_secs: 180,
+        elev_gain_m: 38,
+        avg_watts: 220,
+        vam: 750,
+        length_km: 0.8,
+        path: [
+          [51.502, -0.098],
+          [51.503, -0.097],
+          [51.504, -0.096],
+          [51.505, -0.095],
+          [51.506, -0.094],
+          [51.507, -0.093],
+          [51.508, -0.092],
+        ],
+      },
+    ])
+  })
+
+  it('downsamples a longer climb path to at most 12 points', () => {
+    // 24 samples, same spacing/grade shape as above but scaled up: flat
+    // idx 0-1, climbing idx 2-20 (altitude plateaus at idx 20+). Detected
+    // climb boundary (verified empirically): idx 1..18, an 18-point raw path,
+    // downsampled via stride 2 to 9 points.
+    const n = 24
+    const time: number[] = []
+    const distance: number[] = []
+    for (let i = 0; i < n; i++) { time.push(i * 30); distance.push(i * 125) }
+    const altitude: number[] = []
+    for (let i = 0; i < n; i++) {
+      if (i <= 1) altitude.push(100)
+      else if (i <= 20) altitude.push(100 + (distance[i] - distance[1]) * 0.05)
+      else altitude.push(altitude[20])
+    }
+    const latlng: [number, number][] = distance.map((_, i) => [51.5 + i * 0.001, -0.1 + i * 0.001])
+    const power = distance.map(() => 220)
+    const s = { time, distance, latlng, power, hr: null, altitude, cadence: null, velocity: null }
+    const insights = extractStreamInsights(s, 250, null, null)
+    expect(insights.climbs).toHaveLength(1)
+    expect(insights.climbs![0].length_km).toBe(2.1)
+    // Note: indices 11 and 13's longitude is `-0.1 + i * 0.001`, which is not exactly
+    // representable in IEEE-754 double precision (a JS float artifact of the fixture's
+    // own generation formula, unrelated to climb-boundary detection) — hence the
+    // non-round literals below for those two points only.
+    expect(insights.climbs![0].path).toEqual([
+      [51.501, -0.099],
+      [51.503, -0.097],
+      [51.505, -0.095],
+      [51.507, -0.093],
+      [51.509, -0.091],
+      [51.511, -0.08900000000000001],
+      [51.513, -0.08700000000000001],
+      [51.515, -0.085],
+      [51.517, -0.083],
+    ])
+  })
+
+  it('still computes length_km but leaves path null when there is no GPS (indoor ride)', () => {
+    const time =     [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 420]
+    const distance = [0, 125, 250, 375, 500, 625, 750, 875, 1000, 1125, 1250, 1375, 1500, 1625, 1750]
+    const altitude: number[] = []
+    for (let i = 0; i < distance.length; i++) {
+      if (i <= 1) altitude.push(100)
+      else if (i <= 10) altitude.push(100 + (distance[i] - 250) * 0.05)
+      else altitude.push(altitude[10])
+    }
+    const power = distance.map(() => 220)
+    const s = { time, distance, latlng: null, power, hr: null, altitude, cadence: null, velocity: null }
+    const insights = extractStreamInsights(s, 250, null, null)
+    expect(insights.climbs).toHaveLength(1)
+    expect(insights.climbs![0].length_km).toBe(0.8)
+    expect(insights.climbs![0].path).toBeNull()
+  })
+})
+
+describe('speed-over-distance detection (via extractStreamInsights)', () => {
+  // Builds a 15km ride: 5km @ 20km/h, 5km @ 40km/h, 5km @ 20km/h again — so
+  // the fastest window for each split is NOT simply "the first N km", proving
+  // the detection genuinely finds the fastest contiguous stretch.
+  function buildMixedSpeedStreams() {
+    const time: number[] = [0]
+    const distance: number[] = [0]
+    const stepM = 100
+    for (let d = stepM; d <= 5000; d += stepM) { distance.push(d); time.push(time[time.length - 1] + 18) }
+    for (let d = 5000 + stepM; d <= 10000; d += stepM) { distance.push(d); time.push(time[time.length - 1] + 9) }
+    for (let d = 10000 + stepM; d <= 15000; d += stepM) { distance.push(d); time.push(time[time.length - 1] + 18) }
+    const power = distance.map(() => 200)
+    return { time, distance, latlng: null, power, hr: null, altitude: null, cadence: null, velocity: null }
+  }
+
+  it('finds the fastest 1km, 5km, and 10km windows, correctly favouring the faster section over the first N km', () => {
+    const s = buildMixedSpeedStreams()
+    const insights = extractStreamInsights(s, 250, null, null)
+    expect(insights.speed_bests).toEqual([
+      { distance_km: 1, avg_speed_kmh: 40, start_km: 5, duration_secs: 90 },
+      { distance_km: 5, avg_speed_kmh: 40, start_km: 5, duration_secs: 450 },
+      { distance_km: 10, avg_speed_kmh: 26.7, start_km: 0, duration_secs: 1350 },
+    ])
+  })
+
+  it('skips a split the ride is too short to cover (20km split on a 15km ride)', () => {
+    const s = buildMixedSpeedStreams()
+    const insights = extractStreamInsights(s, 250, null, null)
+    expect(insights.speed_bests!.find(sb => sb.distance_km === 20)).toBeUndefined()
+  })
+
+  it('returns null when the ride is shorter than the smallest split (1km)', () => {
+    const s = { time: [0, 30, 60], distance: [0, 250, 500], latlng: null, power: [200, 200, 200], hr: null, altitude: null, cadence: null, velocity: null }
+    const insights = extractStreamInsights(s, 250, null, null)
+    expect(insights.speed_bests).toBeNull()
   })
 })

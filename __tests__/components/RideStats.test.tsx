@@ -14,7 +14,7 @@ const metrics: ActivityMetrics = {
   np: 210, avg_power: 200, max_power: 350, avg_hr: 145, distance_m: 30000, elevation_m: 320,
   lr_balance: 52, best_efforts: [{ secs: 60, watts: 380 }, { secs: 300, watts: 320 }, { secs: 1200, watts: 280 }],
   intervals: null, decoupling_pct: null, climbs: null, time_in_zone: null, shape: null, distributions: null,
-  effort_periods: null, sprints: null, personal_bests: null, synced_at: '',
+  effort_periods: null, sprints: null, speed_bests: null, personal_bests: null, synced_at: '',
 }
 
 describe('RideStats adapters', () => {

@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { normaliseStreams, downsampleStreams } from '@/lib/intervals/streams'
+import { normaliseStreams, downsampleStreams, downsamplePoints } from '@/lib/intervals/streams'
 
 describe('normaliseStreams', () => {
   it('maps channels by type and reads latlng pairs', () => {
@@ -49,5 +49,29 @@ describe('downsampleStreams', () => {
     const d = downsampleStreams(s, 5) // stride = ceil(10/5) = 2
     expect(d.time).toEqual([0, 2, 4, 6, 8])
     expect(d.power).toEqual([0, 20, 40, 60, 80])
+  })
+})
+
+describe('downsamplePoints', () => {
+  it('returns the input unchanged when under the cap', () => {
+    const points = [1, 2, 3, 4, 5]
+    expect(downsamplePoints(points, 12)).toEqual(points)
+  })
+
+  it('returns the input unchanged when exactly at the cap', () => {
+    const points = Array.from({ length: 12 }, (_, i) => i)
+    expect(downsamplePoints(points, 12)).toEqual(points)
+  })
+
+  it('downsamples an 18-point array to 9 points via even stride', () => {
+    const points = Array.from({ length: 18 }, (_, i) => i)
+    // stride = ceil(18/12) = 2 → keeps indices 0,2,4,...,16 (9 points)
+    expect(downsamplePoints(points, 12)).toEqual([0, 2, 4, 6, 8, 10, 12, 14, 16])
+  })
+
+  it('works with tuple arrays (lat/lng points)', () => {
+    const points: [number, number][] = [[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]]
+    // stride = ceil(5/3) = 2 → keeps indices 0,2,4
+    expect(downsamplePoints(points, 3)).toEqual([[1, 1], [3, 3], [5, 5]])
   })
 })
