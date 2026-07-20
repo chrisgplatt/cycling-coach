@@ -60,23 +60,34 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
     else cardRefs.current.delete(index)
   }, [])
 
-  const handleMarkerTap = useCallback((arrayIndex: number) => {
+  // Sets the active highlight (drives the card's blue ring and the matching
+  // marker's blue outline on both the map and chart) for HIGHLIGHT_FLASH_MS,
+  // then clears it. Shared by both trigger directions below.
+  const activateHighlight = useCallback((arrayIndex: number) => {
     setActiveHighlightIndex(arrayIndex)
-    cardRefs.current.get(arrayIndex)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     if (flashTimer.current) clearTimeout(flashTimer.current)
     flashTimer.current = setTimeout(() => setActiveHighlightIndex(null), HIGHLIGHT_FLASH_MS)
   }, [])
 
-  // Reverse of handleMarkerTap: clicking a card always scrolls the screen back
-  // to the top of this section and moves the chart cursor to that point; if the
-  // ride has GPS, it also asks RouteMap to fit the highlight's whole extent
-  // (start to end, resolved via nearestIndexForDuration since climbs/efforts
-  // carry a duration but not an explicit end position). `seq` increments on
-  // every qualifying click so re-clicking the same highlight after manually
-  // panning away still re-triggers the focus.
+  const handleMarkerTap = useCallback((arrayIndex: number) => {
+    activateHighlight(arrayIndex)
+    cardRefs.current.get(arrayIndex)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [activateHighlight])
+
+  // Reverse of handleMarkerTap: clicking a card activates the same highlight
+  // (so its marker picks up the blue outline too) and always scrolls the
+  // screen back to the top of this section and moves the chart cursor to that
+  // point — but does not scroll to the card itself, since the user just
+  // scrolled up to see the map. If the ride has GPS, it also asks RouteMap to
+  // fit the highlight's whole extent (start to end, resolved via
+  // nearestIndexForDuration since climbs/efforts carry a duration but not an
+  // explicit end position). `seq` increments on every qualifying click so
+  // re-clicking the same highlight after manually panning away still
+  // re-triggers the focus.
   const handleCardClick = useCallback((arrayIndex: number) => {
     const marker = highlightMarkers.find(m => m.arrayIndex === arrayIndex)
     if (!marker) return
+    activateHighlight(arrayIndex)
     setCursor(marker.streamIndex)
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     if (streams.latlng) {
@@ -88,7 +99,7 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
         setFocusRequest({ points, seq: focusSeqRef.current })
       }
     }
-  }, [highlightMarkers, streams.latlng, streams.time, highlights])
+  }, [highlightMarkers, streams.latlng, streams.time, highlights, activateHighlight])
 
   const at = (arr: number[] | null) => (arr && arr[cursor] != null ? arr[cursor] : null)
   const power = at(streams.power)
@@ -105,7 +116,7 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
           // hasGps guarantees latlng is non-null and non-empty
           <RouteMap
             latlng={streams.latlng!} cursorIndex={cursor} highlightMarkers={highlightMarkers}
-            onMarkerTap={handleMarkerTap} focusRequest={focusRequest}
+            onMarkerTap={handleMarkerTap} focusRequest={focusRequest} activeArrayIndex={activeHighlightIndex}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
@@ -125,7 +136,7 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
       <div className="shrink-0">
         <RideGraph
           streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis="distance" fit={fit}
-          highlightMarkers={highlightMarkers} onMarkerTap={handleMarkerTap}
+          highlightMarkers={highlightMarkers} onMarkerTap={handleMarkerTap} activeArrayIndex={activeHighlightIndex}
         />
       </div>
 

@@ -119,6 +119,11 @@ export const HIGHLIGHT_MARKER_ICON: Record<'climb' | 'effort', string> = {
   effort: '⚡',
 }
 
+// Matches RideHighlightsTab's active-card ring (border-blue-400) exactly, so a
+// highlighted dot and its card read as the same highlight. Shared by RouteMap
+// (Leaflet marker stroke) and RideGraph (SVG marker stroke).
+export const ACTIVE_HIGHLIGHT_COLOR = '#60a5fa'
+
 // Maps a highlight's start_km to the nearest stream sample index, reusing the
 // same fraction-based nearest-match already used for pointer scrubbing —
 // keeps this in lock-step with how the rest of the chart positions samples.

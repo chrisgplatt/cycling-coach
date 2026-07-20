@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useRef } from 'react'
 import type { RideStreams } from '@/types'
-import { axisFractions, nearestIndexForFraction, seriesToPolyline, smoothSeries, extent, niceDomain, formatClockDuration, HIGHLIGHT_MARKER_COLOR, HIGHLIGHT_MARKER_ICON, type HighlightMarker } from '@/lib/ride/graph-math'
+import { axisFractions, nearestIndexForFraction, seriesToPolyline, smoothSeries, extent, niceDomain, formatClockDuration, HIGHLIGHT_MARKER_COLOR, HIGHLIGHT_MARKER_ICON, ACTIVE_HIGHLIGHT_COLOR, type HighlightMarker } from '@/lib/ride/graph-math'
 
 const W = 1000
 const H = 260
@@ -18,6 +18,7 @@ interface Props {
   fit?: boolean   // compact fixed height so the graph + map fit one screen (no vh)
   highlightMarkers?: HighlightMarker[]
   onMarkerTap?: (arrayIndex: number) => void
+  activeArrayIndex?: number | null
 }
 
 // A value axis gutter: max at top, mid, min at bottom — aligned to the plot height.
@@ -39,7 +40,7 @@ function YAxis({ domain, colour, side, unit }: {
   )
 }
 
-export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis, fit = false, highlightMarkers = [], onMarkerTap }: Props) {
+export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis, fit = false, highlightMarkers = [], onMarkerTap, activeArrayIndex }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const axis = xAxis === 'distance' ? streams.distance : streams.time
   const fractions = useMemo(() => axisFractions(axis), [axis])
@@ -127,7 +128,12 @@ export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis, 
                   style={{ cursor: 'pointer' }}
                 >
                   <circle cx={x} cy={14} r={16} fill="transparent" />
-                  <circle cx={x} cy={14} r={9} fill={HIGHLIGHT_MARKER_COLOR[m.kind]} stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                  <circle
+                    cx={x} cy={14} r={9} fill={HIGHLIGHT_MARKER_COLOR[m.kind]}
+                    stroke={m.arrayIndex === activeArrayIndex ? ACTIVE_HIGHLIGHT_COLOR : '#fff'}
+                    strokeWidth={m.arrayIndex === activeArrayIndex ? 4 : 2}
+                    vectorEffect="non-scaling-stroke"
+                  />
                   <text x={x} y={18} textAnchor="middle" fontSize={11}>{HIGHLIGHT_MARKER_ICON[m.kind]}</text>
                 </g>
               )

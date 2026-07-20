@@ -49,4 +49,22 @@ describe('RideGraph highlight markers', () => {
     )
     expect(container.querySelectorAll('[data-testid="graph-marker"]').length).toBe(0)
   })
+
+  it('gives the active marker a blue outline; others stay white', () => {
+    const markers = [
+      { arrayIndex: 0, streamIndex: 1, kind: 'climb' as const },
+      { arrayIndex: 1, streamIndex: 2, kind: 'effort' as const },
+    ]
+    const { container } = render(
+      <RideGraph streams={streams} cursorIndex={0} onScrub={() => {}}
+        show={{ power: true, hr: true, elevation: true }} xAxis="distance"
+        highlightMarkers={markers} activeArrayIndex={0} />,
+    )
+    const circles = container.querySelectorAll('[data-testid="graph-marker"] circle[r="9"]')
+    expect(circles).toHaveLength(2)
+    expect(circles[0]).toHaveAttribute('stroke', '#60a5fa')
+    expect(circles[0]).toHaveAttribute('stroke-width', '4')
+    expect(circles[1]).toHaveAttribute('stroke', '#fff')
+    expect(circles[1]).toHaveAttribute('stroke-width', '2')
+  })
 })
