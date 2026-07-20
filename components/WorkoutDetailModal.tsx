@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Workout, ICUActivity, SessionFeedback, TrainingEvent, RideStreams, WeightEntry, ActivityWeather } from '@/types'
 import ActivityWeatherPanel from '@/components/ActivityWeatherPanel'
 import { weightAtDate } from '@/lib/weight-helpers'
@@ -81,7 +81,10 @@ export default function WorkoutDetailModal({
   const [associating, setAssociating] = useState(false)
   const [associateError, setAssociateError] = useState<string | null>(null)
   const hasRide = (workout.status === 'completed' || workout.status === 'needs_review') && !!workout.icu_activity_id
-  const highlights = workout.activity_metrics ? buildHighlightList(workout.activity_metrics) : []
+  const highlights = useMemo(
+    () => (workout.activity_metrics ? buildHighlightList(workout.activity_metrics) : []),
+    [workout.activity_metrics],
+  )
   const isMatchedPlanned = workout.plan_id != null && hasRide
   const isUnmatchedPlanned = workout.plan_id != null && !workout.icu_activity_id && workout.status === 'planned'
   const isUnplannedRide = workout.plan_id == null
