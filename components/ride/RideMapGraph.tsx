@@ -22,6 +22,23 @@ function Chip({ label, value, colour }: { label: string; value: string; colour: 
   )
 }
 
+// Resolves a highlight's full lat/lng extent (start to end), given its
+// already-resolved marker — shared by the one-shot map focus request
+// (handleCardClick) and the persistent selected-segment overlay, so the
+// extent-resolution logic isn't duplicated between the two.
+function resolveHighlightExtent(
+  latlng: [number, number][] | null,
+  time: number[],
+  highlight: RideHighlight | undefined,
+  marker: HighlightMarker,
+): [number, number][] | null {
+  if (!latlng) return null
+  const durationSecs = highlight?.data.duration_secs ?? 0
+  const endIndex = nearestIndexForDuration(time, marker.streamIndex, durationSecs)
+  const points = latlng.slice(marker.streamIndex, endIndex + 1)
+  return points.length > 0 ? points : null
+}
+
 // `fit`: fill the parent height (flex column, map flexes) instead of using vh heights,
 // so the map + graph + controls sit on one screen with no scrolling (used in the modals).
 // `highlights`: climbs/effort periods render as tappable markers on the map and graph;
@@ -34,6 +51,9 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
   const [cursor, setCursor] = useState(0)
   const [show, setShow] = useState({ power: true, hr: true, elevation: true })
   const [activeHighlightIndex, setActiveHighlightIndex] = useState<number | null>(null)
+  // Unlike activeHighlightIndex (a 2s flash), this persists until a different
+  // highlight is selected — it drives the red route-segment overlay.
+  const [selectedHighlightIndex, setSelectedHighlightIndex] = useState<number | null>(null)
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
   const hasGps = !!streams.latlng && streams.latlng.length > 0
   const cardRefs = useRef(new Map<number, HTMLDivElement>())
@@ -55,6 +75,19 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
       : null))
     .filter((m): m is HighlightMarker => m !== null), [highlights, streams.distance])
 
+  // The selected highlight's full lat/lng extent, for the persistent red
+  // route-segment overlay in RouteMap — reuses resolveHighlightExtent, the
+  // same start/end resolution the one-shot focus request uses, just applied
+  // to whichever highlight is currently selected rather than the one just
+  // clicked. Requires at least 2 points (a single point can't form a line).
+  const activeSegmentPoints = useMemo(() => {
+    if (selectedHighlightIndex == null) return null
+    const marker = highlightMarkers.find(m => m.arrayIndex === selectedHighlightIndex)
+    if (!marker) return null
+    const points = resolveHighlightExtent(streams.latlng, streams.time, highlights[selectedHighlightIndex], marker)
+    return points && points.length >= 2 ? points : null
+  }, [selectedHighlightIndex, highlightMarkers, streams.latlng, streams.time, highlights])
+
   const registerCardRef = useCallback((index: number, el: HTMLDivElement | null) => {
     if (el) cardRefs.current.set(index, el)
     else cardRefs.current.delete(index)
@@ -62,9 +95,13 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
 
   // Sets the active highlight (drives the card's blue ring and the matching
   // marker's blue outline on both the map and chart) for HIGHLIGHT_FLASH_MS,
-  // then clears it. Shared by both trigger directions below.
+  // then clears it; also sets the persistent "selected" highlight, which
+  // drives the red route-segment overlay below and does NOT auto-clear — it
+  // stays until a different highlight is selected. Shared by both trigger
+  // directions below.
   const activateHighlight = useCallback((arrayIndex: number) => {
     setActiveHighlightIndex(arrayIndex)
+    setSelectedHighlightIndex(arrayIndex)
     if (flashTimer.current) clearTimeout(flashTimer.current)
     flashTimer.current = setTimeout(() => setActiveHighlightIndex(null), HIGHLIGHT_FLASH_MS)
   }, [])
@@ -90,14 +127,10 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
     activateHighlight(arrayIndex)
     setCursor(marker.streamIndex)
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    if (streams.latlng) {
-      const durationSecs = highlights[arrayIndex]?.data.duration_secs ?? 0
-      const endIndex = nearestIndexForDuration(streams.time, marker.streamIndex, durationSecs)
-      const points = streams.latlng.slice(marker.streamIndex, endIndex + 1)
-      if (points.length > 0) {
-        focusSeqRef.current += 1
-        setFocusRequest({ points, seq: focusSeqRef.current })
-      }
+    const points = resolveHighlightExtent(streams.latlng, streams.time, highlights[arrayIndex], marker)
+    if (points) {
+      focusSeqRef.current += 1
+      setFocusRequest({ points, seq: focusSeqRef.current })
     }
   }, [highlightMarkers, streams.latlng, streams.time, highlights, activateHighlight])
 
@@ -117,6 +150,7 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
           <RouteMap
             latlng={streams.latlng!} cursorIndex={cursor} highlightMarkers={highlightMarkers}
             onMarkerTap={handleMarkerTap} focusRequest={focusRequest} activeArrayIndex={activeHighlightIndex}
+            activeSegmentPoints={activeSegmentPoints}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
