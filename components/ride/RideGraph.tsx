@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useRef } from 'react'
 import type { RideStreams } from '@/types'
-import { axisFractions, nearestIndexForFraction, seriesToPolyline, smoothSeries, extent, niceDomain, formatClockDuration } from '@/lib/ride/graph-math'
+import { axisFractions, nearestIndexForFraction, seriesToPolyline, smoothSeries, extent, niceDomain, formatClockDuration, HIGHLIGHT_MARKER_COLOR, HIGHLIGHT_MARKER_ICON, type HighlightMarker } from '@/lib/ride/graph-math'
 
 const W = 1000
 const H = 260
@@ -16,6 +16,8 @@ interface Props {
   show: { power: boolean; hr: boolean; elevation: boolean }
   xAxis: 'distance' | 'time'
   fit?: boolean   // compact fixed height so the graph + map fit one screen (no vh)
+  highlightMarkers?: HighlightMarker[]
+  onMarkerTap?: (arrayIndex: number) => void
 }
 
 // A value axis gutter: max at top, mid, min at bottom — aligned to the plot height.
@@ -37,7 +39,7 @@ function YAxis({ domain, colour, side, unit }: {
   )
 }
 
-export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis, fit = false }: Props) {
+export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis, fit = false, highlightMarkers = [], onMarkerTap }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const axis = xAxis === 'distance' ? streams.distance : streams.time
   const fractions = useMemo(() => axisFractions(axis), [axis])
@@ -110,6 +112,26 @@ export default function RideGraph({ streams, cursorIndex, onScrub, show, xAxis, 
               <polyline points={power.line} fill="none" stroke={COL.power} strokeWidth={2} vectorEffect="non-scaling-stroke" />
             )}
             <line x1={crosshairX} y1={0} x2={crosshairX} y2={H} stroke="#111827" strokeWidth={1} opacity={0.45} vectorEffect="non-scaling-stroke" />
+            {highlightMarkers.map(m => {
+              const x = (fractions[m.streamIndex] ?? 0) * W
+              return (
+                <g
+                  key={m.arrayIndex}
+                  data-testid="graph-marker"
+                  // Stops a marker tap from also triggering the parent svg's
+                  // onPointerDown scrub handler (line 100) — the marker sits
+                  // visually on top of the scrub area. Not covered by a jsdom
+                  // test: this project's jsdom has no PointerEvent constructor.
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={() => onMarkerTap?.(m.arrayIndex)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <circle cx={x} cy={14} r={16} fill="transparent" />
+                  <circle cx={x} cy={14} r={9} fill={HIGHLIGHT_MARKER_COLOR[m.kind]} stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                  <text x={x} y={18} textAnchor="middle" fontSize={11}>{HIGHLIGHT_MARKER_ICON[m.kind]}</text>
+                </g>
+              )
+            })}
           </svg>
         </div>
         <YAxis domain={show.hr ? hr?.dom ?? null : null} colour={COL.hr} side="right" unit="" />

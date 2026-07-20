@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { pointerToIndex, seriesToPolyline, formatClockDuration, axisFractions, nearestIndexForFraction, smoothSeries, extent, niceDomain } from '@/lib/ride/graph-math'
+import { pointerToIndex, seriesToPolyline, formatClockDuration, axisFractions, nearestIndexForFraction, smoothSeries, extent, niceDomain, nearestIndexForKm } from '@/lib/ride/graph-math'
 
 describe('niceDomain', () => {
   it('expands bounds outward to the nearest 10', () => {
@@ -94,5 +94,21 @@ describe('formatClockDuration', () => {
   it('formats seconds as H:MM:SS / M:SS', () => {
     expect(formatClockDuration(75)).toBe('1:15')
     expect(formatClockDuration(3675)).toBe('1:01:15')
+  })
+})
+
+describe('nearestIndexForKm', () => {
+  it('finds the nearest sample to a distance in km', () => {
+    // distance in metres: 0, 1000, 2000 → 0km, 1km, 2km
+    expect(nearestIndexForKm([0, 1000, 2000], 1)).toBe(1)
+  })
+  it('clamps to the last sample past the end of the ride', () => {
+    expect(nearestIndexForKm([0, 1000, 2000], 5)).toBe(2)
+  })
+  it('clamps to the first sample before the start', () => {
+    expect(nearestIndexForKm([0, 1000, 2000], -1)).toBe(0)
+  })
+  it('falls back to index 0 when the distance stream has zero span (e.g. an indoor ride)', () => {
+    expect(nearestIndexForKm([0, 0, 0], 1)).toBe(0)
   })
 })

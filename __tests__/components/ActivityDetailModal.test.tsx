@@ -41,7 +41,7 @@ describe('ActivityDetailModal', () => {
     await waitFor(() => expect(fetchMock.mock.calls.some(c => String((c as unknown[])[0]).includes('/api/rides/activity/a1/streams'))).toBe(true))
   })
 
-  it('shows a Highlights tab when the highlights fetch returns at least one highlight', async () => {
+  it('never shows a Highlights tab (highlights moved into the Map tab)', async () => {
     global.fetch = jest.fn((url: string) =>
       String(url).includes('/highlights')
         ? Promise.resolve({ ok: true, json: async () => ({
@@ -51,19 +51,25 @@ describe('ActivityDetailModal', () => {
         : Promise.resolve({ ok: true, json: async () => ({ streams: null }) }),
     ) as never
     render(<ActivityDetailModal activity={activity} onClose={() => {}} />)
-    expect(await screen.findByRole('tab', { name: 'Highlights' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'Highlights' }))
-    expect(screen.getByText(/Climb/)).toBeInTheDocument()
-  })
-
-  it('hides the Highlights tab when the highlights fetch returns nothing', async () => {
-    global.fetch = jest.fn((url: string) =>
-      String(url).includes('/highlights')
-        ? Promise.resolve({ ok: true, json: async () => ({ climbs: null, effort_periods: null, sprints: null, personal_bests: null }) })
-        : Promise.resolve({ ok: true, json: async () => ({ streams: null }) }),
-    ) as never
-    render(<ActivityDetailModal activity={activity} onClose={() => {}} />)
     await screen.findByRole('tab', { name: 'Stats' })
     expect(screen.queryByRole('tab', { name: 'Highlights' })).toBeNull()
+  })
+
+  it('renders highlight cards under the Map tab when the highlights fetch returns at least one highlight', async () => {
+    global.fetch = jest.fn((url: string) =>
+      String(url).includes('/highlights')
+        ? Promise.resolve({ ok: true, json: async () => ({
+            climbs: [{ start_km: 5, duration_secs: 480, elev_gain_m: 90, avg_watts: 268, vam: 675 }],
+            effort_periods: null, sprints: null, personal_bests: null,
+          }) })
+        : String(url).includes('/streams')
+          ? Promise.resolve({ ok: true, json: async () => ({
+              streams: { time: [0, 60, 120], distance: [0, 2500, 5000], latlng: null, power: [100, 100, 100], hr: null, altitude: null, cadence: null, velocity: null },
+            }) })
+          : Promise.resolve({ ok: true, json: async () => ({ distributions: null }) }),
+    ) as never
+    render(<ActivityDetailModal activity={activity} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Map' }))
+    expect(await screen.findByText(/Climb/)).toBeInTheDocument()
   })
 })
