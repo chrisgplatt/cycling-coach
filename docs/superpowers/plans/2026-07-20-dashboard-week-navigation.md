@@ -262,6 +262,90 @@ and further down in the same block:
 
 Every other line in this block keeps reading `weekWorkoutsWP`/`completedWP`/`countableSessionsWP` as before — those are already derived from `todayWeekDates` now via `weekWorkoutsWP`, so they don't need individual edits. `todayStr` is already defined earlier in the file (`const todayStr = localDateStr(new Date())`), so no new date computation is needed beyond this one line.
 
+**Also required — `loadPlan()` currently discards every other week's data before navigation ever gets a chance to show it.** `loadPlan()` (inside the same file, unrelated to the block above) does:
+
+```typescript
+    if (plan.workouts) {
+      const today = localDateStr(new Date())
+      const { start: weekStart, end: weekEnd } = getWeekBounds(today)
+      setWorkouts(plan.workouts.filter((w: Workout) => w.date >= weekStart && w.date <= weekEnd))
+      setFuturePlanWorkouts(plan.workouts.filter((w: Workout) => w.date >= today && w.status === 'planned'))
+```
+
+This filters `workouts` state down to *only the current calendar week* at fetch time — before any of this task's navigation logic runs — so `workouts` never contains any other week's data for the day-list to render, no matter what `selectedWeekStart` is. `/api/plan`'s GET handler (`app/api/plan/route.ts`) does not filter by date at all — `plan.workouts` already contains the full active plan's workout list (confirmed by reading the route: it merges `plan.workouts` from the `training_plans`/`workouts` join with any unplanned completed rides, with no date bound). So the client-side filter above is discarding data that was already fetched, not saving a network round-trip.
+
+Fix: stop discarding it. Replace those three lines with:
+
+```typescript
+    if (plan.workouts) {
+      const today = localDateStr(new Date())
+      setWorkouts(plan.workouts)
+      setFuturePlanWorkouts(plan.workouts.filter((w: Workout) => w.date >= today && w.status === 'planned'))
+```
+
+(`weekStart`/`weekEnd`/`getWeekBounds(today)` were only used for the removed filter — confirmed via `grep -n "weekStart\|weekEnd" app/dashboard/page.tsx` that neither name is referenced anywhere else in the file, so no other line needs updating. `today` itself is still used by the very next line, `setFuturePlanWorkouts`, so it stays.)
+
+**Consequence to handle: the weather-by-activity effect must not blow up in scope.** With `workouts` now holding the whole plan instead of just the current week, this existing effect (unchanged until now) would start fetching weather for every completed workout in the entire plan's history on every load, instead of just the ~7 currently visible ones:
+
+```typescript
+  useEffect(() => {
+    const completedIds = workouts
+      .filter(w => w.status === 'completed' && w.icu_activity_id)
+      .map(w => w.icu_activity_id!)
+
+    if (!completedIds.length) return
+
+    let cancelled = false
+    Promise.all(
+      completedIds.map(id =>
+        fetch(`/api/weather/activity/${id}`)
+          .then(r => r.ok ? r.json() : null)
+          .then((d: ActivityWeather | null) => d ? [id, d] as const : null)
+          .catch(() => null)
+      )
+    ).then(results => {
+      if (cancelled) return
+      const map = new Map<string, ActivityWeather>()
+      for (const r of results) { if (r) map.set(r[0], r[1]) }
+      setWeatherByActivity(map)
+    })
+
+    return () => { cancelled = true }
+  }, [workouts])
+```
+
+Scope it to only the currently *displayed* week (`selectedWeekStart`), so it keeps fetching weather only for what's actually rendered, and refetches when navigation changes which week that is:
+
+```typescript
+  useEffect(() => {
+    const visibleWeekDates = computeWeekDates(selectedWeekStart)
+    const completedIds = workouts
+      .filter(w => w.status === 'completed' && w.icu_activity_id && visibleWeekDates.includes(w.date))
+      .map(w => w.icu_activity_id!)
+
+    if (!completedIds.length) return
+
+    let cancelled = false
+    Promise.all(
+      completedIds.map(id =>
+        fetch(`/api/weather/activity/${id}`)
+          .then(r => r.ok ? r.json() : null)
+          .then((d: ActivityWeather | null) => d ? [id, d] as const : null)
+          .catch(() => null)
+      )
+    ).then(results => {
+      if (cancelled) return
+      const map = new Map<string, ActivityWeather>()
+      for (const r of results) { if (r) map.set(r[0], r[1]) }
+      setWeatherByActivity(map)
+    })
+
+    return () => { cancelled = true }
+  }, [workouts, selectedWeekStart])
+```
+
+Note the dependency array uses `selectedWeekStart` (a stable primitive string), **not** `weekDates` (a plain array recomputed fresh every render, with no memoization) — depending on `weekDates` directly would make the effect's dependency identity change on every render for any reason, re-triggering `setWeatherByActivity(map)` each time, which itself causes a re-render, which recomputes `weekDates` again, forming an infinite render loop. Computing `visibleWeekDates` freshly inside the effect body from `selectedWeekStart` avoids this entirely while still reacting correctly to week navigation.
+
 Replace the section heading block (currently):
 
 ```typescript
