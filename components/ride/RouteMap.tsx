@@ -1,24 +1,35 @@
 'use client'
-import { useEffect, useRef } from 'react'
-import type { Map as LMap, CircleMarker, Polyline } from 'leaflet'
+import { useEffect, useRef, useState } from 'react'
+import type { Map as LMap, CircleMarker, LatLngBounds, Polyline } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { HighlightMarker } from '@/lib/ride/graph-math'
 import { HIGHLIGHT_MARKER_COLOR } from '@/lib/ride/graph-math'
+
+const FOCUS_ZOOM = 16
+
+export interface FocusRequest {
+  lat: number
+  lng: number
+  seq: number   // increments per request, so re-focusing the same point still re-triggers
+}
 
 interface Props {
   latlng: [number, number][]
   cursorIndex: number
   highlightMarkers?: HighlightMarker[]
   onMarkerTap?: (arrayIndex: number) => void
+  focusRequest?: FocusRequest | null
 }
 
 // Leaflet touches `window`, so this component must only ever render client-side.
 // The parent imports it via next/dynamic({ ssr: false }). We use circleMarker +
 // polyline (no image marker assets, avoiding bundler icon-path issues).
-export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], onMarkerTap }: Props) {
+export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], onMarkerTap, focusRequest }: Props) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LMap | null>(null)
   const markerRef = useRef<CircleMarker | null>(null)
+  const boundsRef = useRef<LatLngBounds | null>(null)
+  const [isFocused, setIsFocused] = useState(false)
   // Track the latest cursor so the marker starts at the right place even if the
   // user scrubbed during the async Leaflet load (the init effect only deps on latlng).
   const cursorRef = useRef(cursorIndex)
@@ -33,6 +44,7 @@ export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], o
     let ro: ResizeObserver | null = null
     let timer: ReturnType<typeof setTimeout> | null = null
     const highlightMarkerInstances: CircleMarker[] = []
+    setIsFocused(false)
     import('leaflet').then(L => {
       if (cancelled || !elRef.current || mapRef.current || latlng.length === 0) return
       const map = L.map(elRef.current, { zoomControl: false })
@@ -42,6 +54,7 @@ export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], o
       }).addTo(map)
       const line: Polyline = L.polyline(latlng, { color: '#2563eb', weight: 4 }).addTo(map)
       const bounds = line.getBounds()
+      boundsRef.current = bounds
       map.fitBounds(bounds, { padding: [20, 20] })
       markerRef.current = L.circleMarker(latlng[cursorRef.current] ?? latlng[0], {
         radius: 7, color: '#fff', weight: 2, fillColor: '#ef4444', fillOpacity: 1,
@@ -84,5 +97,34 @@ export default function RouteMap({ latlng, cursorIndex, highlightMarkers = [], o
     if (markerRef.current && pt) markerRef.current.setLatLng(pt)
   }, [cursorIndex, latlng])
 
-  return <div ref={elRef} className="absolute inset-0" />
+  // Pans/zooms to a highlight's location when its card is clicked (see
+  // RideMapGraph.handleCardClick). Keyed on the whole focusRequest object
+  // (including `seq`) so re-clicking the same highlight after manually panning
+  // away still re-triggers the focus, even though lat/lng didn't change.
+  useEffect(() => {
+    if (!focusRequest || !mapRef.current) return
+    mapRef.current.setView([focusRequest.lat, focusRequest.lng], FOCUS_ZOOM)
+    setIsFocused(true)
+  }, [focusRequest])
+
+  function handleFitRoute() {
+    if (mapRef.current && boundsRef.current) {
+      mapRef.current.fitBounds(boundsRef.current, { padding: [20, 20] })
+    }
+    setIsFocused(false)
+  }
+
+  return (
+    <>
+      <div ref={elRef} className="absolute inset-0" />
+      {isFocused && (
+        <button
+          onClick={handleFitRoute}
+          className="absolute top-2 right-2 z-[1000] text-xs font-medium px-3 min-h-[44px] inline-flex items-center rounded-full bg-white shadow border border-gray-200 text-gray-700"
+        >
+          Fit route
+        </button>
+      )}
+    </>
+  )
 }

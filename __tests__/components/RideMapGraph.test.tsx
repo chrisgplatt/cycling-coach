@@ -39,3 +39,28 @@ describe('RideMapGraph highlight wiring', () => {
     expect(document.querySelector('[data-testid="graph-marker"]')).toBeNull()
   })
 })
+
+describe('RideMapGraph controls', () => {
+  it('does not render an X-axis toggle', () => {
+    render(<RideMapGraph streams={streams} />)
+    expect(screen.queryByRole('button', { name: 'Distance' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Time' })).toBeNull()
+  })
+})
+
+describe('RideMapGraph card-click focus', () => {
+  it('clicking a climb/effort card moves the chart cursor to that point', () => {
+    render(<RideMapGraph streams={streams} highlights={highlights} />)
+    const card = screen.getByTestId('highlight-card')
+    fireEvent.click(card)
+    expect(screen.getByText('2.5km')).toBeInTheDocument()
+  })
+
+  it('does not move the cursor when a non-located highlight card is clicked', () => {
+    const sprintOnly: RideHighlight[] = [{ kind: 'sprint', start_km: null, data: { duration_secs: 5, watts: 890 } }]
+    render(<RideMapGraph streams={streams} highlights={sprintOnly} />)
+    const card = screen.getByTestId('highlight-card')
+    fireEvent.click(card)
+    expect(screen.getByText('0.0km')).toBeInTheDocument()
+  })
+})

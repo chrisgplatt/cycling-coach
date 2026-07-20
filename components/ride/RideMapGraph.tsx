@@ -6,6 +6,7 @@ import type { RideHighlight } from '@/lib/ride-highlights'
 import RideGraph from './RideGraph'
 import RideHighlightsTab from '../RideHighlightsTab'
 import { formatClockDuration, nearestIndexForKm, type HighlightMarker } from '@/lib/ride/graph-math'
+import type { FocusRequest } from './RouteMap'
 
 const RouteMap = dynamic(() => import('./RouteMap'), { ssr: false })
 
@@ -24,17 +25,20 @@ function Chip({ label, value, colour }: { label: string; value: string; colour: 
 // `fit`: fill the parent height (flex column, map flexes) instead of using vh heights,
 // so the map + graph + controls sit on one screen with no scrolling (used in the modals).
 // `highlights`: climbs/effort periods render as tappable markers on the map and graph;
-// tapping one scrolls to and briefly highlights its card in the list rendered below.
+// tapping one scrolls to and briefly highlights its card in the list rendered below;
+// clicking a card does the reverse — moves the chart cursor and pans/zooms the map
+// to that point.
 export default function RideMapGraph({ streams, highlights = [], fit = false }: {
   streams: RideStreams; highlights?: RideHighlight[]; fit?: boolean
 }) {
   const [cursor, setCursor] = useState(0)
   const [show, setShow] = useState({ power: true, hr: true, elevation: true })
-  const [xAxis, setXAxis] = useState<'distance' | 'time'>('distance')
   const [activeHighlightIndex, setActiveHighlightIndex] = useState<number | null>(null)
+  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
   const hasGps = !!streams.latlng && streams.latlng.length > 0
   const cardRefs = useRef(new Map<number, HTMLDivElement>())
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const focusSeqRef = useRef(0)
 
   // Only climbs/effort periods carry a start_km; sprints/personal-bests have no
   // resolvable position and never get a marker (they still render in the card
@@ -62,6 +66,21 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
     flashTimer.current = setTimeout(() => setActiveHighlightIndex(null), HIGHLIGHT_FLASH_MS)
   }, [])
 
+  // Reverse of handleMarkerTap: clicking a card moves the chart cursor to that
+  // point and (if the ride has GPS) asks RouteMap to pan/zoom there. `seq`
+  // increments on every qualifying click so re-clicking the same highlight after
+  // manually panning away still re-triggers the focus.
+  const handleCardClick = useCallback((arrayIndex: number) => {
+    const marker = highlightMarkers.find(m => m.arrayIndex === arrayIndex)
+    if (!marker) return
+    setCursor(marker.streamIndex)
+    const pt = streams.latlng?.[marker.streamIndex]
+    if (pt) {
+      focusSeqRef.current += 1
+      setFocusRequest({ lat: pt[0], lng: pt[1], seq: focusSeqRef.current })
+    }
+  }, [highlightMarkers, streams.latlng])
+
   const at = (arr: number[] | null) => (arr && arr[cursor] != null ? arr[cursor] : null)
   const power = at(streams.power)
   const hr = at(streams.hr)
@@ -75,7 +94,10 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
       <div className={`bg-slate-100 relative isolate ${fit ? 'flex-1 min-h-[150px]' : 'h-[40vh] min-h-[220px]'}`}>
         {hasGps ? (
           // hasGps guarantees latlng is non-null and non-empty
-          <RouteMap latlng={streams.latlng!} cursorIndex={cursor} highlightMarkers={highlightMarkers} onMarkerTap={handleMarkerTap} />
+          <RouteMap
+            latlng={streams.latlng!} cursorIndex={cursor} highlightMarkers={highlightMarkers}
+            onMarkerTap={handleMarkerTap} focusRequest={focusRequest}
+          />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
             No GPS recorded for this ride
@@ -93,24 +115,9 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
 
       <div className="shrink-0">
         <RideGraph
-          streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis={xAxis} fit={fit}
+          streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis="distance" fit={fit}
           highlightMarkers={highlightMarkers} onMarkerTap={handleMarkerTap}
         />
-      </div>
-
-      <div className="shrink-0 px-4 pt-3 flex gap-2 items-center">
-        <span className="text-[11px] text-gray-400 mr-1">X axis</span>
-        {(['distance', 'time'] as const).map(ax => (
-          <button
-            key={ax}
-            onClick={() => setXAxis(ax)}
-            className={`text-xs font-medium px-4 min-h-[44px] inline-flex items-center rounded-full border transition-colors ${
-              xAxis === ax ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-500'
-            }`}
-          >
-            {ax === 'distance' ? 'Distance' : 'Time'}
-          </button>
-        ))}
       </div>
 
       <div className="shrink-0 px-4 py-3 flex gap-2 flex-wrap">
@@ -122,7 +129,7 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
             <button
               key={k}
               onClick={() => setShow(s => ({ ...s, [k]: !s[k] }))}
-              className={`text-xs font-medium px-4 min-h-[44px] inline-flex items-center rounded-full border transition-colors ${
+              className={`text-xs font-medium px-2.5 min-h-[44px] inline-flex items-center rounded-full border transition-colors ${
                 show[k] ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-400'
               }`}
             >
@@ -134,7 +141,10 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
 
       {highlights.length > 0 && (
         <div className="shrink-0 px-4 pb-4">
-          <RideHighlightsTab highlights={highlights} activeIndex={activeHighlightIndex} onRegisterRef={registerCardRef} />
+          <RideHighlightsTab
+            highlights={highlights} activeIndex={activeHighlightIndex}
+            onRegisterRef={registerCardRef} onCardClick={handleCardClick}
+          />
         </div>
       )}
     </div>

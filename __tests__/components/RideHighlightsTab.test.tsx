@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import RideHighlightsTab from '@/components/RideHighlightsTab'
 import type { RideHighlight } from '@/lib/ride-highlights'
 
@@ -41,5 +41,18 @@ describe('RideHighlightsTab', () => {
     expect(cards[1]).toHaveClass('ring-2')
     expect(cards[0]).not.toHaveClass('ring-2')
     expect(registered.some(([index, mounted]) => index === 1 && mounted)).toBe(true)
+  })
+
+  it('calls onCardClick for climb/effort cards but not for sprint/personal_best cards', () => {
+    const onCardClick = jest.fn()
+    render(<RideHighlightsTab highlights={highlights} onCardClick={onCardClick} />)
+    const cards = screen.getAllByTestId('highlight-card')
+
+    fireEvent.click(cards[0]) // effort
+    expect(onCardClick).toHaveBeenCalledWith(0)
+
+    onCardClick.mockClear()
+    fireEvent.click(cards[2]) // sprint — no handler attached
+    expect(onCardClick).not.toHaveBeenCalled()
   })
 })
