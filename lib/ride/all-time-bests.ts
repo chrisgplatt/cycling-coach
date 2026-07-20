@@ -1,7 +1,7 @@
 import type { ActivityMetrics } from '@/types'
 
 export interface AllTimeBests {
-  biggestClimb: { workoutId: string; date: string; elev_gain_m: number; length_km: number } | null
+  biggestClimb: { workoutId: string; date: string; elev_gain_m: number; length_km: number | null } | null
   longestClimb: { workoutId: string; date: string; length_km: number; elev_gain_m: number } | null
   powerBests: Array<{ secs: number; watts: number; workoutId: string; date: string }>
   speedBests: Array<{ distance_km: number; avg_speed_kmh: number; workoutId: string; date: string }>
@@ -36,9 +36,11 @@ export function computeAllTimeBests(rides: BestsRide[]): AllTimeBests {
 
     for (const climb of m.climbs ?? []) {
       if (!biggestClimb || climb.elev_gain_m > biggestClimb.elev_gain_m) {
-        biggestClimb = { workoutId: r.id, date: r.date, elev_gain_m: climb.elev_gain_m, length_km: climb.length_km }
+        biggestClimb = { workoutId: r.id, date: r.date, elev_gain_m: climb.elev_gain_m, length_km: climb.length_km ?? null }
       }
-      if (!longestClimb || climb.length_km > longestClimb.length_km) {
+      // Un-backfilled historical climbs don't have length_km yet — never let one
+      // become (or beat) the longest-climb record until it's actually measured.
+      if (climb.length_km != null && (!longestClimb || climb.length_km > longestClimb.length_km)) {
         longestClimb = { workoutId: r.id, date: r.date, length_km: climb.length_km, elev_gain_m: climb.elev_gain_m }
       }
     }

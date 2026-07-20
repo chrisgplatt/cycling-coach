@@ -81,4 +81,20 @@ describe('AllTimeBestsTab', () => {
     expect(await screen.findByText('No ride data yet for this period.')).toBeInTheDocument()
     expect(screen.queryByText('Biggest Climb')).not.toBeInTheDocument()
   })
+
+  it('renders the Biggest Climb caption without a bogus length when length_km is null (un-backfilled data)', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => makeResponse({
+        allTime: {
+          biggestClimb: { workoutId: 'w1', date: '2026-03-15', elev_gain_m: 620, length_km: null },
+          longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null,
+        },
+        byYear: {},
+      }),
+    })
+    render(<AllTimeBestsTab />)
+    expect(await screen.findByText('620')).toBeInTheDocument()
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument()
+  })
 })

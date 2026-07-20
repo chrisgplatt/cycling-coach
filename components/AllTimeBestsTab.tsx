@@ -41,7 +41,9 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
           <div className="flex">
             <BestCell
               label="Elevation" value={String(bests.biggestClimb.elev_gain_m)} unit="m"
-              caption={`${bests.biggestClimb.length_km}km · ${formatDate(bests.biggestClimb.date)}`}
+              caption={bests.biggestClimb.length_km != null
+                ? `${bests.biggestClimb.length_km}km · ${formatDate(bests.biggestClimb.date)}`
+                : formatDate(bests.biggestClimb.date)}
             />
           </div>
         </SectionCard>

@@ -90,6 +90,25 @@ describe('computeAllTimeBests', () => {
       biggestClimb: null, longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null,
     })
   })
+
+  it('ignores climbs missing length_km (un-backfilled historical data) when tracking longestClimb, while biggestClimb still surfaces correctly by elevation', () => {
+    const oldClimb = { start_km: 5, duration_secs: 480, elev_gain_m: 700, avg_watts: 268, vam: 675 } as unknown as ClimbSegment
+    const newClimb = makeClimb({ elev_gain_m: 300, length_km: 8 })
+    const rides = [
+      ride('w1', '2026-01-01', makeMetrics({ climbs: [oldClimb] })),
+      ride('w2', '2026-02-01', makeMetrics({ climbs: [newClimb] })),
+    ]
+    const result = computeAllTimeBests(rides)
+    expect(result.biggestClimb).toEqual({ workoutId: 'w1', date: '2026-01-01', elev_gain_m: 700, length_km: null })
+    expect(result.longestClimb).toEqual({ workoutId: 'w2', date: '2026-02-01', length_km: 8, elev_gain_m: 300 })
+  })
+
+  it('returns longestClimb null when no climb anywhere has a backfilled length_km yet', () => {
+    const oldClimb = { start_km: 5, duration_secs: 480, elev_gain_m: 700, avg_watts: 268, vam: 675 } as unknown as ClimbSegment
+    const result = computeAllTimeBests([ride('w1', '2026-01-01', makeMetrics({ climbs: [oldClimb] }))])
+    expect(result.longestClimb).toBeNull()
+    expect(result.biggestClimb).toEqual({ workoutId: 'w1', date: '2026-01-01', elev_gain_m: 700, length_km: null })
+  })
 })
 
 describe('computeAllTimeBestsByPeriod', () => {
