@@ -10,6 +10,7 @@ import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
 import { isoWeek } from '@/lib/iso-week'
 import { getWeekBounds } from '@/lib/week-bounds'
+import { weekDates as computeWeekDates } from '@/lib/calendar-helpers'
 import { localDateStr } from '@/lib/local-date'
 import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
@@ -131,6 +132,7 @@ export default function DashboardPage() {
   const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
   const [weatherByDate, setWeatherByDate] = useState<Map<string, WeatherSummary>>(new Map())
   const [weatherByActivity, setWeatherByActivity] = useState<Map<string, ActivityWeather>>(new Map())
+  const [selectedWeekStart, setSelectedWeekStart] = useState(() => getWeekBounds(localDateStr(new Date())).start)
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -210,8 +212,7 @@ export default function DashboardPage() {
 
     if (plan.workouts) {
       const today = localDateStr(new Date())
-      const { start: weekStart, end: weekEnd } = getWeekBounds(today)
-      setWorkouts(plan.workouts.filter((w: Workout) => w.date >= weekStart && w.date <= weekEnd))
+      setWorkouts(plan.workouts)
       setFuturePlanWorkouts(plan.workouts.filter((w: Workout) => w.date >= today && w.status === 'planned'))
 
       // Compute last week date range for review banner
@@ -383,8 +384,9 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
+    const visibleWeekDates = computeWeekDates(selectedWeekStart)
     const completedIds = workouts
-      .filter(w => w.status === 'completed' && w.icu_activity_id)
+      .filter(w => w.status === 'completed' && w.icu_activity_id && visibleWeekDates.includes(w.date))
       .map(w => w.icu_activity_id!)
 
     if (!completedIds.length) return
@@ -405,7 +407,7 @@ export default function DashboardPage() {
     })
 
     return () => { cancelled = true }
-  }, [workouts])
+  }, [workouts, selectedWeekStart])
 
   const wellnessArr = syncData?.wellness ?? []
   const latestEntry = wellnessArr.length > 0 ? wellnessArr[wellnessArr.length - 1] : null
@@ -474,15 +476,22 @@ export default function DashboardPage() {
   const todaySessionCount = todayWorkouts.length
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  const today = new Date()
-  const dayOfWeek = (today.getDay() + 6) % 7  // 0=Mon … 6=Sun (Sunday was 0, causing off-by-one)
-  const weekDates = days.map((_, i) => {
-    const d = new Date(today)
-    d.setDate(d.getDate() - dayOfWeek + i)
-    return localDateStr(d)
-  })
+  const weekDates = computeWeekDates(selectedWeekStart)
+  const isCurrentWeek = selectedWeekStart === getWeekBounds(localDateStr(new Date())).start
+  const weekRangeLabel = `${weekDates[0].slice(8)} – ${weekDates[6].slice(8)} ${new Date(weekDates[0]).toLocaleString('en-GB', { month: 'long' })}`
 
-  const weekWorkoutsWP = workouts.filter(w => weekDates.includes(w.date))
+  function shiftWeek(deltaDays: number) {
+    const [y, m, d] = selectedWeekStart.split('-').map(Number)
+    const next = new Date(Date.UTC(y, m - 1, d + deltaDays))
+    setSelectedWeekStart(next.toISOString().split('T')[0])
+  }
+
+  function jumpToCurrentWeek() {
+    setSelectedWeekStart(getWeekBounds(localDateStr(new Date())).start)
+  }
+
+  const todayWeekDates = computeWeekDates(getWeekBounds(todayStr).start)
+  const weekWorkoutsWP = workouts.filter(w => todayWeekDates.includes(w.date))
   const completedWP = weekWorkoutsWP.filter(w => w.status === 'completed')
   const countableSessionsWP = weekWorkoutsWP.filter(isSessionCountable)
   const linkedActivityIds = new Set(weekWorkoutsWP.map(w => w.icu_activity_id).filter((id): id is string => id != null))
@@ -498,7 +507,7 @@ export default function DashboardPage() {
     timeActualMins: completedWP.reduce((s, w) => s + (w.actual_duration_minutes ?? w.duration_minutes), 0),
     fitnessCtl: recentCtl !== null ? Math.round(recentCtl) : null,
     otherActivitiesCount: (syncData?.activities ?? [])
-      .filter(a => weekDates.some(d => a.start_date_local.startsWith(d)) && !linkedActivityIds.has(a.id))
+      .filter(a => todayWeekDates.some(d => a.start_date_local.startsWith(d)) && !linkedActivityIds.has(a.id))
       .length,
   } : null
 
@@ -710,36 +719,65 @@ export default function DashboardPage() {
       />
 
       <div>
-        <div className="flex items-baseline justify-between mb-0.5">
-          <h2 className="text-lg font-bold tracking-tight text-gray-900">This week</h2>
-          {(() => {
-            const weekWorkouts = workouts.filter(w => weekDates.includes(w.date))
-            if (!weekWorkouts.length) return null
-            const plannedTss = weekWorkouts.reduce((sum, w) => sum + estimateTss(w.type, w.duration_minutes), 0)
-            const actualTss = weekWorkouts
-              .filter(w => w.status === 'completed' && w.tss !== null)
-              .reduce((sum, w) => sum + (w.tss ?? 0), 0)
-            const plannedMins = weekWorkouts.reduce((sum, w) => sum + w.duration_minutes, 0)
-            const completedMins = weekWorkouts
-              .filter(w => w.status === 'completed')
-              .reduce((sum, w) => sum + w.duration_minutes, 0)
-            const hasCompleted = weekWorkouts.some(w => w.status === 'completed')
-            const fmt = (m: number) => `${Math.round(m / 60 * 10) / 10}h`
-            return hasCompleted ? (
-              <span className="text-sm text-gray-400">
-                <span className="font-semibold text-gray-600">~{plannedTss} → {actualTss}</span>{' TSS · '}
-                <span className="font-semibold text-gray-600">{fmt(completedMins)}/{fmt(plannedMins)}</span>
-              </span>
-            ) : (
-              <span className="text-sm text-gray-400">
-                <span className="font-semibold text-gray-600">~{plannedTss}</span>{' TSS · '}
-                <span className="font-semibold text-gray-600">{fmt(plannedMins)}</span>
-              </span>
-            )
-          })()}
+        <div className="flex items-center justify-between mb-0.5">
+          <h2 className="text-lg font-bold tracking-tight text-gray-900">
+            {isCurrentWeek ? 'This week' : weekRangeLabel}
+          </h2>
+          <div className="flex items-center gap-3">
+            {(() => {
+              const weekWorkouts = workouts.filter(w => weekDates.includes(w.date))
+              if (!weekWorkouts.length) return null
+              const plannedTss = weekWorkouts.reduce((sum, w) => sum + estimateTss(w.type, w.duration_minutes), 0)
+              const actualTss = weekWorkouts
+                .filter(w => w.status === 'completed' && w.tss !== null)
+                .reduce((sum, w) => sum + (w.tss ?? 0), 0)
+              const plannedMins = weekWorkouts.reduce((sum, w) => sum + w.duration_minutes, 0)
+              const completedMins = weekWorkouts
+                .filter(w => w.status === 'completed')
+                .reduce((sum, w) => sum + w.duration_minutes, 0)
+              const hasCompleted = weekWorkouts.some(w => w.status === 'completed')
+              const fmt = (m: number) => `${Math.round(m / 60 * 10) / 10}h`
+              return hasCompleted ? (
+                <span className="text-sm text-gray-400">
+                  <span className="font-semibold text-gray-600">~{plannedTss} → {actualTss}</span>{' TSS · '}
+                  <span className="font-semibold text-gray-600">{fmt(completedMins)}/{fmt(plannedMins)}</span>
+                </span>
+              ) : (
+                <span className="text-sm text-gray-400">
+                  <span className="font-semibold text-gray-600">~{plannedTss}</span>{' TSS · '}
+                  <span className="font-semibold text-gray-600">{fmt(plannedMins)}</span>
+                </span>
+              )
+            })()}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => shiftWeek(-7)}
+                aria-label="Previous week"
+                className="p-2 text-gray-400 hover:text-gray-700 text-lg leading-none min-h-[44px]"
+              >
+                ‹
+              </button>
+              <button
+                onClick={() => shiftWeek(7)}
+                aria-label="Next week"
+                className="p-2 text-gray-400 hover:text-gray-700 text-lg leading-none min-h-[44px]"
+              >
+                ›
+              </button>
+              {!isCurrentWeek && (
+                <button
+                  onClick={jumpToCurrentWeek}
+                  aria-label="Today"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 px-2 min-h-[44px] inline-flex items-center"
+                >
+                  Today
+                </button>
+              )}
+            </div>
+          </div>
         </div>
         <p className="text-sm text-gray-400 mb-4">
-          {weekDates[0].slice(8)} – {weekDates[6].slice(8)} {new Date(weekDates[0]).toLocaleString('en-GB', { month: 'long' })}
+          {weekRangeLabel}
         </p>
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="space-y-2">

@@ -70,6 +70,13 @@ const nextWeekDates = weekDates(nextWeekStart)
 const lastWeekWorkout = makeWorkout({ id: 'w-last', date: lastWeekStart, name: 'Last week ride' })
 const currentWeekWorkout = makeWorkout({ id: 'w-current', date: currentWeekWorkoutDate, name: 'Current week ride' })
 const nextWeekWorkout = makeWorkout({ id: 'w-next', date: nextWeekStart, name: 'Next week ride' })
+// A second, differently-countable workout in next week only. This makes next
+// week's countable-session total (2) diverge from the current week's (1), so
+// the "stays pinned to today's week" test below is only satisfied if
+// weeklyProgress genuinely reads todayWeekDates rather than the navigable
+// weekDates — if the pinning were broken, the Sessions tile would flip from
+// "0/1" to "0/2" after clicking Next.
+const nextWeekWorkout2 = makeWorkout({ id: 'w-next-2', date: shiftDateStr(nextWeekStart, 1), name: 'Next week ride 2' })
 
 function mockFetch() {
   global.fetch = jest.fn((url: string) => {
@@ -81,7 +88,7 @@ function mockFetch() {
       return Promise.resolve({
         ok: true,
         json: async () => ({
-          workouts: [lastWeekWorkout, currentWeekWorkout, nextWeekWorkout],
+          workouts: [lastWeekWorkout, currentWeekWorkout, nextWeekWorkout, nextWeekWorkout2],
           name: '',
           last_reviewed_week: '9999-W53',
         }),
@@ -154,7 +161,11 @@ describe('DashboardPage week navigation', () => {
     // isSessionCompleted classify it as 1 countable session, 0 completed —
     // ProgressStats renders this as a "0/1" Sessions tile. That tile's source
     // (weeklyProgress) must stay pinned to *today's* week regardless of which
-    // week the day-list below is currently showing.
+    // week the day-list below is currently showing. Next week has TWO
+    // countable workouts (nextWeekWorkout + nextWeekWorkout2), so if the tile
+    // were ever wired to the navigable weekDates instead of todayWeekDates,
+    // it would show "0/2" after clicking Next — making this assertion
+    // load-bearing rather than vacuous.
     render(<DashboardPage />)
     expect(await screen.findByText('0/1')).toBeInTheDocument()
 
