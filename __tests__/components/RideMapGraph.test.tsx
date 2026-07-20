@@ -39,3 +39,11 @@ describe('RideMapGraph highlight wiring', () => {
     expect(document.querySelector('[data-testid="graph-marker"]')).toBeNull()
   })
 })
+
+describe('RideMapGraph controls', () => {
+  it('does not render an X-axis toggle', () => {
+    render(<RideMapGraph streams={streams} />)
+    expect(screen.queryByRole('button', { name: 'Distance' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Time' })).toBeNull()
+  })
+})

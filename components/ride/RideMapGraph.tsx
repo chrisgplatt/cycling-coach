@@ -30,7 +30,6 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
 }) {
   const [cursor, setCursor] = useState(0)
   const [show, setShow] = useState({ power: true, hr: true, elevation: true })
-  const [xAxis, setXAxis] = useState<'distance' | 'time'>('distance')
   const [activeHighlightIndex, setActiveHighlightIndex] = useState<number | null>(null)
   const hasGps = !!streams.latlng && streams.latlng.length > 0
   const cardRefs = useRef(new Map<number, HTMLDivElement>())
@@ -93,24 +92,9 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
 
       <div className="shrink-0">
         <RideGraph
-          streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis={xAxis} fit={fit}
+          streams={streams} cursorIndex={cursor} onScrub={setCursor} show={show} xAxis="distance" fit={fit}
           highlightMarkers={highlightMarkers} onMarkerTap={handleMarkerTap}
         />
-      </div>
-
-      <div className="shrink-0 px-4 pt-3 flex gap-2 items-center">
-        <span className="text-[11px] text-gray-400 mr-1">X axis</span>
-        {(['distance', 'time'] as const).map(ax => (
-          <button
-            key={ax}
-            onClick={() => setXAxis(ax)}
-            className={`text-xs font-medium px-4 min-h-[44px] inline-flex items-center rounded-full border transition-colors ${
-              xAxis === ax ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-500'
-            }`}
-          >
-            {ax === 'distance' ? 'Distance' : 'Time'}
-          </button>
-        ))}
       </div>
 
       <div className="shrink-0 px-4 py-3 flex gap-2 flex-wrap">
@@ -122,7 +106,7 @@ export default function RideMapGraph({ streams, highlights = [], fit = false }: 
             <button
               key={k}
               onClick={() => setShow(s => ({ ...s, [k]: !s[k] }))}
-              className={`text-xs font-medium px-4 min-h-[44px] inline-flex items-center rounded-full border transition-colors ${
+              className={`text-xs font-medium px-2.5 min-h-[44px] inline-flex items-center rounded-full border transition-colors ${
                 show[k] ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-400'
               }`}
             >
