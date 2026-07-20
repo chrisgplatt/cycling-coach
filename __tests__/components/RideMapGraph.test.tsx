@@ -70,4 +70,13 @@ describe('RideMapGraph card-click focus', () => {
     fireEvent.click(screen.getByTestId('highlight-card'))
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
   })
+
+  it('clicking a card also activates the highlight: its card gets the ring and its chart marker gets the blue outline', () => {
+    render(<RideMapGraph streams={streams} highlights={highlights} />)
+    const card = screen.getByTestId('highlight-card')
+    fireEvent.click(card)
+    expect(card).toHaveClass('ring-2')
+    const activeCircle = document.querySelector('[data-testid="graph-marker"] circle[r="9"]')
+    expect(activeCircle).toHaveAttribute('stroke', '#60a5fa')
+  })
 })
