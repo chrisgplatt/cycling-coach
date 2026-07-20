@@ -36,7 +36,7 @@ describe('extractStreamInsights', () => {
     const power = Array.from({ length: n }, () => 250)
     const m = extractStreamInsights({ ...base(), time, distance, altitude, power }, 200, null)
     expect(m.climbs).toEqual([
-      { start_km: 0, duration_secs: 360, elev_gain_m: 60, avg_watts: 250, vam: 600 },
+      { start_km: 0, duration_secs: 360, elev_gain_m: 60, avg_watts: 250, vam: 600, length_km: 0.6, path: null },
     ])
   })
 

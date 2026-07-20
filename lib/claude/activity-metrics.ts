@@ -1,18 +1,21 @@
 // Pure, dependency-free formatters for enriched completed-ride detail.
 // Kept free of the intervals.icu and Anthropic clients so prompt builders can
 // import it without dragging in network/SDK code (mirrors lib/claude/zones.ts).
-import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment, DistributionBin, SessionDistributions, EffortPeriod, RideSprint, PersonalBest } from '@/types'
+import type { ICUActivity, ICUPowerCurvePoint, ActivityInterval, ActivityMetrics, WorkoutStep, RideStreams, ClimbSegment, DistributionBin, SessionDistributions, EffortPeriod, RideSprint, PersonalBest, SpeedBest } from '@/types'
 import { alignPlannedToLaps } from '@/lib/ride/planned-actual'
+import { downsamplePoints } from '@/lib/intervals/streams'
 
 // Best-effort durations we sample the power curve down to (seconds): 5s, 15s,
 // 1m, 5m, 10m, 20m, 60m — the durations RideStats surfaces.
 const CANONICAL_SECS = [5, 15, 60, 300, 600, 1200, 3600]
+const CLIMB_PATH_MAX_POINTS = 12
+const SPEED_SPLIT_KM = [1, 5, 10, 20]
 
 // Bumped whenever the metrics computation changes (new best-effort durations,
 // new derived fields, etc.). The backfill re-enriches rows below this version so
 // existing rides pick up the change once — without churning rows that can't
 // produce a given field (the version stamp lands regardless).
-export const METRICS_VERSION = 4
+export const METRICS_VERSION = 5
 
 function sampleBest(curve: ICUPowerCurvePoint[], target: number): { secs: number; watts: number } | null {
   if (!curve.length) return null
@@ -65,6 +68,7 @@ export function extractActivityMetrics(
     distributions: null,
     effort_periods: null,   // filled by extractStreamInsights (Task 2)
     sprints: extractSprints(best),
+    speed_bests: null,   // filled by extractStreamInsights (all-time bests)
     personal_bests: null,   // filled by enrichActivity after a 90-day curve fetch (Task 5)
     metrics_version: METRICS_VERSION,
     synced_at: new Date().toISOString(),
@@ -244,7 +248,7 @@ function computeTimeInZone(
 
 function detectClimbs(
   altitude: number[] | null, distance: number[] | null,
-  power: number[] | null, time: number[],
+  power: number[] | null, time: number[], latlng: [number, number][] | null,
 ): ClimbSegment[] | null {
   if (!altitude || !distance || altitude.length < 2) return null
   const MIN_GRADE = 0.03, MIN_GAIN = 30, MIN_SECS = 180, WINDOW_M = 200
@@ -276,9 +280,44 @@ function detectClimbs(
           elev_gain_m: Math.round(elev_gain_m),
           avg_watts: pn ? Math.round(ps / pn) : null,
           vam: Math.round(elev_gain_m / (duration_secs / 3600)),
+          length_km: Math.round(((distance[end] - distance[start]) / 1000) * 10) / 10,
+          path: latlng ? downsamplePoints(latlng.slice(start, end + 1), CLIMB_PATH_MAX_POINTS) : null,
         })
       }
       start = -1
+    }
+  }
+  return out.length ? out : null
+}
+
+// For each target split distance, finds the fastest (minimum-duration) contiguous
+// stretch of the ride covering exactly that distance — a two-pointer sweep over the
+// monotonic distance/time streams, mirroring detectClimbs' forward-window technique.
+// A split is skipped entirely when the ride's total distance doesn't reach it.
+function detectSpeedBests(distance: number[], time: number[]): SpeedBest[] | null {
+  if (distance.length < 2) return null
+  const totalKm = distance[distance.length - 1] / 1000
+  const out: SpeedBest[] = []
+  for (const targetKm of SPEED_SPLIT_KM) {
+    if (totalKm < targetKm) continue
+    const targetM = targetKm * 1000
+    let bestDuration = Infinity
+    let bestStart = -1
+    let j = 0
+    for (let i = 0; i < distance.length; i++) {
+      if (j < i) j = i
+      while (j < distance.length && distance[j] - distance[i] < targetM) j++
+      if (j >= distance.length) break
+      const duration = time[j] - time[i]
+      if (duration < bestDuration) { bestDuration = duration; bestStart = i }
+    }
+    if (bestStart !== -1 && Number.isFinite(bestDuration) && bestDuration > 0) {
+      out.push({
+        distance_km: targetKm,
+        avg_speed_kmh: Math.round((targetKm / (bestDuration / 3600)) * 10) / 10,
+        start_km: Math.round((distance[bestStart] / 1000) * 10) / 10,
+        duration_secs: bestDuration,
+      })
     }
   }
   return out.length ? out : null
@@ -387,13 +426,14 @@ function computeShape(
 export function extractStreamInsights(
   s: RideStreams, ftp: number | null, plannedSteps: WorkoutStep[] | null,
   laps: ActivityInterval[] | null = null,
-): Pick<ActivityMetrics, 'decoupling_pct' | 'climbs' | 'time_in_zone' | 'shape' | 'effort_periods'> {
+): Pick<ActivityMetrics, 'decoupling_pct' | 'climbs' | 'time_in_zone' | 'shape' | 'effort_periods' | 'speed_bests'> {
   return {
     decoupling_pct: computeDecoupling(s.power, s.hr, s.time),
     time_in_zone: computeTimeInZone(s.power, s.time, ftp),
-    climbs: detectClimbs(s.altitude, s.distance, s.power, s.time),
+    climbs: detectClimbs(s.altitude, s.distance, s.power, s.time, s.latlng),
     shape: computeShape(plannedSteps, laps, s.power, s.time, ftp),
     effort_periods: detectEffortPeriods(s.power, s.distance, s.time, ftp),
+    speed_bests: detectSpeedBests(s.distance, s.time),
   }
 }
 

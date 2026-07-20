@@ -550,6 +550,7 @@ export interface ActivityMetrics {
   // Tier 5 — ride highlights (climbs reuse Tier 4's `climbs`; these three are new)
   effort_periods: EffortPeriod[] | null    // sustained Z4+ blocks
   sprints: RideSprint[] | null             // 5s/15s best-effort power, no location data
+  speed_bests: SpeedBest[] | null          // fastest-over-distance splits (1/5/10/20km)
   personal_bests: PersonalBest[] | null    // 90-day rolling PBs, anchored on this ride's date
   metrics_version?: number  // computation version; drives one-time backfill refresh
   synced_at: string
@@ -561,6 +562,8 @@ export interface ClimbSegment {
   elev_gain_m: number
   avg_watts: number | null
   vam: number            // vertical ascent metres / hour
+  length_km: number      // climb's actual distance covered
+  path: [number, number][] | null   // simplified polyline (max 12 points), null for indoor/no-GPS rides
 }
 
 export interface EffortPeriod {
@@ -579,6 +582,13 @@ export interface PersonalBest {
   duration_secs: number   // one of the canonical best-effort durations (5,15,60,300,600,1200,3600)
   watts: number
   window_days: number     // 90
+}
+
+export interface SpeedBest {
+  distance_km: number      // 1, 5, 10, or 20
+  avg_speed_kmh: number
+  start_km: number         // where along the ride this split began
+  duration_secs: number
 }
 
 export interface RideStreams {
