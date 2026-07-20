@@ -17,6 +17,7 @@ Ride highlights (climbs, efforts, sprints, personal bests) are computed and stor
 - The view lives as a **new tab on the existing Stats page** (alongside "This Year"/"Activity Log"/"28 Days"), not a standalone page — keeps all performance-comparison content in one place.
 - Historical backfill uses the app's **existing generic mechanism**: bumping `METRICS_VERSION` and letting the already-built `?deep=1` sync sweep (in `lib/intervals/enrich.ts`) reprocess every past ride that lacks the new fields. No new admin route needed.
 - Bests entries show their date as plain text in v1 — no click-through to reopen the source ride (that would require fetching the full ride object just for this tab). Confirmed as an explicit, intentional deferral to revisit later, not an oversight.
+- Alongside the **All-time** view, the same categories are also broken down **per calendar year**. Year coverage is **dynamic** — every calendar year with at least one qualifying completed ride gets an entry, going back as far as the data goes, with no fixed cutoff (consistent with how this app already handles other unbounded ranges, e.g. dashboard week navigation). Presented as a **year selector within the same Bests tab** (chips: "All-time", then each year descending) rather than separate sub-tabs — one consistent section layout, just re-scoped to whichever period is selected.
 
 ## Architecture
 
@@ -75,15 +76,30 @@ export function computeAllTimeBests(
   rides: Array<{ id: string; date: string; activity_metrics: ActivityMetrics | null }>
 ): AllTimeBests
 ```
-A single pass over all rides tracks running maxima per category, remembering which ride each came from.
+A single pass over all rides tracks running maxima per category, remembering which ride each came from. This function stays generic over whatever ride subset it's given — the same function computes "all-time" (pass every ride) and "just 2025" (pass only that year's rides), with no separate code path needed per period.
+
+A second exported function in the same module groups rides by year and calls `computeAllTimeBests` once for the full set and once per distinct year found:
+
+```ts
+export interface AllTimeBestsResponse {
+  allTime: AllTimeBests
+  byYear: Record<string, AllTimeBests>   // key = "2026", "2025", … — only years with ≥1 qualifying ride
+}
+
+export function computeAllTimeBestsByPeriod(
+  rides: Array<{ id: string; date: string; activity_metrics: ActivityMetrics | null }>
+): AllTimeBestsResponse
+```
 
 ### API
 
-A new `app/api/bests/route.ts` GET route: auth-checked (same pattern as other routes), queries `workouts` for the current user (`status in (completed, needs_review)`, `activity_metrics is not null`, no date bound — full history, matching the app's realistic scale of ~150-300 rides/year for a single athlete), runs `computeAllTimeBests()`, returns JSON. Computed live per request with no caching table, consistent with how `/api/charts` and `/api/stats` already work at this data volume.
+A new `app/api/bests/route.ts` GET route: auth-checked (same pattern as other routes), queries `workouts` for the current user (`status in (completed, needs_review)`, `activity_metrics is not null`, no date bound — full history, matching the app's realistic scale of ~150-300 rides/year for a single athlete), runs `computeAllTimeBestsByPeriod()`, returns the `AllTimeBestsResponse` JSON in one response. Computed live per request with no caching table, consistent with how `/api/charts` and `/api/stats` already work at this data volume — even with several years of history this is still a handful of small in-memory passes, not a performance concern.
 
 ### UI
 
-A new tab (`'bests'`) added to the existing tab bar in `app/stats/page.tsx`, alongside `'year'`/`'log'`/`'28d'`. Following the same lazy-mount-per-tab pattern already used there (`ActivityLogView` only mounts and fetches when its tab is active) — a new self-contained `AllTimeBestsTab` component does its own `useEffect` fetch of `/api/bests` on mount.
+A new tab (`'bests'`) added to the existing tab bar in `app/stats/page.tsx`, alongside `'year'`/`'log'`/`'28d'`. Following the same lazy-mount-per-tab pattern already used there (`ActivityLogView` only mounts and fetches when its tab is active) — a new self-contained `AllTimeBestsTab` component does its own `useEffect` fetch of `/api/bests` on mount (one fetch total, regardless of which period is later selected).
+
+A row of period chips sits above the section layout: "All-time" (default-selected), then each year in `byYear` descending (most recent first). Selecting a chip re-renders the same sections below, scoped to `response.allTime` or `response.byYear[year]` — purely a local state change (`selectedPeriod: 'all' | string`), no refetch when switching between periods.
 
 Layout reuses the existing `SectionCard`/`StatCell` primitives from `components/RideStats.tsx` (same visual language as the current 28-day "Best Power" card):
 - **Biggest Climb** — elevation gain (big number, "m") + caption "length_km km · date"
@@ -92,7 +108,7 @@ Layout reuses the existing `SectionCard`/`StatCell` primitives from `components/
 - **Speed Bests** — a row of cells per distance split, km/h + date caption
 - **Max Speed** — single stat, km/h + date caption
 
-Sections with no data (e.g. no climbs ever detected) are hidden, matching the existing "hide if absent" convention already used on this page (`hasBest`/`hasSpeed` in `RideStats.tsx`).
+Sections with no data for the currently selected period (e.g. no climbs detected that year) are hidden, matching the existing "hide if absent" convention already used on this page (`hasBest`/`hasSpeed` in `RideStats.tsx`).
 
 ## Files to change
 
@@ -101,11 +117,11 @@ Sections with no data (e.g. no climbs ever detected) are hidden, matching the ex
 | `types/index.ts` | Add `length_km`/`path` to `ClimbSegment`; add new `SpeedBest` interface; add `speed_bests` to `ActivityMetrics` |
 | `lib/claude/activity-metrics.ts` | `detectClimbs()` gains `latlng` param + `length_km`/`path` computation; new `detectSpeedBests()`; wire both into `extractStreamInsights()`; bump `METRICS_VERSION` |
 | `lib/intervals/streams.ts` | New `downsamplePoints<T>()` generic helper |
-| `lib/ride/all-time-bests.ts` | New — `AllTimeBests` type + `computeAllTimeBests()` pure aggregator |
-| `app/api/bests/route.ts` | New — GET route returning `AllTimeBests` for the current user |
-| `components/AllTimeBestsTab.tsx` | New — self-fetching tab content component |
+| `lib/ride/all-time-bests.ts` | New — `AllTimeBests`/`AllTimeBestsResponse` types + `computeAllTimeBests()` and `computeAllTimeBestsByPeriod()` pure functions |
+| `app/api/bests/route.ts` | New — GET route returning `AllTimeBestsResponse` (all-time + per-year) for the current user |
+| `components/AllTimeBestsTab.tsx` | New — self-fetching tab content component with a period selector (All-time + each year) |
 | `app/stats/page.tsx` | Add `'bests'` tab to the tab bar and render branch |
-| Tests | Cover: `detectClimbs`'s new `length_km`/`path` output (including the no-GPS/indoor-ride null case); `detectSpeedBests` (including the "ride too short for this split" skip case); `computeAllTimeBests`'s aggregation across multiple rides; the new tab's rendering (data present / absent-section-hidden / fully-empty states) |
+| Tests | Cover: `detectClimbs`'s new `length_km`/`path` output (including the no-GPS/indoor-ride null case); `detectSpeedBests` (including the "ride too short for this split" skip case); `computeAllTimeBests`'s aggregation across multiple rides; `computeAllTimeBestsByPeriod`'s year-grouping (including a ride set spanning multiple years, and confirming `byYear` only lists years with qualifying data); the new tab's rendering (data present / absent-section-hidden / fully-empty states; period-chip switching re-scopes sections without a refetch) |
 
 ## Out of scope
 
