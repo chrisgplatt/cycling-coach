@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { pointerToIndex, seriesToPolyline, formatClockDuration, axisFractions, nearestIndexForFraction, smoothSeries, extent, niceDomain, nearestIndexForKm } from '@/lib/ride/graph-math'
+import { pointerToIndex, seriesToPolyline, formatClockDuration, axisFractions, nearestIndexForFraction, smoothSeries, extent, niceDomain, nearestIndexForKm, nearestIndexForDuration } from '@/lib/ride/graph-math'
 
 describe('niceDomain', () => {
   it('expands bounds outward to the nearest 10', () => {
@@ -110,5 +110,20 @@ describe('nearestIndexForKm', () => {
   })
   it('falls back to index 0 when the distance stream has zero span (e.g. an indoor ride)', () => {
     expect(nearestIndexForKm([0, 0, 0], 1)).toBe(0)
+  })
+})
+
+describe('nearestIndexForDuration', () => {
+  it('finds the index where time has advanced by durationSecs from the start', () => {
+    expect(nearestIndexForDuration([0, 10, 20, 30, 40], 0, 25)).toBe(2)
+  })
+  it('resolves relative to time[startIndex], not time[0]', () => {
+    expect(nearestIndexForDuration([0, 10, 20, 30, 40], 1, 25)).toBe(3)
+  })
+  it('clamps to the last sample when the duration runs past the end of the stream', () => {
+    expect(nearestIndexForDuration([0, 10, 20], 0, 100)).toBe(2)
+  })
+  it('returns startIndex itself for a zero duration', () => {
+    expect(nearestIndexForDuration([0, 10, 20], 1, 0)).toBe(1)
   })
 })

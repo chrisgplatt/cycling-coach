@@ -131,3 +131,19 @@ export function nearestIndexForKm(distance: number[], km: number): number {
   const f = span <= 0 ? 0 : Math.min(1, Math.max(0, (targetM - lo) / span))
   return nearestIndexForFraction(fractions, f)
 }
+
+// Finds the stream index where `time` has advanced by `durationSecs` from
+// `time[startIndex]` — resolves a highlight's END position (climbs/effort
+// periods carry duration_secs but not an explicit end point). Streams are
+// already downsampled to a few hundred points, so a forward scan is cheap.
+export function nearestIndexForDuration(time: number[], startIndex: number, durationSecs: number): number {
+  if (time.length === 0) return startIndex
+  const start = Math.min(Math.max(startIndex, 0), time.length - 1)
+  const target = time[start] + durationSecs
+  let best = start
+  for (let i = start; i < time.length; i++) {
+    if (time[i] <= target) best = i
+    else break
+  }
+  return best
+}
