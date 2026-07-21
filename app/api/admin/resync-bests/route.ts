@@ -2,13 +2,16 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { computeAllTimeBestsByPeriod, type BestsRide } from '@/lib/ride/all-time-bests'
 import { flattenAllTimeBestsToRows, upsertBestRecordRows } from '@/lib/ride/best-records'
+import type { ActivityMetrics } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
 /** Recomputes best_records from scratch from the current workouts rows. Safe to
  * re-run at any time — this is the correction path for the "champion records
  * only ever go up" limitation (e.g. after disassociating a workout, or after
- * an algorithm fix that would otherwise leave a stale, too-high value behind). */
+ * an algorithm fix that would otherwise leave a stale, too-high value behind).
+ * Partitions rides into outdoor/indoor before computing so the two surfaces
+ * are always recomputed and written completely independently. */
 export async function POST() {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -23,12 +26,23 @@ export async function POST() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const rides = (rows ?? []) as BestsRide[]
-  const { allTime, byYear } = computeAllTimeBestsByPeriod(rides)
+  const allRides = (rows ?? []) as Array<{ id: string; icu_activity_id: string; date: string; activity_metrics: ActivityMetrics }>
+  // Rides enriched before this feature existed have no is_indoor key at all
+  // (undefined) — treat that the same as false, matching the column's own
+  // `not null default false`. This is a transient state: the metrics
+  // backfill (run before this resync, per the rollout) supersedes it for
+  // every ride going forward.
+  const outdoorRides = allRides.filter(r => !r.activity_metrics.is_indoor) as BestsRide[]
+  const indoorRides = allRides.filter(r => r.activity_metrics.is_indoor) as BestsRide[]
+
+  const outdoor = computeAllTimeBestsByPeriod(outdoorRides)
+  const indoor = computeAllTimeBestsByPeriod(indoorRides)
 
   const allRows = [
-    ...flattenAllTimeBestsToRows('all', allTime),
-    ...Object.entries(byYear).flatMap(([year, bests]) => flattenAllTimeBestsToRows(year, bests)),
+    ...flattenAllTimeBestsToRows('all', outdoor.allTime, false),
+    ...Object.entries(outdoor.byYear).flatMap(([year, bests]) => flattenAllTimeBestsToRows(year, bests, false)),
+    ...flattenAllTimeBestsToRows('all', indoor.allTime, true),
+    ...Object.entries(indoor.byYear).flatMap(([year, bests]) => flattenAllTimeBestsToRows(year, bests, true)),
   ]
 
   // A full wipe-and-rewrite, not a partial upsert: this route already recomputes
@@ -49,5 +63,5 @@ export async function POST() {
 
   await upsertBestRecordRows(supabase, user.id, allRows)
 
-  return NextResponse.json({ ridesScanned: rides.length, rowsWritten: allRows.length })
+  return NextResponse.json({ ridesScanned: allRides.length, rowsWritten: allRows.length })
 }
