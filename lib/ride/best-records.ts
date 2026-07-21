@@ -59,6 +59,28 @@ export function flattenAllTimeBestsToRows(period: string, bests: AllTimeBests): 
   return rows
 }
 
+// Turns a flat list of stored rows for one period back into an AllTimeBests —
+// the read-side counterpart to flattenAllTimeBestsToRows. Categories with no
+// row simply stay at their default null/empty value.
+export function assembleAllTimeBests(rows: BestRecordRow[]): AllTimeBests {
+  const bests: AllTimeBests = { biggestClimb: null, longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null }
+  for (const r of rows) {
+    const d = r.detail as { date: string; workoutId: string | null; icuActivityId: string; length_km?: number; elev_gain_m?: number; max_speed_ms?: number }
+    // best_records.value is a Postgres `numeric` column, which some drivers
+    // return as a string over the wire. Coerce defensively so the API always
+    // serializes real numbers to the UI regardless of driver behavior.
+    const value = Number(r.value)
+    if (r.category === 'biggest_climb') bests.biggestClimb = { workoutId: d.workoutId, icuActivityId: d.icuActivityId, date: d.date, elev_gain_m: value, length_km: d.length_km ?? null }
+    if (r.category === 'longest_climb') bests.longestClimb = { workoutId: d.workoutId, icuActivityId: d.icuActivityId, date: d.date, length_km: value, elev_gain_m: d.elev_gain_m as number }
+    if (r.category === 'power') bests.powerBests.push({ secs: Number(r.sub_key), watts: value, workoutId: d.workoutId, icuActivityId: d.icuActivityId, date: d.date })
+    if (r.category === 'speed') bests.speedBests.push({ distance_km: Number(r.sub_key), avg_speed_kmh: value, workoutId: d.workoutId, icuActivityId: d.icuActivityId, date: d.date })
+    if (r.category === 'max_speed') bests.maxSpeed = { workoutId: d.workoutId, icuActivityId: d.icuActivityId, date: d.date, speed_kmh: value, max_speed_ms: d.max_speed_ms as number }
+  }
+  bests.powerBests.sort((a, b) => a.secs - b.secs)
+  bests.speedBests.sort((a, b) => a.distance_km - b.distance_km)
+  return bests
+}
+
 // Merges one new candidate ride into the currently-stored champions for both
 // "all-time" and the candidate's own year, reusing computeAllTimeBests as the
 // sole comparison authority. Pure — callers persist the results themselves.
