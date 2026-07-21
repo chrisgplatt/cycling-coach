@@ -30,6 +30,15 @@ export async function POST() {
     ...flattenAllTimeBestsToRows('all', allTime),
     ...Object.entries(byYear).flatMap(([year, bests]) => flattenAllTimeBestsToRows(year, bests)),
   ]
+
+  // A full wipe-and-rewrite, not a partial upsert: this route already recomputes
+  // from the ENTIRE workouts table every time, so any category that no longer
+  // qualifies (e.g. its record-holding ride was disassociated) must not leave a
+  // stale row behind — clearing first is what makes this a genuine recovery
+  // mechanism for the "champion records only ever go up" limitation.
+  const { error: deleteError } = await supabase.from('best_records').delete().eq('user_id', user.id)
+  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
+
   await upsertBestRecordRows(supabase, user.id, allRows)
 
   return NextResponse.json({ ridesScanned: rides.length, rowsWritten: allRows.length })

@@ -4,7 +4,12 @@ jest.mock('@/lib/supabase-server', () => ({ createSupabaseServerClient: jest.fn(
 import { POST } from '@/app/api/admin/resync-bests/route'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-function makeSupabase({ userId = 'u1', workoutRows = [] as unknown[], upsertSpy = jest.fn() } = {}) {
+function makeSupabase({
+  userId = 'u1',
+  workoutRows = [] as unknown[],
+  upsertSpy = jest.fn(),
+  deleteSpy = jest.fn(),
+} = {}) {
   return {
     auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) },
     from: (table: string) => {
@@ -20,7 +25,12 @@ function makeSupabase({ userId = 'u1', workoutRows = [] as unknown[], upsertSpy 
         }
       }
       if (table === 'best_records') {
-        return { upsert: (rows: unknown[], opts: unknown) => { upsertSpy(rows, opts); return Promise.resolve({ error: null }) } }
+        return {
+          upsert: (rows: unknown[], opts: unknown) => { upsertSpy(rows, opts); return Promise.resolve({ error: null }) },
+          delete: () => ({
+            eq: (...args: unknown[]) => { deleteSpy(...args); return Promise.resolve({ error: null }) },
+          }),
+        }
       }
       throw new Error(`unexpected table ${table}`)
     },
@@ -61,5 +71,23 @@ describe('POST /api/admin/resync-bests', () => {
     const res = await POST()
     expect(res.status).toBe(200)
     expect(upsertSpy).not.toHaveBeenCalled()
+  })
+
+  it('clears existing best_records rows before writing the freshly computed set (so a category that no longer qualifies does not leave a stale row behind)', async () => {
+    const callOrder: string[] = []
+    const deleteSpy = jest.fn(() => { callOrder.push('delete') })
+    const upsertSpy = jest.fn(() => { callOrder.push('upsert') })
+    const workoutRows = [
+      {
+        id: 'w1', icu_activity_id: 'icu-1', date: '2026-03-01',
+        activity_metrics: { climbs: [{ elev_gain_m: 500, length_km: 6 }], best_efforts: null, speed_bests: null, max_speed_ms: null },
+      },
+    ]
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ workoutRows, upsertSpy, deleteSpy }))
+    const res = await POST()
+    expect(res.status).toBe(200)
+    expect(deleteSpy).toHaveBeenCalledWith('user_id', 'u1')
+    expect(upsertSpy).toHaveBeenCalled()
+    expect(callOrder).toEqual(['delete', 'upsert'])
   })
 })
