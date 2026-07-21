@@ -102,7 +102,11 @@ export async function fetchBestRecordRows(supabase: SupabaseClient, userId: stri
     .eq('user_id', userId)
     .eq('period', period)
   if (error) throw new Error(error.message)
-  return (data ?? []) as BestRecordRow[]
+  // best_records.value is a Postgres `numeric` column, which some drivers
+  // return as a string over the wire — coerce defensively so every downstream
+  // reconstruction/comparison always sees a real number (matches the same
+  // defensive coercion assembleAllTimeBests already applies for its own reads).
+  return ((data ?? []) as BestRecordRow[]).map(row => ({ ...row, value: Number(row.value) }))
 }
 
 export async function upsertBestRecordRows(supabase: SupabaseClient, userId: string, rows: BestRecordRow[]): Promise<void> {

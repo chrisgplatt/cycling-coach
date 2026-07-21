@@ -1,8 +1,9 @@
 import {
-  reconstructSyntheticRides, flattenAllTimeBestsToRows, mergeCandidateIntoBests,
+  reconstructSyntheticRides, flattenAllTimeBestsToRows, mergeCandidateIntoBests, fetchBestRecordRows,
   type BestRecordRow,
 } from '@/lib/ride/best-records'
 import { computeAllTimeBests, type AllTimeBests, type BestsRide } from '@/lib/ride/all-time-bests'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 function row(overrides: Partial<BestRecordRow>): BestRecordRow {
   return { period: 'all', category: 'biggest_climb', sub_key: '', value: 0, detail: {}, ...overrides }
@@ -85,6 +86,24 @@ describe('reconstruction and flattening round-trip losslessly', () => {
     const synthetic = reconstructSyntheticRides(rows)
     const recomputed = computeAllTimeBests(synthetic)
     expect(recomputed).toEqual(computed)
+  })
+})
+
+describe('fetchBestRecordRows', () => {
+  it('coerces value to a real number even when the driver returns it as a string', async () => {
+    const rawRow = { period: 'all', category: 'biggest_climb', sub_key: '', value: '900', detail: { date: '2026-02-01', workoutId: 'w2', icuActivityId: 'icu-2', length_km: 3 } }
+    const supabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            eq: () => Promise.resolve({ data: [rawRow], error: null }),
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient
+    const result = await fetchBestRecordRows(supabase, 'u1', 'all')
+    expect(typeof result[0].value).toBe('number')
+    expect(result[0].value).toBe(900)
   })
 })
 
