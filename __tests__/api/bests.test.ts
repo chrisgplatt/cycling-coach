@@ -32,7 +32,7 @@ describe('GET /api/bests', () => {
   it('returns computed all-time and per-year bests for the current user\'s rides', async () => {
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(supabaseStub([
       {
-        id: 'w1', date: '2026-03-01',
+        id: 'w1', icu_activity_id: 'icu-1', date: '2026-03-01',
         activity_metrics: {
           climbs: [{ start_km: 2, duration_secs: 300, elev_gain_m: 500, avg_watts: 220, vam: 600, length_km: 6, path: null }],
           best_efforts: null, speed_bests: null, max_speed_ms: null,
@@ -42,8 +42,8 @@ describe('GET /api/bests', () => {
     const res = await GET()
     const body = await res.json()
     expect(res.status).toBe(200)
-    expect(body.allTime.biggestClimb).toEqual({ workoutId: 'w1', date: '2026-03-01', elev_gain_m: 500, length_km: 6 })
-    expect(body.byYear['2026'].biggestClimb).toEqual({ workoutId: 'w1', date: '2026-03-01', elev_gain_m: 500, length_km: 6 })
+    expect(body.allTime.biggestClimb).toEqual({ workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-01', elev_gain_m: 500, length_km: 6 })
+    expect(body.byYear['2026'].biggestClimb).toEqual({ workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-01', elev_gain_m: 500, length_km: 6 })
   })
 
   it('returns empty bests when the user has no completed rides with metrics', async () => {

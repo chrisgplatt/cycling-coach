@@ -11,7 +11,7 @@ export async function GET() {
 
   const { data: rows, error } = await supabase
     .from('workouts')
-    .select('id, date, activity_metrics')
+    .select('id, icu_activity_id, date, activity_metrics')
     .eq('user_id', user.id)
     .in('status', ['completed', 'needs_review'])
     .not('activity_metrics', 'is', null)

@@ -19,8 +19,8 @@ function makeMetrics(overrides: Partial<ActivityMetrics> = {}): ActivityMetrics 
   }
 }
 
-function ride(id: string, date: string, metrics: ActivityMetrics | null) {
-  return { id, date, activity_metrics: metrics }
+function ride(id: string, date: string, metrics: ActivityMetrics | null, icuActivityId = `icu-${id}`) {
+  return { id, icu_activity_id: icuActivityId, date, activity_metrics: metrics }
 }
 
 describe('computeAllTimeBests', () => {
@@ -31,7 +31,7 @@ describe('computeAllTimeBests', () => {
       ride('w3', '2026-03-01', makeMetrics({ climbs: [makeClimb({ elev_gain_m: 600, length_km: 4 })] })),
     ]
     const result = computeAllTimeBests(rides)
-    expect(result.biggestClimb).toEqual({ workoutId: 'w2', date: '2026-02-01', elev_gain_m: 900, length_km: 3 })
+    expect(result.biggestClimb).toEqual({ workoutId: 'w2', icuActivityId: 'icu-w2', date: '2026-02-01', elev_gain_m: 900, length_km: 3 })
   })
 
   it('finds the longest climb by length_km across rides, independent of elevation', () => {
@@ -40,7 +40,7 @@ describe('computeAllTimeBests', () => {
       ride('w2', '2026-02-01', makeMetrics({ climbs: [makeClimb({ elev_gain_m: 400, length_km: 12.5 })] })),
     ]
     const result = computeAllTimeBests(rides)
-    expect(result.longestClimb).toEqual({ workoutId: 'w2', date: '2026-02-01', length_km: 12.5, elev_gain_m: 400 })
+    expect(result.longestClimb).toEqual({ workoutId: 'w2', icuActivityId: 'icu-w2', date: '2026-02-01', length_km: 12.5, elev_gain_m: 400 })
   })
 
   it('finds the max watts per duration across rides, keeping durations independent', () => {
@@ -50,8 +50,8 @@ describe('computeAllTimeBests', () => {
     ]
     const result = computeAllTimeBests(rides)
     expect(result.powerBests).toEqual([
-      { secs: 300, watts: 310, workoutId: 'w2', date: '2026-02-01' },
-      { secs: 1200, watts: 210, workoutId: 'w1', date: '2026-01-01' },
+      { secs: 300, watts: 310, workoutId: 'w2', icuActivityId: 'icu-w2', date: '2026-02-01' },
+      { secs: 1200, watts: 210, workoutId: 'w1', icuActivityId: 'icu-w1', date: '2026-01-01' },
     ])
   })
 
@@ -62,7 +62,7 @@ describe('computeAllTimeBests', () => {
     ]
     const result = computeAllTimeBests(rides)
     expect(result.speedBests).toEqual([
-      { distance_km: 1, avg_speed_kmh: 42, workoutId: 'w2', date: '2026-02-01' },
+      { distance_km: 1, avg_speed_kmh: 42, workoutId: 'w2', icuActivityId: 'icu-w2', date: '2026-02-01' },
     ])
   })
 
@@ -72,7 +72,7 @@ describe('computeAllTimeBests', () => {
       ride('w2', '2026-02-01', makeMetrics({ max_speed_ms: 19 })),   // 68.4 km/h
     ]
     const result = computeAllTimeBests(rides)
-    expect(result.maxSpeed).toEqual({ workoutId: 'w2', date: '2026-02-01', speed_kmh: 68.4 })
+    expect(result.maxSpeed).toEqual({ workoutId: 'w2', icuActivityId: 'icu-w2', date: '2026-02-01', speed_kmh: 68.4, max_speed_ms: 19 })
   })
 
   it('skips rides with null activity_metrics without throwing', () => {
@@ -81,7 +81,7 @@ describe('computeAllTimeBests', () => {
       ride('w2', '2026-02-01', makeMetrics({ max_speed_ms: 15 })),
     ]
     const result = computeAllTimeBests(rides)
-    expect(result.maxSpeed).toEqual({ workoutId: 'w2', date: '2026-02-01', speed_kmh: 54 })
+    expect(result.maxSpeed).toEqual({ workoutId: 'w2', icuActivityId: 'icu-w2', date: '2026-02-01', speed_kmh: 54, max_speed_ms: 15 })
   })
 
   it('returns all-null/empty when no rides have any qualifying data', () => {
@@ -99,15 +99,29 @@ describe('computeAllTimeBests', () => {
       ride('w2', '2026-02-01', makeMetrics({ climbs: [newClimb] })),
     ]
     const result = computeAllTimeBests(rides)
-    expect(result.biggestClimb).toEqual({ workoutId: 'w1', date: '2026-01-01', elev_gain_m: 700, length_km: null })
-    expect(result.longestClimb).toEqual({ workoutId: 'w2', date: '2026-02-01', length_km: 8, elev_gain_m: 300 })
+    expect(result.biggestClimb).toEqual({ workoutId: 'w1', icuActivityId: 'icu-w1', date: '2026-01-01', elev_gain_m: 700, length_km: null })
+    expect(result.longestClimb).toEqual({ workoutId: 'w2', icuActivityId: 'icu-w2', date: '2026-02-01', length_km: 8, elev_gain_m: 300 })
   })
 
   it('returns longestClimb null when no climb anywhere has a backfilled length_km yet', () => {
     const oldClimb = { start_km: 5, duration_secs: 480, elev_gain_m: 700, avg_watts: 268, vam: 675 } as unknown as ClimbSegment
     const result = computeAllTimeBests([ride('w1', '2026-01-01', makeMetrics({ climbs: [oldClimb] }))])
     expect(result.longestClimb).toBeNull()
-    expect(result.biggestClimb).toEqual({ workoutId: 'w1', date: '2026-01-01', elev_gain_m: 700, length_km: null })
+    expect(result.biggestClimb).toEqual({ workoutId: 'w1', icuActivityId: 'icu-w1', date: '2026-01-01', elev_gain_m: 700, length_km: null })
+  })
+
+  it('supports a workoutless ride (no local workouts row) via a null id', () => {
+    const rides = [
+      { id: null, icu_activity_id: 'icu-only', date: '2026-04-01', activity_metrics: makeMetrics({ climbs: [makeClimb({ elev_gain_m: 700, length_km: 6 })] }) },
+    ]
+    const result = computeAllTimeBests(rides)
+    expect(result.biggestClimb).toEqual({ workoutId: null, icuActivityId: 'icu-only', date: '2026-04-01', elev_gain_m: 700, length_km: 6 })
+  })
+
+  it('stores max_speed_ms alongside speed_kmh, exactly as provided (no derived reconstruction)', () => {
+    const rides = [ride('w1', '2026-01-01', makeMetrics({ max_speed_ms: 19.027 }))]
+    const result = computeAllTimeBests(rides)
+    expect(result.maxSpeed).toEqual({ workoutId: 'w1', icuActivityId: 'icu-w1', date: '2026-01-01', speed_kmh: 68.5, max_speed_ms: 19.027 })
   })
 })
 
