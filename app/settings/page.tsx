@@ -56,6 +56,8 @@ export default function SettingsPage() {
   const [ftpBackfillResult, setFtpBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [strainBackfilling, setStrainBackfilling] = useState(false)
   const [strainBackfillResult, setStrainBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [metricsBackfilling, setMetricsBackfilling] = useState(false)
+  const [metricsBackfillResult, setMetricsBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [locationLabel, setLocationLabel] = useState('')
@@ -413,6 +415,29 @@ export default function SettingsPage() {
     }
   }
 
+  async function runBackfillActivityMetrics() {
+    setMetricsBackfilling(true)
+    setMetricsBackfillResult(null)
+    try {
+      const res = await fetch('/api/admin/backfill-activity-metrics', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        const message = data.totalNeeding === 0
+          ? 'All rides already backfilled.'
+          : data.totalNeeding > data.processed
+          ? `${data.enriched} of ${data.totalNeeding} rides backfilled — click again to continue.`
+          : `${data.enriched} of ${data.totalNeeding} rides backfilled.`
+        setMetricsBackfillResult({ ok: true, message })
+      } else {
+        setMetricsBackfillResult({ ok: false, message: data.error ?? 'Backfill failed.' })
+      }
+    } catch {
+      setMetricsBackfillResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setMetricsBackfilling(false)
+    }
+  }
+
   async function previewZonesFix() {
     setZonesFixing(true)
     setZonesResult(null)
@@ -586,6 +611,9 @@ export default function SettingsPage() {
         strainBackfilling={strainBackfilling}
         strainBackfillResult={strainBackfillResult}
         onRunBackfillStrain={runBackfillStrain}
+        metricsBackfilling={metricsBackfilling}
+        metricsBackfillResult={metricsBackfillResult}
+        onRunBackfillActivityMetrics={runBackfillActivityMetrics}
       />
 
       {/* Location for weather */}
