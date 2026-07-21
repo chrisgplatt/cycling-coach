@@ -141,16 +141,17 @@ export async function backfillActivityMetrics(
       // recover if a merge is missed.
       try {
         const rideDate = row.date
+        const isIndoor = metrics.is_indoor ?? false
         const candidate = { id: row.id, icu_activity_id: row.icu_activity_id, date: rideDate, activity_metrics: metrics }
         const year = rideDate.slice(0, 4)
         const [allTimeRows, yearRows] = await Promise.all([
-          fetchBestRecordRows(supabase, userId, 'all'),
-          fetchBestRecordRows(supabase, userId, year),
+          fetchBestRecordRows(supabase, userId, 'all', isIndoor),
+          fetchBestRecordRows(supabase, userId, year, isIndoor),
         ])
         const { allTime, yearBests } = mergeCandidateIntoBests(allTimeRows, yearRows, candidate)
         await upsertBestRecordRows(supabase, userId, [
-          ...flattenAllTimeBestsToRows('all', allTime),
-          ...flattenAllTimeBestsToRows(year, yearBests),
+          ...flattenAllTimeBestsToRows('all', allTime, isIndoor),
+          ...flattenAllTimeBestsToRows(year, yearBests, isIndoor),
         ])
       } catch (bestsErr) {
         console.error(`[backfill] failed to merge workout ${row.id} into best_records:`, bestsErr)

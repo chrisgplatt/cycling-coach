@@ -50,6 +50,7 @@ export async function runDeepHistoryBestsBatch(
       ])
       const base = extractActivityMetrics(activity, curve, null)
       const insights = streams ? extractStreamInsights(streams, null, null, null) : { climbs: null, speed_bests: null }
+      const isIndoor = base.is_indoor ?? false
       const candidate: BestsRide = {
         id: null,
         icu_activity_id: activity.id,
@@ -63,13 +64,13 @@ export async function runDeepHistoryBestsBatch(
       }
 
       const [allTimeRows, yearRows] = await Promise.all([
-        fetchBestRecordRows(supabase, userId, 'all'),
-        fetchBestRecordRows(supabase, userId, year),
+        fetchBestRecordRows(supabase, userId, 'all', isIndoor),
+        fetchBestRecordRows(supabase, userId, year, isIndoor),
       ])
       const { allTime, yearBests } = mergeCandidateIntoBests(allTimeRows, yearRows, candidate)
       await upsertBestRecordRows(supabase, userId, [
-        ...flattenAllTimeBestsToRows('all', allTime),
-        ...flattenAllTimeBestsToRows(year, yearBests),
+        ...flattenAllTimeBestsToRows('all', allTime, isIndoor),
+        ...flattenAllTimeBestsToRows(year, yearBests, isIndoor),
       ])
     } catch (err) {
       console.error(`[deep-history-bests] failed to process activity ${activity.id}:`, err)

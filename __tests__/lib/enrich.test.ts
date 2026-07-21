@@ -52,7 +52,7 @@ function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: 
       }
       if (table === 'best_records') {
         return {
-          select: () => ({ eq: () => ({ eq: async () => ({ data: [], error: null }) }) }),
+          select: () => ({ eq: () => ({ eq: () => ({ eq: async () => ({ data: [], error: null }) }) }) }),
           upsert: (upsertRows: unknown[], opts: unknown) => { bestRecordsUpsertSpy?.(upsertRows, opts); return Promise.resolve({ error: null }) },
         }
       }
@@ -203,7 +203,31 @@ describe('backfillActivityMetrics', () => {
     await backfillActivityMetrics(supabase as any, client as any, 'u1')
 
     expect(bestRecordsUpsertSpy).toHaveBeenCalled()
-    const periods = bestRecordsUpsertSpy.mock.calls.map(([rows]) => rows.map((r: { period: string }) => r.period)).flat()
-    expect(periods).toEqual(expect.arrayContaining(['all', '2026']))
+    const rows = bestRecordsUpsertSpy.mock.calls.flatMap(([r]) => r as Array<{ period: string; is_indoor: boolean }>)
+    expect(rows.map(r => r.period)).toEqual(expect.arrayContaining(['all', '2026']))
+    expect(rows.every(r => r.is_indoor === false)).toBe(true)
+  })
+
+  it('threads is_indoor through to the best_records rows for an indoor/virtual ride', async () => {
+    const updateSpy = jest.fn()
+    const bestRecordsUpsertSpy = jest.fn()
+    const supabase = makeSupabase(
+      [{ id: 'w1', icu_activity_id: 'a1', steps: null, date: '2026-05-20' }],
+      updateSpy, undefined, bestRecordsUpsertSpy,
+    )
+    const client = makeClient()
+    client.getActivity = jest.fn(async (id: string) => ({
+      id, start_date_local: '2026-05-20T07:00:00', type: 'VirtualRide', moving_time: 3600,
+      name: 'Zwift Ride', average_watts: 200, max_watts: 500, weighted_average_watts: 210,
+      average_heartrate: 140, training_load: 80, rolling_ftp: 250, distance: 30000,
+      total_elevation_gain: 300, left_right_balance: 50,
+    }))
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, client as any, 'u1')
+
+    const rows = bestRecordsUpsertSpy.mock.calls.flatMap(([r]) => r as Array<{ is_indoor: boolean }>)
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.every(r => r.is_indoor === true)).toBe(true)
   })
 })

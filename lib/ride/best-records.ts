@@ -9,12 +9,15 @@ export interface BestRecordRow {
   sub_key: string
   value: number
   detail: Record<string, unknown>
+  is_indoor: boolean
 }
 
 // Reconstructs each stored champion row as a minimal "synthetic ride" carrying
 // only the one field relevant to its category — feeding these (plus one real
 // candidate ride) back through computeAllTimeBests re-derives the correct new
-// champions without needing any separate comparison logic.
+// champions without needing any separate comparison logic. Callers are
+// responsible for only ever passing rows already filtered to one surface
+// (outdoor vs. indoor) — this function has no is_indoor awareness itself.
 export function reconstructSyntheticRides(rows: BestRecordRow[]): BestsRide[] {
   return rows.map((r): BestsRide => {
     const d = r.detail as { date: string; workoutId: string | null; icuActivityId: string; length_km?: number; elev_gain_m?: number; max_speed_ms?: number }
@@ -34,34 +37,37 @@ export function reconstructSyntheticRides(rows: BestRecordRow[]): BestsRide[] {
 }
 
 // The inverse of reconstructSyntheticRides: turns a computed AllTimeBests into
-// the rows to upsert for one period. Omits a row entirely for any absent
-// category rather than writing a null placeholder.
-export function flattenAllTimeBestsToRows(period: string, bests: AllTimeBests): BestRecordRow[] {
+// the rows to upsert for one period, tagged with the given isIndoor value.
+// Omits a row entirely for any absent category rather than writing a null
+// placeholder.
+export function flattenAllTimeBestsToRows(period: string, bests: AllTimeBests, isIndoor: boolean): BestRecordRow[] {
   const rows: BestRecordRow[] = []
   if (bests.biggestClimb) {
     const c = bests.biggestClimb
-    rows.push({ period, category: 'biggest_climb', sub_key: '', value: c.elev_gain_m, detail: { date: c.date, workoutId: c.workoutId, icuActivityId: c.icuActivityId, length_km: c.length_km } })
+    rows.push({ period, category: 'biggest_climb', sub_key: '', value: c.elev_gain_m, detail: { date: c.date, workoutId: c.workoutId, icuActivityId: c.icuActivityId, length_km: c.length_km }, is_indoor: isIndoor })
   }
   if (bests.longestClimb) {
     const c = bests.longestClimb
-    rows.push({ period, category: 'longest_climb', sub_key: '', value: c.length_km, detail: { date: c.date, workoutId: c.workoutId, icuActivityId: c.icuActivityId, elev_gain_m: c.elev_gain_m } })
+    rows.push({ period, category: 'longest_climb', sub_key: '', value: c.length_km, detail: { date: c.date, workoutId: c.workoutId, icuActivityId: c.icuActivityId, elev_gain_m: c.elev_gain_m }, is_indoor: isIndoor })
   }
   for (const p of bests.powerBests) {
-    rows.push({ period, category: 'power', sub_key: String(p.secs), value: p.watts, detail: { date: p.date, workoutId: p.workoutId, icuActivityId: p.icuActivityId } })
+    rows.push({ period, category: 'power', sub_key: String(p.secs), value: p.watts, detail: { date: p.date, workoutId: p.workoutId, icuActivityId: p.icuActivityId }, is_indoor: isIndoor })
   }
   for (const s of bests.speedBests) {
-    rows.push({ period, category: 'speed', sub_key: String(s.distance_km), value: s.avg_speed_kmh, detail: { date: s.date, workoutId: s.workoutId, icuActivityId: s.icuActivityId } })
+    rows.push({ period, category: 'speed', sub_key: String(s.distance_km), value: s.avg_speed_kmh, detail: { date: s.date, workoutId: s.workoutId, icuActivityId: s.icuActivityId }, is_indoor: isIndoor })
   }
   if (bests.maxSpeed) {
     const m = bests.maxSpeed
-    rows.push({ period, category: 'max_speed', sub_key: '', value: m.speed_kmh, detail: { date: m.date, workoutId: m.workoutId, icuActivityId: m.icuActivityId, max_speed_ms: m.max_speed_ms } })
+    rows.push({ period, category: 'max_speed', sub_key: '', value: m.speed_kmh, detail: { date: m.date, workoutId: m.workoutId, icuActivityId: m.icuActivityId, max_speed_ms: m.max_speed_ms }, is_indoor: isIndoor })
   }
   return rows
 }
 
-// Turns a flat list of stored rows for one period back into an AllTimeBests —
-// the read-side counterpart to flattenAllTimeBestsToRows. Categories with no
-// row simply stay at their default null/empty value.
+// Turns a flat list of stored rows for one period AND one surface back into
+// an AllTimeBests — the read-side counterpart to flattenAllTimeBestsToRows.
+// Categories with no row simply stay at their default null/empty value. The
+// caller is responsible for pre-filtering rows to one is_indoor value, same
+// as it already pre-filters by period.
 export function assembleAllTimeBests(rows: BestRecordRow[]): AllTimeBests {
   const bests: AllTimeBests = { biggestClimb: null, longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null }
   for (const r of rows) {
@@ -84,6 +90,8 @@ export function assembleAllTimeBests(rows: BestRecordRow[]): AllTimeBests {
 // Merges one new candidate ride into the currently-stored champions for both
 // "all-time" and the candidate's own year, reusing computeAllTimeBests as the
 // sole comparison authority. Pure — callers persist the results themselves.
+// existingAllTimeRows/existingYearRows must already be filtered to the same
+// surface (outdoor/indoor) as the candidate — see fetchBestRecordRows.
 export function mergeCandidateIntoBests(
   existingAllTimeRows: BestRecordRow[],
   existingYearRows: BestRecordRow[],
@@ -95,12 +103,13 @@ export function mergeCandidateIntoBests(
   return { allTime, year, yearBests }
 }
 
-export async function fetchBestRecordRows(supabase: SupabaseClient, userId: string, period: string): Promise<BestRecordRow[]> {
+export async function fetchBestRecordRows(supabase: SupabaseClient, userId: string, period: string, isIndoor: boolean): Promise<BestRecordRow[]> {
   const { data, error } = await supabase
     .from('best_records')
-    .select('period, category, sub_key, value, detail')
+    .select('period, category, sub_key, value, detail, is_indoor')
     .eq('user_id', userId)
     .eq('period', period)
+    .eq('is_indoor', isIndoor)
   if (error) throw new Error(error.message)
   // best_records.value is a Postgres `numeric` column, which some drivers
   // return as a string over the wire — coerce defensively so every downstream
@@ -115,7 +124,7 @@ export async function upsertBestRecordRows(supabase: SupabaseClient, userId: str
     .from('best_records')
     .upsert(
       rows.map(r => ({ user_id: userId, ...r })),
-      { onConflict: 'user_id,period,category,sub_key' },
+      { onConflict: 'user_id,period,category,sub_key,is_indoor' },
     )
   if (error) throw new Error(error.message)
 }

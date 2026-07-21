@@ -13,6 +13,11 @@ export interface AllTimeBestsResponse {
   byYear: Record<string, AllTimeBests>
 }
 
+export interface IndoorOutdoorBestsResponse {
+  outdoor: AllTimeBestsResponse
+  indoor: AllTimeBestsResponse
+}
+
 // Only the fields computeAllTimeBests actually reads — decoupled from the full
 // ActivityMetrics shape so a "synthetic" candidate (reconstructed from a stored
 // champion, or produced by the deep-history scan with no local workouts row)

@@ -252,11 +252,17 @@ describe('StatsPage', () => {
       }
       if (String(url).includes('/api/bests')) {
         return Promise.resolve({ ok: true, json: async () => ({
-          allTime: {
-            biggestClimb: { workoutId: 'w1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
-            longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null,
+          outdoor: {
+            allTime: {
+              biggestClimb: { workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
+              longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null,
+            },
+            byYear: {},
           },
-          byYear: {},
+          indoor: {
+            allTime: { biggestClimb: null, longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null },
+            byYear: {},
+          },
         }) })
       }
       return Promise.resolve({ ok: true, json: async () => ({ stats: mockStats }) })

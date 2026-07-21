@@ -87,8 +87,18 @@ describe('extractActivityMetrics', () => {
     expect(m.max_temp_c).toBeNull()
   })
 
-  it('bumps METRICS_VERSION to 5', () => {
-    expect(METRICS_VERSION).toBe(5)
+  it('bumps METRICS_VERSION to 6', () => {
+    expect(METRICS_VERSION).toBe(6)
+  })
+
+  it('detects an indoor/virtual ride from the activity type', () => {
+    const m = extractActivityMetrics({ ...act, type: 'VirtualRide' }, curve, intervals)
+    expect(m.is_indoor).toBe(true)
+  })
+
+  it('treats a real-world ride type as outdoor', () => {
+    const m = extractActivityMetrics(act, curve, intervals)
+    expect(m.is_indoor).toBe(false)
   })
 
   it('sets speed_bests to null in the base extraction (filled later by extractStreamInsights)', () => {

@@ -534,6 +534,7 @@ export interface ActivityMetrics {
   lr_balance: number | null    // left %
   elapsed_secs?: number | null   // seconds; includes stopped time
   max_speed_ms?: number | null   // m/s, raw from API
+  is_indoor?: boolean            // true for trainer/virtual rides (ICU type === 'VirtualRide'); absent (not false) on rides enriched before this field existed — treat undefined as false everywhere it's read
   avg_temp_c?: number | null
   min_temp_c?: number | null
   max_temp_c?: number | null
