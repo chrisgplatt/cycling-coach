@@ -22,7 +22,7 @@ begin
   where c.conrelid = 'best_records'::regclass
     and c.contype = 'u'
     and (
-      select array_agg(a.attname order by a.attname)
+      select array_agg(a.attname::text order by a.attname)
       from unnest(c.conkey) as k(attnum)
       join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum
     ) = array['category', 'period', 'sub_key', 'user_id']
