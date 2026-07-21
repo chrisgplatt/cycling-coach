@@ -15,7 +15,7 @@ const SPEED_SPLIT_KM = [1, 5, 10, 20]
 // new derived fields, etc.). The backfill re-enriches rows below this version so
 // existing rides pick up the change once — without churning rows that can't
 // produce a given field (the version stamp lands regardless).
-export const METRICS_VERSION = 5
+export const METRICS_VERSION = 6
 
 function sampleBest(curve: ICUPowerCurvePoint[], target: number): { secs: number; watts: number } | null {
   if (!curve.length) return null
@@ -56,6 +56,7 @@ export function extractActivityMetrics(
     lr_balance: act.left_right_balance ?? null,
     elapsed_secs: act.elapsed_time ?? null,
     max_speed_ms: act.max_speed ?? null,
+    is_indoor: act.type === 'VirtualRide',
     avg_temp_c: act.average_temp ?? null,
     min_temp_c: act.min_temp ?? null,
     max_temp_c: act.max_temp ?? null,
