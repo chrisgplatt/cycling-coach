@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ICUActivity, ActivityMetrics, WorkoutStep, RideStreams } from '@/types'
 import type { IntervalsClient } from './client'
 import { extractActivityMetrics, extractStreamInsights, extractDistributions, detectPersonalBests, METRICS_VERSION } from '@/lib/claude/activity-metrics'
+import { fetchBestRecordRows, upsertBestRecordRows, mergeCandidateIntoBests, flattenAllTimeBestsToRows } from '@/lib/ride/best-records'
 
 // An empty streams object: lets a stream-less ride still produce a (fully-null)
 // distributions object instead of a bare null, so the backfill predicate
@@ -96,7 +97,7 @@ export async function backfillActivityMetrics(
   // the date window for a one-time sweep over all completed history.
   const base = supabase
     .from('workouts')
-    .select('id, icu_activity_id, steps, activity_metrics')
+    .select('id, icu_activity_id, steps, activity_metrics, date')
     .eq('user_id', userId)
     .in('status', ['completed', 'needs_review'])
     .not('icu_activity_id', 'is', null)
@@ -111,7 +112,7 @@ export async function backfillActivityMetrics(
   }
 
   const candidates = (rows ?? []) as Array<{
-    id: string; icu_activity_id: string; steps: WorkoutStep[] | null
+    id: string; icu_activity_id: string; steps: WorkoutStep[] | null; date: string
     activity_metrics: { distributions?: unknown; metrics_version?: number } | null
   }>
   // A row needs (re)enriching when it has no distributions yet, or its metrics were
@@ -134,6 +135,26 @@ export async function backfillActivityMetrics(
         .eq('id', row.id)
       if (updateError) throw new Error(updateError.message)
       enriched++
+
+      // Keep best_records current as each ride is (re)enriched — failures here
+      // are logged but never fail the enrichment itself; a resync can always
+      // recover if a merge is missed.
+      try {
+        const rideDate = row.date
+        const candidate = { id: row.id, icu_activity_id: row.icu_activity_id, date: rideDate, activity_metrics: metrics }
+        const year = rideDate.slice(0, 4)
+        const [allTimeRows, yearRows] = await Promise.all([
+          fetchBestRecordRows(supabase, userId, 'all'),
+          fetchBestRecordRows(supabase, userId, year),
+        ])
+        const { allTime, yearBests } = mergeCandidateIntoBests(allTimeRows, yearRows, candidate)
+        await upsertBestRecordRows(supabase, userId, [
+          ...flattenAllTimeBestsToRows('all', allTime),
+          ...flattenAllTimeBestsToRows(year, yearBests),
+        ])
+      } catch (bestsErr) {
+        console.error(`[backfill] failed to merge workout ${row.id} into best_records:`, bestsErr)
+      }
     } catch (err) {
       failed++
       if (!firstError) firstError = err instanceof Error ? err.message : String(err)

@@ -33,7 +33,7 @@ function makeClient(opts: { throwOn?: string } = {}) {
 
 // Minimal chainable Supabase stub. The workouts read terminates on .order() (it
 // resolves the candidate rows); the user_profile read terminates on .maybeSingle().
-function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown; activity_metrics?: unknown }>, updateSpy: jest.Mock, gteSpy?: jest.Mock) {
+function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: unknown; activity_metrics?: unknown; date?: string }>, updateSpy: jest.Mock, gteSpy?: jest.Mock, bestRecordsUpsertSpy?: jest.Mock) {
   const query: Record<string, unknown> = {}
   const self = () => query
   Object.assign(query, {
@@ -48,6 +48,12 @@ function makeSupabase(rows: Array<{ id: string; icu_activity_id: string; steps: 
         return {
           ...query,
           update: (patch: unknown) => ({ eq: (_c: string, id: string) => { updateSpy(id, patch); return Promise.resolve({ error: null }) } }),
+        }
+      }
+      if (table === 'best_records') {
+        return {
+          select: () => ({ eq: () => ({ eq: async () => ({ data: [], error: null }) }) }),
+          upsert: (upsertRows: unknown[], opts: unknown) => { bestRecordsUpsertSpy?.(upsertRows, opts); return Promise.resolve({ error: null }) },
         }
       }
       return query // user_profile → maybeSingle resolves { current_ftp: 200 }
@@ -182,5 +188,22 @@ describe('backfillActivityMetrics', () => {
     expect(patch.activity_metrics.distributions).toMatchObject({
       power: null, cadence: null, coasting_secs: null, hr: null, hr_lthr: null,
     })
+  })
+
+  it('merges each successfully-enriched ride into best_records (all-time and its year)', async () => {
+    const updateSpy = jest.fn()
+    const bestRecordsUpsertSpy = jest.fn()
+    const supabase = makeSupabase(
+      [{ id: 'w1', icu_activity_id: 'a1', steps: null, date: '2026-05-20' }],
+      updateSpy, undefined, bestRecordsUpsertSpy,
+    )
+    const client = makeClient()
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, client as any, 'u1')
+
+    expect(bestRecordsUpsertSpy).toHaveBeenCalled()
+    const periods = bestRecordsUpsertSpy.mock.calls.map(([rows]) => rows.map((r: { period: string }) => r.period)).flat()
+    expect(periods).toEqual(expect.arrayContaining(['all', '2026']))
   })
 })
