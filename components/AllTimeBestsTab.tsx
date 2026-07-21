@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { SectionCard } from '@/components/RideStats'
-import type { AllTimeBests, AllTimeBestsResponse } from '@/lib/ride/all-time-bests'
+import type { AllTimeBests, IndoorOutdoorBestsResponse } from '@/lib/ride/all-time-bests'
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr)
@@ -110,8 +110,9 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
 }
 
 export default function AllTimeBestsTab() {
-  const [data, setData] = useState<AllTimeBestsResponse | null>(null)
+  const [data, setData] = useState<IndoorOutdoorBestsResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [selectedSurface, setSelectedSurface] = useState<'outdoor' | 'indoor'>('outdoor')
   const [selectedPeriod, setSelectedPeriod] = useState<'all' | string>('all')
 
   useEffect(() => {
@@ -130,11 +131,35 @@ export default function AllTimeBestsTab() {
   }
   if (!data) return <p className="text-sm text-red-600">Could not load bests.</p>
 
-  const years = Object.keys(data.byYear).sort((a, b) => b.localeCompare(a))
-  const current = selectedPeriod === 'all' ? data.allTime : data.byYear[selectedPeriod]
+  const surfaceData = data[selectedSurface]
+  const years = Object.keys(surfaceData.byYear).sort((a, b) => b.localeCompare(a))
+  const current = selectedPeriod === 'all' ? surfaceData.allTime : surfaceData.byYear[selectedPeriod]
+
+  function selectSurface(surface: 'outdoor' | 'indoor') {
+    setSelectedSurface(surface)
+    setSelectedPeriod('all')
+  }
 
   return (
     <div className="space-y-4">
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => selectSurface('outdoor')}
+          className={`flex-1 text-xs font-semibold px-3 py-2.5 rounded-full border transition-colors ${
+            selectedSurface === 'outdoor' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-500'
+          }`}
+        >
+          Outdoor
+        </button>
+        <button
+          onClick={() => selectSurface('indoor')}
+          className={`flex-1 text-xs font-semibold px-3 py-2.5 rounded-full border transition-colors ${
+            selectedSurface === 'indoor' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-500'
+          }`}
+        >
+          Indoor
+        </button>
+      </div>
       <div className="flex gap-1.5 overflow-x-auto scrollbar-none" style={{ touchAction: 'pan-x' }}>
         <button
           onClick={() => setSelectedPeriod('all')}
