@@ -29,7 +29,7 @@ function makeClient(activities: ICUActivity[]) {
 function makeSupabase({ existingRows = [] as unknown[], upsertSpy = jest.fn() } = {}) {
   return {
     from: () => ({
-      select: () => ({ eq: () => ({ eq: async () => ({ data: existingRows, error: null }) }) }),
+      select: () => ({ eq: () => ({ eq: () => ({ eq: () => Promise.resolve({ data: existingRows, error: null }) }) }) }),
       upsert: (rows: unknown[], opts: unknown) => { upsertSpy(rows, opts); return Promise.resolve({ error: null }) },
     }),
   }
@@ -80,5 +80,17 @@ describe('runDeepHistoryBestsBatch', () => {
     const result = await runDeepHistoryBestsBatch(makeSupabase() as never, client as never, 'u1', '2020-01-01')
     expect(result.processed).toBe(1)
     expect(result.newCursor).toBe('2019-12-30')
+  })
+
+  it('threads is_indoor through when the activity is a VirtualRide (indoor/trainer)', async () => {
+    const activities = [makeActivity({ id: 'v1', start_date_local: '2019-12-30T08:00:00', type: 'VirtualRide', max_speed: 12 })]
+    const upsertSpy = jest.fn()
+    const client = makeClient(activities)
+    const result = await runDeepHistoryBestsBatch(makeSupabase({ upsertSpy }) as never, client as never, 'u1', '2020-01-01')
+    expect(result.processed).toBe(1)
+    expect(upsertSpy).toHaveBeenCalled()
+    const rows = upsertSpy.mock.calls.flatMap(([r]) => r as Array<{ is_indoor: boolean }>)
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.every(r => r.is_indoor === true)).toBe(true)
   })
 })
