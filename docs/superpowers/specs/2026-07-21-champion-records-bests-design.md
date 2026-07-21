@@ -14,6 +14,7 @@ The all-time bests feature currently aggregates live from `workouts.activity_met
 - **History depth is unbounded** — the new deep-history job keeps going back until intervals.icu stops returning data, or the user decides to stop. There's no way to definitively detect "the true start of history" (a quiet year looks the same as the actual beginning), so this is a judgment call left to the user, not something the system claims to know for certain.
 - **Chunked and resumable**, mirroring every other backfill button already in this app: each click processes a bounded batch and remembers where it left off via a stored cursor, rather than restarting or requiring one long-running request.
 - **Links go to intervals.icu, not an in-app modal.** Every ride that ever contributes to a best always has an intervals.icu activity ID, whether or not it also has a local `workouts` row — so the external link (`https://intervals.icu/activities/{icu_activity_id}`, the exact pattern already used in `WorkoutDetailModal`/`EventDetailModal`) always works. The richer in-app option (opening the ride's own detail view when it happens to exist locally) is deferred — it would require new "fetch a workout by ID" plumbing that doesn't exist anywhere in the app yet, and isn't needed for the external link to work universally.
+- **Champion records only ever go up, by design — corrections are a manual resync, not automatic.** A merge always keeps the higher of old-vs-new, so there's no clean way to "un-win" a record if the ride that set it is later invalidated (e.g. a workout gets disassociated from the wrong activity, or a future algorithm fix shrinks a previously-detected climb). The recovery path is re-running the seed/resync step (see below) — cheap, since it only reads already-local data, no intervals.icu calls needed. This is a deliberate, accepted tradeoff: disassociating a workout does **not** automatically trigger a resync; it's a rare, manual action, and the user can click resync afterward if they care about immediate correctness.
 
 ## Architecture
 
@@ -43,7 +44,7 @@ create table best_records (
 
 `computeAllTimeBests()` (already shipped, reviewed, and merged) stays almost entirely as-is. Rather than writing new comparison logic, every write path reconstructs the currently-stored champions as small "synthetic rides" from their stored `detail`, appends the one new/candidate ride, and feeds `[synthetic champions..., new ride]` back through the same function — its output becomes the new stored champions. The reducer never needs to see more than a handful of rows at a time.
 
-**1. One-time seed.** Runs `computeAllTimeBestsByPeriod()` once over the currently-enriched `workouts` rows — exactly the computation the feature already performs today — and persists its output into `best_records` instead of returning it live.
+**1. Seed / resync (re-runnable, not strictly one-time).** Runs `computeAllTimeBestsByPeriod()` over the currently-enriched `workouts` rows — exactly the computation the feature already performs today — and **overwrites** `best_records` with the result. Safe to re-run at any time: since it recomputes from scratch rather than merging, it's also the correction mechanism for the "champion records only go up" limitation above (e.g. after a disassociation, or after an algorithm fix that would otherwise leave a stale, too-high value behind).
 
 **2. Incremental update going forward.** Whenever a ride's `activity_metrics` is (re)computed — via normal sync enrichment or the existing metrics-version backfill — that ride's candidates are merged into `best_records` using the synthetic-champions-plus-one-ride reduction above.
 
@@ -62,7 +63,7 @@ create table best_records (
 | `lib/ride/best-records.ts` (new) | Synthetic-ride reconstruction from stored `detail`; merge-one-ride-into-champions helper (wraps `computeAllTimeBests`); read/write helpers for the table |
 | `lib/ride/all-time-bests.ts` | `AllTimeBests` entry shapes gain `icuActivityId`; `computeAllTimeBests`/`computeAllTimeBestsByPeriod` otherwise unchanged — reused, not rewritten |
 | `app/api/bests/route.ts` | Rewritten to read from `best_records` instead of scanning `workouts` |
-| `app/api/admin/backfill-bests-seed/route.ts` (new, one-time) | Runs the seed migration |
+| `app/api/admin/resync-bests/route.ts` (new, re-runnable) | Runs the seed/resync — overwrites `best_records` from current `workouts` rows |
 | `lib/intervals/enrich.ts` | Hook: after computing/updating a ride's `activity_metrics`, also merge its candidates into `best_records` |
 | `lib/intervals/deep-history-bests.ts` (new) | The cursor-based, chunked deep-history scan |
 | `app/api/admin/backfill-deep-history-bests/route.ts` (new) | Route triggering one chunk of the deep-history scan |
@@ -75,3 +76,4 @@ create table best_records (
 - The in-app click-through modal (opening a local `workouts` row's own detail view from a Bests entry) — deferred, same as in the original design; the external intervals.icu link covers every entry regardless.
 - Definitive "reached the true start of history" detection — the user decides when to stop running the deep-history job.
 - Any change to the existing normal sync depth (6 weeks) or the existing `import-rides` mechanism (~13 weeks) — both continue exactly as today; the deep-history job is additive and purely for bests purposes, never writing `workouts` rows.
+- Auto-triggering a resync when a workout is disassociated/reassociated — accepted as a manual step for now (see the "champion records only ever go up" scope decision above).
