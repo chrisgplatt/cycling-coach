@@ -56,6 +56,9 @@ interface Props {
   metricsBackfilling: boolean
   metricsBackfillResult: ActionResult
   onRunBackfillActivityMetrics: () => void
+  deepHistoryBackfilling: boolean
+  deepHistoryResult: ActionResult
+  onRunDeepHistoryBackfill: () => void
 }
 
 export default function DailyBriefingCard({
@@ -70,6 +73,7 @@ export default function DailyBriefingCard({
   ftpBackfilling, ftpBackfillResult, onRunBackfillFtp,
   strainBackfilling, strainBackfillResult, onRunBackfillStrain,
   metricsBackfilling, metricsBackfillResult, onRunBackfillActivityMetrics,
+  deepHistoryBackfilling, deepHistoryResult, onRunDeepHistoryBackfill,
 }: Props) {
   return (
     <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
@@ -273,6 +277,20 @@ export default function DailyBriefingCard({
                 {metricsBackfillResult && (
                   <p className={`text-xs ${metricsBackfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                     {metricsBackfillResult.message}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={onRunDeepHistoryBackfill}
+                  disabled={deepHistoryBackfilling}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+                >
+                  {deepHistoryBackfilling ? 'Scanning…' : 'Scan further back in ride history'}
+                </button>
+                {deepHistoryResult && (
+                  <p className={`text-xs ${deepHistoryResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {deepHistoryResult.message}
                   </p>
                 )}
               </div>
