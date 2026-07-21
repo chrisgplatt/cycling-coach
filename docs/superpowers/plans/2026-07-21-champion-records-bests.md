@@ -1312,8 +1312,16 @@ describe('runDeepHistoryBestsBatch', () => {
   })
 
   it('processes up to 25 rides, oldest-in-batch becomes the new cursor', async () => {
+    // max_speed is set on every fixture activity so extractActivityMetrics
+    // produces a genuine (non-empty) max_speed_ms candidate for each ride —
+    // without it, every candidate would be entirely empty (climbs/speed_bests
+    // null from the mocked-null curve/streams, best_efforts null, max_speed_ms
+    // null), flattenAllTimeBestsToRows would produce zero rows for every
+    // iteration, and upsertBestRecordRows's existing empty-rows guard would
+    // mean upsert is never called — not a cursor/batching bug, just a fixture
+    // that never gives the implementation anything real to write.
     const activities = Array.from({ length: 30 }, (_, i) =>
-      makeActivity({ id: `a${i}`, start_date_local: `2019-12-${String(31 - i).padStart(2, '0')}T08:00:00` }),
+      makeActivity({ id: `a${i}`, start_date_local: `2019-12-${String(31 - i).padStart(2, '0')}T08:00:00`, max_speed: 15 }),
     )
     const upsertSpy = jest.fn()
     const client = makeClient(activities)
