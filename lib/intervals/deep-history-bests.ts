@@ -4,7 +4,7 @@ import { extractActivityMetrics, extractStreamInsights } from '@/lib/claude/acti
 import { fetchBestRecordRows, upsertBestRecordRows, mergeCandidateIntoBests, flattenAllTimeBestsToRows } from '@/lib/ride/best-records'
 import type { BestsRide } from '@/lib/ride/all-time-bests'
 
-const DEEP_HISTORY_BATCH_SIZE = 25
+const DEEP_HISTORY_BATCH_SIZE = 50
 const DEEP_HISTORY_FETCH_WINDOW_DAYS = 3 * 365
 
 export interface DeepHistoryBestsResult {
@@ -18,7 +18,8 @@ export interface DeepHistoryBestsResult {
 // than `cursor`, computes bests-relevant candidates purely in memory (no FTP,
 // no laps, no workouts writes — ride data is discarded immediately after
 // merging), and updates best_records for both "all-time" and each ride's own
-// year. Mirrors this app's existing BACKFILL_LIMIT convention (25 items/run).
+// year. Mirrors this app's existing BACKFILL_LIMIT convention of a bounded,
+// resumable batch (50 items/run).
 export async function runDeepHistoryBestsBatch(
   supabase: SupabaseClient,
   client: IntervalsClient,
