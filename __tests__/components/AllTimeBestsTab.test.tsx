@@ -97,4 +97,15 @@ describe('AllTimeBestsTab', () => {
     expect(await screen.findByText('620')).toBeInTheDocument()
     expect(screen.queryByText(/undefined/)).not.toBeInTheDocument()
   })
+
+  it('links each entry to its intervals.icu activity page', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => makeResponse() })
+    render(<AllTimeBestsTab />)
+    await screen.findByText('620')
+    const links = screen.getAllByRole('link', { name: /View on intervals\.icu/i })
+    expect(links.length).toBeGreaterThanOrEqual(5) // at least one for each category
+    expect(links[0]).toHaveAttribute('href', 'https://intervals.icu/activities/icu-1')
+    expect(links[0]).toHaveAttribute('target', '_blank')
+    expect(links[1]).toHaveAttribute('href', 'https://intervals.icu/activities/icu-2')
+  })
 })
