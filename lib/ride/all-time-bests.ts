@@ -18,7 +18,11 @@ export interface AllTimeBestsResponse {
 // champion, or produced by the deep-history scan with no local workouts row)
 // never needs to fake unrelated fields like decoupling_pct or shape.
 export interface BestsCandidateMetrics {
-  climbs: Array<Pick<ClimbSegment, 'elev_gain_m' | 'length_km'>> | null
+  // length_km is nullable here — unlike ClimbSegment's own always-present field —
+  // because un-backfilled historical climbs (see computeAllTimeBests below) and
+  // synthetic champions reconstructed for a climb whose length was never measured
+  // both need to represent "no length yet" without faking a numeric value.
+  climbs: Array<{ elev_gain_m: ClimbSegment['elev_gain_m']; length_km: ClimbSegment['length_km'] | null }> | null
   best_efforts: Array<{ secs: number; watts: number }> | null
   speed_bests: Array<Pick<SpeedBest, 'distance_km' | 'avg_speed_kmh'>> | null
   max_speed_ms?: number | null
