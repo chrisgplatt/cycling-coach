@@ -9,7 +9,7 @@ function formatDate(dateStr: string): string {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
-function BestCell({ label, value, unit, caption }: { label: string; value: string; unit?: string; caption: string }) {
+function BestCell({ label, value, unit, caption, icuActivityId }: { label: string; value: string; unit?: string; caption: string; icuActivityId: string }) {
   return (
     <div className="flex-1 text-center px-2 py-3 sm:px-3 sm:py-4 min-w-[110px]">
       <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">
@@ -18,6 +18,14 @@ function BestCell({ label, value, unit, caption }: { label: string; value: strin
       </div>
       <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">{label}</div>
       <div className="text-[11px] text-gray-400 mt-0.5">{caption}</div>
+      <a
+        href={`https://intervals.icu/activities/${icuActivityId}`}
+        target="_blank"
+        rel="noreferrer"
+        className="text-[11px] text-blue-500 hover:text-blue-700 underline underline-offset-2"
+      >
+        View on intervals.icu →
+      </a>
     </div>
   )
 }
@@ -44,6 +52,7 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
               caption={bests.biggestClimb.length_km != null
                 ? `${bests.biggestClimb.length_km}km · ${formatDate(bests.biggestClimb.date)}`
                 : formatDate(bests.biggestClimb.date)}
+              icuActivityId={bests.biggestClimb.icuActivityId}
             />
           </div>
         </SectionCard>
@@ -54,6 +63,7 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
             <BestCell
               label="Length" value={String(bests.longestClimb.length_km)} unit="km"
               caption={`${bests.longestClimb.elev_gain_m}m gain · ${formatDate(bests.longestClimb.date)}`}
+              icuActivityId={bests.longestClimb.icuActivityId}
             />
           </div>
         </SectionCard>
@@ -65,6 +75,7 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
               <BestCell
                 key={p.secs} label={durationLabel(p.secs)} value={String(p.watts)} unit="w"
                 caption={formatDate(p.date)}
+                icuActivityId={p.icuActivityId}
               />
             ))}
           </div>
@@ -77,6 +88,7 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
               <BestCell
                 key={sp.distance_km} label={`${sp.distance_km}km`} value={sp.avg_speed_kmh.toFixed(1)} unit="km/h"
                 caption={formatDate(sp.date)}
+                icuActivityId={sp.icuActivityId}
               />
             ))}
           </div>
@@ -88,6 +100,7 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
             <BestCell
               label="Top Speed" value={bests.maxSpeed.speed_kmh.toFixed(1)} unit="km/h"
               caption={formatDate(bests.maxSpeed.date)}
+              icuActivityId={bests.maxSpeed.icuActivityId}
             />
           </div>
         </SectionCard>

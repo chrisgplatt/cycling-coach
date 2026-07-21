@@ -58,6 +58,10 @@ export default function SettingsPage() {
   const [strainBackfillResult, setStrainBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [metricsBackfilling, setMetricsBackfilling] = useState(false)
   const [metricsBackfillResult, setMetricsBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [deepHistoryBackfilling, setDeepHistoryBackfilling] = useState(false)
+  const [deepHistoryResult, setDeepHistoryResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [resyncing, setResyncing] = useState(false)
+  const [resyncResult, setResyncResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [locationLabel, setLocationLabel] = useState('')
@@ -438,6 +442,48 @@ export default function SettingsPage() {
     }
   }
 
+  async function runDeepHistoryBackfill() {
+    setDeepHistoryBackfilling(true)
+    setDeepHistoryResult(null)
+    try {
+      const res = await fetch('/api/admin/backfill-deep-history-bests', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        const message = data.reachedPossibleStart
+          ? `Looks like you may have reached the start of your history (scanned back to ${data.newCursor ?? 'today'}). Click again to check further back, or stop here.`
+          : `Scanned ${data.processed} ride${data.processed === 1 ? '' : 's'}, back to ${data.newCursor} — click again to keep going.`
+        setDeepHistoryResult({ ok: true, message })
+      } else {
+        setDeepHistoryResult({ ok: false, message: data.error ?? 'Scan failed.' })
+      }
+    } catch {
+      setDeepHistoryResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setDeepHistoryBackfilling(false)
+    }
+  }
+
+  async function runResyncBests() {
+    setResyncing(true)
+    setResyncResult(null)
+    try {
+      const res = await fetch('/api/admin/resync-bests', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setResyncResult({
+          ok: true,
+          message: `Resynced from ${data.ridesScanned} ride${data.ridesScanned === 1 ? '' : 's'} — ${data.rowsWritten} best record${data.rowsWritten === 1 ? '' : 's'} written.`,
+        })
+      } else {
+        setResyncResult({ ok: false, message: data.error ?? 'Resync failed.' })
+      }
+    } catch {
+      setResyncResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setResyncing(false)
+    }
+  }
+
   async function previewZonesFix() {
     setZonesFixing(true)
     setZonesResult(null)
@@ -614,6 +660,12 @@ export default function SettingsPage() {
         metricsBackfilling={metricsBackfilling}
         metricsBackfillResult={metricsBackfillResult}
         onRunBackfillActivityMetrics={runBackfillActivityMetrics}
+        deepHistoryBackfilling={deepHistoryBackfilling}
+        deepHistoryResult={deepHistoryResult}
+        onRunDeepHistoryBackfill={runDeepHistoryBackfill}
+        resyncing={resyncing}
+        resyncResult={resyncResult}
+        onRunResyncBests={runResyncBests}
       />
 
       {/* Location for weather */}

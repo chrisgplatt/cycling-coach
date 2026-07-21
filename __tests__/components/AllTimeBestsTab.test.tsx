@@ -5,20 +5,20 @@ import type { AllTimeBestsResponse } from '@/lib/ride/all-time-bests'
 function makeResponse(overrides: Partial<AllTimeBestsResponse> = {}): AllTimeBestsResponse {
   return {
     allTime: {
-      biggestClimb: { workoutId: 'w1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
-      longestClimb: { workoutId: 'w2', date: '2025-11-02', length_km: 12.1, elev_gain_m: 480 },
-      powerBests: [{ secs: 300, watts: 312, workoutId: 'w3', date: '2026-01-10' }],
-      speedBests: [{ distance_km: 10, avg_speed_kmh: 38.4, workoutId: 'w4', date: '2026-05-01' }],
-      maxSpeed: { workoutId: 'w5', date: '2024-07-04', speed_kmh: 68.2 },
+      biggestClimb: { workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
+      longestClimb: { workoutId: 'w2', icuActivityId: 'icu-2', date: '2025-11-02', length_km: 12.1, elev_gain_m: 480 },
+      powerBests: [{ secs: 300, watts: 312, workoutId: 'w3', icuActivityId: 'icu-3', date: '2026-01-10' }],
+      speedBests: [{ distance_km: 10, avg_speed_kmh: 38.4, workoutId: 'w4', icuActivityId: 'icu-4', date: '2026-05-01' }],
+      maxSpeed: { workoutId: 'w5', icuActivityId: 'icu-5', date: '2024-07-04', speed_kmh: 68.2, max_speed_ms: 18.9 },
     },
     byYear: {
       '2026': {
-        biggestClimb: { workoutId: 'w1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
+        biggestClimb: { workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
         longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null,
       },
       '2025': {
         biggestClimb: null,
-        longestClimb: { workoutId: 'w2', date: '2025-11-02', length_km: 12.1, elev_gain_m: 480 },
+        longestClimb: { workoutId: 'w2', icuActivityId: 'icu-2', date: '2025-11-02', length_km: 12.1, elev_gain_m: 480 },
         powerBests: [], speedBests: [], maxSpeed: null,
       },
     },
@@ -87,7 +87,7 @@ describe('AllTimeBestsTab', () => {
       ok: true,
       json: async () => makeResponse({
         allTime: {
-          biggestClimb: { workoutId: 'w1', date: '2026-03-15', elev_gain_m: 620, length_km: null },
+          biggestClimb: { workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: null },
           longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null,
         },
         byYear: {},
@@ -96,5 +96,16 @@ describe('AllTimeBestsTab', () => {
     render(<AllTimeBestsTab />)
     expect(await screen.findByText('620')).toBeInTheDocument()
     expect(screen.queryByText(/undefined/)).not.toBeInTheDocument()
+  })
+
+  it('links each entry to its intervals.icu activity page', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => makeResponse() })
+    render(<AllTimeBestsTab />)
+    await screen.findByText('620')
+    const links = screen.getAllByRole('link', { name: /View on intervals\.icu/i })
+    expect(links.length).toBeGreaterThanOrEqual(5) // at least one for each category
+    expect(links[0]).toHaveAttribute('href', 'https://intervals.icu/activities/icu-1')
+    expect(links[0]).toHaveAttribute('target', '_blank')
+    expect(links[1]).toHaveAttribute('href', 'https://intervals.icu/activities/icu-2')
   })
 })
