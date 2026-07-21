@@ -60,6 +60,8 @@ export default function SettingsPage() {
   const [metricsBackfillResult, setMetricsBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [deepHistoryBackfilling, setDeepHistoryBackfilling] = useState(false)
   const [deepHistoryResult, setDeepHistoryResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [resyncing, setResyncing] = useState(false)
+  const [resyncResult, setResyncResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [locationLabel, setLocationLabel] = useState('')
@@ -461,6 +463,27 @@ export default function SettingsPage() {
     }
   }
 
+  async function runResyncBests() {
+    setResyncing(true)
+    setResyncResult(null)
+    try {
+      const res = await fetch('/api/admin/resync-bests', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setResyncResult({
+          ok: true,
+          message: `Resynced from ${data.ridesScanned} ride${data.ridesScanned === 1 ? '' : 's'} — ${data.rowsWritten} best record${data.rowsWritten === 1 ? '' : 's'} written.`,
+        })
+      } else {
+        setResyncResult({ ok: false, message: data.error ?? 'Resync failed.' })
+      }
+    } catch {
+      setResyncResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setResyncing(false)
+    }
+  }
+
   async function previewZonesFix() {
     setZonesFixing(true)
     setZonesResult(null)
@@ -640,6 +663,9 @@ export default function SettingsPage() {
         deepHistoryBackfilling={deepHistoryBackfilling}
         deepHistoryResult={deepHistoryResult}
         onRunDeepHistoryBackfill={runDeepHistoryBackfill}
+        resyncing={resyncing}
+        resyncResult={resyncResult}
+        onRunResyncBests={runResyncBests}
       />
 
       {/* Location for weather */}

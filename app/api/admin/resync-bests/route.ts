@@ -39,6 +39,14 @@ export async function POST() {
   const { error: deleteError } = await supabase.from('best_records').delete().eq('user_id', user.id)
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
+  // Deep-history-sourced champions have no workouts row and can't be restored by
+  // this recompute (it only reads workouts) — resetting the cursor to null makes
+  // the next deep-history scan restart from the oldest workout (its own fallback
+  // logic) instead of resuming from wherever it last left off, so it re-covers
+  // exactly the span this wipe just discarded.
+  const { error: cursorError } = await supabase.from('user_profile').update({ deep_history_bests_cursor: null }).eq('user_id', user.id)
+  if (cursorError) return NextResponse.json({ error: cursorError.message }, { status: 500 })
+
   await upsertBestRecordRows(supabase, user.id, allRows)
 
   return NextResponse.json({ ridesScanned: rides.length, rowsWritten: allRows.length })

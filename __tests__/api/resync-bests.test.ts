@@ -9,6 +9,7 @@ function makeSupabase({
   workoutRows = [] as unknown[],
   upsertSpy = jest.fn(),
   deleteSpy = jest.fn(),
+  updateSpy = jest.fn(),
 } = {}) {
   return {
     auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) },
@@ -29,6 +30,13 @@ function makeSupabase({
           upsert: (rows: unknown[], opts: unknown) => { upsertSpy(rows, opts); return Promise.resolve({ error: null }) },
           delete: () => ({
             eq: (...args: unknown[]) => { deleteSpy(...args); return Promise.resolve({ error: null }) },
+          }),
+        }
+      }
+      if (table === 'user_profile') {
+        return {
+          update: (values: unknown) => ({
+            eq: (...args: unknown[]) => { updateSpy(values, ...args); return Promise.resolve({ error: null }) },
           }),
         }
       }
@@ -89,5 +97,19 @@ describe('POST /api/admin/resync-bests', () => {
     expect(deleteSpy).toHaveBeenCalledWith('user_id', 'u1')
     expect(upsertSpy).toHaveBeenCalled()
     expect(callOrder).toEqual(['delete', 'upsert'])
+  })
+
+  it('resets deep_history_bests_cursor to null for the current user, so the next deep-history scan restarts from the oldest workout instead of resuming past the span this resync just wiped', async () => {
+    const updateSpy = jest.fn()
+    const workoutRows = [
+      {
+        id: 'w1', icu_activity_id: 'icu-1', date: '2026-03-01',
+        activity_metrics: { climbs: [{ elev_gain_m: 500, length_km: 6 }], best_efforts: null, speed_bests: null, max_speed_ms: null },
+      },
+    ]
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ workoutRows, updateSpy }))
+    const res = await POST()
+    expect(res.status).toBe(200)
+    expect(updateSpy).toHaveBeenCalledWith({ deep_history_bests_cursor: null }, 'user_id', 'u1')
   })
 })
