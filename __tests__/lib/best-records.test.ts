@@ -1,12 +1,12 @@
 import {
-  reconstructSyntheticRides, flattenAllTimeBestsToRows, mergeCandidateIntoBests, fetchBestRecordRows,
+  reconstructSyntheticRides, flattenAllTimeBestsToRows, mergeCandidateIntoBests, fetchBestRecordRows, upsertBestRecordRows,
   type BestRecordRow,
 } from '@/lib/ride/best-records'
 import { computeAllTimeBests, type AllTimeBests, type BestsRide } from '@/lib/ride/all-time-bests'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 function row(overrides: Partial<BestRecordRow>): BestRecordRow {
-  return { period: 'all', category: 'biggest_climb', sub_key: '', value: 0, detail: {}, ...overrides }
+  return { period: 'all', category: 'biggest_climb', sub_key: '', value: 0, detail: {}, is_indoor: false, ...overrides }
 }
 
 describe('reconstructSyntheticRides', () => {
@@ -52,7 +52,7 @@ describe('reconstructSyntheticRides', () => {
 })
 
 describe('flattenAllTimeBestsToRows', () => {
-  it('flattens a full AllTimeBests into one row per present category', () => {
+  it('flattens a full AllTimeBests into one row per present category, tagged with the given isIndoor value', () => {
     const bests: AllTimeBests = {
       biggestClimb: { workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-01-01', elev_gain_m: 900, length_km: 3 },
       longestClimb: { workoutId: 'w2', icuActivityId: 'icu-2', date: '2026-02-01', length_km: 12, elev_gain_m: 400 },
@@ -60,19 +60,30 @@ describe('flattenAllTimeBestsToRows', () => {
       speedBests: [{ distance_km: 10, avg_speed_kmh: 38.4, workoutId: 'w4', icuActivityId: 'icu-4', date: '2026-04-01' }],
       maxSpeed: { workoutId: 'w5', icuActivityId: 'icu-5', date: '2026-05-01', speed_kmh: 68.5, max_speed_ms: 19.027 },
     }
-    const rows = flattenAllTimeBestsToRows('all', bests)
+    const rows = flattenAllTimeBestsToRows('all', bests, false)
     expect(rows).toEqual([
-      { period: 'all', category: 'biggest_climb', sub_key: '', value: 900, detail: { date: '2026-01-01', workoutId: 'w1', icuActivityId: 'icu-1', length_km: 3 } },
-      { period: 'all', category: 'longest_climb', sub_key: '', value: 12, detail: { date: '2026-02-01', workoutId: 'w2', icuActivityId: 'icu-2', elev_gain_m: 400 } },
-      { period: 'all', category: 'power', sub_key: '300', value: 310, detail: { date: '2026-03-01', workoutId: 'w3', icuActivityId: 'icu-3' } },
-      { period: 'all', category: 'speed', sub_key: '10', value: 38.4, detail: { date: '2026-04-01', workoutId: 'w4', icuActivityId: 'icu-4' } },
-      { period: 'all', category: 'max_speed', sub_key: '', value: 68.5, detail: { date: '2026-05-01', workoutId: 'w5', icuActivityId: 'icu-5', max_speed_ms: 19.027 } },
+      { period: 'all', category: 'biggest_climb', sub_key: '', value: 900, detail: { date: '2026-01-01', workoutId: 'w1', icuActivityId: 'icu-1', length_km: 3 }, is_indoor: false },
+      { period: 'all', category: 'longest_climb', sub_key: '', value: 12, detail: { date: '2026-02-01', workoutId: 'w2', icuActivityId: 'icu-2', elev_gain_m: 400 }, is_indoor: false },
+      { period: 'all', category: 'power', sub_key: '300', value: 310, detail: { date: '2026-03-01', workoutId: 'w3', icuActivityId: 'icu-3' }, is_indoor: false },
+      { period: 'all', category: 'speed', sub_key: '10', value: 38.4, detail: { date: '2026-04-01', workoutId: 'w4', icuActivityId: 'icu-4' }, is_indoor: false },
+      { period: 'all', category: 'max_speed', sub_key: '', value: 68.5, detail: { date: '2026-05-01', workoutId: 'w5', icuActivityId: 'icu-5', max_speed_ms: 19.027 }, is_indoor: false },
+    ])
+  })
+
+  it('tags every row true when isIndoor is true', () => {
+    const bests: AllTimeBests = {
+      biggestClimb: null, longestClimb: null, powerBests: [],
+      speedBests: [], maxSpeed: { workoutId: null, icuActivityId: 'icu-9', date: '2026-06-01', speed_kmh: 45.2, max_speed_ms: 12.6 },
+    }
+    const rows = flattenAllTimeBestsToRows('all', bests, true)
+    expect(rows).toEqual([
+      { period: 'all', category: 'max_speed', sub_key: '', value: 45.2, detail: { date: '2026-06-01', workoutId: null, icuActivityId: 'icu-9', max_speed_ms: 12.6 }, is_indoor: true },
     ])
   })
 
   it('omits rows for absent categories rather than emitting nulls', () => {
     const empty: AllTimeBests = { biggestClimb: null, longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null }
-    expect(flattenAllTimeBestsToRows('2026', empty)).toEqual([])
+    expect(flattenAllTimeBestsToRows('2026', empty, false)).toEqual([])
   })
 })
 
@@ -82,7 +93,7 @@ describe('reconstruction and flattening round-trip losslessly', () => {
       { id: 'w1', icu_activity_id: 'icu-1', date: '2026-01-01', activity_metrics: { climbs: [{ elev_gain_m: 900, length_km: 3 }], best_efforts: [{ secs: 300, watts: 310 }], speed_bests: [{ distance_km: 10, avg_speed_kmh: 38.4 }], max_speed_ms: 19.027 } },
     ]
     const computed = computeAllTimeBests(original)
-    const rows = flattenAllTimeBestsToRows('all', computed)
+    const rows = flattenAllTimeBestsToRows('all', computed, false)
     const synthetic = reconstructSyntheticRides(rows)
     const recomputed = computeAllTimeBests(synthetic)
     expect(recomputed).toEqual(computed)
@@ -91,19 +102,55 @@ describe('reconstruction and flattening round-trip losslessly', () => {
 
 describe('fetchBestRecordRows', () => {
   it('coerces value to a real number even when the driver returns it as a string', async () => {
-    const rawRow = { period: 'all', category: 'biggest_climb', sub_key: '', value: '900', detail: { date: '2026-02-01', workoutId: 'w2', icuActivityId: 'icu-2', length_km: 3 } }
+    const rawRow = { period: 'all', category: 'biggest_climb', sub_key: '', value: '900', detail: { date: '2026-02-01', workoutId: 'w2', icuActivityId: 'icu-2', length_km: 3 }, is_indoor: false }
     const supabase = {
       from: () => ({
         select: () => ({
           eq: () => ({
-            eq: () => Promise.resolve({ data: [rawRow], error: null }),
+            eq: () => ({
+              eq: () => Promise.resolve({ data: [rawRow], error: null }),
+            }),
           }),
         }),
       }),
     } as unknown as SupabaseClient
-    const result = await fetchBestRecordRows(supabase, 'u1', 'all')
+    const result = await fetchBestRecordRows(supabase, 'u1', 'all', false)
     expect(typeof result[0].value).toBe('number')
     expect(result[0].value).toBe(900)
+  })
+
+  it('filters by is_indoor in addition to user_id and period', async () => {
+    const eqSpy = jest.fn()
+    const supabase = {
+      from: () => ({
+        select: () => ({
+          eq: (...args: unknown[]) => { eqSpy(args); return { eq: (...a2: unknown[]) => { eqSpy(a2); return { eq: (...a3: unknown[]) => { eqSpy(a3); return Promise.resolve({ data: [], error: null }) } } } } },
+        }),
+      }),
+    } as unknown as SupabaseClient
+    await fetchBestRecordRows(supabase, 'u1', 'all', true)
+    expect(eqSpy).toHaveBeenCalledWith(['user_id', 'u1'])
+    expect(eqSpy).toHaveBeenCalledWith(['period', 'all'])
+    expect(eqSpy).toHaveBeenCalledWith(['is_indoor', true])
+  })
+})
+
+describe('upsertBestRecordRows', () => {
+  it('upserts on the 5-column conflict target including is_indoor', async () => {
+    const upsertSpy = jest.fn()
+    const supabase = { from: () => ({ upsert: (rows: unknown[], opts: unknown) => { upsertSpy(rows, opts); return Promise.resolve({ error: null }) } }) } as unknown as SupabaseClient
+    await upsertBestRecordRows(supabase, 'u1', [row({ category: 'max_speed', value: 54, is_indoor: false })])
+    expect(upsertSpy).toHaveBeenCalledWith(
+      expect.any(Array),
+      { onConflict: 'user_id,period,category,sub_key,is_indoor' },
+    )
+  })
+
+  it('does nothing when given an empty row list', async () => {
+    const upsertSpy = jest.fn()
+    const supabase = { from: () => ({ upsert: upsertSpy }) } as unknown as SupabaseClient
+    await upsertBestRecordRows(supabase, 'u1', [])
+    expect(upsertSpy).not.toHaveBeenCalled()
   })
 })
 
