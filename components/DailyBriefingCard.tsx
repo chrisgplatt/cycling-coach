@@ -284,19 +284,24 @@ export default function DailyBriefingCard({
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={onRunResyncBests}
-                  disabled={resyncing}
-                  className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
-                >
-                  {resyncing ? 'Resyncing…' : 'Resync all-time bests from current rides'}
-                </button>
-                {resyncResult && (
-                  <p className={`text-xs ${resyncResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {resyncResult.message}
-                  </p>
-                )}
+              <div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={onRunResyncBests}
+                    disabled={resyncing}
+                    className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+                  >
+                    {resyncing ? 'Resyncing…' : 'Resync all-time bests from current rides'}
+                  </button>
+                  {resyncResult && (
+                    <p className={`text-xs ${resyncResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {resyncResult.message}
+                    </p>
+                  )}
+                </div>
+                <p className="text-[11px] text-amber-600 mt-0.5">
+                  Rebuilds bests from recent rides only — wipes any older years found by &ldquo;Scan further back&rdquo; below, so re-run that afterward if you&rsquo;ve used it.
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <button

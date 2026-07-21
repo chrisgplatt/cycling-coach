@@ -1,5 +1,4 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import StatsPage from '@/app/stats/page'
 import type { RidingStats } from '@/types'
 import { makeRidingStats } from '../../support/factories'
@@ -123,24 +122,12 @@ describe('StatsPage', () => {
     expect(await screen.findByText('intervals.icu not configured')).toBeInTheDocument()
   })
 
-  it('renders ride tabs for recent rides', async () => {
+  it('does not render a tab per recent ride (superseded by the Activities tab)', async () => {
     mockWithYear()
     render(<StatsPage />)
     expect(await screen.findByRole('tab', { name: '28 Days' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Tue 19 May' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Sun 17 May' })).toBeInTheDocument()
-  })
-
-  it('shows per-ride stats when a ride tab is clicked', async () => {
-    mockWithYear()
-    const user = userEvent.setup()
-    render(<StatsPage />)
-    await screen.findByRole('tab', { name: 'Tue 19 May' })
-    await user.click(screen.getByRole('tab', { name: 'Tue 19 May' }))
-    expect(await screen.findByText('210')).toBeInTheDocument()  // avg watts
-    expect(screen.getByText('225')).toBeInTheDocument()          // NP
-    expect(screen.getByText('72')).toBeInTheDocument()           // TSS
-    expect(screen.getByText('Morning Ride')).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Tue 19 May' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Sun 17 May' })).not.toBeInTheDocument()
   })
 
   it('hides cross-training section when cross_training is empty', async () => {
@@ -197,7 +184,7 @@ describe('StatsPage', () => {
 
   // ── New tab tests ──────────────────────────────────────────────────────────
 
-  it('defaults to the "This Year" tab and shows year totals', async () => {
+  it('defaults to the "Summary" tab and shows year totals', async () => {
     ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (String(url).includes('/api/stats/year')) {
         return Promise.resolve({ ok: true, json: async () => ({
@@ -215,7 +202,7 @@ describe('StatsPage', () => {
     expect(await screen.findByText('42')).toBeInTheDocument()  // totalActivities from YearView
   })
 
-  it('shows "Activity Log" tab and renders activities when clicked', async () => {
+  it('shows "Activities" tab and renders activities when clicked', async () => {
     ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (String(url).includes('/api/stats/year')) {
         return Promise.resolve({ ok: true, json: async () => minimalYearStats })
@@ -234,7 +221,7 @@ describe('StatsPage', () => {
     })
     render(<StatsPage />)
     await screen.findByText('99')  // YearView loaded (minimalYearStats.totalRides)
-    fireEvent.click(screen.getByRole('tab', { name: 'Activity Log' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Activities' }))
     expect(await screen.findByText('Test Log Ride')).toBeInTheDocument()
   })
 

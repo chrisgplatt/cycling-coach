@@ -1,20 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { RidingStats, CrossTrainingGroup, WeightEntry } from '@/types'
-import RideStats, { rideStatsFromActivity, StatCell, SectionCard, formatHrsMins } from '@/components/RideStats'
-import { weightAtDate } from '@/lib/weight-helpers'
+import type { RidingStats, CrossTrainingGroup } from '@/types'
+import { StatCell, SectionCard, formatHrsMins } from '@/components/RideStats'
 import AnimatedLogo from '@/components/AnimatedLogo'
 import YearView from '@/components/YearView'
 import ActivityLogView from '@/components/ActivityLogView'
 import AllTimeBestsTab from '@/components/AllTimeBestsTab'
-import { resolveMaxHrFromProfile } from '@/lib/max-hr'
-
-function formatRideTabLabel(dateStr: string): string {
-  const d = new Date(dateStr)
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`
-}
 
 function AggregateView({ stats }: { stats: RidingStats }) {
   const rightPct = stats.avg_left_right_balance
@@ -158,9 +149,7 @@ export default function StatsPage() {
   const [stats, setStats] = useState<RidingStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'year' | 'log' | '28d' | 'bests' | number>('year')
-  const [weightLog, setWeightLog] = useState<WeightEntry[]>([])
-  const [effectiveMaxHr, setEffectiveMaxHr] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<'year' | 'log' | '28d' | 'bests'>('year')
 
   useEffect(() => {
     fetch('/api/stats')
@@ -172,16 +161,6 @@ export default function StatsPage() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
-    fetch('/api/weight-log')
-      .then(r => r.json())
-      .then(d => setWeightLog(d.entries ?? []))
-      .catch(() => {})
-    fetch('/api/profile')
-      .then(r => r.json())
-      .then(data => {
-        setEffectiveMaxHr(resolveMaxHrFromProfile(data)?.value ?? null)
-      })
-      .catch(() => {})
   }, [])
 
   if (loading) {
@@ -202,15 +181,12 @@ export default function StatsPage() {
 
   if (!stats) return null
 
-  const rides = stats.recent_rides ?? []
-
-  type TabId = 'year' | 'log' | '28d' | 'bests' | number
+  type TabId = 'year' | 'log' | '28d' | 'bests'
   const tabs: { id: TabId; label: string }[] = [
-    { id: 'year', label: 'This Year' },
-    { id: 'log', label: 'Activity Log' },
+    { id: 'year', label: 'Summary' },
+    { id: 'log', label: 'Activities' },
     { id: '28d', label: '28 Days' },
     { id: 'bests', label: 'Bests' },
-    ...rides.map((r, i) => ({ id: i as TabId, label: formatRideTabLabel(r.start_date_local) })),
   ]
 
   const subtitle = activeTab === 'year'
@@ -219,9 +195,7 @@ export default function StatsPage() {
     ? 'All activities'
     : activeTab === '28d'
     ? `Last 28 days · ${stats.ride_count} ride${stats.ride_count !== 1 ? 's' : ''}`
-    : activeTab === 'bests'
-    ? 'All-time and yearly bests'
-    : formatRideTabLabel((stats.recent_rides ?? [])[activeTab as number]?.start_date_local ?? '')
+    : 'All-time and yearly bests'
 
   return (
     <main className="max-w-xl mx-auto px-4 py-6 space-y-4">
@@ -256,22 +230,8 @@ export default function StatsPage() {
           <AggregateView stats={stats} />
           <CrossTrainingSummary groups={stats.cross_training} />
         </>
-      ) : activeTab === 'bests' ? (
-        <AllTimeBestsTab />
       ) : (
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500 font-medium truncate">{rides[activeTab as number].name}</p>
-          {(() => {
-            const ride = rides[activeTab as number]
-            const rideStats = rideStatsFromActivity(ride)
-            const w = weightAtDate(weightLog, ride.start_date_local.split('T')[0], null)
-            if (w) {
-              rideStats.avgWkg = rideStats.avgWatts !== null ? parseFloat((rideStats.avgWatts / w).toFixed(2)) : null
-              rideStats.npWkg = rideStats.np !== null ? parseFloat((rideStats.np / w).toFixed(2)) : null
-            }
-            return <RideStats data={rideStats} effectiveMaxHr={effectiveMaxHr} />
-          })()}
-        </div>
+        <AllTimeBestsTab />
       )}
     </main>
   )

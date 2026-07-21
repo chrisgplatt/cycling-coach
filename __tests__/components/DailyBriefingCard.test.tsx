@@ -104,4 +104,9 @@ describe('DailyBriefingCard — resync bests button', () => {
     render(<DailyBriefingCard {...makeProps({ resyncResult: { ok: true, message: 'Resynced from 42 rides — 18 best records written.' } })} />)
     expect(screen.getByText('Resynced from 42 rides — 18 best records written.')).toBeInTheDocument()
   })
+
+  it('warns that resync wipes deep-history coverage found by the scan-further-back button', () => {
+    render(<DailyBriefingCard {...makeProps()} />)
+    expect(screen.getByText(/wipes any older years found by/i)).toBeInTheDocument()
+  })
 })
