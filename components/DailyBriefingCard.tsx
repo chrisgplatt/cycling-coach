@@ -53,6 +53,9 @@ interface Props {
   strainBackfilling: boolean
   strainBackfillResult: ActionResult
   onRunBackfillStrain: () => void
+  metricsBackfilling: boolean
+  metricsBackfillResult: ActionResult
+  onRunBackfillActivityMetrics: () => void
 }
 
 export default function DailyBriefingCard({
@@ -66,6 +69,7 @@ export default function DailyBriefingCard({
   zonesFixing, zonesResult, zonesPreview, onPreviewZonesFix, onApplyZonesFix,
   ftpBackfilling, ftpBackfillResult, onRunBackfillFtp,
   strainBackfilling, strainBackfillResult, onRunBackfillStrain,
+  metricsBackfilling, metricsBackfillResult, onRunBackfillActivityMetrics,
 }: Props) {
   return (
     <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
@@ -255,6 +259,20 @@ export default function DailyBriefingCard({
                 {strainBackfillResult && (
                   <p className={`text-xs ${strainBackfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                     {strainBackfillResult.message}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={onRunBackfillActivityMetrics}
+                  disabled={metricsBackfilling}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+                >
+                  {metricsBackfilling ? 'Backfilling…' : 'Backfill all-time bests (climbs & speed)'}
+                </button>
+                {metricsBackfillResult && (
+                  <p className={`text-xs ${metricsBackfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {metricsBackfillResult.message}
                   </p>
                 )}
               </div>
