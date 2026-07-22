@@ -204,13 +204,13 @@ export default function StatsPage() {
         <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
       </div>
 
-      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto scrollbar-none" style={{ touchAction: 'pan-x' }}>
+      <div className="flex gap-1 border-b border-gray-200">
         {tabs.map(tab => (
           <button
             key={String(tab.id)}
             role="tab"
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-shrink-0 px-4 py-2 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+            className={`flex-1 text-center whitespace-nowrap px-1 py-2.5 text-xs font-semibold transition-colors border-b-2 -mb-px ${
               activeTab === tab.id
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
