@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const [strainBackfillResult, setStrainBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [metricsBackfilling, setMetricsBackfilling] = useState(false)
   const [metricsBackfillResult, setMetricsBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const metricsStopRef = useRef(false)
   const [deepHistoryBackfilling, setDeepHistoryBackfilling] = useState(false)
   const [deepHistoryResult, setDeepHistoryResult] = useState<{ ok: boolean; message: string } | null>(null)
   const deepHistoryStopRef = useRef(false)
@@ -420,27 +421,50 @@ export default function SettingsPage() {
     }
   }
 
+  // Runs the resumable activity-metrics backfill to completion in one click,
+  // looping batch after batch (each bounded to BACKFILL_LIMIT rides so no
+  // single request risks a serverless timeout) instead of requiring "click
+  // again to continue" for every batch — a full re-enrich after a
+  // METRICS_VERSION bump can be hundreds of rides deep across years of history.
   async function runBackfillActivityMetrics() {
     setMetricsBackfilling(true)
     setMetricsBackfillResult(null)
+    metricsStopRef.current = false
+    let totalEnriched = 0
+    let batches = 0
     try {
-      const res = await fetch('/api/admin/backfill-activity-metrics', { method: 'POST' })
-      const data = await res.json()
-      if (res.ok) {
-        const message = data.totalNeeding === 0
-          ? 'All rides already backfilled.'
-          : data.totalNeeding > data.processed
-          ? `${data.enriched} of ${data.totalNeeding} rides backfilled — click again to continue.`
-          : `${data.enriched} of ${data.totalNeeding} rides backfilled.`
-        setMetricsBackfillResult({ ok: true, message })
-      } else {
-        setMetricsBackfillResult({ ok: false, message: data.error ?? 'Backfill failed.' })
+      while (!metricsStopRef.current) {
+        const res = await fetch('/api/admin/backfill-activity-metrics', { method: 'POST' })
+        const data = await res.json()
+        if (!res.ok) {
+          setMetricsBackfillResult({ ok: false, message: data.error ?? 'Backfill failed.' })
+          break
+        }
+        batches += 1
+        totalEnriched += data.enriched
+        if (data.totalNeeding === 0) {
+          setMetricsBackfillResult({ ok: true, message: 'All rides already backfilled.' })
+          break
+        }
+        if (data.totalNeeding <= data.processed) {
+          setMetricsBackfillResult({ ok: true, message: `${totalEnriched} ride${totalEnriched === 1 ? '' : 's'} backfilled.` })
+          break
+        }
+        if (metricsStopRef.current) {
+          setMetricsBackfillResult({ ok: true, message: `Stopped after ${totalEnriched} ride${totalEnriched === 1 ? '' : 's'} backfilled (batch ${batches}). Click to continue.` })
+          break
+        }
+        setMetricsBackfillResult({ ok: true, message: `${totalEnriched} ride${totalEnriched === 1 ? '' : 's'} backfilled so far (batch ${batches})… continuing.` })
       }
     } catch {
       setMetricsBackfillResult({ ok: false, message: 'Network error.' })
     } finally {
       setMetricsBackfilling(false)
     }
+  }
+
+  function stopBackfillActivityMetrics() {
+    metricsStopRef.current = true
   }
 
   // Runs the resumable deep-history scan to completion in one click, looping
@@ -680,6 +704,7 @@ export default function SettingsPage() {
         metricsBackfilling={metricsBackfilling}
         metricsBackfillResult={metricsBackfillResult}
         onRunBackfillActivityMetrics={runBackfillActivityMetrics}
+        onStopBackfillActivityMetrics={stopBackfillActivityMetrics}
         deepHistoryBackfilling={deepHistoryBackfilling}
         deepHistoryResult={deepHistoryResult}
         onRunDeepHistoryBackfill={runDeepHistoryBackfill}

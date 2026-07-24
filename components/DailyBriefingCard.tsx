@@ -56,6 +56,7 @@ interface Props {
   metricsBackfilling: boolean
   metricsBackfillResult: ActionResult
   onRunBackfillActivityMetrics: () => void
+  onStopBackfillActivityMetrics: () => void
   deepHistoryBackfilling: boolean
   deepHistoryResult: ActionResult
   onRunDeepHistoryBackfill: () => void
@@ -76,7 +77,7 @@ export default function DailyBriefingCard({
   zonesFixing, zonesResult, zonesPreview, onPreviewZonesFix, onApplyZonesFix,
   ftpBackfilling, ftpBackfillResult, onRunBackfillFtp,
   strainBackfilling, strainBackfillResult, onRunBackfillStrain,
-  metricsBackfilling, metricsBackfillResult, onRunBackfillActivityMetrics,
+  metricsBackfilling, metricsBackfillResult, onRunBackfillActivityMetrics, onStopBackfillActivityMetrics,
   deepHistoryBackfilling, deepHistoryResult, onRunDeepHistoryBackfill, onStopDeepHistoryBackfill,
   resyncing, resyncResult, onRunResyncBests,
 }: Props) {
@@ -271,7 +272,7 @@ export default function DailyBriefingCard({
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <button
                   onClick={onRunBackfillActivityMetrics}
                   disabled={metricsBackfilling}
@@ -279,6 +280,14 @@ export default function DailyBriefingCard({
                 >
                   {metricsBackfilling ? 'Backfilling…' : 'Backfill all-time bests (climbs & speed)'}
                 </button>
+                {metricsBackfilling && (
+                  <button
+                    onClick={onStopBackfillActivityMetrics}
+                    className="text-xs font-medium text-red-500 hover:text-red-700 underline underline-offset-2 transition-colors"
+                  >
+                    Stop
+                  </button>
+                )}
                 {metricsBackfillResult && (
                   <p className={`text-xs ${metricsBackfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                     {metricsBackfillResult.message}

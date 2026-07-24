@@ -16,7 +16,7 @@ function makeProps(overrides: Partial<ComponentProps<typeof DailyBriefingCard>> 
     zonesFixing: false, zonesResult: null, zonesPreview: null, onPreviewZonesFix: jest.fn(), onApplyZonesFix: jest.fn(),
     ftpBackfilling: false, ftpBackfillResult: null, onRunBackfillFtp: jest.fn(),
     strainBackfilling: false, strainBackfillResult: null, onRunBackfillStrain: jest.fn(),
-    metricsBackfilling: false, metricsBackfillResult: null, onRunBackfillActivityMetrics: jest.fn(),
+    metricsBackfilling: false, metricsBackfillResult: null, onRunBackfillActivityMetrics: jest.fn(), onStopBackfillActivityMetrics: jest.fn(),
     deepHistoryBackfilling: false, deepHistoryResult: null, onRunDeepHistoryBackfill: jest.fn(), onStopDeepHistoryBackfill: jest.fn(),
     resyncing: false, resyncResult: null, onRunResyncBests: jest.fn(),
     ...overrides,
@@ -50,6 +50,21 @@ describe('DailyBriefingCard — all-time bests backfill button', () => {
   it('shows the result message after completion', () => {
     render(<DailyBriefingCard {...makeProps({ metricsBackfillResult: { ok: true, message: '12 of 12 rides backfilled.' } })} />)
     expect(screen.getByText('12 of 12 rides backfilled.')).toBeInTheDocument()
+  })
+
+  it('shows a Stop button while backfilling, which is absent when idle', () => {
+    const { rerender } = render(<DailyBriefingCard {...makeProps({ metricsBackfilling: true })} />)
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument()
+
+    rerender(<DailyBriefingCard {...makeProps({ metricsBackfilling: false })} />)
+    expect(screen.queryByRole('button', { name: 'Stop' })).not.toBeInTheDocument()
+  })
+
+  it('calls onStopBackfillActivityMetrics when Stop is clicked', () => {
+    const onStop = jest.fn()
+    render(<DailyBriefingCard {...makeProps({ metricsBackfilling: true, onStopBackfillActivityMetrics: onStop })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+    expect(onStop).toHaveBeenCalledTimes(1)
   })
 })
 

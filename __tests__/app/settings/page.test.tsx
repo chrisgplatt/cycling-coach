@@ -299,3 +299,80 @@ describe('Account page — deep-history bests scan auto-continues across batches
     expect(call).toBe(2)
   })
 })
+
+describe('Account page — activity-metrics backfill auto-continues across batches', () => {
+  function mockAdminProfile() {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      const u = String(url)
+      if (u === '/api/profile') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            id: 'p1', full_name: 'Chris Platt', is_admin: true, notifications_enabled: true,
+            intervals_icu_athlete_id: 'i12345', intervals_icu_api_key: 'apikey',
+          }),
+        })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    })
+  }
+
+  beforeEach(() => {
+    (global.fetch as jest.Mock).mockReset()
+  })
+
+  it('keeps requesting further batches without another click, until the backlog is exhausted', async () => {
+    mockAdminProfile()
+    render(<SettingsPage />)
+    await screen.findByRole('button', { name: 'Backfill all-time bests (climbs & speed)' })
+
+    let call = 0
+    ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
+      const u = String(url)
+      if (u === '/api/admin/backfill-activity-metrics') {
+        call += 1
+        // Mimics years of backlog: 60 rides need it, 25 processed per batch (BACKFILL_LIMIT).
+        const remaining = Math.max(0, 60 - call * 25)
+        return Promise.resolve({ ok: true, json: async () => ({ candidates: 60, totalNeeding: remaining + 25, processed: 25, enriched: 25, failed: 0, firstError: null }) })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Backfill all-time bests (climbs & speed)' }))
+
+    await waitFor(() => expect(screen.getByText(/^75 rides backfilled\.$/)).toBeInTheDocument())
+    expect(call).toBe(3)
+  })
+
+  it('stops issuing further batches once Stop is clicked', async () => {
+    mockAdminProfile()
+    render(<SettingsPage />)
+    await screen.findByRole('button', { name: 'Backfill all-time bests (climbs & speed)' })
+
+    let call = 0
+    let resolveSecondBatch: (() => void) | null = null
+    ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
+      const u = String(url)
+      if (u === '/api/admin/backfill-activity-metrics') {
+        call += 1
+        if (call === 1) {
+          return Promise.resolve({ ok: true, json: async () => ({ candidates: 60, totalNeeding: 60, processed: 25, enriched: 25, failed: 0, firstError: null }) })
+        }
+        return new Promise(resolve => {
+          resolveSecondBatch = () => resolve({ ok: true, json: async () => ({ candidates: 60, totalNeeding: 35, processed: 25, enriched: 25, failed: 0, firstError: null }) })
+        })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Backfill all-time bests (climbs & speed)' }))
+    await screen.findByRole('button', { name: 'Stop' })
+    await waitFor(() => expect(call).toBe(2))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+    resolveSecondBatch!()
+
+    await waitFor(() => expect(screen.getByText(/stopped after 50 rides backfilled/i)).toBeInTheDocument())
+    expect(call).toBe(2)
+  })
+})
