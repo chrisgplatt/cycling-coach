@@ -9,9 +9,12 @@ function formatDate(dateStr: string): string {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
-function BestCell({ label, value, unit, caption, icuActivityId }: { label: string; value: string; unit?: string; caption: string; icuActivityId: string }) {
+function BestCell({ label, value, unit, caption, icuActivityId, tile }: { label: string; value: string; unit?: string; caption: string; icuActivityId: string; tile?: boolean }) {
   return (
-    <div className="flex-1 text-center px-2 py-3 sm:px-3 sm:py-4 min-w-[110px]">
+    <div className={tile
+      ? 'text-center px-2 py-3 bg-gray-50 rounded-lg'
+      : 'flex-1 text-center px-2 py-3 sm:px-3 sm:py-4 min-w-[110px]'
+    }>
       <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">
         {value}
         {unit && <span className="text-xs font-medium text-gray-400 ml-0.5">{unit}</span>}
@@ -70,12 +73,13 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
       )}
       {bests.powerBests.length > 0 && (
         <SectionCard title="Power Bests" accent="bg-orange-400">
-          <div className="flex divide-x divide-gray-100 overflow-x-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2">
             {bests.powerBests.map(p => (
               <BestCell
                 key={p.secs} label={durationLabel(p.secs)} value={String(p.watts)} unit="w"
                 caption={formatDate(p.date)}
                 icuActivityId={p.icuActivityId}
+                tile
               />
             ))}
           </div>
