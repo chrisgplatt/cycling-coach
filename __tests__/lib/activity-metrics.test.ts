@@ -87,8 +87,20 @@ describe('extractActivityMetrics', () => {
     expect(m.max_temp_c).toBeNull()
   })
 
-  it('bumps METRICS_VERSION to 6', () => {
-    expect(METRICS_VERSION).toBe(6)
+  it('bumps METRICS_VERSION to 7', () => {
+    expect(METRICS_VERSION).toBe(7)
+  })
+
+  it('rejects an implausible top speed as a GPS/sensor glitch', () => {
+    // 205.9 km/h top speed, converted to m/s — no road bike reaches this.
+    const m = extractActivityMetrics({ ...act, max_speed: 205.9 / 3.6 }, curve, intervals)
+    expect(m.max_speed_ms).toBeNull()
+  })
+
+  it('keeps a fast but physically plausible top speed', () => {
+    // 100 km/h converted to m/s — a genuine steep-descent peak, below the 110km/h ceiling.
+    const m = extractActivityMetrics({ ...act, max_speed: 100 / 3.6 }, curve, intervals)
+    expect(m.max_speed_ms).toBeCloseTo(100 / 3.6)
   })
 
   it('detects an indoor/virtual ride from the activity type', () => {
@@ -420,6 +432,34 @@ describe('speed-over-distance detection (via extractStreamInsights)', () => {
     const s = buildMixedSpeedStreams()
     const insights = extractStreamInsights(s, 250, null, null)
     expect(insights.speed_bests!.find(sb => sb.distance_km === 20)).toBeUndefined()
+  })
+
+  // Builds an 11km ride with a single corrupted GPS jump (1km covered in 18s,
+  // i.e. 200km/h) followed by a normal 20km/h pace for the rest — mimics a
+  // single bad position sample fabricating a burst of "instant distance".
+  function buildGpsGlitchStreams() {
+    const time: number[] = [0]
+    const distance: number[] = [0, 1000]
+    time.push(18)
+    for (let d = 1100; d <= 11000; d += 100) { distance.push(d); time.push(time[time.length - 1] + 18) }
+    const power = distance.map(() => 200)
+    return { time, distance, latlng: null, power, hr: null, altitude: null, cadence: null, velocity: null }
+  }
+
+  it('drops a split made implausibly fast by a corrupted GPS/distance sample, leaving other splits intact', () => {
+    const s = buildGpsGlitchStreams()
+    const insights = extractStreamInsights(s, 250, null, null)
+    // The 1km split's only candidate window is the 200km/h glitch — rejected entirely,
+    // not replaced with a fallback window.
+    expect(insights.speed_bests!.find(sb => sb.distance_km === 1)).toBeUndefined()
+    // 5km and 10km splits dilute the glitch across enough real distance to stay
+    // physically plausible, so they're kept as genuine bests.
+    expect(insights.speed_bests!.find(sb => sb.distance_km === 5)).toEqual(
+      { distance_km: 5, avg_speed_kmh: 24.4, start_km: 0, duration_secs: 738 },
+    )
+    expect(insights.speed_bests!.find(sb => sb.distance_km === 10)).toEqual(
+      { distance_km: 10, avg_speed_kmh: 22, start_km: 0, duration_secs: 1638 },
+    )
   })
 
   it('returns null when the ride is shorter than the smallest split (1km)', () => {

@@ -11,11 +11,24 @@ const CANONICAL_SECS = [5, 15, 60, 300, 600, 1200, 3600]
 const CLIMB_PATH_MAX_POINTS = 12
 const SPEED_SPLIT_KM = [1, 5, 10, 20]
 
+// Sense-check ceilings for GPS/sensor-glitch speed readings. A single bad
+// position sample can fabricate a burst of "instant distance," which would
+// otherwise be reported as a genuine max speed or sustained split average.
+// A brief instantaneous spike is far more physically plausible than sustaining
+// that speed over a full km+, hence the split ceiling is much stricter.
+const MAX_PLAUSIBLE_TOP_SPEED_KMH = 110
+const MAX_PLAUSIBLE_SPEED_SPLIT_KMH = 70
+
 // Bumped whenever the metrics computation changes (new best-effort durations,
 // new derived fields, etc.). The backfill re-enriches rows below this version so
 // existing rides pick up the change once — without churning rows that can't
 // produce a given field (the version stamp lands regardless).
-export const METRICS_VERSION = 6
+export const METRICS_VERSION = 7
+
+function plausibleMaxSpeedMs(maxSpeedMs: number | null | undefined): number | null {
+  if (maxSpeedMs == null) return null
+  return maxSpeedMs * 3.6 <= MAX_PLAUSIBLE_TOP_SPEED_KMH ? maxSpeedMs : null
+}
 
 function sampleBest(curve: ICUPowerCurvePoint[], target: number): { secs: number; watts: number } | null {
   if (!curve.length) return null
@@ -55,7 +68,7 @@ export function extractActivityMetrics(
     elevation_m: act.total_elevation_gain ?? null,
     lr_balance: act.left_right_balance ?? null,
     elapsed_secs: act.elapsed_time ?? null,
-    max_speed_ms: act.max_speed ?? null,
+    max_speed_ms: plausibleMaxSpeedMs(act.max_speed),
     is_indoor: act.type === 'VirtualRide',
     avg_temp_c: act.average_temp ?? null,
     min_temp_c: act.min_temp ?? null,
@@ -313,9 +326,13 @@ function detectSpeedBests(distance: number[], time: number[]): SpeedBest[] | nul
       if (duration < bestDuration) { bestDuration = duration; bestStart = i }
     }
     if (bestStart !== -1 && Number.isFinite(bestDuration) && bestDuration > 0) {
+      const avg_speed_kmh = Math.round((targetKm / (bestDuration / 3600)) * 10) / 10
+      // Skip splits made implausibly fast by a corrupted distance/time sample
+      // (e.g. a GPS jump) rather than crowning them a personal best.
+      if (avg_speed_kmh > MAX_PLAUSIBLE_SPEED_SPLIT_KMH) continue
       out.push({
         distance_km: targetKm,
-        avg_speed_kmh: Math.round((targetKm / (bestDuration / 3600)) * 10) / 10,
+        avg_speed_kmh,
         start_km: Math.round((distance[bestStart] / 1000) * 10) / 10,
         duration_secs: bestDuration,
       })
