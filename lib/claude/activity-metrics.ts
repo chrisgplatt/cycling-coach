@@ -23,11 +23,21 @@ const MAX_PLAUSIBLE_SPEED_SPLIT_KMH = 70
 // new derived fields, etc.). The backfill re-enriches rows below this version so
 // existing rides pick up the change once — without churning rows that can't
 // produce a given field (the version stamp lands regardless).
-export const METRICS_VERSION = 7
+export const METRICS_VERSION = 8
 
 function plausibleMaxSpeedMs(maxSpeedMs: number | null | undefined): number | null {
   if (maxSpeedMs == null) return null
   return maxSpeedMs * 3.6 <= MAX_PLAUSIBLE_TOP_SPEED_KMH ? maxSpeedMs : null
+}
+
+// Prefer the platform's own smoothed velocity stream over the single
+// device-reported "max speed" scalar — a lone corrupted GPS sample there has
+// nothing to be pulled toward, whereas velocity_smooth is already dampened
+// against its neighbours. Still sense-checked against the same ceiling as a
+// backstop for a ride whose whole stream is bad.
+function detectMaxSpeedMs(velocity: number[] | null): number | null {
+  if (!velocity?.length) return null
+  return plausibleMaxSpeedMs(Math.max(...velocity))
 }
 
 function sampleBest(curve: ICUPowerCurvePoint[], target: number): { secs: number; watts: number } | null {
@@ -444,7 +454,7 @@ function computeShape(
 export function extractStreamInsights(
   s: RideStreams, ftp: number | null, plannedSteps: WorkoutStep[] | null,
   laps: ActivityInterval[] | null = null,
-): Pick<ActivityMetrics, 'decoupling_pct' | 'climbs' | 'time_in_zone' | 'shape' | 'effort_periods' | 'speed_bests'> {
+): Pick<ActivityMetrics, 'decoupling_pct' | 'climbs' | 'time_in_zone' | 'shape' | 'effort_periods' | 'speed_bests' | 'max_speed_ms'> {
   return {
     decoupling_pct: computeDecoupling(s.power, s.hr, s.time),
     time_in_zone: computeTimeInZone(s.power, s.time, ftp),
@@ -452,6 +462,7 @@ export function extractStreamInsights(
     shape: computeShape(plannedSteps, laps, s.power, s.time, ftp),
     effort_periods: detectEffortPeriods(s.power, s.distance, s.time, ftp),
     speed_bests: detectSpeedBests(s.distance, s.time),
+    max_speed_ms: detectMaxSpeedMs(s.velocity),
   }
 }
 

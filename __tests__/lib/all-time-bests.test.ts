@@ -75,6 +75,39 @@ describe('computeAllTimeBests', () => {
     expect(result.maxSpeed).toEqual({ workoutId: 'w2', icuActivityId: 'icu-w2', date: '2026-02-01', speed_kmh: 68.4, max_speed_ms: 19 })
   })
 
+  it('excludes speed bests and max speed from rides before the 2018 trusted-era cutoff, keeping later rides', () => {
+    const rides = [
+      ride('w1', '2017-12-31', makeMetrics({ speed_bests: [makeSpeedBest({ distance_km: 20, avg_speed_kmh: 69.5 })], max_speed_ms: 30 })),
+      ride('w2', '2018-01-01', makeMetrics({ speed_bests: [makeSpeedBest({ distance_km: 20, avg_speed_kmh: 45 })], max_speed_ms: 15 })),
+    ]
+    const result = computeAllTimeBests(rides)
+    expect(result.speedBests).toEqual([
+      { distance_km: 20, avg_speed_kmh: 45, workoutId: 'w2', icuActivityId: 'icu-w2', date: '2018-01-01' },
+    ])
+    expect(result.maxSpeed).toEqual({ workoutId: 'w2', icuActivityId: 'icu-w2', date: '2018-01-01', speed_kmh: 54, max_speed_ms: 15 })
+  })
+
+  it('produces no speed bests or max speed when every candidate ride predates the trusted era', () => {
+    const rides = [
+      ride('w1', '2017-06-01', makeMetrics({ speed_bests: [makeSpeedBest({ avg_speed_kmh: 40 })], max_speed_ms: 20 })),
+    ]
+    const result = computeAllTimeBests(rides)
+    expect(result.speedBests).toEqual([])
+    expect(result.maxSpeed).toBeNull()
+  })
+
+  it('leaves climbs and power bests unaffected by the speed-era cutoff', () => {
+    const rides = [
+      ride('w1', '2017-06-01', makeMetrics({
+        climbs: [makeClimb({ elev_gain_m: 900, length_km: 3 })],
+        best_efforts: [{ secs: 300, watts: 310 }],
+      })),
+    ]
+    const result = computeAllTimeBests(rides)
+    expect(result.biggestClimb?.elev_gain_m).toBe(900)
+    expect(result.powerBests).toEqual([{ secs: 300, watts: 310, workoutId: 'w1', icuActivityId: 'icu-w1', date: '2017-06-01' }])
+  })
+
   it('skips rides with null activity_metrics without throwing', () => {
     const rides = [
       ride('w1', '2026-01-01', null),

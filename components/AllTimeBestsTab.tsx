@@ -87,12 +87,13 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
       )}
       {bests.speedBests.length > 0 && (
         <SectionCard title="Speed Bests" accent="bg-blue-400">
-          <div className="flex divide-x divide-gray-100 overflow-x-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2">
             {bests.speedBests.map(sp => (
               <BestCell
                 key={sp.distance_km} label={`${sp.distance_km}km`} value={sp.avg_speed_kmh.toFixed(1)} unit="km/h"
                 caption={formatDate(sp.date)}
                 icuActivityId={sp.icuActivityId}
+                tile
               />
             ))}
           </div>

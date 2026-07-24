@@ -1,5 +1,11 @@
 import type { ActivityMetrics, ClimbSegment, SpeedBest } from '@/types'
 
+// Speed data from before this date comes from an era (2017-era Garmin Edge 520)
+// with known unreliable GPS/speed readings — excluded from Speed Bests and Max
+// Speed entirely, regardless of the plausibility ceilings in activity-metrics.ts.
+// Climbs and power bests are unaffected; only speed-derived categories are era-gated.
+const SPEED_BESTS_TRUSTED_FROM = '2018-01-01'
+
 export interface AllTimeBests {
   biggestClimb: { workoutId: string | null; icuActivityId: string; date: string; elev_gain_m: number; length_km: number | null } | null
   longestClimb: { workoutId: string | null; icuActivityId: string; date: string; length_km: number; elev_gain_m: number } | null
@@ -73,17 +79,20 @@ export function computeAllTimeBests(rides: BestsRide[]): AllTimeBests {
       }
     }
 
-    for (const speed of m.speed_bests ?? []) {
-      const existing = speedBestsByDistance.get(speed.distance_km)
-      if (!existing || speed.avg_speed_kmh > existing.avg_speed_kmh) {
-        speedBestsByDistance.set(speed.distance_km, { avg_speed_kmh: speed.avg_speed_kmh, workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date })
+    const trustSpeed = r.date >= SPEED_BESTS_TRUSTED_FROM
+    if (trustSpeed) {
+      for (const speed of m.speed_bests ?? []) {
+        const existing = speedBestsByDistance.get(speed.distance_km)
+        if (!existing || speed.avg_speed_kmh > existing.avg_speed_kmh) {
+          speedBestsByDistance.set(speed.distance_km, { avg_speed_kmh: speed.avg_speed_kmh, workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date })
+        }
       }
-    }
 
-    if (m.max_speed_ms != null) {
-      const speed_kmh = Math.round(m.max_speed_ms * 3.6 * 10) / 10
-      if (!maxSpeed || speed_kmh > maxSpeed.speed_kmh) {
-        maxSpeed = { workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date, speed_kmh, max_speed_ms: m.max_speed_ms }
+      if (m.max_speed_ms != null) {
+        const speed_kmh = Math.round(m.max_speed_ms * 3.6 * 10) / 10
+        if (!maxSpeed || speed_kmh > maxSpeed.speed_kmh) {
+          maxSpeed = { workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date, speed_kmh, max_speed_ms: m.max_speed_ms }
+        }
       }
     }
   }

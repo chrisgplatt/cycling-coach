@@ -87,8 +87,8 @@ describe('extractActivityMetrics', () => {
     expect(m.max_temp_c).toBeNull()
   })
 
-  it('bumps METRICS_VERSION to 7', () => {
-    expect(METRICS_VERSION).toBe(7)
+  it('bumps METRICS_VERSION to 8', () => {
+    expect(METRICS_VERSION).toBe(8)
   })
 
   it('rejects an implausible top speed as a GPS/sensor glitch', () => {
@@ -466,5 +466,29 @@ describe('speed-over-distance detection (via extractStreamInsights)', () => {
     const s = { time: [0, 30, 60], distance: [0, 250, 500], latlng: null, power: [200, 200, 200], hr: null, altitude: null, cadence: null, velocity: null }
     const insights = extractStreamInsights(s, 250, null, null)
     expect(insights.speed_bests).toBeNull()
+  })
+})
+
+describe('max speed detection from the smoothed velocity stream (via extractStreamInsights)', () => {
+  function streamsWithVelocity(velocity: number[] | null) {
+    return { time: [0, 10, 20], distance: [0, 100, 200], latlng: null, power: null, hr: null, altitude: null, cadence: null, velocity }
+  }
+
+  it('takes the peak of the smoothed velocity stream as max speed', () => {
+    const s = streamsWithVelocity([5, 12, 8])   // 12 m/s = 43.2km/h, well under the ceiling
+    const insights = extractStreamInsights(s, null, null, null)
+    expect(insights.max_speed_ms).toBe(12)
+  })
+
+  it('rejects an implausible peak in the velocity stream as a GPS/sensor glitch', () => {
+    const s = streamsWithVelocity([5, 205.9 / 3.6, 8])
+    const insights = extractStreamInsights(s, null, null, null)
+    expect(insights.max_speed_ms).toBeNull()
+  })
+
+  it('returns null when there is no velocity stream to judge from', () => {
+    const s = streamsWithVelocity(null)
+    const insights = extractStreamInsights(s, null, null, null)
+    expect(insights.max_speed_ms).toBeNull()
   })
 })

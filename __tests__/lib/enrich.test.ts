@@ -2,7 +2,7 @@
 import { backfillActivityMetrics } from '@/lib/intervals/enrich'
 import { METRICS_VERSION } from '@/lib/claude/activity-metrics'
 
-function makeClient(opts: { throwOn?: string } = {}) {
+function makeClient(opts: { throwOn?: string; velocity?: number[] | null; maxSpeed?: number } = {}) {
   return {
     getActivity: jest.fn(async (id: string) => {
       if (opts.throwOn === id) throw new Error('ICU 500')
@@ -10,7 +10,7 @@ function makeClient(opts: { throwOn?: string } = {}) {
         id, start_date_local: '2026-05-20T07:00:00', type: 'Ride', moving_time: 3600,
         name: 'Ride', average_watts: 200, max_watts: 500, weighted_average_watts: 210,
         average_heartrate: 140, training_load: 80, rolling_ftp: 250, distance: 30000,
-        total_elevation_gain: 300, left_right_balance: 50,
+        total_elevation_gain: 300, left_right_balance: 50, max_speed: opts.maxSpeed,
       }
     }),
     getPowerCurve: jest.fn(async () => [
@@ -19,13 +19,13 @@ function makeClient(opts: { throwOn?: string } = {}) {
     getActivityIntervals: jest.fn(async () => []),
     getActivityStreams: jest.fn(async () => ({
       time: [0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600],
-      distance: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      distance: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       latlng: null,
       power: Array.from({ length: 11 }, () => 200),
       hr: [150, 150, 150, 150, 150, 165, 165, 165, 165, 165, 165],
       altitude: null,
       cadence: [90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90],
-      velocity: null,
+      velocity: opts.velocity !== undefined ? opts.velocity : null,
     })),
     getRideLthr: jest.fn(async () => 160),
   }
@@ -88,6 +88,41 @@ describe('backfillActivityMetrics', () => {
     expect(client.getPowerCurve).toHaveBeenCalledWith('2026-05-20', '2026-05-20')
     expect(patch.activity_metrics.decoupling_pct).toBeCloseTo(9.1, 1)
     expect(patch.activity_metrics.time_in_zone).not.toBeNull()
+  })
+
+  it('derives max_speed_ms from the smoothed velocity stream when available, over the raw device scalar', async () => {
+    const updateSpy = jest.fn()
+    const supabase = makeSupabase([{ id: 'w1', icu_activity_id: 'a1', steps: null }], updateSpy)
+    const client = makeClient({ velocity: [5, 12, 8], maxSpeed: 9 })   // stream peak (12) differs from the raw scalar (9)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, client as any, 'u1')
+
+    expect(updateSpy.mock.calls[0][1].activity_metrics.max_speed_ms).toBe(12)
+  })
+
+  it('trusts a velocity stream that rejects an implausible peak, rather than falling back to the raw scalar', async () => {
+    const updateSpy = jest.fn()
+    const supabase = makeSupabase([{ id: 'w1', icu_activity_id: 'a1', steps: null }], updateSpy)
+    // Stream's peak is an implausible glitch (rejected → null); the raw scalar is
+    // itself plausible, but must NOT be used as a fallback once real stream data exists.
+    const client = makeClient({ velocity: [5, 205.9 / 3.6, 8], maxSpeed: 9 })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, client as any, 'u1')
+
+    expect(updateSpy.mock.calls[0][1].activity_metrics.max_speed_ms).toBeNull()
+  })
+
+  it('falls back to the raw device scalar when there is no velocity stream at all', async () => {
+    const updateSpy = jest.fn()
+    const supabase = makeSupabase([{ id: 'w1', icu_activity_id: 'a1', steps: null }], updateSpy)
+    const client = makeClient({ velocity: null, maxSpeed: 9 })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await backfillActivityMetrics(supabase as any, client as any, 'u1')
+
+    expect(updateSpy.mock.calls[0][1].activity_metrics.max_speed_ms).toBe(9)
   })
 
   it('skips a ride whose enrichment throws, without aborting the rest', async () => {
@@ -220,7 +255,7 @@ describe('backfillActivityMetrics', () => {
       id, start_date_local: '2026-05-20T07:00:00', type: 'VirtualRide', moving_time: 3600,
       name: 'Zwift Ride', average_watts: 200, max_watts: 500, weighted_average_watts: 210,
       average_heartrate: 140, training_load: 80, rolling_ftp: 250, distance: 30000,
-      total_elevation_gain: 300, left_right_balance: 50,
+      total_elevation_gain: 300, left_right_balance: 50, max_speed: undefined,
     }))
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

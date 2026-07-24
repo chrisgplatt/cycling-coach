@@ -49,7 +49,7 @@ export async function runDeepHistoryBestsBatch(
         client.getActivityStreams(activity.id).catch(() => null),
       ])
       const base = extractActivityMetrics(activity, curve, null)
-      const insights = streams ? extractStreamInsights(streams, null, null, null) : { climbs: null, speed_bests: null }
+      const insights = streams ? extractStreamInsights(streams, null, null, null) : { climbs: null, speed_bests: null, max_speed_ms: null }
       const isIndoor = base.is_indoor ?? false
       const candidate: BestsRide = {
         id: null,
@@ -59,7 +59,10 @@ export async function runDeepHistoryBestsBatch(
           climbs: insights.climbs,
           speed_bests: insights.speed_bests,
           best_efforts: base.best_efforts,
-          max_speed_ms: base.max_speed_ms,
+          // Trust the smoothed velocity stream's verdict whenever it exists
+          // (even a rejection) — only fall back to the raw device scalar
+          // when there's no velocity data at all to judge from.
+          max_speed_ms: streams?.velocity?.length ? insights.max_speed_ms : base.max_speed_ms,
         },
       }
 

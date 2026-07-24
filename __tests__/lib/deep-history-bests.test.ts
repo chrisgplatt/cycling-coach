@@ -82,6 +82,25 @@ describe('runDeepHistoryBestsBatch', () => {
     expect(result.newCursor).toBe('2019-12-30')
   })
 
+  it('prefers the smoothed velocity stream over the raw device max_speed when streams are available', async () => {
+    const activities = [makeActivity({ id: 'a1', start_date_local: '2019-12-30T08:00:00', max_speed: 9 })]
+    const upsertSpy = jest.fn()
+    const client = {
+      getActivities: jest.fn().mockResolvedValue(activities),
+      getPowerCurve: jest.fn().mockResolvedValue(null),
+      getActivityStreams: jest.fn().mockResolvedValue({
+        time: [0, 10, 20], distance: [0, 100, 200], latlng: null, power: null, hr: null,
+        altitude: null, cadence: null, velocity: [5, 12, 8],   // peak 12 m/s, distinct from the raw scalar (9)
+      }),
+    }
+    await runDeepHistoryBestsBatch(makeSupabase({ upsertSpy }) as never, client as never, 'u1', '2020-01-01')
+
+    const maxSpeedRow = upsertSpy.mock.calls
+      .flatMap(([rows]) => rows as Array<{ category: string; detail: { max_speed_ms: number } }>)
+      .find(r => r.category === 'max_speed')
+    expect(maxSpeedRow?.detail.max_speed_ms).toBe(12)
+  })
+
   it('threads is_indoor through when the activity is a VirtualRide (indoor/trainer)', async () => {
     const activities = [makeActivity({ id: 'v1', start_date_local: '2019-12-30T08:00:00', type: 'VirtualRide', max_speed: 12 })]
     const upsertSpy = jest.fn()

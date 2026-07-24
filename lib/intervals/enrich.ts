@@ -38,9 +38,14 @@ export async function enrichActivity(
   if (!streams) {
     return { ...base, distributions: extractDistributions(EMPTY_STREAMS, ftp, lthr, base.np, base.avg_power), personal_bests }
   }
+  const streamInsights = extractStreamInsights(streams, ftp, plannedSteps, intervals)
   return {
     ...base,
-    ...extractStreamInsights(streams, ftp, plannedSteps, intervals),
+    ...streamInsights,
+    // Trust the smoothed velocity stream's verdict whenever it exists (even a
+    // rejection) — only fall back to the raw device scalar when there's no
+    // velocity data at all to judge from.
+    max_speed_ms: streams.velocity?.length ? streamInsights.max_speed_ms : base.max_speed_ms,
     distributions: extractDistributions(streams, ftp, lthr, base.np, base.avg_power),
     personal_bests,
   }
