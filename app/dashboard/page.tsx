@@ -188,6 +188,13 @@ export default function DashboardPage() {
     }
   }
 
+  function loadCharts() {
+    return fetch('/api/charts')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setChartsData(d?.charts ?? null))
+      .catch(() => setChartsData(null))
+  }
+
   function loadProfile() {
     return fetch('/api/profile').then(r => r.json()).then(data => {
       const name: string = data?.full_name ?? ''
@@ -363,10 +370,7 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/charts')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => setChartsData(d?.charts ?? null))
-      .catch(() => setChartsData(null))
+    loadCharts()
   }, [])
 
   useEffect(() => {
@@ -561,6 +565,10 @@ export default function DashboardPage() {
       return [...prev, w].sort((a, b) => a.date.localeCompare(b.date))
     })
     setWellnessSheetDate(null)
+    // Recovery is derived from chartsData.recoveryHistory, computed server-side
+    // from daily_wellness — refetch so today's just-saved energy/leg_freshness
+    // are reflected immediately instead of only after the next full page load.
+    loadCharts()
   }
 
   function handleOpenWellness(date: string) {

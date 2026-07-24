@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import DashboardPage from '@/app/dashboard/page'
 import { getWeekBounds } from '@/lib/week-bounds'
 import { weekDates } from '@/lib/calendar-helpers'
@@ -138,5 +138,56 @@ describe('DashboardPage week navigation', () => {
     await screen.findByText('Next week ride')
 
     expect(screen.getByText('0/1')).toBeInTheDocument()
+  })
+})
+
+describe('DashboardPage wellness save refreshes recovery', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  // Recovery is derived entirely from chartsData (fetched once from /api/charts
+  // on mount) — saving wellness must refetch it, or the Recovery card keeps
+  // showing whatever was computed before the athlete's just-logged energy/leg
+  // freshness values existed. Uses its own fetch mock (not the shared
+  // mockFetch() above) since it needs to distinguish GET from POST on
+  // /api/wellness and count /api/charts calls precisely.
+  it('refetches /api/charts after saving wellness, so the recovery card reflects the new entry', async () => {
+    let chartsCallCount = 0
+    global.fetch = jest.fn((url: string, init?: RequestInit) => {
+      const u = String(url)
+      if (u === '/api/sync') {
+        return Promise.resolve({ ok: true, json: async () => ({ activities: [], wellness: [], athlete_ftp: null, athlete_weight: null }) })
+      }
+      if (u === '/api/plan') {
+        return Promise.resolve({ ok: true, json: async () => ({ workouts: [], name: '', last_reviewed_week: '9999-W53' }) })
+      }
+      if (u === '/api/profile') return Promise.resolve({ ok: true, json: async () => ({}) })
+      if (u === '/api/weight-log') return Promise.resolve({ ok: true, json: async () => ({ entries: [] }) })
+      if (u.startsWith('/api/wellness')) {
+        if (init?.method === 'POST') {
+          return Promise.resolve({ ok: true, json: async () => ({ wellness: { date: todayStr, energy: 3, leg_freshness: null, mood: null, stress: null, sleep_quality: null } }) })
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ wellness: [] }) })
+      }
+      if (u === '/api/charts') {
+        chartsCallCount++
+        return Promise.resolve({ ok: true, json: async () => ({ charts: null }) })
+      }
+      if (u === '/api/weather/week') return Promise.resolve({ ok: true, json: async () => ({ dates: [] }) })
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    }) as jest.Mock
+
+    render(<DashboardPage />)
+    await waitFor(() => expect(chartsCallCount).toBe(1))
+
+    // With no workouts/activities in this fixture, every day renders as a
+    // "rest day" — WellnessCard's compact "+ wellness" variant, not its
+    // longer "How are you feeling?" prompt (see components/WellnessCard.tsx).
+    fireEvent.click(screen.getAllByText('+ wellness')[0])
+    fireEvent.click(screen.getAllByLabelText('3')[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(chartsCallCount).toBe(2))
   })
 })
