@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import GarminConnectCard from '@/components/GarminConnectCard'
 import RiderPersonalDetailsCard from '@/components/RiderPersonalDetailsCard'
 import IntervalsIcuCard from '@/components/IntervalsIcuCard'
@@ -60,6 +60,7 @@ export default function SettingsPage() {
   const [metricsBackfillResult, setMetricsBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [deepHistoryBackfilling, setDeepHistoryBackfilling] = useState(false)
   const [deepHistoryResult, setDeepHistoryResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const deepHistoryStopRef = useRef(false)
   const [resyncing, setResyncing] = useState(false)
   const [resyncResult, setResyncResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
@@ -442,25 +443,44 @@ export default function SettingsPage() {
     }
   }
 
+  // Runs the resumable deep-history scan to completion in one click, looping
+  // batch after batch (each a separate request, so no single request risks a
+  // serverless timeout) instead of requiring the user to re-click for every
+  // batch of ride history. Stops on reachedPossibleStart, an error, or the
+  // user hitting Stop.
   async function runDeepHistoryBackfill() {
     setDeepHistoryBackfilling(true)
     setDeepHistoryResult(null)
+    deepHistoryStopRef.current = false
+    let batches = 0
     try {
-      const res = await fetch('/api/admin/backfill-deep-history-bests', { method: 'POST' })
-      const data = await res.json()
-      if (res.ok) {
-        const message = data.reachedPossibleStart
-          ? `Looks like you may have reached the start of your history (scanned back to ${data.newCursor ?? 'today'}). Click again to check further back, or stop here.`
-          : `Scanned ${data.processed} ride${data.processed === 1 ? '' : 's'}, back to ${data.newCursor} — click again to keep going.`
-        setDeepHistoryResult({ ok: true, message })
-      } else {
-        setDeepHistoryResult({ ok: false, message: data.error ?? 'Scan failed.' })
+      while (!deepHistoryStopRef.current) {
+        const res = await fetch('/api/admin/backfill-deep-history-bests', { method: 'POST' })
+        const data = await res.json()
+        if (!res.ok) {
+          setDeepHistoryResult({ ok: false, message: data.error ?? 'Scan failed.' })
+          break
+        }
+        batches += 1
+        if (data.reachedPossibleStart) {
+          setDeepHistoryResult({ ok: true, message: `Looks like you've reached the start of your history (scanned back to ${data.newCursor ?? 'today'} across ${batches} batch${batches === 1 ? '' : 'es'}).` })
+          break
+        }
+        if (deepHistoryStopRef.current) {
+          setDeepHistoryResult({ ok: true, message: `Stopped after ${batches} batch${batches === 1 ? '' : 'es'} — scanned back to ${data.newCursor}. Click to keep going.` })
+          break
+        }
+        setDeepHistoryResult({ ok: true, message: `Scanned back to ${data.newCursor} so far (batch ${batches})… continuing.` })
       }
     } catch {
       setDeepHistoryResult({ ok: false, message: 'Network error.' })
     } finally {
       setDeepHistoryBackfilling(false)
     }
+  }
+
+  function stopDeepHistoryBackfill() {
+    deepHistoryStopRef.current = true
   }
 
   async function runResyncBests() {
@@ -663,6 +683,7 @@ export default function SettingsPage() {
         deepHistoryBackfilling={deepHistoryBackfilling}
         deepHistoryResult={deepHistoryResult}
         onRunDeepHistoryBackfill={runDeepHistoryBackfill}
+        onStopDeepHistoryBackfill={stopDeepHistoryBackfill}
         resyncing={resyncing}
         resyncResult={resyncResult}
         onRunResyncBests={runResyncBests}

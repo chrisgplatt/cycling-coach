@@ -221,3 +221,81 @@ describe('Account page', () => {
     expect(await screen.findByText('Not yet synced')).toBeInTheDocument()
   })
 })
+
+describe('Account page — deep-history bests scan auto-continues across batches', () => {
+  function mockAdminProfile() {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      const u = String(url)
+      if (u === '/api/profile') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            id: 'p1', full_name: 'Chris Platt', is_admin: true, notifications_enabled: true,
+            intervals_icu_athlete_id: 'i12345', intervals_icu_api_key: 'apikey',
+          }),
+        })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    })
+  }
+
+  beforeEach(() => {
+    (global.fetch as jest.Mock).mockReset()
+  })
+
+  it('keeps requesting further batches without another click, until reachedPossibleStart', async () => {
+    mockAdminProfile()
+    render(<SettingsPage />)
+    await screen.findByRole('button', { name: 'Scan further back in ride history' })
+
+    let call = 0
+    ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
+      const u = String(url)
+      if (u === '/api/admin/backfill-deep-history-bests') {
+        call += 1
+        if (call < 3) {
+          return Promise.resolve({ ok: true, json: async () => ({ processed: 50, newCursor: `2020-0${call}-01`, reachedPossibleStart: false }) })
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ processed: 12, newCursor: '2019-01-01', reachedPossibleStart: true }) })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan further back in ride history' }))
+
+    await waitFor(() => expect(screen.getByText(/reached the start of your history/i)).toBeInTheDocument())
+    expect(call).toBe(3)
+  })
+
+  it('stops issuing further batches once Stop is clicked', async () => {
+    mockAdminProfile()
+    render(<SettingsPage />)
+    await screen.findByRole('button', { name: 'Scan further back in ride history' })
+
+    let call = 0
+    let resolveSecondBatch: (() => void) | null = null
+    ;(global.fetch as jest.Mock).mockImplementation((url: string) => {
+      const u = String(url)
+      if (u === '/api/admin/backfill-deep-history-bests') {
+        call += 1
+        if (call === 1) {
+          return Promise.resolve({ ok: true, json: async () => ({ processed: 50, newCursor: '2020-01-01', reachedPossibleStart: false }) })
+        }
+        return new Promise(resolve => {
+          resolveSecondBatch = () => resolve({ ok: true, json: async () => ({ processed: 50, newCursor: '2019-06-01', reachedPossibleStart: false }) })
+        })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan further back in ride history' }))
+    await screen.findByRole('button', { name: 'Stop' })
+    await waitFor(() => expect(call).toBe(2))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+    resolveSecondBatch!()
+
+    await waitFor(() => expect(screen.getByText(/stopped after 2 batches/i)).toBeInTheDocument())
+    expect(call).toBe(2)
+  })
+})

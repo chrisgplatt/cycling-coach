@@ -59,6 +59,7 @@ interface Props {
   deepHistoryBackfilling: boolean
   deepHistoryResult: ActionResult
   onRunDeepHistoryBackfill: () => void
+  onStopDeepHistoryBackfill: () => void
   resyncing: boolean
   resyncResult: ActionResult
   onRunResyncBests: () => void
@@ -76,7 +77,7 @@ export default function DailyBriefingCard({
   ftpBackfilling, ftpBackfillResult, onRunBackfillFtp,
   strainBackfilling, strainBackfillResult, onRunBackfillStrain,
   metricsBackfilling, metricsBackfillResult, onRunBackfillActivityMetrics,
-  deepHistoryBackfilling, deepHistoryResult, onRunDeepHistoryBackfill,
+  deepHistoryBackfilling, deepHistoryResult, onRunDeepHistoryBackfill, onStopDeepHistoryBackfill,
   resyncing, resyncResult, onRunResyncBests,
 }: Props) {
   return (
@@ -303,7 +304,7 @@ export default function DailyBriefingCard({
                   Rebuilds bests from recent rides only — wipes any older years found by &ldquo;Scan further back&rdquo; below, so re-run that afterward if you&rsquo;ve used it.
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <button
                   onClick={onRunDeepHistoryBackfill}
                   disabled={deepHistoryBackfilling}
@@ -311,6 +312,14 @@ export default function DailyBriefingCard({
                 >
                   {deepHistoryBackfilling ? 'Scanning…' : 'Scan further back in ride history'}
                 </button>
+                {deepHistoryBackfilling && (
+                  <button
+                    onClick={onStopDeepHistoryBackfill}
+                    className="text-xs font-medium text-red-500 hover:text-red-700 underline underline-offset-2 transition-colors"
+                  >
+                    Stop
+                  </button>
+                )}
                 {deepHistoryResult && (
                   <p className={`text-xs ${deepHistoryResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                     {deepHistoryResult.message}

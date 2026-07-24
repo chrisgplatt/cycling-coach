@@ -17,7 +17,7 @@ function makeProps(overrides: Partial<ComponentProps<typeof DailyBriefingCard>> 
     ftpBackfilling: false, ftpBackfillResult: null, onRunBackfillFtp: jest.fn(),
     strainBackfilling: false, strainBackfillResult: null, onRunBackfillStrain: jest.fn(),
     metricsBackfilling: false, metricsBackfillResult: null, onRunBackfillActivityMetrics: jest.fn(),
-    deepHistoryBackfilling: false, deepHistoryResult: null, onRunDeepHistoryBackfill: jest.fn(),
+    deepHistoryBackfilling: false, deepHistoryResult: null, onRunDeepHistoryBackfill: jest.fn(), onStopDeepHistoryBackfill: jest.fn(),
     resyncing: false, resyncResult: null, onRunResyncBests: jest.fn(),
     ...overrides,
   }
@@ -74,6 +74,21 @@ describe('DailyBriefingCard — deep-history bests backfill button', () => {
   it('shows the result message after a batch completes', () => {
     render(<DailyBriefingCard {...makeProps({ deepHistoryResult: { ok: true, message: 'Scanned back to 1 Jun 2022 — click again to keep going.' } })} />)
     expect(screen.getByText('Scanned back to 1 Jun 2022 — click again to keep going.')).toBeInTheDocument()
+  })
+
+  it('shows a Stop button while scanning, which is absent when idle', () => {
+    const { rerender } = render(<DailyBriefingCard {...makeProps({ deepHistoryBackfilling: true })} />)
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument()
+
+    rerender(<DailyBriefingCard {...makeProps({ deepHistoryBackfilling: false })} />)
+    expect(screen.queryByRole('button', { name: 'Stop' })).not.toBeInTheDocument()
+  })
+
+  it('calls onStopDeepHistoryBackfill when Stop is clicked', () => {
+    const onStop = jest.fn()
+    render(<DailyBriefingCard {...makeProps({ deepHistoryBackfilling: true, onStopDeepHistoryBackfill: onStop })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+    expect(onStop).toHaveBeenCalledTimes(1)
   })
 })
 
