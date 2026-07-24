@@ -87,8 +87,8 @@ describe('extractActivityMetrics', () => {
     expect(m.max_temp_c).toBeNull()
   })
 
-  it('bumps METRICS_VERSION to 8', () => {
-    expect(METRICS_VERSION).toBe(8)
+  it('bumps METRICS_VERSION to 9', () => {
+    expect(METRICS_VERSION).toBe(9)
   })
 
   it('rejects an implausible top speed as a GPS/sensor glitch', () => {
@@ -97,10 +97,16 @@ describe('extractActivityMetrics', () => {
     expect(m.max_speed_ms).toBeNull()
   })
 
+  it('rejects a top speed that survived smoothing but still exceeds the ceiling', () => {
+    // 109.9 km/h — a real sustained-anomaly case seen in production, above the 95km/h ceiling.
+    const m = extractActivityMetrics({ ...act, max_speed: 109.9 / 3.6 }, curve, intervals)
+    expect(m.max_speed_ms).toBeNull()
+  })
+
   it('keeps a fast but physically plausible top speed', () => {
-    // 100 km/h converted to m/s — a genuine steep-descent peak, below the 110km/h ceiling.
-    const m = extractActivityMetrics({ ...act, max_speed: 100 / 3.6 }, curve, intervals)
-    expect(m.max_speed_ms).toBeCloseTo(100 / 3.6)
+    // 85 km/h converted to m/s — a genuine steep-descent peak, below the 95km/h ceiling.
+    const m = extractActivityMetrics({ ...act, max_speed: 85 / 3.6 }, curve, intervals)
+    expect(m.max_speed_ms).toBeCloseTo(85 / 3.6)
   })
 
   it('detects an indoor/virtual ride from the activity type', () => {

@@ -11,19 +11,21 @@ const CANONICAL_SECS = [5, 15, 60, 300, 600, 1200, 3600]
 const CLIMB_PATH_MAX_POINTS = 12
 const SPEED_SPLIT_KM = [1, 5, 10, 20]
 
-// Sense-check ceilings for GPS/sensor-glitch speed readings. A single bad
-// position sample can fabricate a burst of "instant distance," which would
-// otherwise be reported as a genuine max speed or sustained split average.
-// A brief instantaneous spike is far more physically plausible than sustaining
-// that speed over a full km+, hence the split ceiling is much stricter.
-const MAX_PLAUSIBLE_TOP_SPEED_KMH = 110
+// Sense-check ceilings for GPS/sensor-glitch speed readings. Some corruption
+// (e.g. a sustained multi-second bad GPS fix through trees or a valley on a
+// descent) survives smoothing entirely, since it isn't single-sample noise —
+// so these ceilings, not the smoothed-stream check, are the primary defense.
+// Set just above the athlete's own genuine descent ceiling (~80km/h), not at
+// the edge of "theoretically possible," so real GPS/sensor corruption in the
+// 90-110km/h range is excluded rather than narrowly admitted.
+const MAX_PLAUSIBLE_TOP_SPEED_KMH = 95
 const MAX_PLAUSIBLE_SPEED_SPLIT_KMH = 70
 
 // Bumped whenever the metrics computation changes (new best-effort durations,
 // new derived fields, etc.). The backfill re-enriches rows below this version so
 // existing rides pick up the change once — without churning rows that can't
 // produce a given field (the version stamp lands regardless).
-export const METRICS_VERSION = 8
+export const METRICS_VERSION = 9
 
 function plausibleMaxSpeedMs(maxSpeedMs: number | null | undefined): number | null {
   if (maxSpeedMs == null) return null
