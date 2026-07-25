@@ -33,7 +33,9 @@ Assess this session and indicate whether the athlete should explore adaptations 
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 500,
+    // Headroom for adaptive thinking (default on Opus 5), which draws from
+    // this same budget as the tool call output.
+    max_tokens: 4096,
     system: SYSTEM_PROMPT,
     tools: [{
       name: 'session_note',

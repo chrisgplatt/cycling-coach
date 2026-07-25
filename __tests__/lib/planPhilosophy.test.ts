@@ -1,6 +1,6 @@
 // @ts-nocheck
 jest.mock('@/lib/claude/client', () => ({
-  MODEL: 'claude-opus-4-8',
+  MODEL: 'claude-opus-5',
   anthropic: {
     messages: {
       create: jest.fn(),

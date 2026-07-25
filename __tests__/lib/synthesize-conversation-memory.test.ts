@@ -4,7 +4,7 @@ import { anthropic } from '@/lib/claude/client'
 
 jest.mock('@/lib/claude/client', () => ({
   anthropic: { messages: { create: jest.fn() } },
-  MODEL: 'claude-opus-4-8',
+  MODEL: 'claude-opus-5',
 }))
 
 function makeSupabase(opts: { messages?: unknown[]; upsertSpy?: jest.Mock }) {

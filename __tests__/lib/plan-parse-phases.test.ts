@@ -1,7 +1,7 @@
 import { parsePlanText } from '@/lib/claude/plan'
 
 jest.mock('@/lib/claude/client', () => ({
-  MODEL: 'claude-opus-4-8',
+  MODEL: 'claude-opus-5',
   anthropic: { messages: { create: jest.fn(), stream: jest.fn() } },
 }))
 

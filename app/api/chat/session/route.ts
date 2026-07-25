@@ -95,7 +95,9 @@ export async function POST(req: NextRequest) {
 
   const stream = await anthropic.messages.stream({
     model: MODEL,
-    max_tokens: 1024,
+    // Headroom for adaptive thinking (default on Opus 5), which draws from
+    // this same budget as the visible chat reply.
+    max_tokens: 8192,
     system: systemPrompt,
     messages,
   })

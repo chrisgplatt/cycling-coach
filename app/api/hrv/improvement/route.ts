@@ -50,7 +50,9 @@ export async function GET() {
       coachNote = cached!.coach_note
     } else {
       const res = await anthropic.messages.create({
-        model: MODEL, max_tokens: 256,
+        // max_tokens sized above the short text output to leave headroom for
+        // adaptive thinking (default on Opus 5), which draws from the same budget.
+        model: MODEL, max_tokens: 4096,
         messages: [{ role: 'user', content: buildHrvFocusPrompt(improvement) }],
       })
       const block = res.content.find(b => b.type === 'text')

@@ -48,7 +48,9 @@ export async function synthesizeConversationMemory(
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 1024,
+    // Headroom for adaptive thinking (default on Opus 5), which draws from
+    // this same budget as the JSON output.
+    max_tokens: 8192,
     system: SYNTHESIS_PROMPT,
     messages: [{ role: 'user', content: transcript }],
   })

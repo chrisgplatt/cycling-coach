@@ -1,6 +1,6 @@
 const streamMock = jest.fn()
 jest.mock('@/lib/claude/client', () => ({
-  MODEL: 'claude-opus-4-8',
+  MODEL: 'claude-opus-5',
   anthropic: { messages: { stream: (...a: unknown[]) => streamMock(...a) } },
 }))
 

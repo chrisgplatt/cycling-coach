@@ -52,7 +52,9 @@ Return ONLY:
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 256,
+    // Adaptive thinking (default on Opus 5) draws from this same budget, so
+    // it's sized well above the ~256-token text output to leave it headroom.
+    max_tokens: 4096,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
   })

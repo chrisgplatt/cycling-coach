@@ -2,7 +2,7 @@ import { assessSession } from '@/lib/claude/session-note'
 import { makeWorkout } from '../support/factories'
 
 jest.mock('@/lib/claude/client', () => ({
-  MODEL: 'claude-opus-4-8',
+  MODEL: 'claude-opus-5',
   anthropic: {
     messages: {
       create: jest.fn(),
@@ -89,6 +89,6 @@ describe('assessSession', () => {
     mockCreate.mockResolvedValueOnce(makeToolResponse('ok', false))
     await assessSession(workout, 'fine', {}, '')
     const call = (anthropic.messages.create as jest.Mock).mock.calls[0][0]
-    expect(call.model).toBe('claude-opus-4-8')
+    expect(call.model).toBe('claude-opus-5')
   })
 })

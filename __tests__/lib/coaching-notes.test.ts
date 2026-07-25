@@ -1,6 +1,6 @@
 jest.mock('@/lib/claude/client', () => ({
   anthropic: { messages: { stream: jest.fn() } },
-  MODEL: 'claude-opus-4-8',
+  MODEL: 'claude-opus-5',
 }))
 
 import { anthropic } from '@/lib/claude/client'

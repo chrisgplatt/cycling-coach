@@ -10,21 +10,21 @@ These rules govern every AI interaction that designs, adapts, or evaluates train
 
 | Task | Model |
 |------|-------|
-| Plan generation (`lib/claude/plan.ts`) | `claude-opus-4-8` |
-| Plan review/adaptation (`lib/claude/review.ts`) | `claude-opus-4-8` |
-| Post-session feedback analysis (`lib/claude/feedback.ts`) | `claude-opus-4-8` |
-| Workout step generation (`lib/claude/steps.ts`) | `claude-opus-4-8` |
-| FTP estimation (`lib/claude/ftp.ts`) | `claude-opus-4-8` |
-| Session coach chat (`/api/chat/session`) | `claude-opus-4-8` |
-| General coach chat (`/api/chat`) | `claude-opus-4-8` |
-| Daily briefing (`lib/claude/briefing.ts`) | `claude-opus-4-8` |
-| Dossier synthesis (`lib/claude/dossier.ts`) | `claude-opus-4-8` |
-| Plan chat (`/api/chat/plan`) | `claude-opus-4-8` |
-| Coach interview (`/api/chat/interview`) | `claude-opus-4-8` |
-| HRV focus coaching (`lib/claude/hrv-coach.ts`) | `claude-opus-4-8` |
-| Conversation memory synthesis (`lib/claude/synthesize-conversation-memory.ts`) | `claude-opus-4-8` |
+| Plan generation (`lib/claude/plan.ts`) | `claude-opus-5` |
+| Plan review/adaptation (`lib/claude/review.ts`) | `claude-opus-5` |
+| Post-session feedback analysis (`lib/claude/feedback.ts`) | `claude-opus-5` |
+| Workout step generation (`lib/claude/steps.ts`) | `claude-opus-5` |
+| FTP estimation (`lib/claude/ftp.ts`) | `claude-opus-5` |
+| Session coach chat (`/api/chat/session`) | `claude-opus-5` |
+| General coach chat (`/api/chat`) | `claude-opus-5` |
+| Daily briefing (`lib/claude/briefing.ts`) | `claude-opus-5` |
+| Dossier synthesis (`lib/claude/dossier.ts`) | `claude-opus-5` |
+| Plan chat (`/api/chat/plan`) | `claude-opus-5` |
+| Coach interview (`/api/chat/interview`) | `claude-opus-5` |
+| HRV focus coaching (`lib/claude/hrv-coach.ts`) | `claude-opus-5` |
+| Conversation memory synthesis (`lib/claude/synthesize-conversation-memory.ts`) | `claude-opus-5` |
 
-All tasks now use the most capable model for best coaching results.
+All tasks now use the most capable model for best coaching results, with adaptive thinking on by default (Opus 5's default — no explicit `thinking` config needed). Because thinking tokens draw from the same `max_tokens` budget as the visible output, every call site was audited and bumped to leave thinking headroom: short single-shot completions (briefing, progress brief, HRV note, session note, workout steps) went from as low as 256 to 4096; JSON/text generations that were previously 1024–2048 went to 8192; the streaming chat routes went from 1024–2048 to 8192. Plan/review (32000) and coaching-notes (16000) already had ample headroom and were left unchanged.
 
 ---
 

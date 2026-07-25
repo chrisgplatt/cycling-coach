@@ -83,7 +83,9 @@ If no changes needed: {"summary": "No adjustments needed", "changes": [], "worko
 
   const response = await anthropic.messages.stream({
     model: MODEL,
-    max_tokens: 2048,
+    // Headroom for adaptive thinking (default on Opus 5), which draws from
+    // this same budget as the JSON output.
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
   }).finalMessage()

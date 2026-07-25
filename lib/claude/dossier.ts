@@ -191,7 +191,9 @@ Return ONLY valid JSON matching this exact schema:
     // The 7-field profile can run long now that workout lines carry enriched
     // detail (power/terrain/intervals) for the model to cite. 1024 truncated the
     // JSON mid-output, breaking the parse — give it ample room to finish.
-    max_tokens: 4096,
+    // Adaptive thinking (default on Opus 5) draws from this same budget, so
+    // it's sized well above the prior 4096 ceiling to keep that headroom.
+    max_tokens: 8192,
     system: SYNTHESIS_SYSTEM,
     messages: [{ role: 'user', content: prompt }],
   })
