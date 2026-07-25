@@ -51,6 +51,14 @@ export async function predictFTP(input: FTPPredictionInput): Promise<FTPPredicti
         .join('\n')
     : '  No threshold/intervals session feedback in the last 60 days.'
 
+  // Pre-compute the 20-min-derived FTP ourselves rather than leaving the ×0.95
+  // arithmetic to the model, and use it (plus the rolling estimate and CP model)
+  // to give Claude an explicit numeric range to anchor its recommendation to.
+  const mins20Derived = powerCurve.mins20 !== null ? Math.round(powerCurve.mins20 * 0.95) : null
+  const signals = [algorithmicEstimate, cpModel?.cp ?? null, mins20Derived]
+    .filter((v): v is number => v !== null)
+  const signalRange = signals.length ? `${Math.min(...signals)}–${Math.max(...signals)}W` : null
+
   const prompt = `Estimate FTP from 3 months of power data.
 
 Current stated FTP: ${currentFTP}W
@@ -59,7 +67,7 @@ ${cpLine}
 
 Best power by duration over last 3 months (genuine best effort within any ride, not whole-ride average):
 - ~5-min: ${powerCurve.mins5 !== null ? `${powerCurve.mins5}W` : 'none'}
-- ~20-min: ${powerCurve.mins20 !== null ? `${powerCurve.mins20}W` : 'none'}
+- ~20-min: ${powerCurve.mins20 !== null ? `${powerCurve.mins20}W` : 'none'}${mins20Derived !== null ? ` (implies ~${mins20Derived}W FTP at ×0.95)` : ''}
 - ~60-min: ${powerCurve.mins60 !== null ? `${powerCurve.mins60}W` : 'none'}
 (The ~60-min point is often the best window inside a submaximal endurance ride rather than a real test — treat it as the least reliable of the three.)
 
@@ -76,6 +84,15 @@ repeated high RPE or visible struggle on threshold-or-harder work. The mere abse
 maximal test is NOT sufficient evidence to lower FTP. Conversely, consistently low RPE on
 threshold/intervals work (e.g. well below 7-8/10) is real evidence the current FTP may be set
 too low, even without a new maximal test.
+${signalRange ? `
+IMPORTANT: Your computed signals (rolling FTP, CP model, 20-min-derived) span ${signalRange}.
+predicted_ftp MUST fall within this range unless you name a SPECIFIC reason in the reasoning for
+going outside it (e.g. a named recent illness, injury, or a named test result not already listed
+above). General caution about data quality, terrain, heat, or training history is NOT sufficient
+justification to recommend a number below the low end of this range — those signals are already
+derived from the athlete's actual recent best efforts, so hedging below all of them second-guesses
+the data rather than interpreting it. Such caveats can justify landing toward the low end of the
+range, or not adopting the high end, but not going under it.` : ''}
 
 Confidence guidance:
 - high: Critical Power model, 20-min effort, and rolling FTP roughly agree, and volume/feedback are consistent

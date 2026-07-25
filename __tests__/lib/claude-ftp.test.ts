@@ -91,4 +91,34 @@ describe('predictFTP', () => {
     expect(sentPrompt).toContain('Critical Power model: unavailable')
     expect(sentPrompt).toContain('No threshold/intervals session feedback in the last 60 days.')
   })
+
+  it('tells Claude the signal range and requires justification to recommend outside it', async () => {
+    // input: algorithmicEstimate 304, cpModel.cp 295, mins20 320 -> derived 304W -> range 295-304W
+    mockCreate.mockResolvedValueOnce({
+      content: [{ type: 'text', text: JSON.stringify({ predicted_ftp: 300, reasoning: 'test', confidence: 'medium' }) }],
+    })
+
+    await predictFTP(input)
+
+    const sentPrompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(sentPrompt).toContain('295–304W')
+    expect(sentPrompt).toContain('MUST fall within this range')
+    expect(sentPrompt).toContain('implies ~304W FTP at ×0.95')
+  })
+
+  it('omits the signal-range instruction when no signals are available', async () => {
+    mockCreate.mockResolvedValueOnce({
+      content: [{ type: 'text', text: JSON.stringify({ predicted_ftp: 280, reasoning: 'test', confidence: 'low' }) }],
+    })
+
+    await predictFTP({
+      ...input,
+      powerCurve: { mins5: 380, mins20: null, mins60: null },
+      cpModel: null,
+      algorithmicEstimate: null,
+    })
+
+    const sentPrompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(sentPrompt).not.toContain('MUST fall within this range')
+  })
 })
