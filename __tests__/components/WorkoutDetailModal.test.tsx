@@ -269,7 +269,7 @@ describe('WorkoutDetailModal', () => {
         medals={{ allTime: [], year: [{ category: 'power', subKey: '300' }] }}
       />,
     )
-    expect(await screen.findByText('2026 best · Power')).toBeInTheDocument()
+    expect(await screen.findByText('2026 best · Power 5 min')).toBeInTheDocument()
   })
 
   it('renders nothing extra when medals is absent', async () => {

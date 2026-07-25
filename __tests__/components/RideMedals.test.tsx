@@ -55,9 +55,19 @@ describe('RideMedalList', () => {
     expect(screen.getByText('All-time · Biggest climb')).toBeInTheDocument()
   })
 
-  it('labels a year entry with the given year and its category', () => {
+  it('labels a year entry with the given year, its category, and the duration for power', () => {
     render(<RideMedalList medals={{ allTime: [], year: [{ category: 'power', subKey: '300' }] }} year="2026" />)
-    expect(screen.getByText('2026 best · Power')).toBeInTheDocument()
+    expect(screen.getByText('2026 best · Power 5 min')).toBeInTheDocument()
+  })
+
+  it('formats a sub-minute power duration in seconds', () => {
+    render(<RideMedalList medals={{ allTime: [{ category: 'power', subKey: '15' }], year: [] }} year="2026" />)
+    expect(screen.getByText('All-time · Power 15s')).toBeInTheDocument()
+  })
+
+  it('formats a speed entry with its distance in km', () => {
+    render(<RideMedalList medals={{ allTime: [{ category: 'speed', subKey: '10' }], year: [] }} year="2026" />)
+    expect(screen.getByText('All-time · Speed 10 km')).toBeInTheDocument()
   })
 
   it('renders one row per entry across both tiers', () => {
@@ -66,7 +76,7 @@ describe('RideMedalList', () => {
       year: [{ category: 'power', subKey: '300' }, { category: 'max_speed', subKey: '' }],
     }} year="2025" />)
     expect(screen.getByText('All-time · Biggest climb')).toBeInTheDocument()
-    expect(screen.getByText('2025 best · Power')).toBeInTheDocument()
+    expect(screen.getByText('2025 best · Power 5 min')).toBeInTheDocument()
     expect(screen.getByText('2025 best · Max speed')).toBeInTheDocument()
   })
 })

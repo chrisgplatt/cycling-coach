@@ -17,6 +17,23 @@ const CATEGORY_LABEL: Record<BestCategory, string> = {
   max_speed: 'Max speed',
 }
 
+// power's subKey is a duration in seconds; speed's is a distance in km. Climbs
+// and max_speed carry no subKey ('') and need no detail suffix.
+function formatSubKey(category: BestCategory, subKey: string): string {
+  if (!subKey) return ''
+  if (category === 'power') {
+    const secs = Number(subKey)
+    return secs < 60 ? `${secs}s` : `${secs / 60} min`
+  }
+  if (category === 'speed') return `${subKey} km`
+  return ''
+}
+
+function categoryDetail(entry: MedalEntry): string {
+  const detail = formatSubKey(entry.category, entry.subKey)
+  return detail ? `${CATEGORY_LABEL[entry.category]} ${detail}` : CATEGORY_LABEL[entry.category]
+}
+
 export function RideMedalIcons({ medals }: { medals: RideMedals | null | undefined }) {
   if (!medals) return null
   const hasAllTime = medals.allTime.length > 0
@@ -35,7 +52,7 @@ function MedalRow({ tierIcon, tierLabel, entry }: { tierIcon: string; tierLabel:
     <div className="flex items-center gap-2 text-sm text-gray-700">
       <span aria-hidden="true">{tierIcon}</span>
       <span aria-hidden="true">{CATEGORY_ICON[entry.category]}</span>
-      <span>{tierLabel} · {CATEGORY_LABEL[entry.category]}</span>
+      <span>{tierLabel} · {categoryDetail(entry)}</span>
     </div>
   )
 }
