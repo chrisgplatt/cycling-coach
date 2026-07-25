@@ -5,6 +5,7 @@ import WorkoutCard from '@/components/WorkoutCard'
 import CtlTrendStrip from '@/components/CtlTrendStrip'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
 import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, ICUActivity, WeightEntry, WeeklyProgress, EventCountdown, WeatherSummary, ActivityWeather } from '@/types'
+import type { RideMedals } from '@/lib/ride/ride-medals'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
 import PlanReviewModal from '@/components/PlanReviewModal'
@@ -56,7 +57,7 @@ import DayWeatherChip from '@/components/DayWeatherChip'
 
 const SYNC_CACHE_KEY = 'cycling_coach_sync'
 
-function DraggableWorkoutCard({ workout, onClick, ftp, weather }: { workout: Workout; onClick: () => void; ftp?: number; weather?: ActivityWeather | null }) {
+function DraggableWorkoutCard({ workout, onClick, ftp, weather, medals }: { workout: Workout; onClick: () => void; ftp?: number; weather?: ActivityWeather | null; medals?: RideMedals | null }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: workout.id })
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
@@ -64,7 +65,7 @@ function DraggableWorkoutCard({ workout, onClick, ftp, weather }: { workout: Wor
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="relative">
       <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-16 h-0.5 rounded-full bg-slate-300 pointer-events-none z-10" />
-      <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} weather={weather} />
+      <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} weather={weather} medals={medals} />
       {/* Drag zone sits between the two grip bars; relays quick taps as card-open */}
       <div
         {...listeners}
@@ -132,6 +133,7 @@ export default function DashboardPage() {
   const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
   const [weatherByDate, setWeatherByDate] = useState<Map<string, WeatherSummary>>(new Map())
   const [weatherByActivity, setWeatherByActivity] = useState<Map<string, ActivityWeather>>(new Map())
+  const [medalsByWorkout, setMedalsByWorkout] = useState<Record<string, RideMedals>>({})
   const [selectedWeekStart, setSelectedWeekStart] = useState(() => getWeekBounds(localDateStr(new Date())).start)
 
   const sensors = useSensors(
@@ -384,6 +386,13 @@ export default function DashboardPage() {
         }
         setWeatherByDate(map)
       })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/rides/medals')
+      .then(r => r.ok ? r.json() : {})
+      .then((data: Record<string, RideMedals>) => setMedalsByWorkout(data))
       .catch(() => {})
   }, [])
 
@@ -844,9 +853,9 @@ export default function DashboardPage() {
                       return (
                         <div key={w.id}>
                           {w.status === 'planned' ? (
-                            <DraggableWorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} ftp={currentFTP} weather={w.icu_activity_id ? weatherByActivity.get(w.icu_activity_id) ?? null : null} />
+                            <DraggableWorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} ftp={currentFTP} weather={w.icu_activity_id ? weatherByActivity.get(w.icu_activity_id) ?? null : null} medals={medalsByWorkout[w.id] ?? null} />
                           ) : (
-                            <WorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} ftp={currentFTP} weather={w.icu_activity_id ? weatherByActivity.get(w.icu_activity_id) ?? null : null} />
+                            <WorkoutCard workout={w} onClick={() => setSelectedWorkout(w)} ftp={currentFTP} weather={w.icu_activity_id ? weatherByActivity.get(w.icu_activity_id) ?? null : null} medals={medalsByWorkout[w.id] ?? null} />
                           )}
                           {linkedEvent && (
                             <div className="relative ml-4 mt-1.5">
@@ -908,6 +917,7 @@ export default function DashboardPage() {
           }
           weightLog={weightLog}
           workoutsOnDate={workouts.filter(w => w.date === selectedWorkout.date && w.id !== selectedWorkout.id)}
+          medals={medalsByWorkout[selectedWorkout.id] ?? null}
           onClose={() => setSelectedWorkout(null)}
           onChat={() => {
             setChatWorkout(selectedWorkout)
