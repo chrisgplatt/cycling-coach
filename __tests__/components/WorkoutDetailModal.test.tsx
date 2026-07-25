@@ -248,6 +248,37 @@ describe('WorkoutDetailModal', () => {
     await waitFor(() => expect(screen.getByText('Reschedule failed')).toBeInTheDocument())
   })
 
+  it('renders an all-time medal line when present', async () => {
+    render(
+      <WorkoutDetailModal
+        workout={matchedWorkout}
+        athleteId="i12345"
+        onClose={jest.fn()}
+        medals={{ allTime: [{ category: 'biggest_climb', subKey: '' }], year: [] }}
+      />,
+    )
+    expect(await screen.findByText('All-time · Biggest climb')).toBeInTheDocument()
+  })
+
+  it("labels a year-best medal with the ride's own year", async () => {
+    render(
+      <WorkoutDetailModal
+        workout={matchedWorkout}
+        athleteId="i12345"
+        onClose={jest.fn()}
+        medals={{ allTime: [], year: [{ category: 'power', subKey: '300' }] }}
+      />,
+    )
+    expect(await screen.findByText('2026 best · Power')).toBeInTheDocument()
+  })
+
+  it('renders nothing extra when medals is absent', async () => {
+    render(<WorkoutDetailModal workout={matchedWorkout} athleteId="i12345" onClose={jest.fn()} />)
+    await screen.findByText('✓ Completed')
+    expect(screen.queryByText(/All-time ·/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/best ·/)).not.toBeInTheDocument()
+  })
+
   describe('Mark as missed', () => {
     it('shows "Mark as missed" button for a planned workout', () => {
       render(<WorkoutDetailModal workout={workout} athleteId="i12345" onClose={jest.fn()} />)

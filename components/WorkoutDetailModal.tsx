@@ -17,6 +17,8 @@ import WorkoutFeedbackTab from './WorkoutFeedbackTab'
 import { deriveTargetZones } from '@/lib/claude/zones'
 import { WORKOUT_TYPE_BADGE, WORKOUT_STATUS_BADGE, WORKOUT_STATUS_LABEL } from '@/lib/workout-colours'
 import { estimateTss } from '@/lib/estimate-tss'
+import { RideMedalList } from '@/components/RideMedals'
+import type { RideMedals } from '@/lib/ride/ride-medals'
 
 const MISSED_REASONS = ['Too tired', 'No time', 'Illness', 'Weather', 'Other']
 
@@ -36,6 +38,7 @@ interface Props {
   nearbyEvents?: TrainingEvent[]
   weightLog?: WeightEntry[]
   workoutsOnDate?: Workout[]
+  medals?: RideMedals | null
   onClose: () => void
   onStatusChange?: () => void
   onDelete?: () => void
@@ -45,7 +48,7 @@ interface Props {
 }
 
 export default function WorkoutDetailModal({
-  workout, athleteId, ftp, effectiveMaxHr, activitiesOnDate, nearbyEvents, weightLog = [], workoutsOnDate, onClose,
+  workout, athleteId, ftp, effectiveMaxHr, activitiesOnDate, nearbyEvents, weightLog = [], workoutsOnDate, medals, onClose,
   onStatusChange, onDelete, onReschedule, onChat, onEventLinked,
 }: Props) {
   const [confirming, setConfirming] = useState(false)
@@ -521,6 +524,8 @@ export default function WorkoutDetailModal({
             <p className="text-sm text-slate-700 leading-relaxed">{workout.description}</p>
             <p className="text-xs text-slate-400 mt-1.5">{deriveTargetZones(workout.steps, ftp) ?? workout.target_zones}</p>
           </div>
+
+          <RideMedalList medals={medals} year={workout.date.slice(0, 4)} />
 
           {workout.coaching_notes && (
             <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-2">
