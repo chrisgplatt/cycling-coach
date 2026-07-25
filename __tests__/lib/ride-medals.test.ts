@@ -48,13 +48,39 @@ describe('buildMedalsByWorkoutId', () => {
     })
   })
 
-  it('dedupes multiple sub_keys of the same category into a single entry', () => {
+  it('keeps multiple sub_keys of the same category as separate entries (a ride can hold several durations)', () => {
     const rows = [
       row({ workoutId: 'w1', period: 'all', category: 'power', sub_key: '300' }),
       row({ workoutId: 'w1', period: 'all', category: 'power', sub_key: '1200' }),
     ]
+    const result = buildMedalsByWorkoutId(rows)
+    expect(result.w1.allTime).toHaveLength(2)
+    expect(result.w1.allTime).toEqual(expect.arrayContaining([
+      { category: 'power', subKey: '300' },
+      { category: 'power', subKey: '1200' },
+    ]))
+  })
+
+  it('deduplicates an exact repeat of the same category+sub_key', () => {
+    const rows = [
+      row({ workoutId: 'w1', period: 'all', category: 'power', sub_key: '300' }),
+      row({ workoutId: 'w1', period: 'all', category: 'power', sub_key: '300' }),
+    ]
     expect(buildMedalsByWorkoutId(rows)).toEqual({
       w1: { allTime: [{ category: 'power', subKey: '300' }], year: [] },
+    })
+  })
+
+  it('lists different sub_keys of the same category independently across tiers', () => {
+    const rows = [
+      row({ workoutId: 'w1', period: 'all', category: 'power', sub_key: '300' }),
+      row({ workoutId: 'w1', period: '2026', category: 'power', sub_key: '1200' }),
+    ]
+    expect(buildMedalsByWorkoutId(rows)).toEqual({
+      w1: {
+        allTime: [{ category: 'power', subKey: '300' }],
+        year: [{ category: 'power', subKey: '1200' }],
+      },
     })
   })
 
