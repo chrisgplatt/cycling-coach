@@ -688,6 +688,7 @@ export default function DashboardPage() {
           extraSessionCount={todaySessionCount - 1}
           ftp={currentFTP}
           todayDailyWellness={todayDailyWellnessForCard}
+          medals={todayWorkout ? medalsByWorkout[todayWorkout.id] ?? null : null}
           onWorkoutClick={w => setSelectedWorkout(w)}
           onChatWithCoach={todayWorkout ? () => setChatWorkout(todayWorkout) : undefined}
         />

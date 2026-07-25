@@ -1,5 +1,6 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import TodayCard from '@/components/TodayCard'
+import { makeWorkout } from '../support/factories'
 
 beforeEach(() => {
   localStorage.clear()
@@ -33,5 +34,20 @@ it('renders the weather strip when the briefing returns weather', async () => {
   render(<TodayCard workout={null} wellness={null} />)
   fireEvent.click(screen.getByRole('button', { name: /coach's note/i }))
   expect(await screen.findByTestId('weather-strip')).toHaveTextContent('Heavy rain')
+})
+
+it('shows medal icons on the workout card when medals are present', async () => {
+  const workout = makeWorkout({ status: 'completed' })
+  render(<TodayCard workout={workout} wellness={null} medals={{ allTime: [{ category: 'power', subKey: '300' }], year: [] }} />)
+  expect(await screen.findByTitle('All-time record')).toBeInTheDocument()
+})
+
+it('shows no medal icons when medals is absent', async () => {
+  const workout = makeWorkout({ status: 'completed' })
+  render(<TodayCard workout={workout} wellness={null} />)
+  fireEvent.click(screen.getByRole('button', { name: /coach's note/i }))
+  await waitFor(() => expect(screen.getByTestId('readiness-badge')).toBeInTheDocument())
+  expect(screen.queryByTitle('All-time record')).not.toBeInTheDocument()
+  expect(screen.queryByTitle('Year-best record')).not.toBeInTheDocument()
 })
 

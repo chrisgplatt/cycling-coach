@@ -5,6 +5,7 @@ import ReadinessBadge from '@/components/ReadinessBadge'
 import WeatherStrip from '@/components/WeatherStrip'
 import type { Workout, ICUWellness, TrainingEvent, WeatherSummary } from '@/types'
 import type { ReadinessVerdict } from '@/lib/claude/briefing'
+import type { RideMedals } from '@/lib/ride/ride-medals'
 
 interface Props {
   workout: Workout | null
@@ -13,6 +14,7 @@ interface Props {
   extraSessionCount?: number
   ftp?: number
   todayDailyWellness?: { energy: number | null; leg_freshness: number | null }
+  medals?: RideMedals | null
   onWorkoutClick?: (workout: Workout) => void
   onChatWithCoach?: () => void
 }
@@ -21,7 +23,7 @@ const BRIEFING_CACHE_KEY = 'cycling_coach_briefing'
 
 export default function TodayCard({
   workout, wellness, todayEvent, extraSessionCount, ftp,
-  todayDailyWellness,
+  todayDailyWellness, medals,
   onWorkoutClick, onChatWithCoach,
 }: Props) {
   const [coachNote, setCoachNote] = useState<string | null>(null)
@@ -122,7 +124,7 @@ export default function TodayCard({
       {/* Today's workout or event */}
       {workout ? (
         <>
-          <WorkoutCard workout={workout} onClick={() => onWorkoutClick?.(workout)} ftp={ftp} />
+          <WorkoutCard workout={workout} onClick={() => onWorkoutClick?.(workout)} ftp={ftp} medals={medals} />
           {extraSessionCount != null && extraSessionCount > 0 && (
             <p className="text-xs text-slate-400 pl-1">+{extraSessionCount} more session{extraSessionCount > 1 ? 's' : ''} today — see weekly strip below</p>
           )}
