@@ -107,6 +107,17 @@ describe('WorkoutCard', () => {
     expect(screen.queryByText('Optional')).not.toBeInTheDocument()
   })
 
+  it('shows medal icons when the medals prop has entries', () => {
+    render(<WorkoutCard workout={{ ...workout, status: 'completed' }} medals={{ allTime: [{ category: 'power', subKey: '300' }], year: [] }} />)
+    expect(screen.getByTitle('All-time record')).toBeInTheDocument()
+  })
+
+  it('shows no medal icons when the medals prop is absent', () => {
+    render(<WorkoutCard workout={{ ...workout, status: 'completed' }} />)
+    expect(screen.queryByTitle('All-time record')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Year-best record')).not.toBeInTheDocument()
+  })
+
   it('shows the session name at the top when present', () => {
     render(<WorkoutCard workout={{ ...workout, name: 'Sa Batalla - 60' }} />)
     expect(screen.getByText('Sa Batalla - 60')).toBeInTheDocument()

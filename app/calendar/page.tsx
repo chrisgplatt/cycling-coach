@@ -22,6 +22,7 @@ import ActivityCard from '@/components/ActivityCard'
 import ActivityDetailModal from '@/components/ActivityDetailModal'
 import WorkoutCard from '@/components/WorkoutCard'
 import type { Workout, TrainingEvent, ICUActivity, ICUSyncData, GeneratedPlan, UnavailabilityPeriod, WeightEntry, WeatherSummary, ActivityWeather } from '@/types'
+import type { RideMedals } from '@/lib/ride/ride-medals'
 import { calendarMonthDays, weekDates, formatDurationMins, toLocalDateStr, weekStartsAround, weekStartsAfter, getDayWorkoutColor, getWeeklySummary, type WeeklySummary } from '@/lib/calendar-helpers'
 import { getWeekBounds } from '@/lib/week-bounds'
 import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
@@ -42,7 +43,7 @@ const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
 // Planned workouts are draggable. TouchSensor requires a 200ms press before activating
 // so scrolling past cards never triggers a drag accidentally.
-function DraggableWorkoutCard({ workout, onClick, ftp, weather }: { workout: Workout; onClick: () => void; ftp?: number; weather?: ActivityWeather | null }) {
+function DraggableWorkoutCard({ workout, onClick, ftp, weather, medals }: { workout: Workout; onClick: () => void; ftp?: number; weather?: ActivityWeather | null; medals?: RideMedals | null }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: workout.id })
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
@@ -50,7 +51,7 @@ function DraggableWorkoutCard({ workout, onClick, ftp, weather }: { workout: Wor
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="relative">
       <div className="absolute top-3 left-1/2 -translate-x-1/2 w-16 h-0.5 rounded-full bg-slate-300 pointer-events-none z-10" />
-      <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} weather={weather} />
+      <WorkoutCard workout={workout} onClick={onClick} ftp={ftp} weather={weather} medals={medals} />
       {/* Drag zone sits between the two grip bars; relays quick taps as card-open */}
       <div
         {...listeners}
@@ -261,12 +262,13 @@ interface WeekDetailProps {
   onOpenWellness: (date: string) => void
   weatherByDate?: Map<string, WeatherSummary>
   weatherByActivity?: Map<string, ActivityWeather>
+  medalsByWorkout?: Record<string, RideMedals>
 }
 
 function WeekDetail({
   selectedDateStr, workouts, events, unlinkedActivities, todayStr,
   onWorkoutClick, onEventClick, onActivityClick, unavailability, onAddUnavailability, ftp, weatherByDate,
-  dailyWellness, onOpenWellness, weatherByActivity,
+  dailyWellness, onOpenWellness, weatherByActivity, medalsByWorkout,
 }: WeekDetailProps) {
   const dates = weekDates(selectedDateStr)
   const overlappingPeriods = unavailability.filter(p => periodOverlapsWeek(p, dates))
@@ -351,8 +353,8 @@ function WeekDetail({
                 return (
                   <div key={w.id}>
                     {w.status === 'planned'
-                      ? <DraggableWorkoutCard workout={w} onClick={() => onWorkoutClick(w)} ftp={ftp} weather={w.icu_activity_id ? weatherByActivity?.get(w.icu_activity_id) ?? null : null} />
-                      : <WorkoutCard workout={w} onClick={() => onWorkoutClick(w)} ftp={ftp} weather={w.icu_activity_id ? weatherByActivity?.get(w.icu_activity_id) ?? null : null} />}
+                      ? <DraggableWorkoutCard workout={w} onClick={() => onWorkoutClick(w)} ftp={ftp} weather={w.icu_activity_id ? weatherByActivity?.get(w.icu_activity_id) ?? null : null} medals={medalsByWorkout?.[w.id] ?? null} />
+                      : <WorkoutCard workout={w} onClick={() => onWorkoutClick(w)} ftp={ftp} weather={w.icu_activity_id ? weatherByActivity?.get(w.icu_activity_id) ?? null : null} medals={medalsByWorkout?.[w.id] ?? null} />}
                     {linkedEvent && (
                       <div className="relative ml-4 mt-1">
                         <div className="absolute -top-2 -left-3 h-6 w-3 border-l-2 border-b-2 border-gray-200 rounded-bl-md" />
@@ -538,6 +540,7 @@ export default function CalendarPage() {
   const [wellnessSheetDate, setWellnessSheetDate] = useState<string | null>(null)
   const [weatherByDate, setWeatherByDate] = useState<Map<string, WeatherSummary>>(new Map())
   const [weatherByActivity, setWeatherByActivity] = useState<Map<string, ActivityWeather>>(new Map())
+  const [medalsByWorkout, setMedalsByWorkout] = useState<Record<string, RideMedals>>({})
 
   // Drag-to-reschedule: a planned workout can be dragged onto another day.
   const sensors = useSensors(
@@ -666,6 +669,13 @@ export default function CalendarPage() {
         }
         setWeatherByDate(map)
       })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/rides/medals')
+      .then(r => r.ok ? r.json() : {})
+      .then((data: Record<string, RideMedals>) => setMedalsByWorkout(data))
       .catch(() => {})
   }, [])
 
@@ -827,6 +837,7 @@ export default function CalendarPage() {
           onOpenWellness={handleOpenWellness}
           weatherByDate={weatherByDate}
           weatherByActivity={weatherByActivity}
+          medalsByWorkout={medalsByWorkout}
         />
         <DragOverlay>
           {activeWorkout ? <WorkoutCard workout={activeWorkout} onClick={() => {}} ftp={currentFTP} /> : null}
@@ -872,6 +883,7 @@ export default function CalendarPage() {
           }
           weightLog={weightLog}
           workoutsOnDate={workouts.filter(w => w.date === selectedWorkout.date && w.id !== selectedWorkout.id)}
+          medals={medalsByWorkout[selectedWorkout.id] ?? null}
           onClose={() => setSelectedWorkout(null)}
           onChat={() => {
             setChatWorkout(selectedWorkout)
