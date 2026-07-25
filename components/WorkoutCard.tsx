@@ -2,6 +2,8 @@ import type { Workout, WorkoutType } from '@/types'
 import { deriveTargetZones } from '@/lib/claude/zones'
 import { WORKOUT_TYPE_CHIP, WORKOUT_STATUS_CHIP, WORKOUT_STATUS_LABEL, WORKOUT_OPTIONAL_BADGE } from '@/lib/workout-colours'
 import { estimateTss } from '@/lib/estimate-tss'
+import { RideMedalIcons } from '@/components/RideMedals'
+import type { RideMedals } from '@/lib/ride/ride-medals'
 
 function getTss(workout: Workout): { value: number; estimated: boolean } | null {
   if (workout.tss !== null) return { value: workout.tss, estimated: false }
@@ -24,6 +26,7 @@ interface Props {
   onClick?: () => void
   ftp?: number
   weather?: import('@/types').ActivityWeather | null
+  medals?: RideMedals | null
 }
 
 const WIND_ARROWS_CARD = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'] as const
@@ -31,7 +34,7 @@ function cardWindArrow(deg: number): string {
   return WIND_ARROWS_CARD[Math.round(((deg + 180) % 360) / 45) % 8]
 }
 
-export default function WorkoutCard({ workout, onClick, ftp, weather }: Props) {
+export default function WorkoutCard({ workout, onClick, ftp, weather, medals }: Props) {
   return (
     <div
       onClick={onClick}
@@ -71,9 +74,12 @@ export default function WorkoutCard({ workout, onClick, ftp, weather }: Props) {
             </span>
           )}
         </div>
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${WORKOUT_STATUS_CHIP[workout.status]}`}>
-          {WORKOUT_STATUS_LABEL[workout.status]}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <RideMedalIcons medals={medals} />
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${WORKOUT_STATUS_CHIP[workout.status]}`}>
+            {WORKOUT_STATUS_LABEL[workout.status]}
+          </span>
+        </div>
       </div>
       <div className="px-4 py-3">
         <p className="text-sm text-gray-700 leading-snug mb-1">{workout.description}</p>
