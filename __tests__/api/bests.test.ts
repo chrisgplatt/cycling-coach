@@ -31,25 +31,25 @@ describe('GET /api/bests', () => {
   it('assembles outdoor allTime and byYear from stored best_records rows, without scanning workouts', async () => {
     const rowsByPeriod: Record<string, BestRecordRow[]> = {
       all: [
-        { period: 'all', category: 'biggest_climb', sub_key: '', value: 900, detail: { date: '2026-02-01', workoutId: 'w2', icuActivityId: 'icu-2', length_km: 3 }, is_indoor: false },
+        { period: 'all', category: 'biggest_climb', sub_key: '', value: 900, detail: { date: '2026-02-01', workoutId: 'w2', icuActivityId: 'icu-2', length_km: 3 }, is_indoor: false, rank: 1 },
       ],
       '2026': [
-        { period: '2026', category: 'biggest_climb', sub_key: '', value: 900, detail: { date: '2026-02-01', workoutId: 'w2', icuActivityId: 'icu-2', length_km: 3 }, is_indoor: false },
+        { period: '2026', category: 'biggest_climb', sub_key: '', value: 900, detail: { date: '2026-02-01', workoutId: 'w2', icuActivityId: 'icu-2', length_km: 3 }, is_indoor: false, rank: 1 },
       ],
     }
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase(rowsByPeriod))
     const res = await GET()
     const body = await res.json()
     expect(res.status).toBe(200)
-    expect(body.outdoor.allTime.biggestClimb).toEqual({ workoutId: 'w2', icuActivityId: 'icu-2', date: '2026-02-01', elev_gain_m: 900, length_km: 3 })
-    expect(body.outdoor.byYear['2026'].biggestClimb).toEqual({ workoutId: 'w2', icuActivityId: 'icu-2', date: '2026-02-01', elev_gain_m: 900, length_km: 3 })
+    expect(body.outdoor.allTime.biggestClimb).toEqual([{ rank: 1, workoutId: 'w2', icuActivityId: 'icu-2', date: '2026-02-01', elev_gain_m: 900, length_km: 3 }])
+    expect(body.outdoor.byYear['2026'].biggestClimb).toEqual([{ rank: 1, workoutId: 'w2', icuActivityId: 'icu-2', date: '2026-02-01', elev_gain_m: 900, length_km: 3 }])
   })
 
   it('returns empty bests for both surfaces when best_records has no rows yet', async () => {
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({}))
     const res = await GET()
     const body = await res.json()
-    const empty = { biggestClimb: null, longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null }
+    const empty = { biggestClimb: [], longestClimb: [], powerBests: [], speedBests: [], maxSpeed: [] }
     expect(body.outdoor.allTime).toEqual(empty)
     expect(body.outdoor.byYear).toEqual({})
     expect(body.indoor.allTime).toEqual(empty)
@@ -59,14 +59,27 @@ describe('GET /api/bests', () => {
   it('keeps indoor and outdoor records separate even when they share the same period/category/sub_key', async () => {
     const rowsByPeriod: Record<string, BestRecordRow[]> = {
       all: [
-        { period: 'all', category: 'max_speed', sub_key: '', value: 54, detail: { date: '2026-01-01', workoutId: 'w1', icuActivityId: 'icu-1', max_speed_ms: 15 }, is_indoor: false },
-        { period: 'all', category: 'max_speed', sub_key: '', value: 144, detail: { date: '2026-01-02', workoutId: 'w2', icuActivityId: 'icu-2', max_speed_ms: 40 }, is_indoor: true },
+        { period: 'all', category: 'max_speed', sub_key: '', value: 54, detail: { date: '2026-01-01', workoutId: 'w1', icuActivityId: 'icu-1', max_speed_ms: 15 }, is_indoor: false, rank: 1 },
+        { period: 'all', category: 'max_speed', sub_key: '', value: 144, detail: { date: '2026-01-02', workoutId: 'w2', icuActivityId: 'icu-2', max_speed_ms: 40 }, is_indoor: true, rank: 1 },
       ],
     }
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase(rowsByPeriod))
     const res = await GET()
     const body = await res.json()
-    expect(body.outdoor.allTime.maxSpeed?.speed_kmh).toBe(54)
-    expect(body.indoor.allTime.maxSpeed?.speed_kmh).toBe(144)
+    expect(body.outdoor.allTime.maxSpeed[0]?.speed_kmh).toBe(54)
+    expect(body.indoor.allTime.maxSpeed[0]?.speed_kmh).toBe(144)
+  })
+
+  it('sorts a multi-rank podium ascending by rank in the response', async () => {
+    const rowsByPeriod: Record<string, BestRecordRow[]> = {
+      all: [
+        { period: 'all', category: 'max_speed', sub_key: '', value: 40, detail: { date: '2026-01-03', workoutId: 'w3', icuActivityId: 'icu-3', max_speed_ms: 11 }, is_indoor: false, rank: 2 },
+        { period: 'all', category: 'max_speed', sub_key: '', value: 54, detail: { date: '2026-01-01', workoutId: 'w1', icuActivityId: 'icu-1', max_speed_ms: 15 }, is_indoor: false, rank: 1 },
+      ],
+    }
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase(rowsByPeriod))
+    const res = await GET()
+    const body = await res.json()
+    expect(body.outdoor.allTime.maxSpeed.map((m: { rank: number }) => m.rank)).toEqual([1, 2])
   })
 })
