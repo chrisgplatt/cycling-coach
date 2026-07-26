@@ -2,27 +2,37 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import AllTimeBestsTab from '@/components/AllTimeBestsTab'
 import type { AllTimeBests, IndoorOutdoorBestsResponse } from '@/lib/ride/all-time-bests'
 
-const EMPTY_BESTS: AllTimeBests = { biggestClimb: null, longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null }
+const EMPTY_BESTS: AllTimeBests = { biggestClimb: [], longestClimb: [], powerBests: [], speedBests: [], maxSpeed: [] }
 
 function makeResponse(overrides: Partial<IndoorOutdoorBestsResponse> = {}): IndoorOutdoorBestsResponse {
   return {
     outdoor: {
       allTime: {
-        biggestClimb: { workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
-        longestClimb: { workoutId: 'w2', icuActivityId: 'icu-2', date: '2025-11-02', length_km: 12.1, elev_gain_m: 480 },
-        powerBests: [{ secs: 300, watts: 312, workoutId: 'w3', icuActivityId: 'icu-3', date: '2026-01-10' }],
-        speedBests: [{ distance_km: 10, avg_speed_kmh: 38.4, workoutId: 'w4', icuActivityId: 'icu-4', date: '2026-05-01' }],
-        maxSpeed: { workoutId: 'w5', icuActivityId: 'icu-5', date: '2024-07-04', speed_kmh: 68.2, max_speed_ms: 18.9 },
+        biggestClimb: [
+          { rank: 1, workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
+        ],
+        longestClimb: [
+          { rank: 1, workoutId: 'w2', icuActivityId: 'icu-2', date: '2025-11-02', length_km: 12.1, elev_gain_m: 480 },
+        ],
+        powerBests: [
+          { rank: 1, secs: 300, watts: 312, workoutId: 'w3', icuActivityId: 'icu-3', date: '2026-01-10' },
+        ],
+        speedBests: [
+          { rank: 1, distance_km: 10, avg_speed_kmh: 38.4, workoutId: 'w4', icuActivityId: 'icu-4', date: '2026-05-01' },
+        ],
+        maxSpeed: [
+          { rank: 1, workoutId: 'w5', icuActivityId: 'icu-5', date: '2024-07-04', speed_kmh: 68.2, max_speed_ms: 18.9 },
+        ],
       },
       byYear: {
         '2026': {
-          biggestClimb: { workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
-          longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null,
+          biggestClimb: [{ rank: 1, workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 }],
+          longestClimb: [], powerBests: [], speedBests: [], maxSpeed: [],
         },
         '2025': {
-          biggestClimb: null,
-          longestClimb: { workoutId: 'w2', icuActivityId: 'icu-2', date: '2025-11-02', length_km: 12.1, elev_gain_m: 480 },
-          powerBests: [], speedBests: [], maxSpeed: null,
+          biggestClimb: [],
+          longestClimb: [{ rank: 1, workoutId: 'w2', icuActivityId: 'icu-2', date: '2025-11-02', length_km: 12.1, elev_gain_m: 480 }],
+          powerBests: [], speedBests: [], maxSpeed: [],
         },
       },
     },
@@ -79,7 +89,7 @@ describe('AllTimeBestsTab', () => {
       ok: true,
       json: async () => makeResponse({
         indoor: {
-          allTime: { ...EMPTY_BESTS, maxSpeed: { workoutId: null, icuActivityId: 'icu-9', date: '2026-06-01', speed_kmh: 45.2, max_speed_ms: 12.6 } },
+          allTime: { ...EMPTY_BESTS, maxSpeed: [{ rank: 1, workoutId: null, icuActivityId: 'icu-9', date: '2026-06-01', speed_kmh: 45.2, max_speed_ms: 12.6 }] },
           byYear: {},
         },
       }),
@@ -114,7 +124,7 @@ describe('AllTimeBestsTab', () => {
       ok: true,
       json: async () => makeResponse({
         outdoor: {
-          allTime: { biggestClimb: { workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: null }, longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null },
+          allTime: { biggestClimb: [{ rank: 1, workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: null }], longestClimb: [], powerBests: [], speedBests: [], maxSpeed: [] },
           byYear: {},
         },
       }),
@@ -133,5 +143,45 @@ describe('AllTimeBestsTab', () => {
     expect(links[0]).toHaveAttribute('href', 'https://intervals.icu/activities/icu-1')
     expect(links[0]).toHaveAttribute('target', '_blank')
     expect(links[1]).toHaveAttribute('href', 'https://intervals.icu/activities/icu-2')
+  })
+
+  it('does not show an expand toggle when a category has only one podium entry', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => makeResponse() })
+    render(<AllTimeBestsTab />)
+    await screen.findByText('620')
+    expect(screen.queryByRole('button', { name: /runners-up/i })).not.toBeInTheDocument()
+  })
+
+  it('reveals 2nd and 3rd place when the expand toggle is clicked, and hides them again on a second click', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => makeResponse({
+        outdoor: {
+          allTime: {
+            biggestClimb: [
+              { rank: 1, workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
+              { rank: 2, workoutId: 'w2', icuActivityId: 'icu-2', date: '2026-02-01', elev_gain_m: 580, length_km: 7.1 },
+              { rank: 3, workoutId: 'w3', icuActivityId: 'icu-3', date: '2026-01-01', elev_gain_m: 540, length_km: 6.5 },
+            ],
+            longestClimb: [], powerBests: [], speedBests: [], maxSpeed: [],
+          },
+          byYear: {},
+        },
+      }),
+    })
+    render(<AllTimeBestsTab />)
+    await screen.findByText('620')
+
+    expect(screen.queryByText('580')).not.toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: 'Show Elevation runners-up' })
+    fireEvent.click(toggle)
+
+    expect(await screen.findByText('580')).toBeInTheDocument()
+    expect(screen.getByText('540')).toBeInTheDocument()
+    expect(screen.getByText('#2 Elevation')).toBeInTheDocument()
+    expect(screen.getByText('#3 Elevation')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide Elevation runners-up' }))
+    expect(screen.queryByText('580')).not.toBeInTheDocument()
   })
 })

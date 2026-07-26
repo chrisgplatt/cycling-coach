@@ -9,7 +9,9 @@ function formatDate(dateStr: string): string {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
-function BestCell({ label, value, unit, caption, icuActivityId, tile }: { label: string; value: string; unit?: string; caption: string; icuActivityId: string; tile?: boolean }) {
+function BestCell({ label, value, unit, caption, icuActivityId, tile, rankBadge }: {
+  label: string; value: string; unit?: string; caption: string; icuActivityId: string; tile?: boolean; rankBadge?: number
+}) {
   return (
     <div className={tile
       ? 'text-center px-2 py-3 bg-gray-50 rounded-lg'
@@ -19,7 +21,9 @@ function BestCell({ label, value, unit, caption, icuActivityId, tile }: { label:
         {value}
         {unit && <span className="text-xs font-medium text-gray-400 ml-0.5">{unit}</span>}
       </div>
-      <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">{label}</div>
+      <div className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.06em] mt-1">
+        {rankBadge ? `#${rankBadge} ` : ''}{label}
+      </div>
       <div className="text-[11px] text-gray-400 mt-0.5">{caption}</div>
       <a
         href={`https://intervals.icu/activities/${icuActivityId}`}
@@ -37,36 +41,106 @@ function durationLabel(secs: number): string {
   return secs < 60 ? `${secs}s` : `${Math.round(secs / 60)}min`
 }
 
+// Groups a rank-sorted array of entries by a key (duration for power, distance
+// for speed) while preserving each group's existing rank order.
+function groupByKey<T, K>(items: T[], keyFn: (t: T) => K): Map<K, T[]> {
+  const map = new Map<K, T[]>()
+  for (const item of items) {
+    const key = keyFn(item)
+    const group = map.get(key)
+    if (group) group.push(item)
+    else map.set(key, [item])
+  }
+  return map
+}
+
+// Renders the #1 entry exactly like a plain BestCell. When 2nd/3rd place also
+// exist, a chevron toggles them into view below — kept as a sibling button
+// (not a wrapper) so it never nests inside the cell's own intervals.icu <a> link.
+function ExpandableBestCell<T extends { rank: number; icuActivityId: string }>({
+  entries, label, tile, formatValue, formatUnit, formatCaption,
+}: {
+  entries: T[]
+  label: string
+  tile?: boolean
+  formatValue: (e: T) => string
+  formatUnit?: (e: T) => string | undefined
+  formatCaption: (e: T) => string
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [primary, ...rest] = entries
+  if (!primary) return null
+  return (
+    <div className="relative w-full">
+      <BestCell
+        label={label} value={formatValue(primary)} unit={formatUnit?.(primary)}
+        caption={formatCaption(primary)} icuActivityId={primary.icuActivityId} tile={tile}
+      />
+      {rest.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(e => !e)}
+          aria-expanded={expanded}
+          aria-label={expanded ? `Hide ${label} runners-up` : `Show ${label} runners-up`}
+          className="absolute top-1 right-1 text-gray-300 hover:text-gray-500 p-1"
+        >
+          <svg
+            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
+            strokeLinecap="round" strokeLinejoin="round"
+            className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+      )}
+      {expanded && rest.map(e => (
+        <div key={e.rank} className="mt-1">
+          <BestCell
+            label={label} value={formatValue(e)} unit={formatUnit?.(e)}
+            caption={formatCaption(e)} icuActivityId={e.icuActivityId} tile={tile} rankBadge={e.rank}
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function BestsSections({ bests }: { bests: AllTimeBests }) {
-  const isEmpty = !bests.biggestClimb && !bests.longestClimb
-    && bests.powerBests.length === 0 && bests.speedBests.length === 0 && !bests.maxSpeed
+  const isEmpty = bests.biggestClimb.length === 0 && bests.longestClimb.length === 0
+    && bests.powerBests.length === 0 && bests.speedBests.length === 0 && bests.maxSpeed.length === 0
 
   if (isEmpty) {
     return <p className="text-sm text-gray-400 text-center py-8">No ride data yet for this period.</p>
   }
 
+  const powerByDuration = groupByKey(bests.powerBests, p => p.secs)
+  const speedByDistance = groupByKey(bests.speedBests, s => s.distance_km)
+
   return (
     <div className="space-y-4">
-      {bests.biggestClimb && (
+      {bests.biggestClimb.length > 0 && (
         <SectionCard title="Biggest Climb" accent="bg-emerald-400">
           <div className="flex">
-            <BestCell
-              label="Elevation" value={String(bests.biggestClimb.elev_gain_m)} unit="m"
-              caption={bests.biggestClimb.length_km != null
-                ? `${bests.biggestClimb.length_km}km · ${formatDate(bests.biggestClimb.date)}`
-                : formatDate(bests.biggestClimb.date)}
-              icuActivityId={bests.biggestClimb.icuActivityId}
+            <ExpandableBestCell
+              entries={bests.biggestClimb}
+              label="Elevation"
+              formatValue={c => String(c.elev_gain_m)}
+              formatUnit={() => 'm'}
+              formatCaption={c => c.length_km != null ? `${c.length_km}km · ${formatDate(c.date)}` : formatDate(c.date)}
             />
           </div>
         </SectionCard>
       )}
-      {bests.longestClimb && (
+      {bests.longestClimb.length > 0 && (
         <SectionCard title="Longest Climb" accent="bg-emerald-400">
           <div className="flex">
-            <BestCell
-              label="Length" value={String(bests.longestClimb.length_km)} unit="km"
-              caption={`${bests.longestClimb.elev_gain_m}m gain · ${formatDate(bests.longestClimb.date)}`}
-              icuActivityId={bests.longestClimb.icuActivityId}
+            <ExpandableBestCell
+              entries={bests.longestClimb}
+              label="Length"
+              formatValue={c => String(c.length_km)}
+              formatUnit={() => 'km'}
+              formatCaption={c => `${c.elev_gain_m}m gain · ${formatDate(c.date)}`}
             />
           </div>
         </SectionCard>
@@ -74,12 +148,15 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
       {bests.powerBests.length > 0 && (
         <SectionCard title="Power Bests" accent="bg-orange-400">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2">
-            {bests.powerBests.map(p => (
-              <BestCell
-                key={p.secs} label={durationLabel(p.secs)} value={String(p.watts)} unit="w"
-                caption={formatDate(p.date)}
-                icuActivityId={p.icuActivityId}
+            {[...powerByDuration.entries()].map(([secs, entries]) => (
+              <ExpandableBestCell
+                key={secs}
+                entries={entries}
+                label={durationLabel(secs)}
                 tile
+                formatValue={p => String(p.watts)}
+                formatUnit={() => 'w'}
+                formatCaption={p => formatDate(p.date)}
               />
             ))}
           </div>
@@ -88,24 +165,29 @@ function BestsSections({ bests }: { bests: AllTimeBests }) {
       {bests.speedBests.length > 0 && (
         <SectionCard title="Speed Bests" accent="bg-blue-400">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2">
-            {bests.speedBests.map(sp => (
-              <BestCell
-                key={sp.distance_km} label={`${sp.distance_km}km`} value={sp.avg_speed_kmh.toFixed(1)} unit="km/h"
-                caption={formatDate(sp.date)}
-                icuActivityId={sp.icuActivityId}
+            {[...speedByDistance.entries()].map(([distance_km, entries]) => (
+              <ExpandableBestCell
+                key={distance_km}
+                entries={entries}
+                label={`${distance_km}km`}
                 tile
+                formatValue={s => s.avg_speed_kmh.toFixed(1)}
+                formatUnit={() => 'km/h'}
+                formatCaption={s => formatDate(s.date)}
               />
             ))}
           </div>
         </SectionCard>
       )}
-      {bests.maxSpeed && (
+      {bests.maxSpeed.length > 0 && (
         <SectionCard title="Max Speed" accent="bg-red-400">
           <div className="flex">
-            <BestCell
-              label="Top Speed" value={bests.maxSpeed.speed_kmh.toFixed(1)} unit="km/h"
-              caption={formatDate(bests.maxSpeed.date)}
-              icuActivityId={bests.maxSpeed.icuActivityId}
+            <ExpandableBestCell
+              entries={bests.maxSpeed}
+              label="Top Speed"
+              formatValue={m => m.speed_kmh.toFixed(1)}
+              formatUnit={() => 'km/h'}
+              formatCaption={m => formatDate(m.date)}
             />
           </div>
         </SectionCard>

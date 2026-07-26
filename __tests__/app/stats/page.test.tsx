@@ -241,13 +241,13 @@ describe('StatsPage', () => {
         return Promise.resolve({ ok: true, json: async () => ({
           outdoor: {
             allTime: {
-              biggestClimb: { workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 },
-              longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null,
+              biggestClimb: [{ rank: 1, workoutId: 'w1', icuActivityId: 'icu-1', date: '2026-03-15', elev_gain_m: 620, length_km: 8.4 }],
+              longestClimb: [], powerBests: [], speedBests: [], maxSpeed: [],
             },
             byYear: {},
           },
           indoor: {
-            allTime: { biggestClimb: null, longestClimb: null, powerBests: [], speedBests: [], maxSpeed: null },
+            allTime: { biggestClimb: [], longestClimb: [], powerBests: [], speedBests: [], maxSpeed: [] },
             byYear: {},
           },
         }) })
