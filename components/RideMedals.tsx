@@ -34,25 +34,43 @@ function categoryDetail(entry: MedalEntry): string {
   return detail ? `${CATEGORY_LABEL[entry.category]} ${detail}` : CATEGORY_LABEL[entry.category]
 }
 
+// The card badge is presence-only per tier, not per category — a ride holding
+// both an all-time #1 climb and an all-time #3 power record still shows a
+// single trophy, picking the best (lowest-numbered) rank across every entry
+// in that tier.
+function bestRank(entries: MedalEntry[]): number | null {
+  if (entries.length === 0) return null
+  return Math.min(...entries.map(e => e.rank))
+}
+
+function TierIcon({ icon, label, rank }: { icon: string; label: string; rank: number }) {
+  return (
+    <span title={label} aria-label={label}>
+      {icon}{rank > 1 ? ` ${rank}` : ''}
+    </span>
+  )
+}
+
 export function RideMedalIcons({ medals }: { medals: RideMedals | null | undefined }) {
   if (!medals) return null
-  const hasAllTime = medals.allTime.length > 0
-  const hasYear = medals.year.length > 0
-  if (!hasAllTime && !hasYear) return null
+  const allTimeRank = bestRank(medals.allTime)
+  const yearRank = bestRank(medals.year)
+  if (allTimeRank == null && yearRank == null) return null
   return (
     <span className="inline-flex items-center gap-1">
-      {hasAllTime && <span title="All-time record" aria-label="All-time record">🏆</span>}
-      {hasYear && <span title="Year-best record" aria-label="Year-best record">🥇</span>}
+      {allTimeRank != null && <TierIcon icon="🏆" label="All-time record" rank={allTimeRank} />}
+      {yearRank != null && <TierIcon icon="🥇" label="Year-best record" rank={yearRank} />}
     </span>
   )
 }
 
 function MedalRow({ tierIcon, tierLabel, entry }: { tierIcon: string; tierLabel: string; entry: MedalEntry }) {
+  const rankSuffix = entry.rank > 1 ? ` #${entry.rank}` : ''
   return (
     <div className="flex items-center gap-2 text-sm text-gray-700">
       <span aria-hidden="true">{tierIcon}</span>
       <span aria-hidden="true">{CATEGORY_ICON[entry.category]}</span>
-      <span>{tierLabel} · {categoryDetail(entry)}</span>
+      <span>{tierLabel}{rankSuffix} · {categoryDetail(entry)}</span>
     </div>
   )
 }
