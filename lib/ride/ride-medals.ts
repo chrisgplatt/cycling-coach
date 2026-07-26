@@ -3,6 +3,7 @@ import type { BestRecordRow, BestCategory } from './best-records'
 export interface MedalEntry {
   category: BestCategory
   subKey: string   // '' for climbs/max_speed; duration (secs) or distance (km) for power/speed
+  rank: number      // 1 (gold) through 3 (bronze) — the ride's podium position for this category+subKey+period
 }
 
 export interface RideMedals {
@@ -16,10 +17,13 @@ export interface RideMedals {
 // are skipped — there's no card to attach a badge to. A ride can hold several
 // distinct sub_keys within one category (e.g. both a 5-min and a 20-min power
 // record) — each gets its own entry, so the detail list shows every one. Only an
-// exact (category, sub_key) repeat is deduplicated, and a (category, sub_key)
-// already present in a ride's `allTime` list is never also added to its `year`
-// list, even though best_records may carry a row for both periods — an all-time
-// record is trivially also that year's best, so listing both would be redundant.
+// exact (category, sub_key) repeat is deduplicated — a ride can only ever hold
+// one rank for a given (category, sub_key, period), so this can't discard a
+// distinct rank. A (category, sub_key) already present in a ride's `allTime`
+// list is never also added to its `year` list, even though best_records may
+// carry a row for both periods — any ride on the all-time podium for a slot is
+// provably also on that year's podium for the same slot, so listing both would
+// be redundant, regardless of which rank it holds in each.
 export function buildMedalsByWorkoutId(rows: BestRecordRow[]): Record<string, RideMedals> {
   const result: Record<string, RideMedals> = {}
   const keyOf = (r: BestRecordRow) => `${r.category}:${r.sub_key}`
@@ -34,7 +38,7 @@ export function buildMedalsByWorkoutId(rows: BestRecordRow[]): Record<string, Ri
     const key = keyOf(r)
     if (allTimeKeys[workoutId].has(key)) continue
     allTimeKeys[workoutId].add(key)
-    result[workoutId].allTime.push({ category: r.category, subKey: r.sub_key })
+    result[workoutId].allTime.push({ category: r.category, subKey: r.sub_key, rank: r.rank })
   }
 
   const yearKeys: Record<string, Set<string>> = {}
@@ -48,7 +52,7 @@ export function buildMedalsByWorkoutId(rows: BestRecordRow[]): Record<string, Ri
     if (!yearKeys[workoutId]) yearKeys[workoutId] = new Set()
     if (yearKeys[workoutId].has(key)) continue
     yearKeys[workoutId].add(key)
-    result[workoutId].year.push({ category: r.category, subKey: r.sub_key })
+    result[workoutId].year.push({ category: r.category, subKey: r.sub_key, rank: r.rank })
   }
 
   return result

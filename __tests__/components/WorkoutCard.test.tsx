@@ -108,7 +108,7 @@ describe('WorkoutCard', () => {
   })
 
   it('shows medal icons when the medals prop has entries', () => {
-    render(<WorkoutCard workout={{ ...workout, status: 'completed' }} medals={{ allTime: [{ category: 'power', subKey: '300' }], year: [] }} />)
+    render(<WorkoutCard workout={{ ...workout, status: 'completed' }} medals={{ allTime: [{ category: 'power', subKey: '300', rank: 1 }], year: [] }} />)
     expect(screen.getByTitle('All-time record')).toBeInTheDocument()
   })
 

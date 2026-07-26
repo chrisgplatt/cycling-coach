@@ -38,7 +38,7 @@ it('renders the weather strip when the briefing returns weather', async () => {
 
 it('shows medal icons on the workout card when medals are present', async () => {
   const workout = makeWorkout({ status: 'completed' })
-  render(<TodayCard workout={workout} wellness={null} medals={{ allTime: [{ category: 'power', subKey: '300' }], year: [] }} />)
+  render(<TodayCard workout={workout} wellness={null} medals={{ allTime: [{ category: 'power', subKey: '300', rank: 1 }], year: [] }} />)
   expect(await screen.findByTitle('All-time record')).toBeInTheDocument()
 })
 

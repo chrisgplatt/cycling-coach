@@ -254,7 +254,7 @@ describe('WorkoutDetailModal', () => {
         workout={matchedWorkout}
         athleteId="i12345"
         onClose={jest.fn()}
-        medals={{ allTime: [{ category: 'biggest_climb', subKey: '' }], year: [] }}
+        medals={{ allTime: [{ category: 'biggest_climb', subKey: '', rank: 1 }], year: [] }}
       />,
     )
     expect(await screen.findByText('All-time · Biggest climb')).toBeInTheDocument()
@@ -266,7 +266,7 @@ describe('WorkoutDetailModal', () => {
         workout={matchedWorkout}
         athleteId="i12345"
         onClose={jest.fn()}
-        medals={{ allTime: [], year: [{ category: 'power', subKey: '300' }] }}
+        medals={{ allTime: [], year: [{ category: 'power', subKey: '300', rank: 1 }] }}
       />,
     )
     expect(await screen.findByText('2026 best · Power 5 min')).toBeInTheDocument()
