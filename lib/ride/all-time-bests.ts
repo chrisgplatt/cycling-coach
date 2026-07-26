@@ -6,12 +6,22 @@ import type { ActivityMetrics, ClimbSegment, SpeedBest } from '@/types'
 // Climbs and power bests are unaffected; only speed-derived categories are era-gated.
 const SPEED_BESTS_TRUSTED_FROM = '2018-01-01'
 
+// Every ranked slot keeps the top 3 candidates (gold/silver/bronze), best first.
+const PODIUM_SIZE = 3
+
+export interface RankedEntry {
+  rank: 1 | 2 | 3
+  workoutId: string | null
+  icuActivityId: string
+  date: string
+}
+
 export interface AllTimeBests {
-  biggestClimb: { workoutId: string | null; icuActivityId: string; date: string; elev_gain_m: number; length_km: number | null } | null
-  longestClimb: { workoutId: string | null; icuActivityId: string; date: string; length_km: number; elev_gain_m: number } | null
-  powerBests: Array<{ secs: number; watts: number; workoutId: string | null; icuActivityId: string; date: string }>
-  speedBests: Array<{ distance_km: number; avg_speed_kmh: number; workoutId: string | null; icuActivityId: string; date: string }>
-  maxSpeed: { workoutId: string | null; icuActivityId: string; date: string; speed_kmh: number; max_speed_ms: number } | null
+  biggestClimb: (RankedEntry & { elev_gain_m: number; length_km: number | null })[]
+  longestClimb: (RankedEntry & { length_km: number; elev_gain_m: number })[]
+  powerBests: (RankedEntry & { secs: number; watts: number })[]
+  speedBests: (RankedEntry & { distance_km: number; avg_speed_kmh: number })[]
+  maxSpeed: (RankedEntry & { speed_kmh: number; max_speed_ms: number })[]
 }
 
 export interface AllTimeBestsResponse {
@@ -46,65 +56,103 @@ export interface BestsRide {
   activity_metrics: BestsCandidateMetrics | null
 }
 
-// A single pass over the given rides, tracking running maxima per category and
-// remembering which ride each came from. Stays generic over whatever subset of
-// rides it's given — the caller decides "all-time" vs. "just this year" by
+// Inserts candidate into a podium array (already sorted best-first, length <=
+// PODIUM_SIZE), re-sorts by value descending, and keeps only the top 3.
+// Array.sort is stable, so when two candidates tie exactly, whichever was
+// already in the array (i.e. processed earlier) keeps the better rank — no
+// separate tie-break logic needed. Ranks (1-3) are assigned later, by final
+// array position, once every ride has been folded in — see withRanks.
+function insertRanked<T>(existing: T[], candidate: T, valueOf: (t: T) => number): T[] {
+  return [...existing, candidate]
+    .sort((a, b) => valueOf(b) - valueOf(a))
+    .slice(0, PODIUM_SIZE)
+}
+
+function withRanks<T>(entries: T[]): (T & { rank: 1 | 2 | 3 })[] {
+  return entries.map((e, i) => ({ ...e, rank: (i + 1) as 1 | 2 | 3 }))
+}
+
+// A single pass over the given rides, tracking a top-3 podium per category and
+// remembering which ride each entry came from. Stays generic over whatever subset
+// of rides it's given — the caller decides "all-time" vs. "just this year" by
 // choosing which rides to pass in.
 export function computeAllTimeBests(rides: BestsRide[]): AllTimeBests {
-  let biggestClimb: AllTimeBests['biggestClimb'] = null
-  let longestClimb: AllTimeBests['longestClimb'] = null
-  let maxSpeed: AllTimeBests['maxSpeed'] = null
-  const powerBestsByDuration = new Map<number, { watts: number; workoutId: string | null; icuActivityId: string; date: string }>()
-  const speedBestsByDistance = new Map<number, { avg_speed_kmh: number; workoutId: string | null; icuActivityId: string; date: string }>()
+  type ClimbCandidate = { workoutId: string | null; icuActivityId: string; date: string; elev_gain_m: number; length_km: number | null }
+  type LongestClimbCandidate = { workoutId: string | null; icuActivityId: string; date: string; length_km: number; elev_gain_m: number }
+  type PowerCandidate = { workoutId: string | null; icuActivityId: string; date: string; watts: number }
+  type SpeedCandidate = { workoutId: string | null; icuActivityId: string; date: string; avg_speed_kmh: number }
+  type MaxSpeedCandidate = { workoutId: string | null; icuActivityId: string; date: string; speed_kmh: number; max_speed_ms: number }
+
+  let biggestClimb: ClimbCandidate[] = []
+  let longestClimb: LongestClimbCandidate[] = []
+  let maxSpeed: MaxSpeedCandidate[] = []
+  const powerBestsByDuration = new Map<number, PowerCandidate[]>()
+  const speedBestsByDistance = new Map<number, SpeedCandidate[]>()
 
   for (const r of rides) {
     const m = r.activity_metrics
     if (!m) continue
 
     for (const climb of m.climbs ?? []) {
-      if (!biggestClimb || climb.elev_gain_m > biggestClimb.elev_gain_m) {
-        biggestClimb = { workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date, elev_gain_m: climb.elev_gain_m, length_km: climb.length_km ?? null }
-      }
+      biggestClimb = insertRanked(
+        biggestClimb,
+        { workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date, elev_gain_m: climb.elev_gain_m, length_km: climb.length_km ?? null },
+        c => c.elev_gain_m,
+      )
       // Un-backfilled historical climbs don't have length_km yet — never let one
-      // become (or beat) the longest-climb record until it's actually measured.
-      if (climb.length_km != null && (!longestClimb || climb.length_km > longestClimb.length_km)) {
-        longestClimb = { workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date, length_km: climb.length_km, elev_gain_m: climb.elev_gain_m }
+      // enter (or beat) the longest-climb podium until it's actually measured.
+      if (climb.length_km != null) {
+        longestClimb = insertRanked(
+          longestClimb,
+          { workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date, length_km: climb.length_km, elev_gain_m: climb.elev_gain_m },
+          c => c.length_km,
+        )
       }
     }
 
     for (const effort of m.best_efforts ?? []) {
-      const existing = powerBestsByDuration.get(effort.secs)
-      if (!existing || effort.watts > existing.watts) {
-        powerBestsByDuration.set(effort.secs, { watts: effort.watts, workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date })
-      }
+      const existing = powerBestsByDuration.get(effort.secs) ?? []
+      powerBestsByDuration.set(
+        effort.secs,
+        insertRanked(existing, { watts: effort.watts, workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date }, p => p.watts),
+      )
     }
 
     const trustSpeed = r.date >= SPEED_BESTS_TRUSTED_FROM
     if (trustSpeed) {
       for (const speed of m.speed_bests ?? []) {
-        const existing = speedBestsByDistance.get(speed.distance_km)
-        if (!existing || speed.avg_speed_kmh > existing.avg_speed_kmh) {
-          speedBestsByDistance.set(speed.distance_km, { avg_speed_kmh: speed.avg_speed_kmh, workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date })
-        }
+        const existing = speedBestsByDistance.get(speed.distance_km) ?? []
+        speedBestsByDistance.set(
+          speed.distance_km,
+          insertRanked(existing, { avg_speed_kmh: speed.avg_speed_kmh, workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date }, s => s.avg_speed_kmh),
+        )
       }
 
       if (m.max_speed_ms != null) {
         const speed_kmh = Math.round(m.max_speed_ms * 3.6 * 10) / 10
-        if (!maxSpeed || speed_kmh > maxSpeed.speed_kmh) {
-          maxSpeed = { workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date, speed_kmh, max_speed_ms: m.max_speed_ms }
-        }
+        maxSpeed = insertRanked(
+          maxSpeed,
+          { workoutId: r.id, icuActivityId: r.icu_activity_id, date: r.date, speed_kmh, max_speed_ms: m.max_speed_ms },
+          s => s.speed_kmh,
+        )
       }
     }
   }
 
   const powerBests = [...powerBestsByDuration.entries()]
-    .map(([secs, v]) => ({ secs, ...v }))
-    .sort((a, b) => a.secs - b.secs)
+    .flatMap(([secs, entries]) => withRanks(entries).map(e => ({ secs, ...e })))
+    .sort((a, b) => a.secs - b.secs || a.rank - b.rank)
   const speedBests = [...speedBestsByDistance.entries()]
-    .map(([distance_km, v]) => ({ distance_km, ...v }))
-    .sort((a, b) => a.distance_km - b.distance_km)
+    .flatMap(([distance_km, entries]) => withRanks(entries).map(e => ({ distance_km, ...e })))
+    .sort((a, b) => a.distance_km - b.distance_km || a.rank - b.rank)
 
-  return { biggestClimb, longestClimb, powerBests, speedBests, maxSpeed }
+  return {
+    biggestClimb: withRanks(biggestClimb),
+    longestClimb: withRanks(longestClimb),
+    powerBests,
+    speedBests,
+    maxSpeed: withRanks(maxSpeed),
+  }
 }
 
 // Groups rides by calendar year (from their `date`) and computes bests once for
