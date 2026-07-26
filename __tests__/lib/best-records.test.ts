@@ -59,6 +59,28 @@ describe('reconstructSyntheticRides', () => {
     expect(rides).toHaveLength(2)
     expect(rides.map(r => r.activity_metrics?.best_efforts?.[0].watts)).toEqual([310, 280])
   })
+
+  it('merges a biggest_climb row and a longest_climb row for the same ride into one synthetic ride with one climb entry, when they reference the same climb', () => {
+    const rows: BestRecordRow[] = [
+      row({ category: 'biggest_climb', value: 900, rank: 1, detail: { date: '2026-01-01', workoutId: 'w1', icuActivityId: 'icu-1', length_km: 3 } }),
+      row({ category: 'longest_climb', value: 3, rank: 1, detail: { date: '2026-01-01', workoutId: 'w1', icuActivityId: 'icu-1', elev_gain_m: 900 } }),
+    ]
+    const rides = reconstructSyntheticRides(rows)
+    expect(rides).toEqual([
+      { id: 'w1', icu_activity_id: 'icu-1', date: '2026-01-01', activity_metrics: { climbs: [{ elev_gain_m: 900, length_km: 3 }], best_efforts: null, speed_bests: null, max_speed_ms: null } },
+    ])
+  })
+
+  it('keeps both climbs when a biggest_climb row and a longest_climb row for the same ride reference genuinely different climbs', () => {
+    const rows: BestRecordRow[] = [
+      row({ category: 'biggest_climb', value: 1200, rank: 1, detail: { date: '2026-01-01', workoutId: 'w1', icuActivityId: 'icu-1', length_km: 2 } }),
+      row({ category: 'longest_climb', value: 15, rank: 1, detail: { date: '2026-01-01', workoutId: 'w1', icuActivityId: 'icu-1', elev_gain_m: 400 } }),
+    ]
+    const rides = reconstructSyntheticRides(rows)
+    expect(rides).toEqual([
+      { id: 'w1', icu_activity_id: 'icu-1', date: '2026-01-01', activity_metrics: { climbs: [{ elev_gain_m: 1200, length_km: 2 }, { elev_gain_m: 400, length_km: 15 }], best_efforts: null, speed_bests: null, max_speed_ms: null } },
+    ])
+  })
 })
 
 describe('flattenAllTimeBestsToRows', () => {

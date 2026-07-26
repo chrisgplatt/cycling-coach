@@ -18,25 +18,54 @@ export interface BestRecordRow {
 // candidate ride) back through computeAllTimeBests re-derives the correct new
 // podium without needing any separate comparison logic. Every stored rank
 // becomes its own synthetic ride, so all 3 podium slots (not just rank 1) feed
-// back into the recomputation. Callers are responsible for only ever passing
-// rows already filtered to one surface (outdoor vs. indoor) — this function has
-// no is_indoor awareness itself.
+// back into the recomputation. Climb rows are the one exception: a single real
+// climb that's simultaneously the biggest AND longest currently recorded
+// produces two separate rows (one per category) referencing that exact same
+// climb. Reconstructing them as two independent synthetic rides would
+// double-submit that one climb to computeAllTimeBests — which (unlike the old
+// single-champion "keep if strictly greater" comparison) always inserts every
+// candidate it sees, so the duplicate would wrongly occupy two podium slots for
+// what is really one ride. So climb rows are grouped by icuActivityId (not
+// workoutId, which is null for many distinct deep-history rides) and
+// de-duplicated by exact (elev_gain_m, length_km) value within each group
+// before becoming synthetic rides. Callers are responsible for only ever
+// passing rows already filtered to one surface (outdoor vs. indoor) — this
+// function has no is_indoor awareness itself.
 export function reconstructSyntheticRides(rows: BestRecordRow[]): BestsRide[] {
-  return rows.map((r): BestsRide => {
-    const d = r.detail as { date: string; workoutId: string | null; icuActivityId: string; length_km?: number; elev_gain_m?: number; max_speed_ms?: number }
-    const base = { id: d.workoutId, icu_activity_id: d.icuActivityId, date: d.date }
-    switch (r.category) {
-      case 'biggest_climb':
-      case 'longest_climb':
-        return { ...base, activity_metrics: { climbs: [{ elev_gain_m: r.category === 'biggest_climb' ? r.value : (d.elev_gain_m as number), length_km: r.category === 'longest_climb' ? r.value : (d.length_km ?? null) }], best_efforts: null, speed_bests: null, max_speed_ms: null } }
-      case 'power':
-        return { ...base, activity_metrics: { climbs: null, best_efforts: [{ secs: Number(r.sub_key), watts: r.value }], speed_bests: null, max_speed_ms: null } }
-      case 'speed':
-        return { ...base, activity_metrics: { climbs: null, best_efforts: null, speed_bests: [{ distance_km: Number(r.sub_key), avg_speed_kmh: r.value }], max_speed_ms: null } }
-      case 'max_speed':
-        return { ...base, activity_metrics: { climbs: null, best_efforts: null, speed_bests: null, max_speed_ms: d.max_speed_ms as number } }
+  const isClimbRow = (r: BestRecordRow) => r.category === 'biggest_climb' || r.category === 'longest_climb'
+  const climbRows = rows.filter(isClimbRow)
+  const otherRows = rows.filter(r => !isClimbRow(r))
+
+  const climbGroups = new Map<string, { id: string | null; icu_activity_id: string; date: string; climbs: Map<string, { elev_gain_m: number; length_km: number | null }> }>()
+  for (const r of climbRows) {
+    const d = r.detail as { date: string; workoutId: string | null; icuActivityId: string; length_km?: number; elev_gain_m?: number }
+    const elev_gain_m = r.category === 'biggest_climb' ? r.value : (d.elev_gain_m as number)
+    const length_km = r.category === 'longest_climb' ? r.value : (d.length_km ?? null)
+    let group = climbGroups.get(d.icuActivityId)
+    if (!group) {
+      group = { id: d.workoutId, icu_activity_id: d.icuActivityId, date: d.date, climbs: new Map() }
+      climbGroups.set(d.icuActivityId, group)
     }
+    group.climbs.set(`${elev_gain_m}:${length_km}`, { elev_gain_m, length_km })
+  }
+  const climbRides: BestsRide[] = [...climbGroups.values()].map(g => ({
+    id: g.id, icu_activity_id: g.icu_activity_id, date: g.date,
+    activity_metrics: { climbs: [...g.climbs.values()], best_efforts: null, speed_bests: null, max_speed_ms: null },
+  }))
+
+  const otherRides: BestsRide[] = otherRows.map((r): BestsRide => {
+    const d = r.detail as { date: string; workoutId: string | null; icuActivityId: string; max_speed_ms?: number }
+    const base = { id: d.workoutId, icu_activity_id: d.icuActivityId, date: d.date }
+    if (r.category === 'power') {
+      return { ...base, activity_metrics: { climbs: null, best_efforts: [{ secs: Number(r.sub_key), watts: r.value }], speed_bests: null, max_speed_ms: null } }
+    }
+    if (r.category === 'speed') {
+      return { ...base, activity_metrics: { climbs: null, best_efforts: null, speed_bests: [{ distance_km: Number(r.sub_key), avg_speed_kmh: r.value }], max_speed_ms: null } }
+    }
+    return { ...base, activity_metrics: { climbs: null, best_efforts: null, speed_bests: null, max_speed_ms: d.max_speed_ms as number } }
   })
+
+  return [...climbRides, ...otherRides]
 }
 
 // The inverse of reconstructSyntheticRides: turns a computed AllTimeBests into
