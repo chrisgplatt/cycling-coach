@@ -82,7 +82,7 @@ function ExpandableBestCell<T extends { rank: number; icuActivityId: string }>({
           onClick={() => setExpanded(e => !e)}
           aria-expanded={expanded}
           aria-label={expanded ? `Hide ${label} runners-up` : `Show ${label} runners-up`}
-          className="absolute top-1 right-1 text-gray-300 hover:text-gray-500 p-1"
+          className="absolute top-0 right-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-300 hover:text-gray-500"
         >
           <svg
             width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
