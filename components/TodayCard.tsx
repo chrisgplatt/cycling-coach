@@ -21,12 +21,20 @@ interface Props {
 
 const BRIEFING_CACHE_KEY = 'cycling_coach_briefing'
 
+function formatGeneratedAt(iso: string): string {
+  const d = new Date(iso)
+  const datePart = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  const timePart = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  return `${datePart}, ${timePart}`
+}
+
 export default function TodayCard({
   workout, wellness, todayEvent, extraSessionCount, ftp,
   todayDailyWellness, medals,
   onWorkoutClick, onChatWithCoach,
 }: Props) {
   const [coachNote, setCoachNote] = useState<string | null>(null)
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null)
   const [verdict, setVerdict] = useState<ReadinessVerdict | null>(null)
   const [headline, setHeadline] = useState<string | null>(null)
   const [weather, setWeather] = useState<WeatherSummary | null>(null)
@@ -47,6 +55,7 @@ export default function TodayCard({
           const cached = JSON.parse(raw)
           if (cached.date === today && cached.coach_note) {
             setCoachNote(cached.coach_note)
+            setGeneratedAt(cached.generatedAt ?? null)
             setVerdict(cached.verdict ?? null)
             setHeadline(cached.headline ?? null)
             setWeather(cached.weather ?? null)
@@ -63,7 +72,9 @@ export default function TodayCard({
       const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
+        const fetchedAt = new Date().toISOString()
         setCoachNote(data.coach_note)
+        setGeneratedAt(fetchedAt)
         setVerdict(data.verdict ?? null)
         setHeadline(data.headline ?? null)
         setWeather(data.weather ?? null)
@@ -72,6 +83,7 @@ export default function TodayCard({
           localStorage.setItem(BRIEFING_CACHE_KEY, JSON.stringify({
             date: today,
             coach_note: data.coach_note,
+            generatedAt: fetchedAt,
             verdict: data.verdict ?? null,
             headline: data.headline ?? null,
             weather: data.weather ?? null,
@@ -181,7 +193,14 @@ export default function TodayCard({
             {loading ? (
               <p className="text-sm text-slate-400">Getting your briefing…</p>
             ) : coachNote ? (
-              <p className="text-sm text-slate-600 leading-relaxed font-light">{coachNote}</p>
+              <>
+                <p className="text-sm text-slate-600 leading-relaxed font-light">{coachNote}</p>
+                {generatedAt && (
+                  <p className="text-[11px] text-slate-300" data-testid="note-generated-at">
+                    Generated {formatGeneratedAt(generatedAt)}
+                  </p>
+                )}
+              </>
             ) : (
               <p className="text-sm text-slate-400 italic">Coach note unavailable.</p>
             )}

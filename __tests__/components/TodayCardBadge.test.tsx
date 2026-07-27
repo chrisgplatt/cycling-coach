@@ -18,6 +18,32 @@ it('shows the readiness badge when the briefing returns a verdict', async () => 
   expect(screen.getByTestId('readiness-badge')).toHaveTextContent(/GO HARD/i)
 })
 
+it('shows a generated date and time after the coach note', async () => {
+  render(<TodayCard workout={null} wellness={null} />)
+  fireEvent.click(screen.getByRole('button', { name: /coach's note/i }))
+  await waitFor(() => expect(screen.getByText('Hit the intervals.')).toBeInTheDocument())
+  expect(screen.getByTestId('note-generated-at')).toHaveTextContent(/^Generated /)
+})
+
+it('reuses the cached generated timestamp on a repeat render instead of stamping the current time', async () => {
+  const { unmount } = render(<TodayCard workout={null} wellness={null} />)
+  fireEvent.click(screen.getByRole('button', { name: /coach's note/i }))
+  await waitFor(() => expect(screen.getByText('Hit the intervals.')).toBeInTheDocument())
+  const firstStamp = screen.getByTestId('note-generated-at').textContent
+  // global.fetch is a single mock shared across this whole test file (seeded once in
+  // jest.setup.ts), so its call count accumulates across tests — compare a delta from
+  // this point, not an absolute count.
+  const callsBeforeRemount = (global.fetch as jest.Mock).mock.calls.length
+  unmount()
+
+  render(<TodayCard workout={null} wellness={null} />)
+  fireEvent.click(screen.getByRole('button', { name: /coach's note/i }))
+  await waitFor(() => expect(screen.getByText('Hit the intervals.')).toBeInTheDocument())
+  expect(screen.getByTestId('note-generated-at').textContent).toBe(firstStamp)
+  // The second mount should read from cache, not hit the network again.
+  expect((global.fetch as jest.Mock).mock.calls.length).toBe(callsBeforeRemount)
+})
+
 it('renders the weather strip when the briefing returns weather', async () => {
   localStorage.clear()
   ;(global.fetch as jest.Mock).mockResolvedValueOnce({
