@@ -1,3 +1,5 @@
+import type { RecoveryInputsRangeResult } from '@/lib/recovery-inputs'
+
 export interface RecoveryInputs {
   hrv: number | null
   hrvBaseline: number | null
@@ -112,4 +114,17 @@ export function computeRecoveryScore(inputs: RecoveryInputs): RecoveryScore {
     .join(', ')
 
   return { score, band, explanation, components }
+}
+
+/** Returns 2 when the most recent two entries both score band 'low' (Red), else 0.
+ * A fully-unavailable day defaults to band 'moderate' (see computeRecoveryScore above),
+ * so a data gap between two Red days correctly breaks the streak rather than being
+ * skipped over. */
+export function getConsecutiveRedDays(results: RecoveryInputsRangeResult[]): number {
+  const last = results.at(-1)
+  const prev = results.at(-2)
+  if (!last || !prev) return 0
+  const lastScore = computeRecoveryScore(last.inputs)
+  const prevScore = computeRecoveryScore(prev.inputs)
+  return lastScore.band === 'low' && prevScore.band === 'low' ? 2 : 0
 }

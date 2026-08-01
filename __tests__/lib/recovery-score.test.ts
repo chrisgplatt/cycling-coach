@@ -1,4 +1,5 @@
-import { computeRecoveryScore, computeHrvIndex, computeWellnessIndex, type RecoveryInputs } from '@/lib/recovery-score'
+import { computeRecoveryScore, computeHrvIndex, computeWellnessIndex, getConsecutiveRedDays, type RecoveryInputs } from '@/lib/recovery-score'
+import type { RecoveryInputsRangeResult } from '@/lib/recovery-inputs'
 
 const ALL_DATA: RecoveryInputs = {
   hrv: 55,
@@ -138,5 +139,56 @@ describe('computeWellnessIndex', () => {
   it('uses whichever single value is present', () => {
     // energy=5 -> (5-1)/4*100=100
     expect(computeWellnessIndex({ energy: 5, leg_freshness: null })).toBe(100)
+  })
+})
+
+describe('getConsecutiveRedDays', () => {
+  const RED: RecoveryInputs = {
+    hrv: 30, hrvBaseline: 50, // ratio 0.60 → hrv index 0
+    garmin_sleep_deep_secs: 0, garmin_sleep_light_secs: 3600, garmin_sleep_rem_secs: 0, garmin_sleep_awake_secs: 0,
+    body_battery_high: 20,
+    energy: 1, leg_freshness: 1,
+    tsb: -25,
+  }
+  const GREEN: RecoveryInputs = {
+    hrv: 55, hrvBaseline: 50,
+    garmin_sleep_deep_secs: 5760, garmin_sleep_light_secs: 14400, garmin_sleep_rem_secs: 7200, garmin_sleep_awake_secs: 1440,
+    body_battery_high: 80,
+    energy: 4, leg_freshness: 4,
+    tsb: 10,
+  }
+  const EMPTY: RecoveryInputs = {
+    hrv: null, hrvBaseline: null,
+    garmin_sleep_deep_secs: null, garmin_sleep_light_secs: null, garmin_sleep_rem_secs: null, garmin_sleep_awake_secs: null,
+    body_battery_high: null, energy: null, leg_freshness: null, tsb: null,
+  }
+
+  function point(date: string, inputs: RecoveryInputs): RecoveryInputsRangeResult {
+    return { date, inputs }
+  }
+
+  it('returns 2 when the last two days are both Red', () => {
+    expect(getConsecutiveRedDays([point('2026-07-30', RED), point('2026-07-31', RED)])).toBe(2)
+  })
+
+  it('returns 0 when the most recent day is not Red', () => {
+    expect(getConsecutiveRedDays([point('2026-07-30', RED), point('2026-07-31', GREEN)])).toBe(0)
+  })
+
+  it('returns 0 when only the second-to-last day is Red', () => {
+    expect(getConsecutiveRedDays([point('2026-07-30', GREEN), point('2026-07-31', RED)])).toBe(0)
+  })
+
+  it('returns 0 when a data gap (fully unavailable day) sits between two Red days', () => {
+    // EMPTY defaults to score 50 / band 'moderate', not 'low' — it breaks the streak.
+    expect(getConsecutiveRedDays([point('2026-07-29', RED), point('2026-07-30', EMPTY), point('2026-07-31', RED)])).toBe(0)
+  })
+
+  it('returns 0 when only one day of history is available', () => {
+    expect(getConsecutiveRedDays([point('2026-07-31', RED)])).toBe(0)
+  })
+
+  it('returns 0 for an empty array', () => {
+    expect(getConsecutiveRedDays([])).toBe(0)
   })
 })
