@@ -61,3 +61,6 @@ next-env.d.ts
 graphify-out/
 .worktrees/
 .claude/worktrees/
+
+# local-only Claude Code permissions (personal, machine-specific)
+.claude/settings.local.json
