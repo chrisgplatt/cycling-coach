@@ -719,6 +719,7 @@ export interface BriefingContext {
   recoveryScore?: number | null
   recoveryBand?: 'high' | 'moderate' | 'low' | null
   recoveryExplanation?: string
+  recoveryStreakDays?: number
   maxHr?: number | null
   dossier?: {
     synthesized_at: string

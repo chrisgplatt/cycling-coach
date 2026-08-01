@@ -206,6 +206,9 @@ async function generateMorningBriefing(ctx: BriefingContext): Promise<BriefingRe
     const bandLabel = ctx.recoveryBand ?? 'moderate'
     const expl = ctx.recoveryExplanation ? ` — ${ctx.recoveryExplanation}` : ''
     garminLines.push(`Recovery score: ${ctx.recoveryScore}/100 (${bandLabel})${expl}`)
+    if (ctx.recoveryStreakDays != null && ctx.recoveryStreakDays >= 2) {
+      garminLines.push('Recovery score has been Low (Red) for 2 consecutive days.')
+    }
   }
   const garminLine = garminLines.length ? garminLines.join(', ') : null
 

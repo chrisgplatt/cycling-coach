@@ -247,6 +247,35 @@ describe('buildTodayBriefingPrompt with recovery score', () => {
     const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
     expect(prompt).toContain('Recovery score: 68/100 (moderate) — HRV suppressed')
   })
+
+  it('adds the consecutive-Red-days line when recoveryStreakDays is 2', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text:
+      '{"verdict":"red","headline":"Take a rest day","note":"Recovery has been low for two days."}' }] })
+    const ctx: BriefingContext = {
+      ...baseMorningCtx,
+      recoveryScore: 38,
+      recoveryBand: 'low',
+      recoveryExplanation: 'HRV suppressed',
+      recoveryStreakDays: 2,
+    }
+    await generateBriefing(ctx)
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).toContain('Recovery score has been Low (Red) for 2 consecutive days.')
+  })
+
+  it('omits the consecutive-Red-days line when recoveryStreakDays is absent', async () => {
+    mockCreate.mockResolvedValue({ content: [{ type: 'text', text:
+      '{"verdict":"amber","headline":"Take it easy","note":"Recovery is moderate today."}' }] })
+    const ctx: BriefingContext = {
+      ...baseMorningCtx,
+      recoveryScore: 68,
+      recoveryBand: 'moderate',
+      recoveryExplanation: 'HRV suppressed',
+    }
+    await generateBriefing(ctx)
+    const prompt = mockCreate.mock.calls[0][0].messages[0].content as string
+    expect(prompt).not.toContain('consecutive days')
+  })
 })
 
 describe('generateMorningBriefing — Max HR', () => {

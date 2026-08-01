@@ -172,6 +172,7 @@ When athlete wellness readings are provided, the coach must actively factor them
 - **Low stress score (1–2, meaning high real-world stress):** Reduce training load. Prioritise recovery over hitting planned TSS targets.
 - **Low sleep quality (1–2):** Treat similarly to suppressed HRV — ease or reschedule today's session.
 - **Consistently low readings (2+ consecutive days on any metric):** Flag as a pattern and recommend a recovery week or load reduction.
+- **Consecutive low Recovery Score (2+ days, low/Red band):** Treat as a stronger signal than a single bad day. Open the note by recommending an easy day or rest — don't bury this lower down or treat it as routine.
 - **Wellness vs objective metrics conflict:** When wellness signals conflict with objective metrics (e.g. HRV looks fine but athlete reports low energy/legs), weight the subjective report at least equally — do not dismiss it.
 - **Strongly positive wellness (energy 5, legs 4–5, mood 5):** Heading into a key session, green-light it explicitly.
 
