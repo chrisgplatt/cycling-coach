@@ -7,7 +7,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { computeDailyTrimp, computeTrimpRef, computeWorkoutStrain, computeStrainTarget, type DailyActivityInput } from '@/lib/strain'
-import { computeRecoveryScore } from '@/lib/recovery-score'
+import { computeRecoveryScore, getConsecutiveRedDays } from '@/lib/recovery-score'
 import { fetchRecoveryInputsForRange } from '@/lib/recovery-inputs'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { eventCoversDate, eventEndDate } from '@/lib/events'
@@ -311,6 +311,7 @@ export async function GET(req: NextRequest) {
       energy: null, leg_freshness: null, tsb: null,
     },
   )
+  const recoveryStreakDays = getConsecutiveRedDays(recoveryInputsResult)
 
   const strainTarget = computeStrainTarget(recoveryResult.score)
 
@@ -359,6 +360,7 @@ export async function GET(req: NextRequest) {
     recoveryScore: recoveryResult.score,
     recoveryBand: recoveryResult.band,
     recoveryExplanation: recoveryResult.explanation,
+    recoveryStreakDays,
     maxHr,
   }
 
