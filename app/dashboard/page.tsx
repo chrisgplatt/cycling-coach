@@ -38,6 +38,7 @@ import type { ReactNode } from 'react'
 import RescheduleConfirmModal from '@/components/RescheduleConfirmModal'
 import TodayCard from '@/components/TodayCard'
 import NotificationBanner from '@/components/NotificationBanner'
+import StreakBadge from '@/components/StreakBadge'
 import SessionChatModal from '@/components/SessionChatModal'
 import PlanChatModal from '@/components/PlanChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
@@ -678,6 +679,7 @@ export default function DashboardPage() {
 
       {/* Daily briefing */}
       <div className="space-y-3">
+        <StreakBadge activities={chartsData?.activities} today={todayStr} />
         {!notificationsEnabled && (
           <NotificationBanner onEnabled={() => setNotificationsEnabled(true)} />
         )}
