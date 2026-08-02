@@ -18,8 +18,8 @@ const activities: ActivitySummary[] = [
 describe('ActivityStatsPanel', () => {
   it('renders a panel for each active type', () => {
     render(<ActivityStatsPanel activities={activities} today={TODAY} />)
-    expect(screen.getByText(/Rides/)).toBeInTheDocument()
-    expect(screen.getByText(/Runs/)).toBeInTheDocument()
+    expect(screen.getByText('🚲 Rides')).toBeInTheDocument()
+    expect(screen.getByText('👟 Runs')).toBeInTheDocument()
     expect(screen.getByText(/Other/)).toBeInTheDocument()
     // No Walk activity — Walk panel should not render
     expect(screen.queryByText(/Walks/)).not.toBeInTheDocument()
@@ -34,6 +34,12 @@ describe('ActivityStatsPanel', () => {
   it('shows Sessions count in the Other panel and no Elevation label in it', () => {
     render(<ActivityStatsPanel activities={activities} today={TODAY} />)
     expect(screen.getByText('1 session')).toBeInTheDocument()
+  })
+
+  it('shows a Rides session count for the Ride panel', () => {
+    render(<ActivityStatsPanel activities={activities} today={TODAY} />)
+    // The Ride panel's own stat cell (plain "Rides", not the "🚲 Rides" header) shows the count.
+    expect(screen.getByText('Rides')).toBeInTheDocument()
   })
 
   it('renders an SVG chart for each active type', () => {

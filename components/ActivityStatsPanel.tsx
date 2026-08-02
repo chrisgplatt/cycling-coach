@@ -135,7 +135,7 @@ function TypePanel({ tab, buckets, today }: TypePanelProps) {
       </p>
 
       {/* Stats row */}
-      <div className={`grid gap-2 mb-3 ${tab === 'Other' ? 'grid-cols-2' : 'grid-cols-3'}`}>
+      <div className={`grid gap-2 mb-3 ${tab === 'Other' ? 'grid-cols-2' : 'grid-cols-4'}`}>
         {tab === 'Other' ? (
           <>
             <div className="text-center">
@@ -162,6 +162,10 @@ function TypePanel({ tab, buckets, today }: TypePanelProps) {
             <div className="text-center">
               <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Elevation</div>
               <div className="text-base font-bold text-gray-900">{sel.elevationM > 0 ? `${sel.elevationM} m` : '—'}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">{TAB_LABELS[tab]}</div>
+              <div className="text-base font-bold text-gray-900">{sel.sessions}</div>
             </div>
           </>
         )}
