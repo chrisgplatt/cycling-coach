@@ -9,6 +9,8 @@ import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { eventEndDate } from '@/lib/events'
 import type { Workout, TrainingEvent, BriefingContext } from '@/types'
+import { fetchRecoveryInputsForRange } from '@/lib/recovery-inputs'
+import { computeRecoveryScore, getConsecutiveRedDays } from '@/lib/recovery-score'
 
 export const dynamic = 'force-dynamic'
 
@@ -194,6 +196,22 @@ export async function GET(req: NextRequest) {
 
     const beliefs = await fetchActiveBeliefs(supabase, profile.user_id).catch(() => [])
 
+    // Mirrors app/api/briefing/today/route.ts's recovery computation exactly — same
+    // 3-day lookback, same neutral-default fallback, same helper — so the streak alert
+    // behaves identically regardless of which route generated the day's note.
+    const recoveryFrom = new Date(new Date(today + 'T00:00:00Z').getTime() - 3 * 864e5).toISOString().split('T')[0]
+    const recoveryInputsResult = icuClient
+      ? await fetchRecoveryInputsForRange(supabase, profile.user_id, icuClient, { from: recoveryFrom, to: today })
+      : []
+    const recoveryResult = computeRecoveryScore(
+      recoveryInputsResult.at(-1)?.inputs ?? {
+        hrv: null, hrvBaseline: null, garmin_sleep_deep_secs: null, garmin_sleep_light_secs: null,
+        garmin_sleep_rem_secs: null, garmin_sleep_awake_secs: null, body_battery_high: null,
+        energy: null, leg_freshness: null, tsb: null,
+      },
+    )
+    const recoveryStreakDays = getConsecutiveRedDays(recoveryInputsResult)
+
     const ctx: BriefingContext = {
       today,
       todayWorkout,
@@ -208,6 +226,10 @@ export async function GET(req: NextRequest) {
       dailyStrain: null,
       strainTargetLow: null,
       strainTargetHigh: null,
+      recoveryScore: recoveryResult.score,
+      recoveryBand: recoveryResult.band,
+      recoveryExplanation: recoveryResult.explanation,
+      recoveryStreakDays,
     }
 
     let coach_note = existing?.coach_note ?? null
