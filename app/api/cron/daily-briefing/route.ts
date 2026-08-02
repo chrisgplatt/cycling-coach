@@ -9,7 +9,7 @@ import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { eventEndDate } from '@/lib/events'
 import type { Workout, TrainingEvent, BriefingContext } from '@/types'
-import { fetchRecoveryInputsForRange } from '@/lib/recovery-inputs'
+import { fetchRecoveryInputsForRange, type RecoveryInputsRangeResult } from '@/lib/recovery-inputs'
 import { computeRecoveryScore, getConsecutiveRedDays } from '@/lib/recovery-score'
 
 export const dynamic = 'force-dynamic'
@@ -200,9 +200,15 @@ export async function GET(req: NextRequest) {
     // 3-day lookback, same neutral-default fallback, same helper — so the streak alert
     // behaves identically regardless of which route generated the day's note.
     const recoveryFrom = new Date(new Date(today + 'T00:00:00Z').getTime() - 3 * 864e5).toISOString().split('T')[0]
-    const recoveryInputsResult = icuClient
-      ? await fetchRecoveryInputsForRange(supabase, profile.user_id, icuClient, { from: recoveryFrom, to: today })
-      : []
+    let recoveryInputsResult: RecoveryInputsRangeResult[] = []
+    if (icuClient) {
+      try {
+        recoveryInputsResult = await fetchRecoveryInputsForRange(supabase, profile.user_id, icuClient, { from: recoveryFrom, to: today })
+      } catch (err) {
+        console.error(`[cron] user ${profile.user_id}: recovery inputs fetch failed:`, err)
+        await log(profile.user_id, 'recovery_fetch_failed', 'error', { error: String(err) })
+      }
+    }
     const recoveryResult = computeRecoveryScore(
       recoveryInputsResult.at(-1)?.inputs ?? {
         hrv: null, hrvBaseline: null, garmin_sleep_deep_secs: null, garmin_sleep_light_secs: null,
