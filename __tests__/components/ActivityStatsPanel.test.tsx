@@ -38,8 +38,11 @@ describe('ActivityStatsPanel', () => {
 
   it('shows a Rides session count for the Ride panel', () => {
     render(<ActivityStatsPanel activities={activities} today={TODAY} />)
-    // The Ride panel's own stat cell (plain "Rides", not the "🚲 Rides" header) shows the count.
-    expect(screen.getByText('Rides')).toBeInTheDocument()
+    // The Ride panel's own stat cell (plain "Rides", not the "🚲 Rides" header) shows the count,
+    // scoped via closest() since the Run tab's cell also happens to render "1" for this fixture.
+    const ridesLabel = screen.getByText('Rides')
+    const ridesStatCell = ridesLabel.closest('div.text-center')
+    expect(ridesStatCell).toHaveTextContent('1')
   })
 
   it('renders an SVG chart for each active type', () => {
