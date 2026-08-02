@@ -356,3 +356,129 @@ Expected: PASS (no regressions — this task only adds one computed value and on
 git add app/api/briefing/today/route.ts
 git commit -m "Wire recoveryStreakDays into the daily briefing route"
 ```
+
+---
+
+### Task 4: Wire recoveryStreakDays into the scheduled push/email route
+
+**Added after the final whole-branch review** — the review found that `app/api/cron/daily-briefing/route.ts` (the route that actually sends the daily push notification and email, via `sendPush`/`sendBriefingEmail`) builds its own separate `BriefingContext` that has never included `recoveryScore`/`recoveryBand`/`recoveryExplanation` at all (a pre-existing gap, not introduced by Tasks 1–3). Without this task, the streak alert only appears in notes generated on-demand via `app/api/briefing/today/route.ts` (opening the dashboard) — the scheduled push/email would never carry it. This task closes that gap by mirroring Task 3's wiring in the cron route.
+
+**Files:**
+- Modify: `app/api/cron/daily-briefing/route.ts:11` (import), `:174-211` (compute + add to context)
+
+**Interfaces:**
+- Consumes: `getConsecutiveRedDays` (Task 1, `lib/recovery-score.ts`), `computeRecoveryScore` (already exists in `lib/recovery-score.ts`), `fetchRecoveryInputsForRange` (already exists in `lib/recovery-inputs.ts`), `recoveryScore`/`recoveryBand`/`recoveryExplanation`/`recoveryStreakDays` fields (Task 2, `types/index.ts`)
+- Produces: nothing further downstream — this is the second (and final) delivery-path wiring task
+
+This route has no existing test file (same as Task 3's route) — verification is `npm run typecheck` plus the full `npm test` suite, which already cover the logic this task wires together (Tasks 1–2's unit tests).
+
+- [ ] **Step 1: Update the import**
+
+In `app/api/cron/daily-briefing/route.ts`, replace line 11:
+
+```typescript
+import type { Workout, TrainingEvent, BriefingContext } from '@/types'
+```
+
+with:
+
+```typescript
+import type { Workout, TrainingEvent, BriefingContext } from '@/types'
+import { fetchRecoveryInputsForRange } from '@/lib/recovery-inputs'
+import { computeRecoveryScore, getConsecutiveRedDays } from '@/lib/recovery-score'
+```
+
+- [ ] **Step 2: Compute recovery score and streak before the `ctx` object**
+
+Replace lines 195-196:
+
+```typescript
+    const beliefs = await fetchActiveBeliefs(supabase, profile.user_id).catch(() => [])
+
+```
+
+with:
+
+```typescript
+    const beliefs = await fetchActiveBeliefs(supabase, profile.user_id).catch(() => [])
+
+    // Mirrors app/api/briefing/today/route.ts's recovery computation exactly — same
+    // 3-day lookback, same neutral-default fallback, same helper — so the streak alert
+    // behaves identically regardless of which route generated the day's note.
+    const recoveryFrom = new Date(new Date(today + 'T00:00:00Z').getTime() - 3 * 864e5).toISOString().split('T')[0]
+    const recoveryInputsResult = icuClient
+      ? await fetchRecoveryInputsForRange(supabase, profile.user_id, icuClient, { from: recoveryFrom, to: today })
+      : []
+    const recoveryResult = computeRecoveryScore(
+      recoveryInputsResult.at(-1)?.inputs ?? {
+        hrv: null, hrvBaseline: null, garmin_sleep_deep_secs: null, garmin_sleep_light_secs: null,
+        garmin_sleep_rem_secs: null, garmin_sleep_awake_secs: null, body_battery_high: null,
+        energy: null, leg_freshness: null, tsb: null,
+      },
+    )
+    const recoveryStreakDays = getConsecutiveRedDays(recoveryInputsResult)
+
+```
+
+- [ ] **Step 3: Add the four fields to the `ctx` object**
+
+Replace lines 197-211 (the existing `const ctx: BriefingContext = { ... }` block):
+
+```typescript
+    const ctx: BriefingContext = {
+      today,
+      todayWorkout,
+      workoutCompleted: false,
+      completedRide: null,
+      ctl, atl, tsb,
+      readinessLabel: readinessLabel(tsb),
+      hrv, hrvStatus, recentWorkouts, upcomingEvents,
+      activeUnavailability,
+      athleteModel: formatAthleteModel(beliefs),
+      weather,
+      dailyStrain: null,
+      strainTargetLow: null,
+      strainTargetHigh: null,
+    }
+```
+
+with:
+
+```typescript
+    const ctx: BriefingContext = {
+      today,
+      todayWorkout,
+      workoutCompleted: false,
+      completedRide: null,
+      ctl, atl, tsb,
+      readinessLabel: readinessLabel(tsb),
+      hrv, hrvStatus, recentWorkouts, upcomingEvents,
+      activeUnavailability,
+      athleteModel: formatAthleteModel(beliefs),
+      weather,
+      dailyStrain: null,
+      strainTargetLow: null,
+      strainTargetHigh: null,
+      recoveryScore: recoveryResult.score,
+      recoveryBand: recoveryResult.band,
+      recoveryExplanation: recoveryResult.explanation,
+      recoveryStreakDays,
+    }
+```
+
+- [ ] **Step 4: Typecheck**
+
+Run: `npm run typecheck`
+Expected: no errors
+
+- [ ] **Step 5: Run the full test suite**
+
+Run: `npm test`
+Expected: PASS (no regressions — same additive pattern as Task 3, already covered by Tasks 1–2's unit tests)
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add app/api/cron/daily-briefing/route.ts
+git commit -m "Wire recoveryStreakDays into the scheduled push/email route"
+```
