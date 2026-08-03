@@ -48,7 +48,9 @@ export default function PlanHistoryCard({ plan }: Props) {
           )}
         </div>
         <p className="text-xs text-slate-500">
-          {plan.target_event_name}{s ? ` · ${fmtDate(s.startDate)} → ${fmtDate(s.closedAt)}` : ''}
+          {plan.target_event_name}
+          {s && ` · ${fmtDate(s.startDate)} – ${fmtDate(s.plannedEndDate)}`}
+          {s?.closedEarly && ` (closed ${fmtDate(s.closedAt)})`}
         </p>
         {s && (
           <div className="grid grid-cols-4 gap-2 pt-1">

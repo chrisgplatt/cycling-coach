@@ -31,6 +31,26 @@ describe('PlanHistoryCard', () => {
     expect(screen.getByText('Closed early')).toBeInTheDocument()
   })
 
+  it('shows the plan start date and planned end date', () => {
+    render(<PlanHistoryCard plan={basePlan} />)
+    expect(screen.getByText(/1 May 2026 – 26 Jun 2026/)).toBeInTheDocument()
+  })
+
+  it('shows the actual closure date alongside the planned end date when closed early', () => {
+    const plan = {
+      ...basePlan,
+      archive_summary: makeArchiveSummary({ closedEarly: true, plannedEndDate: '2026-06-26', closedAt: '2026-06-10' }),
+    }
+    render(<PlanHistoryCard plan={plan} />)
+    expect(screen.getByText(/26 Jun 2026/)).toBeInTheDocument()
+    expect(screen.getByText(/closed 10 Jun 2026/)).toBeInTheDocument()
+  })
+
+  it('does not show a closure-date suffix when the plan ran its full course', () => {
+    render(<PlanHistoryCard plan={basePlan} />)
+    expect(screen.queryByText(/closed/)).not.toBeInTheDocument()
+  })
+
   it('does not show the badge for a plan that ran its full course', () => {
     render(<PlanHistoryCard plan={basePlan} />)
     expect(screen.queryByText('Closed early')).not.toBeInTheDocument()
