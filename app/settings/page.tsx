@@ -56,6 +56,8 @@ export default function SettingsPage() {
   const [ftpBackfillResult, setFtpBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [strainBackfilling, setStrainBackfilling] = useState(false)
   const [strainBackfillResult, setStrainBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [planHistoryBackfilling, setPlanHistoryBackfilling] = useState(false)
+  const [planHistoryBackfillResult, setPlanHistoryBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [metricsBackfilling, setMetricsBackfilling] = useState(false)
   const [metricsBackfillResult, setMetricsBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const metricsStopRef = useRef(false)
@@ -421,6 +423,27 @@ export default function SettingsPage() {
     }
   }
 
+  async function runBackfillPlanHistory() {
+    setPlanHistoryBackfilling(true)
+    setPlanHistoryBackfillResult(null)
+    try {
+      const res = await fetch('/api/admin/backfill-plan-history', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setPlanHistoryBackfillResult({
+          ok: data.failed === 0,
+          message: data.total === 0 ? 'All archived plans already have history stats.' : `${data.backfilled} backfilled, ${data.failed} failed.`,
+        })
+      } else {
+        setPlanHistoryBackfillResult({ ok: false, message: data.error ?? 'Backfill failed.' })
+      }
+    } catch {
+      setPlanHistoryBackfillResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setPlanHistoryBackfilling(false)
+    }
+  }
+
   // Runs the resumable activity-metrics backfill to completion in one click,
   // looping batch after batch (each bounded to BACKFILL_LIMIT rides so no
   // single request risks a serverless timeout) instead of requiring "click
@@ -701,6 +724,9 @@ export default function SettingsPage() {
         strainBackfilling={strainBackfilling}
         strainBackfillResult={strainBackfillResult}
         onRunBackfillStrain={runBackfillStrain}
+        planHistoryBackfilling={planHistoryBackfilling}
+        planHistoryBackfillResult={planHistoryBackfillResult}
+        onRunBackfillPlanHistory={runBackfillPlanHistory}
         metricsBackfilling={metricsBackfilling}
         metricsBackfillResult={metricsBackfillResult}
         onRunBackfillActivityMetrics={runBackfillActivityMetrics}

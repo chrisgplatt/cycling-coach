@@ -16,6 +16,7 @@ function makeProps(overrides: Partial<ComponentProps<typeof DailyBriefingCard>> 
     zonesFixing: false, zonesResult: null, zonesPreview: null, onPreviewZonesFix: jest.fn(), onApplyZonesFix: jest.fn(),
     ftpBackfilling: false, ftpBackfillResult: null, onRunBackfillFtp: jest.fn(),
     strainBackfilling: false, strainBackfillResult: null, onRunBackfillStrain: jest.fn(),
+    planHistoryBackfilling: false, planHistoryBackfillResult: null, onRunBackfillPlanHistory: jest.fn(),
     metricsBackfilling: false, metricsBackfillResult: null, onRunBackfillActivityMetrics: jest.fn(), onStopBackfillActivityMetrics: jest.fn(),
     deepHistoryBackfilling: false, deepHistoryResult: null, onRunDeepHistoryBackfill: jest.fn(), onStopDeepHistoryBackfill: jest.fn(),
     resyncing: false, resyncResult: null, onRunResyncBests: jest.fn(),
@@ -65,6 +66,35 @@ describe('DailyBriefingCard — all-time bests backfill button', () => {
     render(<DailyBriefingCard {...makeProps({ metricsBackfilling: true, onStopBackfillActivityMetrics: onStop })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
     expect(onStop).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('DailyBriefingCard — plan history backfill button', () => {
+  it('renders the button when admin', () => {
+    render(<DailyBriefingCard {...makeProps()} />)
+    expect(screen.getByRole('button', { name: 'Backfill plan history stats' })).toBeInTheDocument()
+  })
+
+  it('does not render for non-admins', () => {
+    render(<DailyBriefingCard {...makeProps({ isAdmin: false })} />)
+    expect(screen.queryByRole('button', { name: 'Backfill plan history stats' })).not.toBeInTheDocument()
+  })
+
+  it('calls onRunBackfillPlanHistory when clicked', () => {
+    const onRun = jest.fn()
+    render(<DailyBriefingCard {...makeProps({ onRunBackfillPlanHistory: onRun })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Backfill plan history stats' }))
+    expect(onRun).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows "Backfilling…" and disables the button while running', () => {
+    render(<DailyBriefingCard {...makeProps({ planHistoryBackfilling: true })} />)
+    expect(screen.getByRole('button', { name: 'Backfilling…' })).toBeDisabled()
+  })
+
+  it('shows the result message after completion', () => {
+    render(<DailyBriefingCard {...makeProps({ planHistoryBackfillResult: { ok: true, message: '3 backfilled, 0 failed.' } })} />)
+    expect(screen.getByText('3 backfilled, 0 failed.')).toBeInTheDocument()
   })
 })
 
