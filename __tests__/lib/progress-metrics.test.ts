@@ -139,56 +139,6 @@ describe('computeProgressMetrics', () => {
     expect(result).not.toHaveProperty('wkg')
   })
 
-  // Streak tests
-  // Weeks below use Mon-Sun. Mar 2 2026 is a Monday.
-  it('computes streak of consecutive hit weeks, stopping at a miss', () => {
-    const workouts = [
-      // Week of Mar 2 — HIT (3 completed)
-      { status: 'completed' as const, date: '2026-03-02' },
-      { status: 'completed' as const, date: '2026-03-03' },
-      { status: 'completed' as const, date: '2026-03-04' },
-      // Week of Mar 9 — MISS (2 completed)
-      { status: 'completed' as const, date: '2026-03-09' },
-      { status: 'completed' as const, date: '2026-03-10' },
-      { status: 'skipped' as const, date: '2026-03-12' },
-      // Week of Mar 16 — HIT (3 completed)
-      { status: 'completed' as const, date: '2026-03-16' },
-      { status: 'completed' as const, date: '2026-03-17' },
-      { status: 'completed' as const, date: '2026-03-18' },
-      // Week of Mar 23 — HIT (3 completed)
-      { status: 'completed' as const, date: '2026-03-23' },
-      { status: 'completed' as const, date: '2026-03-24' },
-      { status: 'completed' as const, date: '2026-03-25' },
-    ]
-    const result = computeProgressMetrics([], 245, 73.5, plan, [], workouts, [], 3)
-    expect(result.streak).toBe(2) // Mar 16 + Mar 23 consecutive; Mar 9 breaks it
-  })
-
-  it('returns 0 streak when most recent past week was a miss', () => {
-    const workouts = [
-      // Week of Mar 9 — HIT
-      { status: 'completed' as const, date: '2026-03-09' },
-      { status: 'completed' as const, date: '2026-03-10' },
-      { status: 'completed' as const, date: '2026-03-11' },
-      // Week of Mar 16 — MISS (only 1 completed)
-      { status: 'completed' as const, date: '2026-03-16' },
-      { status: 'skipped' as const, date: '2026-03-17' },
-      { status: 'skipped' as const, date: '2026-03-18' },
-    ]
-    const result = computeProgressMetrics([], 245, 73.5, plan, [], workouts, [], 3)
-    expect(result.streak).toBe(0)
-  })
-
-  it('returns null streak when there is no plan', () => {
-    const result = computeProgressMetrics([], 245, 73.5, null, [], [], [], 3)
-    expect(result.streak).toBeNull()
-  })
-
-  it('returns null streak when there are no planWorkouts', () => {
-    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], [], 3)
-    expect(result.streak).toBeNull()
-  })
-
   // Rides tests
   it('counts activities since plan start', () => {
     const activities = [
@@ -196,12 +146,12 @@ describe('computeProgressMetrics', () => {
       act('2026-04-15'), // after → counted
       act('2026-03-15'), // before → not counted
     ]
-    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], activities, 3)
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], activities)
     expect(result.totalRides).toBe(2)
   })
 
   it('returns null totalRides when activities array is empty', () => {
-    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], [], 3)
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], [])
     expect(result.totalRides).toBeNull()
   })
 
@@ -210,7 +160,7 @@ describe('computeProgressMetrics', () => {
       act('2026-04-01'), // exact plan start date → should count (>=)
       act('2026-03-31'), // day before → should NOT count
     ]
-    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], activities, 3)
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], activities)
     expect(result.totalRides).toBe(1)
   })
 
@@ -225,7 +175,7 @@ describe('computeProgressMetrics', () => {
       act(withinWindow.toISOString().split('T')[0]), // within 6 weeks → counted
       act(outsideWindow.toISOString().split('T')[0]), // older than 6 weeks → NOT counted
     ]
-    const result = computeProgressMetrics([], 245, 73.5, null, [], [], activities, 3)
+    const result = computeProgressMetrics([], 245, 73.5, null, [], [], activities)
     expect(result.totalRides).toBe(1)
   })
 
@@ -236,7 +186,7 @@ describe('computeProgressMetrics', () => {
       act('2026-04-04', 'Run'),
       act('2026-04-05', 'Walk'),
     ]
-    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], activities, 3)
+    const result = computeProgressMetrics([], 245, 73.5, plan, [], [], activities)
     expect(result.totalRides).toBe(2)
   })
 })

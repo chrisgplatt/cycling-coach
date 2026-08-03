@@ -15,13 +15,6 @@ interface PlanWorkout {
   optional?: boolean
 }
 
-function getWeekStart(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  const dow = d.getDay() // 0=Sun, 1=Mon…6=Sat
-  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow))
-  return d.toISOString().split('T')[0]
-}
-
 export function computeProgressMetrics(
   wellness: ICUWellness[],
   currentFTP: number,
@@ -30,7 +23,6 @@ export function computeProgressMetrics(
   weightLog: WeightEntry[],
   planWorkouts: PlanWorkout[],
   activities: ICUActivity[] = [],
-  minSessionsPerWeek: number = 3,
 ): ProgressMetrics {
   const today = new Date().toISOString().split('T')[0]
   const planStartDate = plan ? plan.created_at.split('T')[0] : null
@@ -101,28 +93,6 @@ export function computeProgressMetrics(
     if (total > 0) adherence = { completed, total }
   }
 
-  // Streak — consecutive weeks (Mon-Sun) ending before current week where completed >= minSessionsPerWeek
-  let streak: number | null = null
-  if (plan && planWorkouts.length > 0) {
-    const currentWeekStart = getWeekStart(today)
-    const weekMap = new Map<string, number>()
-    for (const w of planWorkouts) {
-      const ws = getWeekStart(w.date)
-      if (ws >= currentWeekStart) continue // exclude current (in-progress) week
-      if (!weekMap.has(ws)) weekMap.set(ws, 0)
-      if (w.status === 'completed') weekMap.set(ws, weekMap.get(ws)! + 1)
-    }
-    if (weekMap.size > 0) {
-      const weeks = [...weekMap.keys()].sort((a, b) => b.localeCompare(a)) // newest first
-      let count = 0
-      for (const ws of weeks) {
-        if (weekMap.get(ws)! >= minSessionsPerWeek) count++
-        else break
-      }
-      streak = count
-    }
-  }
-
   // Total rides since plan start (fallback: last 6 weeks)
   let totalRides: number | null = null
   if (activities.length > 0) {
@@ -143,7 +113,6 @@ export function computeProgressMetrics(
     ctl,
     weight,
     adherence,
-    streak,
     totalRides,
     planPhase: plan?.phase ?? null,
     targetEvent: plan?.target_event_name ?? null,

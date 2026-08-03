@@ -1,5 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import ProgressStats from '@/components/ProgressStats'
+import { localDateStr } from '@/lib/local-date'
+import { isoWeekStart } from '@/lib/chart-helpers'
 
 const mockFetch = jest.fn()
 global.fetch = mockFetch
@@ -11,7 +13,6 @@ const briefData = {
     ctl: { current: 70, baseline: 55, delta: 15 },
     weight: { current: 73.5, baseline: 75.0, delta: -1.5 },
     adherence: { completed: 14, total: 16 },
-    streak: 5,
     totalRides: 47,
     planPhase: 'build',
     targetEvent: 'Dragon Ride',
@@ -45,10 +46,23 @@ describe('ProgressStats', () => {
     expect(await screen.findByText('88%')).toBeInTheDocument()
   })
 
-  it('renders streak tile', async () => {
+  it('renders streak tile using the real activity streak, not the old adherence-based one', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
-    render(<ProgressStats syncVersion={0} />)
-    expect(await screen.findByText('🔥 5')).toBeInTheDocument()
+    const today = localDateStr(new Date())
+    const monday = isoWeekStart(today)
+    function addDays(dateStr: string, n: number): string {
+      const d = new Date(dateStr + 'T00:00:00Z')
+      d.setUTCDate(d.getUTCDate() + n)
+      return d.toISOString().slice(0, 10)
+    }
+    const activities = [
+      { date: monday, type: 'Ride', distanceM: 20000, elevationM: 200, movingTimeSecs: 3600 },
+      { date: addDays(monday, -7), type: 'Ride', distanceM: 20000, elevationM: 200, movingTimeSecs: 3600 },
+      { date: addDays(monday, -14), type: 'Ride', distanceM: 20000, elevationM: 200, movingTimeSecs: 3600 },
+    ]
+    render(<ProgressStats syncVersion={0} activities={activities} />)
+    await screen.findByText('245W')
+    expect(await screen.findByText('🔥 3')).toBeInTheDocument()
   })
 
   it('renders weight tile with negative delta as good (green)', async () => {

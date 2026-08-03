@@ -412,7 +412,6 @@ export interface ProgressMetrics {
   ctl: ProgressDelta | null
   weight: ProgressDelta | null
   adherence: { completed: number; total: number } | null
-  streak: number | null
   totalRides: number | null
   planPhase: string | null
   targetEvent: string | null

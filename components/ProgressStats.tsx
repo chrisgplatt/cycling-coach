@@ -52,7 +52,7 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
 
   if (loading) return <div className="h-24 bg-gray-100 rounded-xl animate-pulse" />
 
-  const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || data.metrics_snapshot.streak != null || data.metrics_snapshot.weight || data.metrics_snapshot.totalRides != null)
+  const hasSeasonStats = data && (data.metrics_snapshot.ftp || data.metrics_snapshot.ctl || data.metrics_snapshot.adherence || (activities?.length ?? 0) > 0 || data.metrics_snapshot.weight || data.metrics_snapshot.totalRides != null)
   const hasWeek = weeklyProgress && weeklyProgress.sessionsTotal > 0
 
   if (!hasSeasonStats && !hasWeek && !eventCountdown && !upcomingEvents?.length && !upcomingTests?.length && !activities?.length) return null
@@ -157,8 +157,8 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
               pct={Math.round((m.adherence.completed / m.adherence.total) * 100)}
             />
           )}
-          {m.streak != null && (
-            <Tile label="Streak" value={m.streak > 0 ? `🔥 ${m.streak}` : `${m.streak}`} sub="weeks" />
+          {activities && activities.length > 0 && (
+            <Tile label="Streak" value={streakWeeks > 0 ? `🔥 ${streakWeeks}` : `${streakWeeks}`} sub="weeks" />
           )}
           {roundedForm != null && (
             <Tile

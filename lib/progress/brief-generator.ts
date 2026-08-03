@@ -65,7 +65,6 @@ export async function maybeGenerateProgressBrief(
     weightLog,
     planWorkouts,
     ridesActivities,
-    profile.min_sessions_per_week,
   )
 
   // Numeric stats are cheap (no Claude call) and safe to refresh on every
