@@ -1,4 +1,4 @@
-import { derivePhases, resolvePhases, getCurrentPhase } from '@/lib/plan/phases'
+import { derivePhases, resolvePhases, getCurrentPhase, computeWeekPhases, buildPlanBatches } from '@/lib/plan/phases'
 import type { Workout } from '@/types'
 
 describe('derivePhases', () => {
@@ -95,5 +95,64 @@ describe('getCurrentPhase', () => {
       '2026-01-08',
     )
     expect(result).toBe('base')
+  })
+})
+
+describe('computeWeekPhases', () => {
+  it('matches the CLAUDE.md matrix exactly for a 4-week plan', () => {
+    expect(computeWeekPhases(4)).toEqual(['base', 'build', 'build', 'taper'])
+  })
+
+  it('matches the CLAUDE.md matrix exactly for a 12-week plan', () => {
+    expect(computeWeekPhases(12)).toEqual([
+      'base', 'base', 'base', 'base',
+      'build', 'build', 'build', 'build', 'build',
+      'peak',
+      'taper', 'taper',
+    ])
+  })
+
+  it('extends base by one week for 13 weeks (nearest anchor is 12)', () => {
+    expect(computeWeekPhases(13)).toEqual([
+      'base', 'base', 'base', 'base', 'base',
+      'build', 'build', 'build', 'build', 'build',
+      'peak',
+      'taper', 'taper',
+    ])
+  })
+
+  it('clamps base to 1 week and borrows the rest from build for a very short plan', () => {
+    // Nearest anchor to 3 is 4 (base 1, build 2, peak 0, taper 1). delta = -1.
+    // base would go to 0, so it clamps to 1 and build absorbs the remaining -1 (2 -> 1).
+    expect(computeWeekPhases(3)).toEqual(['base', 'build', 'taper'])
+  })
+
+  it('always returns exactly totalWeeks entries', () => {
+    for (const weeks of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]) {
+      expect(computeWeekPhases(weeks)).toHaveLength(weeks)
+    }
+  })
+})
+
+describe('buildPlanBatches', () => {
+  it('splits an exact multiple of 4 weeks into equal 4-week batches', () => {
+    expect(buildPlanBatches(12)).toEqual([
+      { startWeek: 0, weekCount: 4 },
+      { startWeek: 4, weekCount: 4 },
+      { startWeek: 8, weekCount: 4 },
+    ])
+  })
+
+  it('gives the last batch the remainder when weeks is not a multiple of 4', () => {
+    expect(buildPlanBatches(10)).toEqual([
+      { startWeek: 0, weekCount: 4 },
+      { startWeek: 4, weekCount: 4 },
+      { startWeek: 8, weekCount: 2 },
+    ])
+  })
+
+  it('produces a single batch for a plan of 4 weeks or fewer', () => {
+    expect(buildPlanBatches(4)).toEqual([{ startWeek: 0, weekCount: 4 }])
+    expect(buildPlanBatches(1)).toEqual([{ startWeek: 0, weekCount: 1 }])
   })
 })

@@ -84,3 +84,67 @@ export function getCurrentPhase(
   const phases = resolvePhases(weekPhases, buckets.map(b => b.plannedTss), totalWeeks)
   return phases[currentWeek] ?? 'base'
 }
+
+interface PhaseAnchor { weeks: number; base: number; build: number; peak: number; taper: number }
+
+// CLAUDE.md's phase-duration matrix, as data. Anchors the plan length -> phase-week-count
+// mapping; computeWeekPhases interpolates for lengths that don't match a row exactly.
+const PHASE_MATRIX: PhaseAnchor[] = [
+  { weeks: 4, base: 1, build: 2, peak: 0, taper: 1 },
+  { weeks: 6, base: 2, build: 2, peak: 1, taper: 1 },
+  { weeks: 8, base: 2, build: 3, peak: 1, taper: 2 },
+  { weeks: 10, base: 3, build: 4, peak: 1, taper: 2 },
+  { weeks: 12, base: 4, build: 5, peak: 1, taper: 2 },
+  { weeks: 16, base: 6, build: 6, peak: 2, taper: 2 },
+  { weeks: 20, base: 8, build: 7, peak: 2, taper: 3 },
+]
+
+/**
+ * Deterministic whole-plan phase schedule from CLAUDE.md's phase-duration matrix —
+ * computed in code (not decided by Claude) so every generation batch sees the same
+ * fixed periodization regardless of how many Claude calls the plan is split across.
+ * Finds the nearest anchor row by week distance (ties go to the smaller anchor),
+ * then adjusts the base-phase count by the difference (compressing base for shorter
+ * plans, extending it for longer ones, per CLAUDE.md's "compress base first" rule),
+ * clamping base to a minimum of 1 week and moving any remaining deficit onto build.
+ */
+export function computeWeekPhases(totalWeeks: number): PlanPhase[] {
+  let nearest = PHASE_MATRIX[0]
+  let nearestDist = Math.abs(totalWeeks - nearest.weeks)
+  for (const row of PHASE_MATRIX.slice(1)) {
+    const dist = Math.abs(totalWeeks - row.weeks)
+    if (dist < nearestDist) { nearest = row; nearestDist = dist }
+  }
+  const delta = totalWeeks - nearest.weeks
+  let base = nearest.base + delta
+  let build = nearest.build
+  if (base < 1) {
+    build += base - 1
+    base = 1
+  }
+  const phases: PlanPhase[] = [
+    ...Array(base).fill('base'),
+    ...Array(Math.max(0, build)).fill('build'),
+    ...Array(nearest.peak).fill('peak'),
+    ...Array(nearest.taper).fill('taper'),
+  ]
+  while (phases.length < totalWeeks) phases.unshift('base')
+  return phases.slice(0, totalWeeks)
+}
+
+/**
+ * Splits a plan into fixed-size week batches (default 4 weeks), 0-based like
+ * WeekBucket.weekIndex elsewhere in this codebase. Each generation batch becomes its
+ * own HTTP request, so no single request risks the serverless function's time limit
+ * regardless of total plan length.
+ */
+export function buildPlanBatches(
+  totalWeeks: number,
+  batchSize = 4,
+): Array<{ startWeek: number; weekCount: number }> {
+  const batches: Array<{ startWeek: number; weekCount: number }> = []
+  for (let start = 0; start < totalWeeks; start += batchSize) {
+    batches.push({ startWeek: start, weekCount: Math.min(batchSize, totalWeeks - start) })
+  }
+  return batches
+}
