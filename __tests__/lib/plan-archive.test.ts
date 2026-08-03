@@ -1,4 +1,4 @@
-import { buildArchiveSummary } from '@/lib/plan/archive'
+import { buildArchiveSummary, archivePlan } from '@/lib/plan/archive'
 import { makeWorkout } from '../support/factories'
 import type { ICUActivity, ICUWellness } from '@/types'
 
@@ -75,5 +75,99 @@ describe('buildArchiveSummary', () => {
     expect(summary.totalCompletedSessions).toBe(0)
     expect(summary.totalHours).toBe(0)
     expect(summary.totalTss).toBe(0)
+  })
+})
+
+describe('archivePlan', () => {
+  function makeSupabase({
+    plan = { id: 'plan1', created_at: '2026-05-01T00:00:00Z', plan_weeks: 1 } as unknown,
+    workouts = [] as unknown[],
+    deleteSpy = jest.fn(async (_ids: string[]) => ({ error: null })),
+    updateSpy = jest.fn(async (_fields: unknown) => ({ data: [{ id: 'plan1' }] as unknown[] })),
+  }: {
+    plan?: unknown
+    workouts?: unknown[]
+    deleteSpy?: (ids: string[]) => Promise<{ error: null }>
+    updateSpy?: (fields?: unknown) => Promise<{ data: unknown[] }>
+  } = {}) {
+    return {
+      from: (table: string) => {
+        if (table === 'training_plans') {
+          return {
+            select: () => ({ eq: () => ({ single: async () => ({ data: plan }) }) }),
+            update: (fields: unknown) => ({
+              eq: () => ({ eq: () => ({ select: () => updateSpy(fields) }) }),
+            }),
+          }
+        }
+        if (table === 'workouts') {
+          return {
+            select: () => ({ eq: async () => ({ data: workouts }) }),
+            delete: () => ({ in: (_col: string, ids: string[]) => deleteSpy(ids) }),
+          }
+        }
+        throw new Error(`unexpected table ${table}`)
+      },
+    }
+  }
+
+  it('deletes future planned workouts, archives the plan, and freezes a summary', async () => {
+    const workouts = [
+      { id: 'w1', status: 'completed', date: '2026-05-02', plan_id: 'plan1', intervals_icu_event_id: null, duration_minutes: 60, type: 'endurance', steps: null, optional: false },
+      { id: 'w2', status: 'planned', date: '2026-05-06', plan_id: 'plan1', intervals_icu_event_id: 'evt-2', duration_minutes: 60, type: 'endurance', steps: null, optional: false },
+    ]
+    const deleteSpy = jest.fn(async (_ids: string[]) => ({ error: null }))
+    const updateSpy = jest.fn(async (fields: unknown) => ({ data: [{ id: 'plan1' }] }))
+    const supabase = makeSupabase({ workouts, deleteSpy, updateSpy }) as never
+    const deleteEvent = jest.fn(async () => undefined)
+    const client = { getActivities: jest.fn(async () => []), getWellness: jest.fn(async () => []), deleteEvent } as never
+
+    const result = await archivePlan(supabase, client, 'plan1', '2026-05-05')
+
+    expect(deleteEvent).toHaveBeenCalledWith('evt-2')
+    expect(deleteSpy).toHaveBeenCalledWith(['w2'])
+    expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'archived',
+      closed_at: '2026-05-05',
+      archive_summary: expect.objectContaining({ closedAt: '2026-05-05' }),
+    }))
+    expect(result).toEqual({ archived: true, deleted: 1, failed: 0 })
+  })
+
+  it('counts a failed intervals.icu event deletion without blocking the archive', async () => {
+    const workouts = [
+      { id: 'w1', status: 'planned', date: '2026-05-06', plan_id: 'plan1', intervals_icu_event_id: 'evt-1', duration_minutes: 60, type: 'endurance', steps: null, optional: false },
+    ]
+    const supabase = makeSupabase({ workouts }) as never
+    const client = {
+      getActivities: jest.fn(async () => []),
+      getWellness: jest.fn(async () => []),
+      deleteEvent: jest.fn(async () => { throw new Error('404') }),
+    } as never
+
+    const result = await archivePlan(supabase, client, 'plan1', '2026-05-05')
+    expect(result).toEqual({ archived: true, deleted: 1, failed: 1 })
+  })
+
+  it('degrades gracefully when intervals.icu is not configured (client is null)', async () => {
+    const workouts = [
+      { id: 'w1', status: 'completed', date: '2026-05-02', plan_id: 'plan1', intervals_icu_event_id: null, duration_minutes: 60, type: 'endurance', steps: null, optional: false },
+    ]
+    const updateSpy = jest.fn(async (fields: unknown) => ({ data: [{ id: 'plan1' }] }))
+    const supabase = makeSupabase({ workouts, updateSpy }) as never
+
+    const result = await archivePlan(supabase, null, 'plan1', '2026-05-05')
+
+    expect(result).toEqual({ archived: true, deleted: 0, failed: 0 })
+    expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({
+      archive_summary: expect.objectContaining({ ctlStart: null, ctlEnd: null, fitnessChange: null }),
+    }))
+  })
+
+  it('returns archived: false when the plan was already archived by a concurrent call', async () => {
+    const updateSpy = jest.fn(async () => ({ data: [] }))
+    const supabase = makeSupabase({ updateSpy }) as never
+    const result = await archivePlan(supabase, null, 'plan1', '2026-05-05')
+    expect(result.archived).toBe(false)
   })
 })
