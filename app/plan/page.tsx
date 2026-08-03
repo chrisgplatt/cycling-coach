@@ -171,7 +171,11 @@ export default function PlanPage() {
         const today = new Date().toISOString().split('T')[0]
         setFuturePlanWorkouts((data?.workouts ?? []).filter((w: Workout) => w.date >= today && w.status === 'planned'))
         const hasPhilosophy = !!(data?.training_philosophy)
-        const hasPlan = !!(data?.workouts?.length || data?.plan_weeks)
+        // data?.name only exists on a real training_plans row — when there's no active
+        // plan, GET /api/plan returns a synthetic `{ workouts: unplanned }` shell (so the
+        // dashboard can still render unlinked rides), and that shell's `workouts` array
+        // must not be mistaken for evidence of an active plan.
+        const hasPlan = !!data?.name
         setShowPhilosophyBanner(hasPlan && !hasPhilosophy)
         setPlanPhilosophy(data?.training_philosophy ?? null)
       })

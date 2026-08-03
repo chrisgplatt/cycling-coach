@@ -259,4 +259,44 @@ describe('My Plan tab', () => {
     render(<PlanPage />)
     expect(await screen.findByText(/no active plan/i)).toBeInTheDocument()
   })
+
+  it('does not mistake unlinked completed rides for an active plan when confirming methodology', async () => {
+    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/plan') {
+        // GET /api/plan's synthetic "no active plan" shell — carries unlinked
+        // completed rides so the dashboard can still render them, but must not
+        // be mistaken for an active plan.
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            workouts: [
+              { id: 'w1', date: '2026-05-01', type: 'endurance', duration_minutes: 60, status: 'completed', tss: null, icu_activity_id: 'a1', missed_reason: null, steps: null, description: '', target_zones: '', intervals_icu_event_id: null, plan_id: null, created_at: '' },
+            ],
+          }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          id: 'p1', goals: 'Complete a gran fondo', current_ftp: 200, weight_kg: 70,
+          weekly_availability: [{ day: 'monday', duration_minutes: 60 }],
+          events: [{ name: 'Dragon Ride', date: '2026-09-01', type: 'sportive', priority: 'A' }],
+        }),
+      })
+    })
+
+    render(<PlanPage />)
+    fireEvent.click(await screen.findByRole('button', { name: /build new plan/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^skip$/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /use this approach/i }))
+
+    expect(await screen.findByText(/build a new plan/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/no active plan/i)).toHaveLength(1)
+
+    const planPatchCalls = (global.fetch as jest.Mock).mock.calls.filter(
+      ([url, init]) => String(url) === '/api/plan' && init?.method === 'PATCH'
+    )
+    expect(planPatchCalls).toHaveLength(0)
+  })
 })
