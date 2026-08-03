@@ -112,6 +112,7 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', plan }) + '\n'))
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Plan generation failed'
+        console.error('[plan] generation failed:', message)
         controller.enqueue(encoder.encode(JSON.stringify({ type: 'error', message }) + '\n'))
       }
       controller.close()
@@ -190,14 +191,17 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (!plan?.workouts?.length) {
+    console.error('[plan] PATCH rejected: no workouts in submitted plan')
     return NextResponse.json({ error: 'Invalid plan data' }, { status: 400 })
   }
 
   if (!name) {
+    console.error('[plan] PATCH rejected: missing plan name')
     return NextResponse.json({ error: 'Plan name is required' }, { status: 400 })
   }
 
   if (name.length > 100) {
+    console.error('[plan] PATCH rejected: plan name too long')
     return NextResponse.json({ error: 'Plan name must be 100 characters or fewer' }, { status: 400 })
   }
 
@@ -207,6 +211,7 @@ export async function PATCH(req: NextRequest) {
     .maybeSingle()
 
   if (!profile?.intervals_icu_athlete_id || !profile?.intervals_icu_api_key) {
+    console.error('[plan] PATCH rejected: intervals.icu not configured')
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
   }
 

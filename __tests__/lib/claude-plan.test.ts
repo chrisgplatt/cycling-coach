@@ -1,4 +1,4 @@
-import { generatePlan, createPlanStream, countPlannedWorkouts } from '@/lib/claude/plan'
+import { generatePlan, createPlanStream, countPlannedWorkouts, parsePlanText } from '@/lib/claude/plan'
 import type { UserProfile, ICUSyncData, GeneratedPlan } from '@/types'
 import { makeGeneratedWorkout } from '../support/factories'
 
@@ -65,6 +65,29 @@ describe('generatePlan', () => {
     })
 
     await expect(generatePlan(profile, syncData)).rejects.toThrow('Failed to parse plan')
+  })
+
+  it('throws if Claude returns valid JSON with no workouts', async () => {
+    mockFinalMessage.mockResolvedValueOnce({
+      content: [{ type: 'text', text: JSON.stringify({ ...validPlan, workouts: [] }) }],
+    })
+
+    await expect(generatePlan(profile, syncData)).rejects.toThrow('Failed to parse plan')
+  })
+})
+
+describe('parsePlanText', () => {
+  it('throws a specific, actionable error when the parsed plan has no workouts', () => {
+    expect(() => parsePlanText(JSON.stringify({ ...validPlan, workouts: [] }))).toThrow(
+      'The coach generated a plan with no workouts — please try again.'
+    )
+  })
+
+  it('throws when the plan omits the workouts field entirely', () => {
+    const { workouts: _workouts, ...withoutWorkouts } = validPlan
+    expect(() => parsePlanText(JSON.stringify(withoutWorkouts))).toThrow(
+      'The coach generated a plan with no workouts — please try again.'
+    )
   })
 })
 

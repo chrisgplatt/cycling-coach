@@ -279,7 +279,11 @@ export function countPlannedWorkouts(
 
 export function parsePlanText(raw: string): GeneratedPlan {
   const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
-  return JSON.parse(text) as GeneratedPlan
+  const plan = JSON.parse(text) as GeneratedPlan
+  if (!plan.workouts?.length) {
+    throw new Error('The coach generated a plan with no workouts — please try again.')
+  }
+  return plan
 }
 
 export function createPlanStream(
