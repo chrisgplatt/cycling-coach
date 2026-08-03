@@ -5,7 +5,7 @@ import AddUnavailabilityModal from '@/components/AddUnavailabilityModal'
 import PlanDurationModal from '@/components/PlanDurationModal'
 import PlanApprovalModal from '@/components/PlanApprovalModal'
 import PlanReviewModal from '@/components/PlanReviewModal'
-import ClearWorkoutsModal from '@/components/ClearWorkoutsModal'
+import ClosePlanModal from '@/components/ClosePlanModal'
 import PlanChatModal from '@/components/PlanChatModal'
 import InterviewModal from '@/components/InterviewModal'
 import MethodologyModal from '@/components/MethodologyModal'
@@ -15,6 +15,7 @@ import ConsistencyStrip from '@/components/plan/ConsistencyStrip'
 import LoadComparisonChart from '@/components/plan/LoadComparisonChart'
 import FitnessTrendChart from '@/components/plan/FitnessTrendChart'
 import CoachingLog from '@/components/plan/CoachingLog'
+import PlanHistoryTab from '@/components/plan/PlanHistoryTab'
 import { resolvePhases } from '@/lib/plan/phases'
 import { buildWeekBuckets, weekState, consistency, planHours } from '@/lib/plan/progress'
 import { buildForecast, daysBetweenUtc, addDaysUtc } from '@/lib/plan/forecast'
@@ -26,7 +27,7 @@ import { eventEndDate, eventDurationDays } from '@/lib/events'
 import ExtendPlanModal from '@/components/ExtendPlanModal'
 import PlanKebabMenu from '@/components/PlanKebabMenu'
 
-type Tab = 'plan' | 'profile' | 'events'
+type Tab = 'plan' | 'profile' | 'events' | 'history'
 
 const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const
 const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
@@ -114,7 +115,7 @@ export default function PlanPage() {
   const [showInterviewOffer, setShowInterviewOffer] = useState(false)
   const [showInterview, setShowInterview] = useState(false)
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false)
-  const [showClearModal, setShowClearModal] = useState(false)
+  const [showClosePlanModal, setShowClosePlanModal] = useState(false)
   const [planGenNote, setPlanGenNote] = useState('')
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null)
   const [planWeeks, setPlanWeeks] = useState(6)
@@ -618,12 +619,12 @@ export default function PlanPage() {
     finally { setGenerating(false) }
   }
 
-  async function clearFutureWorkouts(): Promise<string> {
+  async function closePlan(): Promise<string> {
     try {
-      const res = await fetch('/api/workouts/clear-future', { method: 'POST' })
+      const res = await fetch('/api/plan/close', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) return `Error: ${data.error ?? 'Failed'}`
-      return `Plan archived and ${data.deleted} workout${data.deleted !== 1 ? 's' : ''} deleted${data.failed ? ` (${data.failed} failed to remove from intervals.icu)` : ''}`
+      return `Plan closed and saved to history. ${data.deleted} workout${data.deleted !== 1 ? 's' : ''} removed${data.failed ? ` (${data.failed} failed to remove from intervals.icu)` : ''}.`
     } catch { return 'Error: Network error' }
   }
 
@@ -653,7 +654,7 @@ export default function PlanPage() {
       </div>
 
       <div className="flex border-b border-slate-200">
-        {([['plan', 'My Plan'], ['profile', 'Profile & Schedule'], ['events', 'Events']] as [Tab, string][]).map(([id, label]) => (
+        {([['plan', 'My Plan'], ['profile', 'Profile & Schedule'], ['events', 'Events'], ['history', 'History']] as [Tab, string][]).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setTab(id as Tab)}
@@ -776,7 +777,7 @@ export default function PlanPage() {
                         onRegenerate={() => setShowReplaceConfirm(true)}
                         onRename={handleRename}
                         onClearFuture={() => setShowClearFutureConfirm(true)}
-                        onDelete={() => setShowClearModal(true)}
+                        onClosePlan={() => setShowClosePlanModal(true)}
                       />
                     </div>
                   </div>
@@ -947,8 +948,8 @@ export default function PlanPage() {
           />
         )}
 
-        {showClearModal && (
-          <ClearWorkoutsModal onConfirm={clearFutureWorkouts} onClose={() => { setShowClearModal(false); loadPlan() }} />
+        {showClosePlanModal && (
+          <ClosePlanModal onConfirm={closePlan} onClose={() => { setShowClosePlanModal(false); loadPlan() }} />
         )}
 
         {planChatOpen && planName && (
@@ -1493,6 +1494,11 @@ export default function PlanPage() {
           </div>
         )}
 
+      </div>
+
+      {/* HISTORY TAB */}
+      <div data-testid="tab-history" style={{ display: tab === 'history' ? 'block' : 'none' }}>
+        <PlanHistoryTab />
       </div>
 
       {showReviewModal && (

@@ -6,10 +6,10 @@ interface Props {
   onRegenerate: () => void
   onRename: () => void
   onClearFuture: () => void
-  onDelete: () => void
+  onClosePlan: () => void
 }
 
-export default function PlanKebabMenu({ onExtend, onRegenerate, onRename, onClearFuture, onDelete }: Props) {
+export default function PlanKebabMenu({ onExtend, onRegenerate, onRename, onClearFuture, onClosePlan }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -64,10 +64,10 @@ export default function PlanKebabMenu({ onExtend, onRegenerate, onRename, onClea
           </button>
           <div className="mx-3 border-t border-slate-100 my-1" />
           <button
-            onClick={() => pick(onDelete)}
+            onClick={() => pick(onClosePlan)}
             className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors min-h-[44px]"
           >
-            Delete plan
+            Close plan
           </button>
         </div>
       )}

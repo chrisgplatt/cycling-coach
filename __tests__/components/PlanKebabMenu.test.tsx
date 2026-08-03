@@ -6,7 +6,7 @@ const handlers = {
   onRegenerate: jest.fn(),
   onRename: jest.fn(),
   onClearFuture: jest.fn(),
-  onDelete: jest.fn(),
+  onClosePlan: jest.fn(),
 }
 
 beforeEach(() => {
@@ -31,7 +31,7 @@ describe('PlanKebabMenu', () => {
     expect(screen.getByText('Regenerate plan')).toBeInTheDocument()
     expect(screen.getByText('Rename plan')).toBeInTheDocument()
     expect(screen.getByText('Clear future workouts')).toBeInTheDocument()
-    expect(screen.getByText('Delete plan')).toBeInTheDocument()
+    expect(screen.getByText('Close plan')).toBeInTheDocument()
   })
 
   it('calls onClearFuture and closes', () => {
@@ -66,11 +66,11 @@ describe('PlanKebabMenu', () => {
     expect(screen.queryByText('Rename plan')).not.toBeInTheDocument()
   })
 
-  it('calls onDelete and closes', () => {
+  it('calls onClosePlan and closes', () => {
     render(<PlanKebabMenu {...handlers} />)
     fireEvent.click(screen.getByRole('button', { name: /plan options/i }))
-    fireEvent.click(screen.getByText('Delete plan'))
-    expect(handlers.onDelete).toHaveBeenCalled()
-    expect(screen.queryByText('Delete plan')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Close plan'))
+    expect(handlers.onClosePlan).toHaveBeenCalled()
+    expect(screen.queryByText('Close plan')).not.toBeInTheDocument()
   })
 })
