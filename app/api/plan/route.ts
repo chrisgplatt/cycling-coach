@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
-import { createPlanStream, parsePlanText, countPlannedWorkouts } from '@/lib/claude/plan'
+import { createPlanStream, parsePlanText, countPlannedWorkouts, estimateTss } from '@/lib/claude/plan'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import type { AthleteDossier } from '@/lib/claude/dossier'
@@ -49,11 +49,20 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { syncData, weeks = 6, startDate, notes = '', training_philosophy = null } = await req.json()
-  const safeWeeks = Math.min(13, Math.max(1, Math.round(Number(weeks) || 6)))
+  const {
+    syncData, totalWeeks = 6, startDate, notes = '', training_philosophy = null,
+    batchStartWeek = 0, batchWeekCount, priorWorkouts = [],
+  } = await req.json()
+  const safeWeeks = Math.min(13, Math.max(1, Math.round(Number(totalWeeks) || 6)))
   const safeStartDate = typeof startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(startDate)
     ? startDate
     : new Date().toISOString().split('T')[0]
+  const safeBatchStartWeek = Math.min(safeWeeks - 1, Math.max(0, Math.round(Number(batchStartWeek) || 0)))
+  const safeBatchWeekCount = Math.max(
+    1,
+    Math.min(safeWeeks - safeBatchStartWeek, Math.round(Number(batchWeekCount) || (safeWeeks - safeBatchStartWeek)))
+  )
+  const safePriorWorkouts = Array.isArray(priorWorkouts) ? priorWorkouts : []
   const [{ data: profileData }, dossier, beliefs] = await Promise.all([
     supabase.from('user_profile').select('*').maybeSingle(),
     fetchDossier(supabase, user.id),
@@ -81,6 +90,7 @@ export async function POST(req: NextRequest) {
       [formatDossier(dossier as AthleteDossier | null), formatAthleteModel(beliefs)].filter(Boolean).join('\n\n'),
       hrvStatus,
       (training_philosophy as TrainingPhilosophy | null) ?? null,
+      { batchStartWeek: safeBatchStartWeek, batchWeekCount: safeBatchWeekCount, priorWorkouts: safePriorWorkouts },
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Plan generation failed'
@@ -253,12 +263,6 @@ export async function PATCH(req: NextRequest) {
 
   if (planError || !savedPlan) {
     return NextResponse.json({ error: 'Failed to save plan' }, { status: 500 })
-  }
-
-  function estimateTss(steps: Array<{ duration_minutes: number; power_pct_ftp: number }>): number {
-    return Math.round(
-      steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0)
-    )
   }
 
   const uploadErrors: string[] = []
