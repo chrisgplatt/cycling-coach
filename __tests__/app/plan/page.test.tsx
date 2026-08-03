@@ -1,10 +1,13 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import PlanPage from '@/app/plan/page'
+import { generatePlanInBatches } from '@/lib/plan/generate-batches'
 
 global.fetch = jest.fn().mockResolvedValue({
   ok: true,
   json: async () => ({}),
 })
+
+jest.mock('@/lib/plan/generate-batches', () => ({ generatePlanInBatches: jest.fn() }))
 
 describe('PlanPage tabs', () => {
   it('renders all three tab buttons', () => {
@@ -298,5 +301,62 @@ describe('My Plan tab', () => {
       ([url, init]) => String(url) === '/api/plan' && init?.method === 'PATCH'
     )
     expect(planPatchCalls).toHaveLength(0)
+  })
+})
+
+describe('My Plan tab — batched plan generation wiring', () => {
+  function mockProfileAndPlanFetch() {
+    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/plan') return Promise.resolve({ ok: true, json: async () => ({ workouts: [] }) })
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          id: 'p1', goals: 'g', current_ftp: 200, weight_kg: 70,
+          weekly_availability: [{ day: 'monday', duration_minutes: 60 }],
+          events: [{ name: 'Dragon Ride', date: '2026-09-01', type: 'sportive', priority: 'A' }],
+        }),
+      })
+    })
+  }
+
+  it('shows the approval modal when generatePlanInBatches succeeds', async () => {
+    (generatePlanInBatches as jest.Mock).mockResolvedValue({
+      ok: true,
+      plan: {
+        rationale: 'r', target_event_name: 'Dragon Ride', target_event_date: '2026-09-01',
+        phase: 'base', week_phases: ['base'],
+        workouts: [{ date: '2026-06-01', type: 'endurance', duration_minutes: 60, description: 'd', target_zones: 'z', steps: [] }],
+      },
+    })
+    mockProfileAndPlanFetch()
+
+    render(<PlanPage />)
+    fireEvent.click(await screen.findByRole('button', { name: /build new plan/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^skip$/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /use this approach/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^start$/i }))
+
+    expect(await screen.findByText(/New Training Plan/i)).toBeInTheDocument()
+    expect(generatePlanInBatches).toHaveBeenCalledWith(
+      6,
+      expect.objectContaining({ startDate: expect.any(String), notes: '' }),
+      expect.objectContaining({ onTotal: expect.any(Function), onProgress: expect.any(Function) }),
+    )
+  })
+
+  it('shows the batch failure message on the Training Plan screen when generatePlanInBatches fails', async () => {
+    (generatePlanInBatches as jest.Mock).mockResolvedValue({
+      ok: false, error: 'Plan generation failed while building weeks 5-8',
+    })
+    mockProfileAndPlanFetch()
+
+    render(<PlanPage />)
+    fireEvent.click(await screen.findByRole('button', { name: /build new plan/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^skip$/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /use this approach/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^start$/i }))
+
+    expect(await screen.findByText('Plan generation failed while building weeks 5-8')).toBeInTheDocument()
   })
 })

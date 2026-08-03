@@ -17,6 +17,7 @@ import FitnessTrendChart from '@/components/plan/FitnessTrendChart'
 import CoachingLog from '@/components/plan/CoachingLog'
 import PlanHistoryTab from '@/components/plan/PlanHistoryTab'
 import { resolvePhases } from '@/lib/plan/phases'
+import { generatePlanInBatches } from '@/lib/plan/generate-batches'
 import { buildWeekBuckets, weekState, consistency, planHours } from '@/lib/plan/progress'
 import { buildForecast, daysBetweenUtc, addDaysUtc } from '@/lib/plan/forecast'
 import { resolveMaxHr, MAX_HR_SOURCE_LABEL } from '@/lib/max-hr'
@@ -587,40 +588,19 @@ export default function PlanPage() {
     setSaveError(null)
     try {
       const profileSaved = await saveProfile()
-      if (!profileSaved) { setGenerating(false); return }
-      const res = await fetch('/api/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncData, weeks, startDate, notes, training_philosophy: trainingPhilosophy }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setSaveError(data.error ?? 'Plan generation failed')
-        return
-      }
-      if (!res.body) { setSaveError('No response from server'); return }
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.trim()) continue
-          try {
-            const event = JSON.parse(line)
-            if (event.type === 'total') setEstimatedWorkouts(event.count)
-            else if (event.type === 'progress') setWorkoutsFound(event.found)
-            else if (event.type === 'done') setGeneratedPlan(event.plan)
-            else if (event.type === 'error') setSaveError(event.message)
-          } catch { /* ignore malformed lines */ }
-        }
-      }
-    } catch { setSaveError('Network error during plan generation') }
-    finally { setGenerating(false) }
+      if (!profileSaved) return
+      const result = await generatePlanInBatches(
+        weeks,
+        { syncData, startDate, notes, trainingPhilosophy },
+        { onTotal: setEstimatedWorkouts, onProgress: setWorkoutsFound },
+      )
+      if (result.ok) setGeneratedPlan(result.plan)
+      else setSaveError(result.error)
+    } catch {
+      setSaveError('Network error during plan generation')
+    } finally {
+      setGenerating(false)
+    }
   }
 
   async function closePlan(): Promise<string> {
@@ -1015,7 +995,7 @@ export default function PlanPage() {
           {loadError && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{loadError}</div>
           )}
-          {saveError && (
+          {tab === 'profile' && saveError && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{saveError}</div>
           )}
 
