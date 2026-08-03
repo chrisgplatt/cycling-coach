@@ -8,6 +8,8 @@ import type { HrvStatus } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
 import { eventCoversDate, eventDateRangeLabel, eventBlockStatusLabel } from '@/lib/events'
+import { addDaysUtc } from '@/lib/plan/forecast'
+import { computeWeekPhases } from '@/lib/plan/phases'
 
 function summariseActivities(activities: ICUActivity[]): string {
   if (!activities.length) return 'No recent activities.'
@@ -100,6 +102,69 @@ export function createExtendStream(
   return createPlanStream(profile, syncData, weeksToGenerate, todayDate, notes, dossierSection, hrvStatus, trainingPhilosophy)
 }
 
+export interface PlanBatchInfo {
+  batchStartWeek: number     // 0-based offset of this batch within the whole plan
+  batchWeekCount: number     // weeks generated in this call
+  priorWorkouts: GeneratedPlan['workouts']   // workouts from earlier batches; [] for the first batch
+}
+
+/** Target training stress from a workout's steps — shared by prompt continuity summaries and the PATCH save path. */
+export function estimateTss(steps: Array<{ duration_minutes: number; power_pct_ftp: number }>): number {
+  return Math.round(
+    steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0)
+  )
+}
+
+function summariseBatchWorkouts(workouts: GeneratedPlan['workouts'], planStart: string): string {
+  if (!workouts.length) return 'No prior weeks yet.'
+  const byWeek = new Map<number, { count: number; tss: number }>()
+  for (const w of workouts) {
+    const dayIndex = Math.round((Date.parse(w.date + 'T00:00:00Z') - Date.parse(planStart + 'T00:00:00Z')) / 86_400_000)
+    const weekIndex = Math.floor(dayIndex / 7)
+    const tss = w.steps?.length ? estimateTss(w.steps) : 0
+    const entry = byWeek.get(weekIndex) ?? { count: 0, tss: 0 }
+    entry.count += 1
+    entry.tss += tss
+    byWeek.set(weekIndex, entry)
+  }
+  return [...byWeek.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([wi, { count, tss }]) => `  Week ${wi + 1}: ${count} session${count === 1 ? '' : 's'}, ${Math.round(tss)} TSS`)
+    .join('\n')
+}
+
+function buildPlanLengthInstruction(
+  weeks: number,
+  batch: PlanBatchInfo,
+  batchStartDate: string,
+  batchEndDate: string,
+): string {
+  const isFirstBatch = batch.batchStartWeek === 0
+  const isLastBatch = batch.batchStartWeek + batch.batchWeekCount >= weeks
+  const lines: string[] = []
+  if (isFirstBatch && isLastBatch) {
+    lines.push(`Generate all ${weeks} week${weeks === 1 ? '' : 's'} now.`)
+  } else {
+    const weekLabel = batch.batchWeekCount === 1
+      ? `week ${batch.batchStartWeek + 1}`
+      : `weeks ${batch.batchStartWeek + 1}-${batch.batchStartWeek + batch.batchWeekCount}`
+    lines.push(`Generate only ${weekLabel} now (${batchStartDate} to ${batchEndDate} inclusive) — a later request will cover the rest of the plan.`)
+    if (!isLastBatch) {
+      lines.push('This is not the end of the plan — do not taper or wind the training down in these weeks.')
+    }
+  }
+  lines.push(`Do not place any workouts before ${batchStartDate} or after ${batchEndDate}.`)
+  return lines.join(' ')
+}
+
+function buildPhaseInstruction(weeks: number, batch: PlanBatchInfo): string {
+  const weekPhases = computeWeekPhases(weeks)
+  return Array.from({ length: batch.batchWeekCount }, (_, i) => {
+    const weekNum = batch.batchStartWeek + i + 1
+    return `  Week ${weekNum}: ${weekPhases[batch.batchStartWeek + i]}`
+  }).join('\n')
+}
+
 function buildPrompt(
   profile: UserProfile,
   syncData: ICUSyncData,
@@ -109,6 +174,7 @@ function buildPrompt(
   dossierSection = '',
   hrvStatus?: HrvStatus | null,
   trainingPhilosophy?: TrainingPhilosophy | null,
+  batch: PlanBatchInfo = { batchStartWeek: 0, batchWeekCount: weeks, priorWorkouts: [] },
 ): string {
   const allEvents = [...profile.events].sort((a, b) => a.date.localeCompare(b.date))
   if (!allEvents.length) throw new Error('Cannot generate a plan: no events configured.')
@@ -118,6 +184,50 @@ function buildPrompt(
     d.setUTCDate(d.getUTCDate() + weeks * 7 - 1)
     return d.toISOString().split('T')[0]
   })()
+  const batchStartDate = addDaysUtc(startDate, batch.batchStartWeek * 7)
+  const batchEndDate = addDaysUtc(startDate, (batch.batchStartWeek + batch.batchWeekCount) * 7 - 1)
+  const isFirstBatch = batch.batchStartWeek === 0
+
+  const schema = isFirstBatch
+    ? `{
+  "rationale": "2-3 paragraph explanation of the plan approach and reasoning. Separate paragraphs with \\n\\n.",
+  "target_event_name": "event name",
+  "target_event_date": "YYYY-MM-DD",
+  "workouts": [
+    {
+      "date": "YYYY-MM-DD",
+      "type": "endurance|threshold|intervals|recovery|test",
+      "duration_minutes": 90,
+      "description": "what to do",
+      "target_zones": "Zone 2 (55-75% FTP)",
+      "steps": [
+        {"label": "Warm Up", "duration_minutes": 15, "power_pct_ftp": 60},
+        {"label": "Zone 2", "duration_minutes": 65, "power_pct_ftp": 70},
+        {"label": "Cool Down", "duration_minutes": 10, "power_pct_ftp": 55}
+      ],
+      "coaching_notes": { "summary": "why this session matters today", "focus": [ {"label": "Cadence", "detail": "hold 90-95 rpm"} ] },
+      "optional": false
+    }
+  ]
+}`
+    : `{
+  "workouts": [
+    {
+      "date": "YYYY-MM-DD",
+      "type": "endurance|threshold|intervals|recovery|test",
+      "duration_minutes": 90,
+      "description": "what to do",
+      "target_zones": "Zone 2 (55-75% FTP)",
+      "steps": [
+        {"label": "Warm Up", "duration_minutes": 15, "power_pct_ftp": 60},
+        {"label": "Zone 2", "duration_minutes": 65, "power_pct_ftp": 70},
+        {"label": "Cool Down", "duration_minutes": 10, "power_pct_ftp": 55}
+      ],
+      "coaching_notes": { "summary": "why this session matters today", "focus": [ {"label": "Cadence", "detail": "hold 90-95 rpm"} ] },
+      "optional": false
+    }
+  ]
+}`
 
   return `Generate a training plan for this athlete.
 
@@ -208,8 +318,11 @@ When an event week contains an event with a TSS estimate, treat that estimated T
 ${trainingPhilosophy ? '\n' + buildPromptWithPhilosophy(trainingPhilosophy) + '\n' : ''}
 RECENT ACTIVITIES (last 10 — use these to understand training history, discipline mix, and current intensity):
 ${summariseActivities(syncData.activities)}
-
-PLAN LENGTH: Generate exactly ${weeks} week${weeks === 1 ? '' : 's'} of workouts. The plan window is ${startDate} to ${endDate} inclusive. Do not place any workouts before ${startDate} or after this end date. The final week of workouts must fall within the last 7 days of this window.
+${!isFirstBatch ? `
+PLAN SO FAR (weeks already generated in earlier requests for this same plan — continue this progression, do not restart it):
+${summariseBatchWorkouts(batch.priorWorkouts, startDate)}
+` : ''}
+PLAN LENGTH: This ${weeks}-week plan runs from ${startDate} to ${endDate} inclusive. ${buildPlanLengthInstruction(weeks, batch, batchStartDate, batchEndDate)}
 ${notes ? `
 ADDITIONAL COACHING NOTES (take these into account when designing the plan):
 ${notes}
@@ -223,32 +336,11 @@ STEP RULES:
 
 ${coachingNotesGuidance()}
 
-WEEK PHASES: also return "week_phases" — an array with exactly ${weeks} entries, one phase per plan week in chronological order (base|build|peak|taper), consistent with the periodization you applied.
+PERIODIZATION PHASES FOR THESE WEEKS (fixed — apply these, do not choose your own phase labels):
+${buildPhaseInstruction(weeks, batch)}
 
 Return ONLY this JSON:
-{
-  "rationale": "2-3 paragraph explanation of the plan approach and reasoning. Separate paragraphs with \\n\\n.",
-  "target_event_name": "event name",
-  "target_event_date": "YYYY-MM-DD",
-  "phase": "base|build|peak|taper",
-  "week_phases": ["base|build|peak|taper for week 1", "… week 2 …", "… one entry per plan week, in order …"],
-  "workouts": [
-    {
-      "date": "YYYY-MM-DD",
-      "type": "endurance|threshold|intervals|recovery|test",
-      "duration_minutes": 90,
-      "description": "what to do",
-      "target_zones": "Zone 2 (55-75% FTP)",
-      "steps": [
-        {"label": "Warm Up", "duration_minutes": 15, "power_pct_ftp": 60},
-        {"label": "Zone 2", "duration_minutes": 65, "power_pct_ftp": 70},
-        {"label": "Cool Down", "duration_minutes": 10, "power_pct_ftp": 55}
-      ],
-      "coaching_notes": { "summary": "why this session matters today", "focus": [ {"label": "Cadence", "detail": "hold 90-95 rpm"} ] },
-      "optional": false
-    }
-  ]
-}`
+${schema}`
 }
 
 export function countPlannedWorkouts(
@@ -295,12 +387,15 @@ export function createPlanStream(
   dossierSection = '',
   hrvStatus?: HrvStatus | null,
   trainingPhilosophy?: TrainingPhilosophy | null,
+  batchInfo?: PlanBatchInfo,
 ) {
-  const prompt = buildPrompt(profile, syncData, weeks, startDate, notes, dossierSection, hrvStatus, trainingPhilosophy)
+  const batch = batchInfo ?? { batchStartWeek: 0, batchWeekCount: weeks, priorWorkouts: [] }
+  const prompt = buildPrompt(profile, syncData, weeks, startDate, notes, dossierSection, hrvStatus, trainingPhilosophy, batch)
   return anthropic.messages.stream({
     model: MODEL,
     max_tokens: 32000,
     system: SYSTEM_PROMPT,
+    thinking: { type: 'enabled', budget_tokens: 4000 },
     messages: [{ role: 'user', content: prompt }],
   })
 }

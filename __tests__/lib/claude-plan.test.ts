@@ -1,4 +1,4 @@
-import { generatePlan, createPlanStream, countPlannedWorkouts, parsePlanText } from '@/lib/claude/plan'
+import { generatePlan, createPlanStream, countPlannedWorkouts, parsePlanText, estimateTss } from '@/lib/claude/plan'
 import type { UserProfile, ICUSyncData, GeneratedPlan } from '@/types'
 import { makeGeneratedWorkout } from '../support/factories'
 
@@ -122,6 +122,87 @@ describe('createPlanStream — dossier injection', () => {
 })
 
 import { anthropic } from '@/lib/claude/client'
+
+describe('createPlanStream — batching', () => {
+  it('passes an explicit capped thinking budget', () => {
+    createPlanStream(profile, syncData, 12, '2026-06-01')
+    const call = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0]
+    expect(call.thinking).toEqual({ type: 'enabled', budget_tokens: 4000 })
+  })
+
+  it('defaults to a single full-plan batch when no batch info is given', () => {
+    createPlanStream(profile, syncData, 12, '2026-06-01')
+    const prompt = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    expect(prompt).toContain('Generate all 12 weeks now.')
+    expect(prompt).not.toContain('PLAN SO FAR')
+    expect(prompt).toContain('"rationale"')
+  })
+
+  it('scopes a middle batch to its own week range and flags the plan continues', () => {
+    createPlanStream(profile, syncData, 12, '2026-06-01', '', '', null, null, {
+      batchStartWeek: 4, batchWeekCount: 4, priorWorkouts: [],
+    })
+    const prompt = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    expect(prompt).toContain('Generate only weeks 5-8 now')
+    expect(prompt).toContain('do not taper or wind the training down')
+  })
+
+  it('flags the final batch as the end of the plan (no continuation warning)', () => {
+    createPlanStream(profile, syncData, 12, '2026-06-01', '', '', null, null, {
+      batchStartWeek: 8, batchWeekCount: 4, priorWorkouts: [],
+    })
+    const prompt = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    expect(prompt).toContain('Generate only weeks 9-12 now')
+    expect(prompt).not.toContain('do not taper or wind the training down')
+  })
+
+  it('includes a PLAN SO FAR summary of prior workouts for a later batch', () => {
+    const priorWorkouts = [
+      {
+        date: '2026-06-01', type: 'endurance' as const, duration_minutes: 60, description: 'd', target_zones: 'z',
+        steps: [{ label: 'Main', duration_minutes: 60, power_pct_ftp: 70 }],
+      },
+    ]
+    createPlanStream(profile, syncData, 12, '2026-06-01', '', '', null, null, {
+      batchStartWeek: 4, batchWeekCount: 4, priorWorkouts,
+    })
+    const prompt = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    expect(prompt).toContain('PLAN SO FAR')
+    expect(prompt).toContain('Week 1: 1 session')
+  })
+
+  it('lists the fixed phase for each week in the batch', () => {
+    createPlanStream(profile, syncData, 12, '2026-06-01', '', '', null, null, {
+      batchStartWeek: 4, batchWeekCount: 4, priorWorkouts: [],
+    })
+    const prompt = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    // computeWeekPhases(12) = 4x base, 5x build, 1x peak, 2x taper -> week 5 (index 4) is the first build week
+    expect(prompt).toContain('Week 5: build')
+  })
+
+  it('omits rationale/target_event fields from the requested schema for a non-first batch', () => {
+    createPlanStream(profile, syncData, 12, '2026-06-01', '', '', null, null, {
+      batchStartWeek: 4, batchWeekCount: 4, priorWorkouts: [],
+    })
+    const prompt = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    expect(prompt).not.toContain('"rationale"')
+  })
+})
+
+describe('estimateTss', () => {
+  it('estimates TSS from a single full-power-hour step as 100', () => {
+    expect(estimateTss([{ duration_minutes: 60, power_pct_ftp: 100 }])).toBe(100)
+  })
+
+  it('sums TSS across multiple steps', () => {
+    const steps = [
+      { duration_minutes: 15, power_pct_ftp: 60 },
+      { duration_minutes: 30, power_pct_ftp: 90 },
+      { duration_minutes: 15, power_pct_ftp: 55 },
+    ]
+    expect(estimateTss(steps)).toBeGreaterThan(0)
+  })
+})
 
 describe('generatePlan — multi-day and continue-training holiday events', () => {
   it('shows the full date range and BLOCKED status for a default multi-day holiday', async () => {
