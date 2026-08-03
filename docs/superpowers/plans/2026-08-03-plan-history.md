@@ -13,7 +13,7 @@
 - Run `npm run typecheck` before committing any task that touches `.ts`/`.tsx` files — Jest does not surface type errors (`AGENTS.md`).
 - The migration in Task 1 is not auto-deployed. After that task, tell the user the exact SQL to run against the shared Supabase project, and to run `notify pgrst, 'reload schema';` afterward (`AGENTS.md`).
 - All new/changed UI must work at ≥320px width: `items-end sm:items-center` + `max-h-[92vh] overflow-y-auto` on any modal, 44px-minimum touch targets, no hover-only interactions (`AGENTS.md`).
-- Every step that changes code must leave `npm run test:ci` passing before its commit.
+- Every task must leave `npm run test:ci` passing after its final commit (intermediate steps within a task may be red between a failing test and its implementation, per TDD).
 
 ---
 
@@ -1298,7 +1298,7 @@ git commit -m "feat: add PlanHistoryCard with expandable per-week table"
 
 **Interfaces:**
 - Consumes: `PlanHistoryCard` (Task 8); `GET /api/plan/history` (Task 6) via `fetch`.
-- Produces: `<PlanHistoryTab />` — no props, self-fetching. Task 12 renders this inside the plan page's new "History" tab.
+- Produces: `<PlanHistoryTab />` — no props, self-fetching. Task 10 (Part C) renders this inside the plan page's new "History" tab.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1408,15 +1408,23 @@ git commit -m "feat: add self-fetching PlanHistoryTab"
 
 ---
 
-### Task 10: Rename the kebab menu's "Delete plan" to "Close plan"
+### Task 10: Rename the kebab menu action, rename the confirm modal, and wire the History tab into the plan page
+
+This task merges what were originally three separate tasks (kebab menu rename, modal rename, page wiring). They are inseparable: `PlanKebabMenu`'s prop rename and `ClearWorkoutsModal`'s rename each break `app/plan/page.tsx`'s single call site until the page is updated too, so splitting them would mean committing with `npm run typecheck` red — which conflicts with this plan's own Global Constraints. Do the renames and the page wiring together, and commit once at the end with everything green.
 
 **Files:**
 - Modify: `components/PlanKebabMenu.tsx`
 - Modify: `__tests__/components/PlanKebabMenu.test.tsx`
+- Create: `components/ClosePlanModal.tsx`
+- Create: `__tests__/components/ClosePlanModal.test.tsx`
+- Delete: `components/ClearWorkoutsModal.tsx`
+- Modify: `app/plan/page.tsx`
 
 **Interfaces:**
-- Consumes: nothing new.
-- Produces: `PlanKebabMenu`'s prop renamed from `onDelete` to `onClosePlan`; button label "Delete plan" → "Close plan" (same red styling/position). Task 12 rewires `app/plan/page.tsx`'s usage to the new prop name.
+- Consumes: `PlanHistoryTab` (Task 9), `POST /api/plan/close` (Task 5).
+- Produces: `PlanKebabMenu`'s prop renamed from `onDelete` to `onClosePlan`; `ClosePlanModal({ onConfirm: () => Promise<string>, onClose: () => void })` (same three-phase confirm → closing → done contract as the old `ClearWorkoutsModal`, new copy); the plan page's new "History" tab rendering `<PlanHistoryTab />`. Nothing later in the plan depends on these — this is the last task.
+
+#### Part A: Rename `PlanKebabMenu`'s close action
 
 - [ ] **Step 1: Update the failing test first**
 
@@ -1492,32 +1500,11 @@ Update the button's handler and label:
 Run: `npx jest PlanKebabMenu`
 Expected: PASS (all 7 tests)
 
-- [ ] **Step 5: Typecheck**
+Do not typecheck or commit yet — `app/plan/page.tsx` still passes the old `onDelete` prop, and this task fixes that in Part C. Continue directly to Part B.
 
-Run: `npm run typecheck`
-Expected: FAIL at this point — `app/plan/page.tsx` still passes `onDelete={...}`, which no longer matches `PlanKebabMenu`'s props. This is expected; Task 12 fixes the call site. Do not attempt to fix `app/plan/page.tsx` in this task — commit as-is and let Task 12 close the gap, per the plan's task ordering.
+#### Part B: Rename `ClearWorkoutsModal` to `ClosePlanModal`
 
-- [ ] **Step 6: Commit**
-
-```bash
-git add components/PlanKebabMenu.tsx __tests__/components/PlanKebabMenu.test.tsx
-git commit -m "refactor: rename PlanKebabMenu's delete action to Close plan"
-```
-
----
-
-### Task 11: Rename `ClearWorkoutsModal` to `ClosePlanModal` with updated copy
-
-**Files:**
-- Create: `components/ClosePlanModal.tsx`
-- Create: `__tests__/components/ClosePlanModal.test.tsx`
-- Delete: `components/ClearWorkoutsModal.tsx`
-
-**Interfaces:**
-- Consumes: nothing new.
-- Produces: `ClosePlanModal({ onConfirm: () => Promise<string>, onClose: () => void })` — identical three-phase (confirm → closing → done) contract as the old `ClearWorkoutsModal`, new copy. Task 12 swaps the import and JSX tag in `app/plan/page.tsx`.
-
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 5: Write the failing test**
 
 Create `__tests__/components/ClosePlanModal.test.tsx`:
 
@@ -1552,12 +1539,12 @@ describe('ClosePlanModal', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 6: Run test to verify it fails**
 
 Run: `npx jest ClosePlanModal`
 Expected: FAIL with "Cannot find module '@/components/ClosePlanModal'"
 
-- [ ] **Step 3: Implement the component**
+- [ ] **Step 7: Implement the component**
 
 Create `components/ClosePlanModal.tsx` (copy of `components/ClearWorkoutsModal.tsx` with updated strings only):
 
@@ -1639,43 +1626,24 @@ export default function ClosePlanModal({ onConfirm, onClose }: Props) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 8: Run test to verify it passes**
 
 Run: `npx jest ClosePlanModal`
 Expected: PASS (all 3 tests)
 
-- [ ] **Step 5: Delete the old component**
+- [ ] **Step 9: Delete the old component**
 
 ```bash
 git rm components/ClearWorkoutsModal.tsx
 ```
 
-(No test file exists for it today, so nothing else references it besides `app/plan/page.tsx`, which Task 12 updates.)
+(No test file exists for it today, so nothing else references it besides `app/plan/page.tsx`, updated next in Part C.)
 
-- [ ] **Step 6: Typecheck**
+Do not typecheck or commit yet — `app/plan/page.tsx` still imports `ClearWorkoutsModal`. Continue directly to Part C.
 
-Run: `npm run typecheck`
-Expected: FAIL at this point — `app/plan/page.tsx` still imports `ClearWorkoutsModal`. Expected; Task 12 fixes it.
+#### Part C: Wire the History tab and renamed components into the plan page
 
-- [ ] **Step 7: Commit**
-
-```bash
-git add components/ClosePlanModal.tsx __tests__/components/ClosePlanModal.test.tsx
-git commit -m "refactor: rename ClearWorkoutsModal to ClosePlanModal with close-plan copy"
-```
-
----
-
-### Task 12: Wire the History tab and renamed components into the plan page
-
-**Files:**
-- Modify: `app/plan/page.tsx`
-
-**Interfaces:**
-- Consumes: `PlanHistoryTab` (Task 9), `ClosePlanModal` (Task 11), `PlanKebabMenu`'s `onClosePlan` prop (Task 10), `POST /api/plan/close` (Task 5).
-- Produces: nothing new — this is the integration task with no independent interface; it makes Tasks 5–11 visible and usable in the running app.
-
-- [ ] **Step 1: Update imports**
+- [ ] **Step 10: Update imports**
 
 In `app/plan/page.tsx`, replace:
 
@@ -1695,7 +1663,7 @@ Add a new import alongside the other `@/components/plan/*` imports:
 import PlanHistoryTab from '@/components/plan/PlanHistoryTab'
 ```
 
-- [ ] **Step 2: Extend the `Tab` type and tab bar**
+- [ ] **Step 11: Extend the `Tab` type and tab bar**
 
 Replace:
 
@@ -1721,7 +1689,7 @@ with:
         {([['plan', 'My Plan'], ['profile', 'Profile & Schedule'], ['events', 'Events'], ['history', 'History']] as [Tab, string][]).map(([id, label]) => (
 ```
 
-- [ ] **Step 3: Rename the close-plan state and handler**
+- [ ] **Step 12: Rename the close-plan state and handler**
 
 Replace:
 
@@ -1761,7 +1729,7 @@ with:
   }
 ```
 
-- [ ] **Step 4: Update the kebab menu and modal wiring**
+- [ ] **Step 13: Update the kebab menu and modal wiring**
 
 Replace:
 
@@ -1803,7 +1771,7 @@ with:
         )}
 ```
 
-- [ ] **Step 5: Add the History tab content block**
+- [ ] **Step 14: Add the History tab content block**
 
 The `tab-events` content div currently closes just before the (tab-independent) review modal:
 
@@ -1830,24 +1798,28 @@ Insert a new tab block between the `tab-events` div's closing `</div>` and the r
       {showReviewModal && (
 ```
 
-- [ ] **Step 6: Typecheck**
+- [ ] **Step 15: Typecheck**
 
 Run: `npm run typecheck`
-Expected: no errors (this closes the gaps left intentionally open in Tasks 10 and 11).
+Expected: no errors — this is the first point in the task where the tree is expected to typecheck cleanly (Parts A and B intentionally left it red; `app/plan/page.tsx` now matches both renamed components).
 
-- [ ] **Step 7: Run the full test suite**
+- [ ] **Step 16: Run the full test suite**
 
 Run: `npm run test:ci`
 Expected: all PASS
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 17: Commit everything as one task-level commit**
 
 ```bash
-git add app/plan/page.tsx
-git commit -m "feat: wire Close plan action and History tab into the plan screen"
+git add components/PlanKebabMenu.tsx __tests__/components/PlanKebabMenu.test.tsx \
+        components/ClosePlanModal.tsx __tests__/components/ClosePlanModal.test.tsx \
+        app/plan/page.tsx
+git commit -m "feat: rename close-plan action/modal and wire the History tab into the plan screen"
 ```
 
-- [ ] **Step 9: Manual mobile verification**
+(`git rm components/ClearWorkoutsModal.tsx` from Step 9 already staged that deletion; nothing in Steps 10–16 unstages it, so it commits together with these `git add` paths in this same commit.)
+
+- [ ] **Step 18: Manual mobile verification**
 
 Per `AGENTS.md`, drive the actual flow before calling this done:
 1. Start the dev server, open the Training Plan screen at a 375px-wide viewport (or emulate one).
@@ -1865,10 +1837,10 @@ Per `AGENTS.md`, drive the actual flow before calling this done:
 - Data model (`closed_at`, `archive_summary`) → Task 1.
 - Shared `archivePlan` (summary computation + event/row cleanup + status flip + compare-and-swap guard) → Tasks 3–4.
 - Both archiving paths route through `archivePlan` → Tasks 5 (explicit close) and 7 (build-new-plan replace).
-- Kebab menu rename + confirm modal re-copy (three phases retained) → Tasks 10–11.
-- History tab, card, per-week table, empty state → Tasks 8–9, wired in Task 12.
+- Kebab menu rename + confirm modal re-copy (three phases retained) → Task 10 (Parts A–B).
+- History tab, card, per-week table, empty state → Tasks 8–9, wired in Task 10 (Part C).
 - Error handling: no-completed-workouts (Task 3 test), ICU-unavailable degraded path (Task 4 test), no-active-plan 400 (Task 5 test), partial ICU-deletion failures (Task 4 test), concurrent-close race via compare-and-swap (Task 4 test) — all covered.
-- Manual mobile check → Task 12, Step 9.
+- Manual mobile check → Task 10, Step 18.
 
 **Placeholder scan:** no TBD/TODO/"add appropriate handling"-style steps; every step has literal code or an exact command.
 
