@@ -2,7 +2,7 @@ import { projectCtl, buildForecast, daysBetweenUtc, addDaysUtc } from '@/lib/pla
 import type { WeekBucket } from '@/lib/plan/progress'
 
 const bucket = (i: number, plannedTss: number): WeekBucket => ({
-  weekIndex: i, plannedTss, actualTss: 0, plannedSessions: 4, completedSessions: 0,
+  weekIndex: i, plannedTss, actualTss: 0, plannedSessions: 4, completedSessions: 0, hours: 0,
 })
 
 describe('date helpers', () => {
