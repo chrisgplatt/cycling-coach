@@ -1,4 +1,5 @@
-import type { PlanPhase } from '@/types'
+import type { PlanPhase, Workout, ICUActivity } from '@/types'
+import { buildWeekBuckets } from './progress'
 
 const PHASES: PlanPhase[] = ['base', 'build', 'peak', 'taper']
 
@@ -60,4 +61,26 @@ export function resolvePhases(
     return stored
   }
   return derivePhases(weeklyPlannedTss, totalWeeks)
+}
+
+/** Resolves which phase the current calendar week falls in, for a plan that may not have
+ * a live UI displaying every week (unlike the /plan page, which already shows this via
+ * buildWeekBuckets + resolvePhases inline). Reuses those same two functions so results are
+ * guaranteed identical to the /plan page's own phase display — never reimplement this math
+ * separately, that divergence is exactly what caused a previous hardcoded-phase bug. */
+export function getCurrentPhase(
+  workouts: Workout[],
+  activities: ICUActivity[],
+  weekPhases: PlanPhase[] | null | undefined,
+  totalWeeks: number,
+  planStart: string,
+  today: string,
+): PlanPhase {
+  const start = new Date(planStart)
+  const now = new Date(today)
+  const current = Math.max(1, Math.min(totalWeeks, Math.floor((now.getTime() - start.getTime()) / (7 * 864e5)) + 1))
+  const currentWeek = current - 1
+  const buckets = buildWeekBuckets(workouts, activities, planStart, totalWeeks)
+  const phases = resolvePhases(weekPhases, buckets.map(b => b.plannedTss), totalWeeks)
+  return phases[currentWeek] ?? 'base'
 }
