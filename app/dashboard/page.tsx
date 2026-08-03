@@ -39,7 +39,6 @@ import type { ReactNode } from 'react'
 import RescheduleConfirmModal from '@/components/RescheduleConfirmModal'
 import TodayCard from '@/components/TodayCard'
 import NotificationBanner from '@/components/NotificationBanner'
-import StreakBadge from '@/components/StreakBadge'
 import SessionChatModal from '@/components/SessionChatModal'
 import PlanChatModal from '@/components/PlanChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
@@ -655,7 +654,6 @@ export default function DashboardPage() {
                 {currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1)} phase
               </span>
             )}
-            <StreakBadge activities={chartsData?.activities} today={todayStr} />
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
