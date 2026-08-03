@@ -187,6 +187,14 @@ describe('createPlanStream — batching', () => {
     const prompt = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
     expect(prompt).not.toContain('"rationale"')
   })
+
+  it('requires the final workout to land within the last 7 days of the batch window', () => {
+    createPlanStream(profile, syncData, 12, '2026-06-01', '', '', null, null, {
+      batchStartWeek: 4, batchWeekCount: 4, priorWorkouts: [],
+    })
+    const prompt = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0].messages[0].content as string
+    expect(prompt).toContain('do not stop short')
+  })
 })
 
 describe('estimateTss', () => {

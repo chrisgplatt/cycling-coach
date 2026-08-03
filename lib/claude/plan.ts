@@ -153,7 +153,7 @@ function buildPlanLengthInstruction(
       lines.push('This is not the end of the plan — do not taper or wind the training down in these weeks.')
     }
   }
-  lines.push(`Do not place any workouts before ${batchStartDate} or after ${batchEndDate}.`)
+  lines.push(`Do not place any workouts before ${batchStartDate} or after ${batchEndDate}. The final generated workout must fall within the last 7 days of that range — do not stop short.`)
   return lines.join(' ')
 }
 
