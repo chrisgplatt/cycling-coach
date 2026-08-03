@@ -10,7 +10,6 @@ interface BriefProfile {
   current_ftp: number
   weight_kg: number
   goals: string
-  min_sessions_per_week: number
 }
 
 export async function maybeGenerateProgressBrief(

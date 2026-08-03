@@ -12,7 +12,6 @@ const metrics = {
   ctl: { current: 70, baseline: 55, delta: 15 },
   weight: null,
   adherence: { completed: 14, total: 16 },
-  streak: null,
   totalRides: null,
   planPhase: 'build',
   targetEvent: 'Dragon Ride',
