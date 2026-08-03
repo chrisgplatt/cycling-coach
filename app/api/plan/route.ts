@@ -7,6 +7,7 @@ import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-mod
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { nameForWorkout } from '@/lib/workout-names'
+import { archivePlan } from '@/lib/plan/archive'
 import type { GeneratedPlan, TrainingPhilosophy } from '@/types'
 
 export async function GET() {
@@ -224,28 +225,7 @@ export async function PATCH(req: NextRequest) {
     .maybeSingle()
 
   if (activePlan) {
-    const { data: futureWorkouts } = await supabase
-      .from('workouts')
-      .select('intervals_icu_event_id')
-      .eq('plan_id', activePlan.id)
-      .eq('status', 'planned')
-      .gte('date', today)
-      .not('intervals_icu_event_id', 'is', null)
-
-    for (const w of futureWorkouts ?? []) {
-      if (w.intervals_icu_event_id) {
-        try { await client.deleteEvent(w.intervals_icu_event_id) } catch { /* already deleted */ }
-      }
-    }
-  }
-
-  const { error: archiveError } = await supabase
-    .from('training_plans')
-    .update({ status: 'archived' })
-    .eq('status', 'active')
-
-  if (archiveError) {
-    return NextResponse.json({ error: 'Failed to archive existing plan' }, { status: 500 })
+    await archivePlan(supabase, client, activePlan.id, today)
   }
 
   const { data: savedPlan, error: planError } = await supabase
