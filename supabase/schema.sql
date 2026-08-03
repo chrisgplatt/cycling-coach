@@ -28,6 +28,8 @@ create table if not exists user_profile (
 
 -- Migration for existing installations (training_plans):
 -- alter table training_plans add column if not exists last_reviewed_week text;
+-- alter table training_plans add column if not exists closed_at timestamptz;
+-- alter table training_plans add column if not exists archive_summary jsonb;
 
 -- Migration for existing installations (workouts):
 -- alter table workouts add column if not exists steps jsonb;
@@ -46,7 +48,9 @@ create table if not exists training_plans (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   last_reviewed_week text,
-  training_philosophy jsonb
+  training_philosophy jsonb,
+  closed_at timestamptz,
+  archive_summary jsonb
 );
 
 create table if not exists workouts (

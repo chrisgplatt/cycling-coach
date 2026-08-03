@@ -4,6 +4,7 @@ import type {
   TrainingPlan,
   RidingStats,
   GeneratedPlan,
+  PlanArchiveSummary,
 } from '@/types'
 
 export function makeWorkout(overrides: Partial<Workout> = {}): Workout {
@@ -71,6 +72,27 @@ export function makeTrainingPlan(overrides: Partial<TrainingPlan> = {}): Trainin
     week_phases: null,
     created_at: '2026-05-01T00:00:00Z',
     updated_at: '2026-05-01T00:00:00Z',
+    closed_at: null,
+    archive_summary: null,
+    ...overrides,
+  }
+}
+
+export function makeArchiveSummary(overrides: Partial<PlanArchiveSummary> = {}): PlanArchiveSummary {
+  return {
+    startDate: '2026-05-01',
+    closedAt: '2026-06-26',
+    plannedEndDate: '2026-06-26',
+    closedEarly: false,
+    totalPlannedSessions: 24,
+    totalCompletedSessions: 20,
+    totalHours: 30,
+    totalTss: 1800,
+    ctlStart: 40,
+    ctlEnd: 48,
+    fitnessChange: 8,
+    consistencyPct: 83,
+    weeks: [],
     ...overrides,
   }
 }

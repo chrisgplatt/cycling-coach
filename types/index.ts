@@ -83,6 +83,34 @@ export interface TrainingPlan {
   week_phases: PlanPhase[] | null
   created_at: string
   updated_at: string
+  closed_at: string | null
+  archive_summary: PlanArchiveSummary | null
+}
+
+export interface PlanWeekSummary {
+  weekIndex: number
+  weekStart: string
+  plannedSessions: number
+  completedSessions: number
+  plannedTss: number
+  actualTss: number
+  hours: number
+}
+
+export interface PlanArchiveSummary {
+  startDate: string
+  closedAt: string
+  plannedEndDate: string
+  closedEarly: boolean
+  totalPlannedSessions: number
+  totalCompletedSessions: number
+  totalHours: number
+  totalTss: number
+  ctlStart: number | null
+  ctlEnd: number | null
+  fitnessChange: number | null
+  consistencyPct: number
+  weeks: PlanWeekSummary[]
 }
 
 export interface CoachingNotes {

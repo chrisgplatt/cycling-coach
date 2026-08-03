@@ -10,6 +10,7 @@ const plan: TrainingPlan = {
   target_event_name: 'Etape', target_event_date: '2026-07-10',
   phase: 'build', rationale: 'Progressive build', last_reviewed_week: null,
   plan_weeks: 6, week_phases: null, created_at: '', updated_at: '',
+  closed_at: null, archive_summary: null,
 }
 
 const upcoming: Workout[] = [makeWorkout({
