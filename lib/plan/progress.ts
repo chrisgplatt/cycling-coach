@@ -7,6 +7,7 @@ export interface WeekBucket {
   actualTss: number
   plannedSessions: number
   completedSessions: number
+  hours: number
 }
 
 export type WeekState = 'done' | 'partial' | 'missed' | 'current' | 'upcoming'
@@ -51,7 +52,7 @@ export function buildWeekBuckets(
   totalWeeks: number,
 ): WeekBucket[] {
   const buckets: WeekBucket[] = Array.from({ length: totalWeeks }, (_, i) => ({
-    weekIndex: i, plannedTss: 0, actualTss: 0, plannedSessions: 0, completedSessions: 0,
+    weekIndex: i, plannedTss: 0, actualTss: 0, plannedSessions: 0, completedSessions: 0, hours: 0,
   }))
   for (const w of workouts) {
     if (!w.plan_id) continue
@@ -66,10 +67,12 @@ export function buildWeekBuckets(
     const i = weekIndexOf(a.start_date_local, planStart)
     if (i < 0 || i >= totalWeeks) continue
     buckets[i].actualTss += a.training_load ?? 0
+    buckets[i].hours += (a.moving_time ?? 0) / 3600
   }
   for (const b of buckets) {
     b.plannedTss = Math.round(b.plannedTss)
     b.actualTss = Math.round(b.actualTss)
+    b.hours = Math.round(b.hours * 10) / 10
   }
   return buckets
 }

@@ -53,24 +53,33 @@ describe('buildWeekBuckets', () => {
     const buckets = buildWeekBuckets(workouts, [], planStart, 1)
     expect(buckets[0]).toMatchObject({ plannedSessions: 1, completedSessions: 1 })
   })
+
+  it('sums activity moving time into hours per week', () => {
+    const activities = [
+      activity({ id: 'a1', start_date_local: '2026-05-03T08:00:00', moving_time: 3600 }),
+      activity({ id: 'a2', start_date_local: '2026-05-04T08:00:00', moving_time: 1800 }),
+    ]
+    const buckets = buildWeekBuckets([], activities, planStart, 1)
+    expect(buckets[0].hours).toBe(1.5)
+  })
 })
 
 describe('weekState', () => {
   it('classifies current, done, partial, missed and upcoming', () => {
-    expect(weekState({ weekIndex: 2, plannedTss: 0, actualTss: 0, plannedSessions: 3, completedSessions: 1 }, 2)).toBe('current')
-    expect(weekState({ weekIndex: 0, plannedTss: 0, actualTss: 0, plannedSessions: 3, completedSessions: 3 }, 2)).toBe('done')
-    expect(weekState({ weekIndex: 0, plannedTss: 0, actualTss: 0, plannedSessions: 3, completedSessions: 1 }, 2)).toBe('partial')
-    expect(weekState({ weekIndex: 0, plannedTss: 0, actualTss: 0, plannedSessions: 3, completedSessions: 0 }, 2)).toBe('missed')
-    expect(weekState({ weekIndex: 5, plannedTss: 0, actualTss: 0, plannedSessions: 3, completedSessions: 0 }, 2)).toBe('upcoming')
+    expect(weekState({ weekIndex: 2, plannedTss: 0, actualTss: 0, plannedSessions: 3, completedSessions: 1, hours: 0 }, 2)).toBe('current')
+    expect(weekState({ weekIndex: 0, plannedTss: 0, actualTss: 0, plannedSessions: 3, completedSessions: 3, hours: 0 }, 2)).toBe('done')
+    expect(weekState({ weekIndex: 0, plannedTss: 0, actualTss: 0, plannedSessions: 3, completedSessions: 1, hours: 0 }, 2)).toBe('partial')
+    expect(weekState({ weekIndex: 0, plannedTss: 0, actualTss: 0, plannedSessions: 3, completedSessions: 0, hours: 0 }, 2)).toBe('missed')
+    expect(weekState({ weekIndex: 5, plannedTss: 0, actualTss: 0, plannedSessions: 3, completedSessions: 0, hours: 0 }, 2)).toBe('upcoming')
   })
 })
 
 describe('consistency', () => {
   it('computes hit % over due weeks and a streak that stops below 80%', () => {
     const buckets = [
-      { weekIndex: 0, plannedTss: 0, actualTss: 0, plannedSessions: 4, completedSessions: 4 },
-      { weekIndex: 1, plannedTss: 0, actualTss: 0, plannedSessions: 4, completedSessions: 2 }, // 50% → breaks streak
-      { weekIndex: 2, plannedTss: 0, actualTss: 0, plannedSessions: 4, completedSessions: 4 },
+      { weekIndex: 0, plannedTss: 0, actualTss: 0, plannedSessions: 4, completedSessions: 4, hours: 0 },
+      { weekIndex: 1, plannedTss: 0, actualTss: 0, plannedSessions: 4, completedSessions: 2, hours: 0 }, // 50% → breaks streak
+      { weekIndex: 2, plannedTss: 0, actualTss: 0, plannedSessions: 4, completedSessions: 4, hours: 0 },
     ]
     const res = consistency(buckets, 3)
     expect(res.hitPct).toBe(83) // 10/12
