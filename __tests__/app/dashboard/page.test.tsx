@@ -56,6 +56,9 @@ function mockFetch() {
           workouts: [lastWeekWorkout, currentWeekWorkout, nextWeekWorkout, nextWeekWorkout2],
           name: '',
           last_reviewed_week: '9999-W53',
+          created_at: shiftDateStr(todayStr, -35), // exactly 5 weeks ago, landing in week 6 of 12 — mid-build
+          plan_weeks: 12,
+          week_phases: ['base', 'base', 'base', 'base', 'build', 'build', 'build', 'build', 'build', 'peak', 'taper', 'taper'],
         }),
       })
     }
@@ -138,6 +141,13 @@ describe('DashboardPage week navigation', () => {
     await screen.findByText('Next week ride')
 
     expect(screen.getByText('0/1')).toBeInTheDocument()
+  })
+
+  it('shows the real current-week phase, not a hardcoded value', async () => {
+    render(<DashboardPage />)
+    await screen.findByText('Current week ride')
+    expect(screen.getByText('Build phase')).toBeInTheDocument()
+    expect(screen.queryByText('Base phase')).not.toBeInTheDocument()
   })
 })
 

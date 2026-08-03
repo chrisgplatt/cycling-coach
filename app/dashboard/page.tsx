@@ -4,7 +4,8 @@ import MetricsBar from '@/components/MetricsBar'
 import WorkoutCard from '@/components/WorkoutCard'
 import CtlTrendStrip from '@/components/CtlTrendStrip'
 import WorkoutDetailModal from '@/components/WorkoutDetailModal'
-import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, ICUActivity, WeightEntry, WeeklyProgress, EventCountdown, WeatherSummary, ActivityWeather } from '@/types'
+import type { ICUSyncData, Workout, ICUWellness, TrainingEvent, ICUActivity, WeightEntry, WeeklyProgress, EventCountdown, WeatherSummary, ActivityWeather, PlanPhase } from '@/types'
+import { getCurrentPhase } from '@/lib/plan/phases'
 import type { RideMedals } from '@/lib/ride/ride-medals'
 import { EVENT_COLOURS } from '@/lib/event-colours'
 import WeeklyReviewBanner from '@/components/WeeklyReviewBanner'
@@ -95,6 +96,9 @@ export default function DashboardPage() {
   const [athleteId, setAthleteId] = useState('')
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [planName, setPlanName] = useState('')
+  const [planWeekPhases, setPlanWeekPhases] = useState<PlanPhase[] | null>(null)
+  const [planTotalWeeks, setPlanTotalWeeks] = useState<number | null>(null)
+  const [planCreatedAt, setPlanCreatedAt] = useState<string | null>(null)
   const [firstName, setFirstName] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [syncLogoVisible, setSyncLogoVisible] = useState(false)
@@ -249,6 +253,9 @@ export default function DashboardPage() {
     }
 
     if (plan.name) setPlanName(plan.name)
+    if (plan.week_phases) setPlanWeekPhases(plan.week_phases)
+    if (plan.plan_weeks) setPlanTotalWeeks(plan.plan_weeks)
+    if (plan.created_at) setPlanCreatedAt(plan.created_at)
     if (plan.target_event_name) setPlanTargetEvent(plan.target_event_name)
     if (plan.target_event_date) setPlanTargetDate(plan.target_event_date)
 
@@ -558,6 +565,10 @@ export default function DashboardPage() {
     ? Math.ceil((new Date(lastPlannedDate).getTime() - new Date(todayStr).getTime()) / (7 * 86400000))
     : null
 
+  const currentPhase = planCreatedAt && planTotalWeeks
+    ? getCurrentPhase(workouts, syncData?.activities ?? [], planWeekPhases, planTotalWeeks, planCreatedAt, todayStr)
+    : null
+
   const todayWellness = syncData?.wellness.find(w => w.id === todayStr)
   const recentWellness = [...(syncData?.wellness ?? [])]
     .sort((a, b) => b.id.localeCompare(a.id))
@@ -638,10 +649,13 @@ export default function DashboardPage() {
                 Chat
               </button>
             )}
-            <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              Base phase
-            </span>
+            {currentPhase && (
+              <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                {currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1)} phase
+              </span>
+            )}
+            <StreakBadge activities={chartsData?.activities} today={todayStr} />
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -679,7 +693,6 @@ export default function DashboardPage() {
 
       {/* Daily briefing */}
       <div className="space-y-3">
-        <StreakBadge activities={chartsData?.activities} today={todayStr} />
         {!notificationsEnabled && (
           <NotificationBanner onEnabled={() => setNotificationsEnabled(true)} />
         )}
