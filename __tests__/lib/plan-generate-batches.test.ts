@@ -117,6 +117,46 @@ describe('generatePlanInBatches', () => {
     )
 
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('Add and save at least one event')
+    if (!result.ok) expect(result.error).toBe('Plan generation failed while building weeks 1-4: Add and save at least one event')
+  })
+
+  it('names the failing batch weeks when a later batch responds not-ok', async () => {
+    (global.fetch as jest.Mock).mockImplementation(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string)
+      if (body.batchStartWeek === 0) {
+        return ndjsonResponse([
+          { type: 'done', plan: { rationale: 'r', target_event_name: 'E', target_event_date: '2026-09-01', workouts: [workout('2026-06-01')] } },
+        ])
+      }
+      return new Response(JSON.stringify({ error: 'Rate limited' }), { status: 429 })
+    })
+
+    const result = await generatePlanInBatches(
+      12,
+      { syncData, startDate: '2026-06-01', notes: '', trainingPhilosophy: null },
+      { onTotal: jest.fn(), onProgress: jest.fn() },
+    )
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('Plan generation failed while building weeks 5-8: Rate limited')
+  })
+
+  it('resolves ok:false instead of throwing when the stream errors mid-read', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => ({
+          read: () => Promise.reject(new Error('stream broke')),
+        }),
+      },
+    })
+
+    await expect(
+      generatePlanInBatches(
+        4,
+        { syncData, startDate: '2026-06-01', notes: '', trainingPhilosophy: null },
+        { onTotal: jest.fn(), onProgress: jest.fn() },
+      )
+    ).resolves.toEqual({ ok: false, error: 'Network error while building weeks 1-4' })
   })
 })

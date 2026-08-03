@@ -63,7 +63,8 @@ export async function generatePlanInBatches(
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      return { ok: false, error: data.error ?? `Plan generation failed while building ${weekLabel}` }
+      const reason = data.error ?? 'Plan generation failed'
+      return { ok: false, error: `Plan generation failed while building ${weekLabel}: ${reason}` }
     }
     if (!res.body) return { ok: false, error: 'No response from server' }
 
@@ -73,32 +74,36 @@ export async function generatePlanInBatches(
     let batchWorkouts: GeneratedPlan['workouts'] | null = null
     let batchError: string | null = null
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-      for (const line of lines) {
-        if (!line.trim()) continue
-        try {
-          const event = JSON.parse(line)
-          if (event.type === 'total') callbacks.onTotal(event.count)
-          else if (event.type === 'progress') callbacks.onProgress(allWorkouts.length + event.found)
-          else if (event.type === 'done') {
-            batchWorkouts = event.plan.workouts
-            if (!head) {
-              head = {
-                rationale: event.plan.rationale,
-                target_event_name: event.plan.target_event_name,
-                target_event_date: event.plan.target_event_date,
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const event = JSON.parse(line)
+            if (event.type === 'total') callbacks.onTotal(event.count)
+            else if (event.type === 'progress') callbacks.onProgress(allWorkouts.length + event.found)
+            else if (event.type === 'done') {
+              batchWorkouts = event.plan.workouts
+              if (!head) {
+                head = {
+                  rationale: event.plan.rationale,
+                  target_event_name: event.plan.target_event_name,
+                  target_event_date: event.plan.target_event_date,
+                }
               }
+            } else if (event.type === 'error') {
+              batchError = event.message
             }
-          } else if (event.type === 'error') {
-            batchError = event.message
-          }
-        } catch { /* ignore malformed lines */ }
+          } catch { /* ignore malformed lines */ }
+        }
       }
+    } catch {
+      return { ok: false, error: `Network error while building ${weekLabel}` }
     }
 
     if (batchError) return { ok: false, error: `Plan generation failed while building ${weekLabel}: ${batchError}` }
