@@ -11,7 +11,7 @@ export async function GET() {
     .select('id, name, target_event_name, target_event_date, closed_at, archive_summary')
     .eq('user_id', user.id)
     .eq('status', 'archived')
-    .order('closed_at', { ascending: false })
+    .order('closed_at', { ascending: false, nullsFirst: false })
 
   if (error) return NextResponse.json({ error: 'Failed to load plan history' }, { status: 500 })
   return NextResponse.json({ plans: plans ?? [] })

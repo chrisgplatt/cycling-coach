@@ -4,14 +4,17 @@ jest.mock('@/lib/supabase-server', () => ({ createSupabaseServerClient: jest.fn(
 import { GET } from '@/app/api/plan/history/route'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-function makeSupabase(plans: unknown[]) {
+function makeSupabase(plans: unknown[], orderSpy?: jest.Mock) {
   return {
     auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) },
     from: () => ({
       select: () => ({
         eq: () => ({
           eq: () => ({
-            order: () => ({ data: plans, error: null }),
+            order: (...args: unknown[]) => {
+              orderSpy?.(...args)
+              return { data: plans, error: null }
+            },
           }),
         }),
       }),
@@ -29,6 +32,13 @@ describe('GET /api/plan/history', () => {
 
     expect(res.status).toBe(200)
     expect(body.plans).toEqual(plans)
+  })
+
+  it('orders by closed_at descending with nulls last, so legacy plans without a snapshot sort to the bottom', async () => {
+    const orderSpy = jest.fn()
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase([], orderSpy))
+    await GET()
+    expect(orderSpy).toHaveBeenCalledWith('closed_at', { ascending: false, nullsFirst: false })
   })
 
   it('returns an empty list when there are no archived plans', async () => {
