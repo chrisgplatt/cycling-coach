@@ -132,6 +132,14 @@ describe('computeWeekPhases', () => {
       expect(computeWeekPhases(weeks)).toHaveLength(weeks)
     }
   })
+
+  it('preserves the taper for a 1-week plan instead of dropping it for base', () => {
+    expect(computeWeekPhases(1)).toEqual(['taper'])
+  })
+
+  it('preserves both a base week and the taper for a 2-week plan', () => {
+    expect(computeWeekPhases(2)).toEqual(['base', 'taper'])
+  })
 })
 
 describe('buildPlanBatches', () => {

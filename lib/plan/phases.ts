@@ -122,14 +122,25 @@ export function computeWeekPhases(totalWeeks: number): PlanPhase[] {
     build += base - 1
     base = 1
   }
-  const phases: PlanPhase[] = [
+  build = Math.max(0, build)
+  let peak = nearest.peak
+  let taper = nearest.taper
+
+  // For plans too short to fit the anchor's full structure, compress in this order —
+  // base first, then build, then peak — before ever touching taper, since CLAUDE.md's
+  // periodization rule is "compress the base phase but always preserve the taper."
+  let total = base + build + peak + taper
+  while (total > totalWeeks && base > 0) { base--; total-- }
+  while (total > totalWeeks && build > 0) { build--; total-- }
+  while (total > totalWeeks && peak > 0) { peak--; total-- }
+  while (total > totalWeeks && taper > 1) { taper--; total-- }
+
+  return [
     ...Array(base).fill('base'),
-    ...Array(Math.max(0, build)).fill('build'),
-    ...Array(nearest.peak).fill('peak'),
-    ...Array(nearest.taper).fill('taper'),
+    ...Array(build).fill('build'),
+    ...Array(peak).fill('peak'),
+    ...Array(taper).fill('taper'),
   ]
-  while (phases.length < totalWeeks) phases.unshift('base')
-  return phases.slice(0, totalWeeks)
 }
 
 /**
