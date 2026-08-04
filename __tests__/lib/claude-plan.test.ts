@@ -5,6 +5,7 @@ import { makeGeneratedWorkout } from '../support/factories'
 const mockFinalMessage = jest.fn()
 jest.mock('@/lib/claude/client', () => ({
   MODEL: 'claude-sonnet-4-6',
+  PLAN_MODEL: 'claude-sonnet-5',
   anthropic: {
     messages: {
       create: jest.fn(),
