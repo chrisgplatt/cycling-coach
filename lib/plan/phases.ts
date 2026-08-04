@@ -105,8 +105,10 @@ const PHASE_MATRIX: PhaseAnchor[] = [
  * fixed periodization regardless of how many Claude calls the plan is split across.
  * Finds the nearest anchor row by week distance (ties go to the smaller anchor),
  * then adjusts the base-phase count by the difference (compressing base for shorter
- * plans, extending it for longer ones, per CLAUDE.md's "compress base first" rule),
- * clamping base to a minimum of 1 week and moving any remaining deficit onto build.
+ * plans, extending it for longer ones, per CLAUDE.md's "compress base first" rule).
+ * For plans too short to fit the anchor's full structure, phases compress in order —
+ * base first (down to 0 if needed), then build, then peak — with taper only ever
+ * reduced as an absolute last resort (floored at 1 week where possible).
  */
 export function computeWeekPhases(totalWeeks: number): PlanPhase[] {
   let nearest = PHASE_MATRIX[0]

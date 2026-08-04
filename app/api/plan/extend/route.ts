@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { createExtendStream, parsePlanText, countPlannedWorkouts } from '@/lib/claude/plan'
 import { computeMethodology } from '@/lib/claude/methodology'
+import { computeWeekPhases } from '@/lib/plan/phases'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
@@ -143,11 +144,16 @@ export async function POST(req: NextRequest) {
         const eventDates = new Set<string>((profileData.events ?? []).map((e: { date: string }) => e.date))
         const cleanWorkouts = generatedPlan.workouts.filter(w => !eventDates.has(w.date))
 
+        // Phases are computed deterministically in code (computeWeekPhases), not asked of
+        // Claude — this must match the same week count createExtendStream generated for
+        // (remainingWeeks + extraWeeks), so extend/apply's persisted phase/week_phases stay correct.
+        const weekPhases = computeWeekPhases(remainingWeeks + extraWeeks)
+
         // Return the plan to the client for review — no DB mutations here
         controller.enqueue(encoder.encode(
           JSON.stringify({
             type: 'plan',
-            plan: { ...generatedPlan, workouts: cleanWorkouts },
+            plan: { ...generatedPlan, workouts: cleanWorkouts, phase: weekPhases[0], week_phases: weekPhases },
             extra_weeks: extraWeeks,
             new_total_weeks: newTotal,
           }) + '\n'

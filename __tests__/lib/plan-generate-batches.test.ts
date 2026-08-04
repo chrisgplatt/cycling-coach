@@ -52,6 +52,38 @@ describe('generatePlanInBatches', () => {
     expect(bodies[1]).toMatchObject({ totalWeeks: 8, batchStartWeek: 4, batchWeekCount: 4, priorWorkouts: [batch0Workout] })
   })
 
+  it('merges a full 3-batch (12-week) success end-to-end with correct week numbering', async () => {
+    const bodies: Array<Record<string, unknown>> = []
+    ;(global.fetch as jest.Mock).mockImplementation(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string)
+      bodies.push(body)
+      if (body.batchStartWeek === 0) {
+        return ndjsonResponse([
+          { type: 'done', plan: { rationale: 'r', target_event_name: 'E', target_event_date: '2026-09-01', workouts: [workout('2026-06-01')] } },
+        ])
+      }
+      if (body.batchStartWeek === 4) {
+        return ndjsonResponse([{ type: 'done', plan: { workouts: [workout('2026-06-29')] } }])
+      }
+      return ndjsonResponse([{ type: 'done', plan: { workouts: [workout('2026-07-27')] } }])
+    })
+
+    const result = await generatePlanInBatches(
+      12,
+      { syncData, startDate: '2026-06-01', notes: '', trainingPhilosophy: null },
+      { onTotal: jest.fn(), onProgress: jest.fn() },
+    )
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.plan.workouts).toEqual([workout('2026-06-01'), workout('2026-06-29'), workout('2026-07-27')])
+      expect(result.plan.week_phases).toHaveLength(12)
+    }
+    expect(bodies).toHaveLength(3)
+    expect(bodies.map(b => b.batchStartWeek)).toEqual([0, 4, 8])
+    expect(bodies.map(b => b.batchWeekCount)).toEqual([4, 4, 4])
+  })
+
   it('aborts the whole generation and never fetches a later batch when a batch fails', async () => {
     const bodies: Array<Record<string, unknown>> = []
     ;(global.fetch as jest.Mock).mockImplementation(async (_url: string, init: RequestInit) => {
