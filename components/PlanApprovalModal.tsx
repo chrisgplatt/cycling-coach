@@ -1,8 +1,14 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { GeneratedPlan, TrainingPhilosophy } from '@/types'
 import AnimatedLogo from './AnimatedLogo'
 import { WORKOUT_TYPE_BADGE } from '@/lib/workout-colours'
+
+interface BatchStatus {
+  weekLabel: string
+  batchIndex: number
+  totalBatches: number
+}
 
 interface Props {
   plan: GeneratedPlan | null
@@ -10,15 +16,35 @@ interface Props {
   weeks?: number
   workoutsFound?: number
   estimatedWorkouts?: number
+  batchStatus?: BatchStatus | null
   trainingPhilosophy?: TrainingPhilosophy | null
   onApprove: () => void
   onReject: () => void
 }
 
-export default function PlanApprovalModal({ plan, loading = false, weeks = 6, workoutsFound = 0, estimatedWorkouts = 0, trainingPhilosophy = null, onApprove, onReject }: Props) {
+// Rotated every few seconds during the "thinking" stretch of each batch (before any
+// workout has streamed back yet), so the modal keeps visibly moving instead of sitting
+// on one static line for up to a minute — that dead air is what read as "stalled".
+const THINKING_MESSAGES = [
+  'Analysing your goals, fitness and schedule…',
+  'Reviewing your recent training load…',
+  'Applying periodization rules…',
+  'Balancing intensity across the week…',
+  'Checking for event and rest-day conflicts…',
+]
+
+export default function PlanApprovalModal({ plan, loading = false, weeks = 6, workoutsFound = 0, estimatedWorkouts = 0, batchStatus = null, trainingPhilosophy = null, onApprove, onReject }: Props) {
   const [name, setName] = useState('')
   const [approving, setApproving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [elapsedSec, setElapsedSec] = useState(0)
+
+  useEffect(() => {
+    if (!loading) return
+    setElapsedSec(0)
+    const id = setInterval(() => setElapsedSec(s => s + 1), 1000)
+    return () => clearInterval(id)
+  }, [loading])
 
   async function approve() {
     setApproving(true)
@@ -50,12 +76,18 @@ export default function PlanApprovalModal({ plan, loading = false, weeks = 6, wo
 
   if (loading || !plan) {
     const pct = estimatedWorkouts > 0 ? Math.min(100, (workoutsFound / estimatedWorkouts) * 100) : 0
+    const heading = batchStatus
+      ? `Building ${batchStatus.weekLabel} of ${weeks}${
+          batchStatus.totalBatches > 1 ? ` (batch ${batchStatus.batchIndex + 1} of ${batchStatus.totalBatches})` : ''
+        }…`
+      : 'Building your training plan…'
+    const thinkingMessage = THINKING_MESSAGES[Math.floor(elapsedSec / 4) % THINKING_MESSAGES.length]
     return (
       <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-10 flex flex-col items-center gap-6">
           <AnimatedLogo size={64} />
           <div className="text-center w-full space-y-3">
-            <p className="text-base font-semibold text-slate-800">Building your training plan…</p>
+            <p className="text-base font-semibold text-slate-800">{heading}</p>
             {workoutsFound > 0 ? (
               <>
                 <p className="text-sm text-slate-500">
@@ -70,8 +102,9 @@ export default function PlanApprovalModal({ plan, loading = false, weeks = 6, wo
                 </div>
               </>
             ) : (
-              <p className="text-sm text-slate-400">Analysing your goals, fitness and schedule…</p>
+              <p className="text-sm text-slate-400">{thinkingMessage}</p>
             )}
+            <p className="text-xs text-slate-300">{elapsedSec}s elapsed</p>
           </div>
         </div>
       </div>

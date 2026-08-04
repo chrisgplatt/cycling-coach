@@ -11,7 +11,13 @@ export interface GeneratePlanRequest {
 export interface GeneratePlanCallbacks {
   onTotal: (count: number) => void
   onProgress: (cumulativeFound: number) => void
+  onBatchStart: (weekLabel: string, batchIndex: number, totalBatches: number) => void
 }
+
+// Larger batches mean fewer sequential round-trips (each carries a largely fixed
+// per-call "thinking" overhead on top of its generation time), while staying well
+// under Vercel's 300s function timeout — measured up to ~155s for a 6-week batch.
+const BATCH_SIZE_WEEKS = 6
 
 export type GeneratePlanResult =
   | { ok: true; plan: GeneratedPlan }
@@ -24,22 +30,23 @@ interface BatchHead {
 }
 
 /**
- * Drives plan generation as a sequence of separate HTTP requests, one per 4-week
- * batch, so no single request risks the serverless function's execution time limit
- * regardless of total plan length. Aborts the whole generation (no partial plans)
- * if any batch fails.
+ * Drives plan generation as a sequence of separate HTTP requests, one per
+ * BATCH_SIZE_WEEKS-week batch, so no single request risks the serverless function's
+ * execution time limit regardless of total plan length. Aborts the whole generation
+ * (no partial plans) if any batch fails.
  */
 export async function generatePlanInBatches(
   weeks: number,
   request: GeneratePlanRequest,
   callbacks: GeneratePlanCallbacks,
 ): Promise<GeneratePlanResult> {
-  const batches = buildPlanBatches(weeks)
+  const batches = buildPlanBatches(weeks, BATCH_SIZE_WEEKS)
   let allWorkouts: GeneratedPlan['workouts'] = []
   let head: BatchHead | null = null
 
-  for (const { startWeek, weekCount } of batches) {
+  for (const [index, { startWeek, weekCount }] of batches.entries()) {
     const weekLabel = weekCount === 1 ? `week ${startWeek + 1}` : `weeks ${startWeek + 1}-${startWeek + weekCount}`
+    callbacks.onBatchStart(weekLabel, index, batches.length)
 
     let res: Response
     try {

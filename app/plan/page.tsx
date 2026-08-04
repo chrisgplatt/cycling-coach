@@ -122,6 +122,7 @@ export default function PlanPage() {
   const [planWeeks, setPlanWeeks] = useState(6)
   const [workoutsFound, setWorkoutsFound] = useState(0)
   const [estimatedWorkouts, setEstimatedWorkouts] = useState(0)
+  const [batchStatus, setBatchStatus] = useState<{ weekLabel: string; batchIndex: number; totalBatches: number } | null>(null)
 
   // Adaptation (plan review after event changes)
   const reviewAbortRef = useRef<AbortController | null>(null)
@@ -585,6 +586,7 @@ export default function PlanPage() {
     setGenerating(true)
     setWorkoutsFound(0)
     setEstimatedWorkouts(0)
+    setBatchStatus(null)
     setSaveError(null)
     try {
       const profileSaved = await saveProfile()
@@ -592,7 +594,11 @@ export default function PlanPage() {
       const result = await generatePlanInBatches(
         weeks,
         { syncData, startDate, notes, trainingPhilosophy },
-        { onTotal: setEstimatedWorkouts, onProgress: setWorkoutsFound },
+        {
+          onTotal: setEstimatedWorkouts,
+          onProgress: setWorkoutsFound,
+          onBatchStart: (weekLabel, batchIndex, totalBatches) => setBatchStatus({ weekLabel, batchIndex, totalBatches }),
+        },
       )
       if (result.ok) setGeneratedPlan(result.plan)
       else setSaveError(result.error)
@@ -926,6 +932,7 @@ export default function PlanPage() {
             weeks={planWeeks}
             workoutsFound={workoutsFound}
             estimatedWorkouts={estimatedWorkouts}
+            batchStatus={batchStatus}
             trainingPhilosophy={trainingPhilosophy}
             onApprove={() => { setGeneratedPlan(null); window.location.href = '/dashboard' }}
             onReject={() => setGeneratedPlan(null)}
