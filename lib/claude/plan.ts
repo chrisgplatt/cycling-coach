@@ -395,7 +395,11 @@ export function createPlanStream(
     model: MODEL,
     max_tokens: 32000,
     system: SYSTEM_PROMPT,
-    thinking: { type: 'enabled', budget_tokens: 4000 },
+    // claude-opus-5 doesn't support thinking.budget_tokens — depth/speed is controlled via
+    // output_config.effort instead. 'low' overrides this repo's adaptive-by-default policy
+    // for this one call site, since the task is now fully rule-specified per batch.
+    thinking: { type: 'adaptive' },
+    output_config: { effort: 'low' },
     messages: [{ role: 'user', content: prompt }],
   })
 }

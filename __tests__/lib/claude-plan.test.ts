@@ -124,10 +124,11 @@ describe('createPlanStream — dossier injection', () => {
 import { anthropic } from '@/lib/claude/client'
 
 describe('createPlanStream — batching', () => {
-  it('passes an explicit capped thinking budget', () => {
+  it('passes an adaptive thinking type with a low output effort to cap generation time', () => {
     createPlanStream(profile, syncData, 12, '2026-06-01')
     const call = (anthropic.messages.stream as jest.Mock).mock.calls.at(-1)[0]
-    expect(call.thinking).toEqual({ type: 'enabled', budget_tokens: 4000 })
+    expect(call.thinking).toEqual({ type: 'adaptive' })
+    expect(call.output_config).toEqual({ effort: 'low' })
   })
 
   it('defaults to a single full-plan batch when no batch info is given', () => {
