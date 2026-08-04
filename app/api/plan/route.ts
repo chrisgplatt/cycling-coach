@@ -15,7 +15,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const [{ data: plan }, { data: unplanned }] = await Promise.all([
+  const [{ data: plan }, { data: completedElsewhere }] = await Promise.all([
     supabase
       .from('training_plans')
       .select('*, workouts(*)')
@@ -23,24 +23,31 @@ export async function GET() {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Every completed ride not already covered by the active plan's own join below —
+    // this includes rides that still carry a closed plan's plan_id (archivePlan never
+    // clears it), so a closed plan's history keeps rendering as plan-style rides
+    // instead of falling back to unlinked/adhoc once that plan is no longer active.
     supabase
       .from('workouts')
       .select('*')
-      .is('plan_id', null)
       .eq('status', 'completed'),
   ])
 
   if (!plan) {
     // No active plan — return a synthetic shell so the dashboard can still render rides
-    if (!unplanned?.length) return NextResponse.json(null)
-    return NextResponse.json({ workouts: unplanned })
+    if (!completedElsewhere?.length) return NextResponse.json(null)
+    return NextResponse.json({ workouts: completedElsewhere })
   }
 
-  // Merge unplanned rides onto the plan's workout list, avoiding duplicates by icu_activity_id
+  // Merge in completed rides not already part of the active plan's own workout list
+  // (rides from a closed prior plan, or genuinely unlinked ones), avoiding duplicates.
+  const planWorkoutIds = new Set((plan.workouts ?? []).map((w: { id: string }) => w.id))
   const planActivityIds = new Set(
     (plan.workouts ?? []).map((w: { icu_activity_id: string | null }) => w.icu_activity_id).filter(Boolean)
   )
-  const extra = (unplanned ?? []).filter(w => !planActivityIds.has(w.icu_activity_id))
+  const extra = (completedElsewhere ?? []).filter(
+    w => !planWorkoutIds.has(w.id) && !planActivityIds.has(w.icu_activity_id)
+  )
 
   return NextResponse.json({ ...plan, workouts: [...(plan.workouts ?? []), ...extra] })
 }
