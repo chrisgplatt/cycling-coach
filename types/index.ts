@@ -121,6 +121,7 @@ export interface CoachingNotes {
 export interface Workout {
   id: string
   plan_id: string | null  // null for unplanned rides imported from intervals.icu
+  plan_name?: string | null  // attached by GET /api/plan (active or, for a closed plan, looked up); not a stored column
   date: string
   type: WorkoutType
   duration_minutes: number

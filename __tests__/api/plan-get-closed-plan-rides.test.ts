@@ -7,21 +7,27 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 function makeSupabase({
   activePlan = null as unknown,
   completedWorkouts = [] as Array<{ id: string; plan_id: string | null; icu_activity_id: string | null; status: string }>,
+  otherPlanNames = [] as Array<{ id: string; name: string }>,
 }) {
   return {
     auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) },
     from: (table: string) => {
       if (table === 'training_plans') {
         return {
-          select: () => ({
-            eq: () => ({
-              order: () => ({
-                limit: () => ({
-                  maybeSingle: async () => ({ data: activePlan }),
+          select: (cols: string) => {
+            if (cols === 'id, name') {
+              return { in: async (_col: string, ids: string[]) => ({ data: otherPlanNames.filter(p => ids.includes(p.id)) }) }
+            }
+            return {
+              eq: () => ({
+                order: () => ({
+                  limit: () => ({
+                    maybeSingle: async () => ({ data: activePlan }),
+                  }),
                 }),
               }),
-            }),
-          }),
+            }
+          },
         }
       }
       if (table === 'workouts') {
@@ -48,7 +54,7 @@ describe('GET /api/plan — closed-plan rides stay plan-linked', () => {
     const res = await GET()
     const data = await res.json()
 
-    expect(data.workouts).toEqual([closedPlanRide])
+    expect(data.workouts).toEqual([{ ...closedPlanRide, plan_name: null }])
   })
 
   it('returns null when there is no active plan and no completed rides at all', async () => {
@@ -76,7 +82,10 @@ describe('GET /api/plan — closed-plan rides stay plan-linked', () => {
     const res = await GET()
     const data = await res.json()
 
-    expect(data.workouts).toEqual(expect.arrayContaining([closedPlanRide, activePlan.workouts[0]]))
+    expect(data.workouts).toEqual(expect.arrayContaining([
+      { ...closedPlanRide, plan_name: null },
+      { ...activePlan.workouts[0], plan_name: 'New Plan' },
+    ]))
     expect(data.workouts).toHaveLength(2)
   })
 
@@ -92,6 +101,52 @@ describe('GET /api/plan — closed-plan rides stay plan-linked', () => {
     const res = await GET()
     const data = await res.json()
 
-    expect(data.workouts).toEqual([activePlanRide])
+    expect(data.workouts).toEqual([{ ...activePlanRide, plan_name: 'Active Plan' }])
+  })
+})
+
+describe('GET /api/plan — plan_name attachment', () => {
+  it('looks up and attaches the closed plan\'s own name for a ride from a different plan', async () => {
+    const closedPlanRide = { id: 'w1', plan_id: 'archived-plan-1', icu_activity_id: 'a1', status: 'completed' }
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(
+      makeSupabase({
+        activePlan: null,
+        completedWorkouts: [closedPlanRide],
+        otherPlanNames: [{ id: 'archived-plan-1', name: 'Summer Base Block' }],
+      })
+    )
+
+    const res = await GET()
+    const data = await res.json()
+
+    expect(data.workouts[0].plan_name).toBe('Summer Base Block')
+  })
+
+  it('leaves plan_name null for a ride never linked to any plan', async () => {
+    const unlinkedRide = { id: 'w1', plan_id: null, icu_activity_id: 'a1', status: 'completed' }
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(
+      makeSupabase({ activePlan: null, completedWorkouts: [unlinkedRide] })
+    )
+
+    const res = await GET()
+    const data = await res.json()
+
+    expect(data.workouts[0].plan_name).toBeNull()
+  })
+
+  it('attaches the active plan\'s own name to its own workouts without a lookup', async () => {
+    const activePlan = {
+      id: 'plan1',
+      name: 'Base Block 1',
+      workouts: [{ id: 'w1', plan_id: 'plan1', icu_activity_id: null, status: 'planned' }],
+    }
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(
+      makeSupabase({ activePlan, completedWorkouts: [] })
+    )
+
+    const res = await GET()
+    const data = await res.json()
+
+    expect(data.workouts[0].plan_name).toBe('Base Block 1')
   })
 })

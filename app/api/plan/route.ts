@@ -33,10 +33,27 @@ export async function GET() {
       .eq('status', 'completed'),
   ])
 
+  // Look up plan names for completed rides that belong to some OTHER plan than the
+  // active one (most commonly a closed plan) — attached as workout.plan_name so cards
+  // can show which plan a ride was part of, without storing it as a workouts column.
+  const otherPlanIds = [...new Set(
+    (completedElsewhere ?? [])
+      .map((w: { plan_id: string | null }) => w.plan_id)
+      .filter((id): id is string => id != null && id !== plan?.id)
+  )]
+  const { data: otherPlans } = otherPlanIds.length
+    ? await supabase.from('training_plans').select('id, name').in('id', otherPlanIds)
+    : { data: [] as Array<{ id: string; name: string }> }
+  const planNameById = new Map((otherPlans ?? []).map(p => [p.id, p.name]))
+  const nameFor = (w: { plan_id: string | null }): string | null =>
+    w.plan_id === plan?.id ? (plan?.name ?? null) : (w.plan_id ? planNameById.get(w.plan_id) ?? null : null)
+
   if (!plan) {
     // No active plan — return a synthetic shell so the dashboard can still render rides
     if (!completedElsewhere?.length) return NextResponse.json(null)
-    return NextResponse.json({ workouts: completedElsewhere })
+    return NextResponse.json({
+      workouts: completedElsewhere.map(w => ({ ...w, plan_name: nameFor(w) })),
+    })
   }
 
   // Merge in completed rides not already part of the active plan's own workout list
@@ -45,11 +62,12 @@ export async function GET() {
   const planActivityIds = new Set(
     (plan.workouts ?? []).map((w: { icu_activity_id: string | null }) => w.icu_activity_id).filter(Boolean)
   )
-  const extra = (completedElsewhere ?? []).filter(
-    w => !planWorkoutIds.has(w.id) && !planActivityIds.has(w.icu_activity_id)
-  )
+  const ownWorkouts = (plan.workouts ?? []).map((w: { plan_id: string | null }) => ({ ...w, plan_name: plan.name }))
+  const extra = (completedElsewhere ?? [])
+    .filter(w => !planWorkoutIds.has(w.id) && !planActivityIds.has(w.icu_activity_id))
+    .map(w => ({ ...w, plan_name: nameFor(w) }))
 
-  return NextResponse.json({ ...plan, workouts: [...(plan.workouts ?? []), ...extra] })
+  return NextResponse.json({ ...plan, workouts: [...ownWorkouts, ...extra] })
 }
 
 export async function POST(req: NextRequest) {

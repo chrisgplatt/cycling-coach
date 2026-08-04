@@ -127,4 +127,19 @@ describe('WorkoutCard', () => {
     render(<WorkoutCard workout={{ ...workout, name: null }} />)
     expect(screen.queryByText(/Sa Batalla/)).not.toBeInTheDocument()
   })
+
+  it('shows the plan name in the top-right of the header when present', () => {
+    render(<WorkoutCard workout={{ ...workout, plan_name: 'Summer Base Block' }} />)
+    expect(screen.getByText('Summer Base Block')).toBeInTheDocument()
+  })
+
+  it('shows the plan name even when the workout has no session name', () => {
+    render(<WorkoutCard workout={{ ...workout, name: null, plan_name: 'Summer Base Block' }} />)
+    expect(screen.getByText('Summer Base Block')).toBeInTheDocument()
+  })
+
+  it('renders no plan name label when plan_name is absent', () => {
+    render(<WorkoutCard workout={{ ...workout, plan_name: null }} />)
+    expect(screen.queryByText('Summer Base Block')).not.toBeInTheDocument()
+  })
 })

@@ -96,6 +96,24 @@ describe('WorkoutDetailModal', () => {
     expect(screen.queryByText(/Sa Batalla/)).not.toBeInTheDocument()
   })
 
+  it('shows the plan name in the top-right of the header when present', () => {
+    const withPlan = { ...workout, plan_name: 'Summer Base Block' }
+    render(<WorkoutDetailModal workout={withPlan} athleteId="i12345" onClose={jest.fn()} />)
+    expect(screen.getByText('Summer Base Block')).toBeInTheDocument()
+  })
+
+  it('shows the plan name even when the workout has no session name', () => {
+    const withPlan = { ...workout, name: null, plan_name: 'Summer Base Block' }
+    render(<WorkoutDetailModal workout={withPlan} athleteId="i12345" onClose={jest.fn()} />)
+    expect(screen.getByText('Summer Base Block')).toBeInTheDocument()
+  })
+
+  it('renders no plan name label when plan_name is absent', () => {
+    const noPlan = { ...workout, plan_name: null }
+    render(<WorkoutDetailModal workout={noPlan} athleteId="i12345" onClose={jest.fn()} />)
+    expect(screen.queryByText('Summer Base Block')).not.toBeInTheDocument()
+  })
+
   it('does not show an intervals.icu week link, even when an event id is present', () => {
     // The "View week in intervals.icu" link was removed; the workout fixture has an
     // intervals_icu_event_id, so this confirms it no longer renders.

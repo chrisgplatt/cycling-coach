@@ -43,9 +43,14 @@ export default function WorkoutCard({ workout, onClick, ftp, weather, medals }: 
       }`}
     >
       <div className={`h-1 ${TYPE_BAR[workout.type]}`} />
-      {workout.name && (
-        <div className="px-4 pt-2.5 pb-0.5 bg-gray-50">
+      {(workout.name || workout.plan_name) && (
+        <div className="flex items-start justify-between gap-2 px-4 pt-2.5 pb-0.5 bg-gray-50">
           <p className="text-sm font-bold text-gray-800 truncate">{workout.name}</p>
+          {workout.plan_name && (
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide shrink-0 truncate max-w-[45%] pt-0.5">
+              {workout.plan_name}
+            </p>
+          )}
         </div>
       )}
       <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">

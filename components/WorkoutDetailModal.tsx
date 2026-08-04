@@ -383,8 +383,15 @@ export default function WorkoutDetailModal({
     <div className="fixed inset-0 z-50 bg-black/50 flex sm:items-center sm:justify-center sm:p-4">
       <div className="bg-white shadow-2xl w-full h-full flex flex-col sm:max-w-lg sm:h-[90vh] sm:rounded-2xl">
         <div className="p-5 border-b border-slate-100">
-          {workout.name && (
-            <p className="text-base font-bold text-slate-800 mb-2 truncate">{workout.name}</p>
+          {(workout.name || workout.plan_name) && (
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <p className="text-base font-bold text-slate-800 truncate">{workout.name}</p>
+              {workout.plan_name && (
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 truncate max-w-[45%] pt-0.5">
+                  {workout.plan_name}
+                </p>
+              )}
+            </div>
           )}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
