@@ -254,7 +254,7 @@ describe('pickTodayWorkout', () => {
 describe('getWeeklySummary', () => {
   const DATES = ['2026-06-16', '2026-06-17', '2026-06-18']
 
-  it('computes actual from completed/needs_review, and planned from every non-skipped workout\'s original schedule', () => {
+  it('computes actual from completed/needs_review, and planned from every workout\'s original schedule', () => {
     const workouts = [
       w({ date: '2026-06-16', status: 'completed', tss: 80, duration_minutes: 60 }),
       w({ date: '2026-06-17', status: 'needs_review', tss: 40, duration_minutes: 30 }),
@@ -265,7 +265,7 @@ describe('getWeeklySummary', () => {
     expect(result.actualMins).toBe(90)
     // estimateTss('endurance', 60) + estimateTss('endurance', 30) + estimateTss('endurance', 45) = 46 + 23 + 35
     expect(result.plannedTss).toBe(104)
-    expect(result.plannedMins).toBe(135) // 60 + 30 + 45 — every non-skipped workout's own scheduled duration, regardless of status
+    expect(result.plannedMins).toBe(135) // 60 + 30 + 45 — every workout's own scheduled duration, regardless of status
   })
 
   it('computes planned TSS from estimateTss, not the tss field, when workouts are still planned', () => {
@@ -305,12 +305,14 @@ describe('getWeeklySummary', () => {
     expect(result).toEqual({ actualTss: 0, actualMins: 0, plannedTss: 0, plannedMins: 0 })
   })
 
-  it('excludes skipped workouts from both actual and planned', () => {
+  it('counts a skipped (missed) workout toward planned but excludes it from actual', () => {
     const workouts = [
       w({ date: '2026-06-16', status: 'skipped', tss: 50, duration_minutes: 45 }),
     ]
     const result = getWeeklySummary(DATES, workouts)
-    expect(result).toEqual({ actualTss: 0, actualMins: 0, plannedTss: 0, plannedMins: 0 })
+    // estimateTss('endurance', 45) = 35 — the missed session still counted toward
+    // the week's original plan, since it was scheduled regardless of what happened to it
+    expect(result).toEqual({ actualTss: 0, actualMins: 0, plannedTss: 35, plannedMins: 45 })
   })
 
   it('adds unlinked activities TSS and minutes to the actual bucket', () => {
