@@ -767,16 +767,15 @@ export default function DashboardPage() {
                 .filter(w => w.status === 'completed')
                 .reduce((sum, w) => sum + w.duration_minutes, 0)
               const hasCompleted = weekWorkouts.some(w => w.status === 'completed')
-              const fmt = (m: number) => `${Math.round(m / 60 * 10) / 10}h`
               return hasCompleted ? (
                 <span className="text-sm text-gray-400">
                   <span className="font-semibold text-gray-600">~{plannedTss} → {actualTss}</span>{' TSS · '}
-                  <span className="font-semibold text-gray-600">{fmt(completedMins)}/{fmt(plannedMins)}</span>
+                  <span className="font-semibold text-gray-600">{plannedMins} → {completedMins}</span>{' min'}
                 </span>
               ) : (
                 <span className="text-sm text-gray-400">
                   <span className="font-semibold text-gray-600">~{plannedTss}</span>{' TSS · '}
-                  <span className="font-semibold text-gray-600">{fmt(plannedMins)}</span>
+                  <span className="font-semibold text-gray-600">{plannedMins}</span>{' min'}
                 </span>
               )
             })()}

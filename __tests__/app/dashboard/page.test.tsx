@@ -149,6 +149,52 @@ describe('DashboardPage week navigation', () => {
     expect(screen.getByText('Build phase')).toBeInTheDocument()
     expect(screen.queryByText('Base phase')).not.toBeInTheDocument()
   })
+
+  it('shows the week header duration in minutes with a planned → actual arrow, matching the TSS format', async () => {
+    // currentWeekWorkout: endurance, 60 min, status 'planned' (estimateTss IF=0.68 → 46 TSS)
+    render(<DashboardPage />)
+    await screen.findByText('Current week ride')
+    const header = screen.getByText('~46').parentElement!
+    expect(header.textContent).toBe('~46 TSS · 60 min')
+  })
+
+  it('shows planned → completed minutes once a workout is completed, same arrow style as TSS', async () => {
+    // currentWeekWorkout: endurance, 60 min, planned (46 est. TSS) — still outstanding.
+    // completedRide: endurance, 45 min, completed with tss=40 (est. 35) — only this one
+    // counts toward the "completed" side, so planned (105/81) and completed (45/40)
+    // diverge, proving the arrow shows two genuinely different numbers, not a static pair.
+    const completedRide = makeWorkout({
+      id: 'w-current-2', date: shiftDateStr(currentWeekStart, 4), name: 'Completed ride',
+      duration_minutes: 45, status: 'completed', tss: 40, icu_activity_id: 'act-1',
+    })
+    global.fetch = jest.fn((url: string) => {
+      const u = String(url)
+      if (u === '/api/sync') {
+        return Promise.resolve({ ok: true, json: async () => ({ activities: [], wellness: [], athlete_ftp: null, athlete_weight: null }) })
+      }
+      if (u === '/api/plan') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            workouts: [currentWeekWorkout, completedRide],
+            name: '',
+            last_reviewed_week: '9999-W53',
+          }),
+        })
+      }
+      if (u === '/api/profile') return Promise.resolve({ ok: true, json: async () => ({}) })
+      if (u === '/api/weight-log') return Promise.resolve({ ok: true, json: async () => ({ entries: [] }) })
+      if (u.startsWith('/api/wellness')) return Promise.resolve({ ok: true, json: async () => ({ wellness: [] }) })
+      if (u === '/api/charts') return Promise.resolve({ ok: true, json: async () => ({ charts: null }) })
+      if (u === '/api/weather/week') return Promise.resolve({ ok: true, json: async () => ({ dates: [] }) })
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    }) as jest.Mock
+
+    render(<DashboardPage />)
+    await screen.findByText('Current week ride')
+    const header = screen.getByText('~81 → 40').parentElement!
+    expect(header.textContent).toBe('~81 → 40 TSS · 105 → 45 min')
+  })
 })
 
 describe('DashboardPage wellness save refreshes recovery', () => {
