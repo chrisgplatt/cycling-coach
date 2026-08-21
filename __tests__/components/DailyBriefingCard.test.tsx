@@ -16,6 +16,7 @@ function makeProps(overrides: Partial<ComponentProps<typeof DailyBriefingCard>> 
     zonesFixing: false, zonesResult: null, zonesPreview: null, onPreviewZonesFix: jest.fn(), onApplyZonesFix: jest.fn(),
     ftpBackfilling: false, ftpBackfillResult: null, onRunBackfillFtp: jest.fn(),
     strainBackfilling: false, strainBackfillResult: null, onRunBackfillStrain: jest.fn(),
+    strainRecomputing: false, strainRecomputeResult: null, onRunRecomputeStrain: jest.fn(),
     planHistoryBackfilling: false, planHistoryBackfillResult: null, onRunBackfillPlanHistory: jest.fn(),
     metricsBackfilling: false, metricsBackfillResult: null, onRunBackfillActivityMetrics: jest.fn(), onStopBackfillActivityMetrics: jest.fn(),
     deepHistoryBackfilling: false, deepHistoryResult: null, onRunDeepHistoryBackfill: jest.fn(), onStopDeepHistoryBackfill: jest.fn(),
@@ -66,6 +67,35 @@ describe('DailyBriefingCard — all-time bests backfill button', () => {
     render(<DailyBriefingCard {...makeProps({ metricsBackfilling: true, onStopBackfillActivityMetrics: onStop })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
     expect(onStop).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('DailyBriefingCard — recompute historical strain button', () => {
+  it('renders the button when admin', () => {
+    render(<DailyBriefingCard {...makeProps()} />)
+    expect(screen.getByRole('button', { name: 'Recompute all historical strain' })).toBeInTheDocument()
+  })
+
+  it('does not render for non-admins', () => {
+    render(<DailyBriefingCard {...makeProps({ isAdmin: false })} />)
+    expect(screen.queryByRole('button', { name: 'Recompute all historical strain' })).not.toBeInTheDocument()
+  })
+
+  it('calls onRunRecomputeStrain when clicked', () => {
+    const onRun = jest.fn()
+    render(<DailyBriefingCard {...makeProps({ onRunRecomputeStrain: onRun })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Recompute all historical strain' }))
+    expect(onRun).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows "Recomputing…" and disables the button while running', () => {
+    render(<DailyBriefingCard {...makeProps({ strainRecomputing: true })} />)
+    expect(screen.getByRole('button', { name: 'Recomputing…' })).toBeDisabled()
+  })
+
+  it('shows the result message after completion', () => {
+    render(<DailyBriefingCard {...makeProps({ strainRecomputeResult: { ok: true, message: 'Recomputed 214 of 214 days.' } })} />)
+    expect(screen.getByText('Recomputed 214 of 214 days.')).toBeInTheDocument()
   })
 })
 

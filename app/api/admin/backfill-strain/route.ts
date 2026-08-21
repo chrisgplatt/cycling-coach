@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { mergeGarminIntoWellness } from '@/lib/garmin-wellness-merge'
@@ -8,8 +8,12 @@ import { computeWorkoutStrainSeries, type StrainSeriesDayInput, type DailyActivi
 export const dynamic = 'force-dynamic'
 
 /** One-time backfill: freezes daily_trimp/trimp_ref/workout_strain for every past date
- * that doesn't already have them. Safe to re-run — already-frozen dates are skipped. */
-export async function POST() {
+ * that doesn't already have them. Safe to re-run — already-frozen dates are skipped,
+ * unless `force: true` is passed in the request body, which ignores every existing
+ * frozen value and recomputes+overwrites the whole history (e.g. after a strain
+ * formula change, so historical charts match newly-computed days). */
+export async function POST(req: NextRequest) {
+  const { force = false } = await req.json().catch(() => ({ force: false }))
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -65,9 +69,9 @@ export async function POST() {
         date: w.id,
         activities: activitiesByDate.get(w.id) ?? [],
         restingHr: w.garmin_resting_hr ?? w.resting_hr,
-        frozenDailyTrimp: dw?.daily_trimp ?? null,
-        frozenTrimpRef: dw?.trimp_ref ?? null,
-        frozenWorkoutStrain: dw?.workout_strain ?? null,
+        frozenDailyTrimp: force ? null : dw?.daily_trimp ?? null,
+        frozenTrimpRef: force ? null : dw?.trimp_ref ?? null,
+        frozenWorkoutStrain: force ? null : dw?.workout_strain ?? null,
       }
     })
 

@@ -53,6 +53,9 @@ interface Props {
   strainBackfilling: boolean
   strainBackfillResult: ActionResult
   onRunBackfillStrain: () => void
+  strainRecomputing: boolean
+  strainRecomputeResult: ActionResult
+  onRunRecomputeStrain: () => void
   planHistoryBackfilling: boolean
   planHistoryBackfillResult: ActionResult
   onRunBackfillPlanHistory: () => void
@@ -80,6 +83,7 @@ export default function DailyBriefingCard({
   zonesFixing, zonesResult, zonesPreview, onPreviewZonesFix, onApplyZonesFix,
   ftpBackfilling, ftpBackfillResult, onRunBackfillFtp,
   strainBackfilling, strainBackfillResult, onRunBackfillStrain,
+  strainRecomputing, strainRecomputeResult, onRunRecomputeStrain,
   planHistoryBackfilling, planHistoryBackfillResult, onRunBackfillPlanHistory,
   metricsBackfilling, metricsBackfillResult, onRunBackfillActivityMetrics, onStopBackfillActivityMetrics,
   deepHistoryBackfilling, deepHistoryResult, onRunDeepHistoryBackfill, onStopDeepHistoryBackfill,
@@ -273,6 +277,20 @@ export default function DailyBriefingCard({
                 {strainBackfillResult && (
                   <p className={`text-xs ${strainBackfillResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                     {strainBackfillResult.message}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={onRunRecomputeStrain}
+                  disabled={strainRecomputing}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+                >
+                  {strainRecomputing ? 'Recomputing…' : 'Recompute all historical strain'}
+                </button>
+                {strainRecomputeResult && (
+                  <p className={`text-xs ${strainRecomputeResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {strainRecomputeResult.message}
                   </p>
                 )}
               </div>

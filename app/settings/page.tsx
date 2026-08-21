@@ -56,6 +56,8 @@ export default function SettingsPage() {
   const [ftpBackfillResult, setFtpBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [strainBackfilling, setStrainBackfilling] = useState(false)
   const [strainBackfillResult, setStrainBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [strainRecomputing, setStrainRecomputing] = useState(false)
+  const [strainRecomputeResult, setStrainRecomputeResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [planHistoryBackfilling, setPlanHistoryBackfilling] = useState(false)
   const [planHistoryBackfillResult, setPlanHistoryBackfillResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [metricsBackfilling, setMetricsBackfilling] = useState(false)
@@ -423,6 +425,31 @@ export default function SettingsPage() {
     }
   }
 
+  // Ignores every already-frozen daily_trimp/trimp_ref/workout_strain and recomputes+
+  // overwrites the whole history — used after a strain formula change (see lib/strain.ts)
+  // so past days match what newly-computed days now show.
+  async function runRecomputeStrain() {
+    setStrainRecomputing(true)
+    setStrainRecomputeResult(null)
+    try {
+      const res = await fetch('/api/admin/backfill-strain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setStrainRecomputeResult({ ok: true, message: `Recomputed ${data.backfilled} of ${data.totalDays} days.` })
+      } else {
+        setStrainRecomputeResult({ ok: false, message: data.error ?? 'Recompute failed.' })
+      }
+    } catch {
+      setStrainRecomputeResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setStrainRecomputing(false)
+    }
+  }
+
   async function runBackfillPlanHistory() {
     setPlanHistoryBackfilling(true)
     setPlanHistoryBackfillResult(null)
@@ -724,6 +751,9 @@ export default function SettingsPage() {
         strainBackfilling={strainBackfilling}
         strainBackfillResult={strainBackfillResult}
         onRunBackfillStrain={runBackfillStrain}
+        strainRecomputing={strainRecomputing}
+        strainRecomputeResult={strainRecomputeResult}
+        onRunRecomputeStrain={runRecomputeStrain}
         planHistoryBackfilling={planHistoryBackfilling}
         planHistoryBackfillResult={planHistoryBackfillResult}
         onRunBackfillPlanHistory={runBackfillPlanHistory}
