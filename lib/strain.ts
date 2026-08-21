@@ -54,10 +54,24 @@ export function computeTrimpRef(trailingDailyTrimp: number[]): number {
   return sorted[idx]
 }
 
+// Curve sharpness for the trimp→strain mapping below, independent of trimpRef itself.
+// Using ln(1+dailyTrimp)/ln(1+trimpRef) directly (equivalent to the k=trimpRef case)
+// made the curve far too steep near zero — with a typical trimpRef of 100-300, a day at
+// just 15-25% of the reference (an easy walk or recovery spin) still landed at ~13-16/21
+// ("high"), because a log curve's own scale sets how concave it is: a bigger implicit
+// base (trimpRef, often 100+) front-loads the rise so hard that almost any nonzero
+// effort already reads as a large fraction of the way to 21. Fixing k at a small
+// constant decouples "how concave the curve is" from "what counts as a hard day" —
+// light effort (~15-25% of trimpRef) now lands at 4-8/21 ("light"), while dailyTrimp ==
+// trimpRef still reaches 21 and > trimpRef still caps there, matching prior behaviour
+// at the endpoints.
+const STRAIN_CURVE_SHARPNESS = 6
+
 export function computeWorkoutStrain(dailyTrimp: number, trimpRef: number): number {
   if (dailyTrimp <= 0) return 0
   const ref = Math.max(trimpRef, 1)
-  return Math.min(21, Math.round(21 * Math.log(1 + dailyTrimp) / Math.log(1 + ref)))
+  const k = STRAIN_CURVE_SHARPNESS
+  return Math.min(21, Math.round(21 * Math.log(1 + k * (dailyTrimp / ref)) / Math.log(1 + k)))
 }
 
 export const STRAIN_TARGET_LOW_MAX = 14     // recovery=100 → low bound approaches 14

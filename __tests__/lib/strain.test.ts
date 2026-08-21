@@ -126,9 +126,18 @@ describe('computeWorkoutStrain', () => {
   })
 
   test('dailyTrimp well below trimpRef gives a moderate score', () => {
-    // 21 * ln(51) / ln(151) = 21 * 3.9318 / 5.0173 ≈ 16.46 → rounds to 16
+    // ratio = 50/150 = 1/3; 21 * ln(1 + 6/3) / ln(7) = 21 * ln(3) / ln(7) ≈ 11.86 → rounds to 12
     const result = computeWorkoutStrain(50, 150)
-    expect(result).toBe(16)
+    expect(result).toBe(12)
+  })
+
+  test('dailyTrimp at ~15-20% of trimpRef (an easy walk or recovery spin) lands "light", not "high"', () => {
+    // ratio = 25/150 = 1/6; 21 * ln(1 + 6/6) / ln(7) = 21 * ln(2) / ln(7) ≈ 7.48 → rounds to 7
+    // Regression guard: the previous ln(1+x)/ln(1+ref) formula gave this ~13/21 ("high"),
+    // which is what prompted the fix — a walk should never register as high strain.
+    const result = computeWorkoutStrain(25, 150)
+    expect(result).toBe(7)
+    expect(strainLabel(result)).toBe('light')
   })
 
   test('dailyTrimp above trimpRef still caps at 21', () => {
