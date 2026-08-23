@@ -10,17 +10,24 @@ function daysAgo(n: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+function dowLabelDaysAgo(n: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return DOW[d.getDay()]
+}
+
 const mockCharts: ChartsData = {
   wellness: [
     { id: daysAgo(100), ctl: 55, atl: 60, form: -5, hrv: null, resting_hr: null, sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
-    { id: daysAgo(10), ctl: 62, atl: 65, form: -3, hrv: null, resting_hr: 52,   sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
+    { id: daysAgo(6), ctl: 62, atl: 65, form: -3, hrv: null, resting_hr: 52,   sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
     { id: daysAgo(5),  ctl: 68, atl: 70, form: -2, hrv: null, resting_hr: 50,   sleep_secs: null, body_battery_low: null, body_battery_high: null, stress_avg: null, stress_high: null, garmin_training_load: null, sleep_score: null },
   ],
   weeklyTss: [],
   dailyStrain: [],
   rides: [
     { date: daysAgo(100), avgHr: 138, tss: 80, name: 'Century Ride', durationSecs: 14400 },
-    { date: daysAgo(10),  avgHr: 142, tss: 95, name: 'Threshold Intervals', durationSecs: 5400 },
+    { date: daysAgo(6),  avgHr: 142, tss: 95, name: 'Threshold Intervals', durationSecs: 5400 },
     { date: daysAgo(5),   avgHr: 143, tss: 60, name: 'Morning Endurance Ride', durationSecs: 6300 },
     { date: daysAgo(5),   avgHr: 110, tss: 18, name: 'Evening Recovery Spin', durationSecs: 2400 },
   ],
@@ -63,12 +70,13 @@ it('renders CTL path and session dot circles', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
   const svg = screen.getByTestId('ctl-trend-svg')
   expect(svg.querySelector('path')).not.toBeNull()        // CTL line
-  // daysAgo(10) and daysAgo(5) rides match wellness dates → 2 session dots in 1m window
+  // daysAgo(6) and daysAgo(5) rides match wellness dates → 2 session dots in default 1w window
   expect(svg.querySelectorAll('circle').length).toBe(2)
 })
 
 it('renders time-range tabs', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
+  expect(screen.getByRole('button', { name: /1w/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /1m/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /3m/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /6m/i })).toBeInTheDocument()
@@ -78,7 +86,7 @@ it('renders time-range tabs', async () => {
 it('changing range tab re-filters data', async () => {
   const user = userEvent.setup()
   await act(async () => { render(<CtlTrendStrip />) })
-  // Switch to 12m — all 3 wellness entries included; daysAgo(10) and daysAgo(5)
+  // Switch to 12m — all 3 wellness entries included; daysAgo(6) and daysAgo(5)
   // both have resting_hr, so rhrPath renders (2 points)
   await user.click(screen.getByRole('button', { name: /12m/i }))
   const svg = screen.getByTestId('ctl-trend-svg')
@@ -100,15 +108,15 @@ it('applies embedded styling when embedded prop is true', async () => {
   expect(strip.className).not.toContain('bg-white')
 })
 
-it('defaults to the 1m tab', async () => {
+it('defaults to the 1w tab', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
-  const btn = screen.getByRole('button', { name: /1m/i })
+  const btn = screen.getByRole('button', { name: /1w/i })
   expect(btn.className).toContain('bg-blue-600')
 })
 
-it('shows a ride breakdown tooltip when a 1m hit-target is tapped', async () => {
+it('shows a ride breakdown tooltip when a 1w hit-target is tapped (default tab)', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
-  // ctlPoints in the 1m window are [daysAgo(10), daysAgo(5)] in that order,
+  // ctlPoints in the default 1w window are [daysAgo(6), daysAgo(5)] in that order,
   // so slot index 1 is nearest the daysAgo(5) session dot (the 2-ride day).
   fireEvent.click(screen.getByTestId('ctl-hit-1'))
   const tooltip = screen.getByTestId('ctl-ride-tooltip')
@@ -146,7 +154,7 @@ it('has no hit-targets or tooltip on the 3m tab', async () => {
 
 it('grows the tooltip rightward (not centered) for the leftmost session dot', async () => {
   await act(async () => { render(<CtlTrendStrip />) })
-  // ctl-hit-0 snaps to the daysAgo(10) dot, which sits at the chart's left edge.
+  // ctl-hit-0 snaps to the daysAgo(6) dot, which sits at the chart's left edge.
   fireEvent.click(screen.getByTestId('ctl-hit-0'))
   const tooltip = screen.getByTestId('ctl-ride-tooltip')
   expect(tooltip.style.transform).toContain('translate(0,')
@@ -159,4 +167,11 @@ it('grows the tooltip leftward (not centered) for the rightmost session dot', as
   fireEvent.click(screen.getByTestId('ctl-hit-1'))
   const tooltip = screen.getByTestId('ctl-ride-tooltip')
   expect(tooltip.style.transform).toContain('translate(-100%,')
+})
+
+it('labels the 1w x-axis with one day-of-week tick per day', async () => {
+  await act(async () => { render(<CtlTrendStrip />) })
+  // Default window is [daysAgo(6), daysAgo(5)] → one tick per day, two ticks total.
+  expect(screen.getByText(dowLabelDaysAgo(6))).toBeInTheDocument()
+  expect(screen.getByText(dowLabelDaysAgo(5))).toBeInTheDocument()
 })

@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react'
 import type { ChartsData, RidePoint } from '@/types'
 import { formatHrsMins } from '@/components/RideStats'
 
-type Range = '1m' | '3m' | '6m' | '12m'
+type Range = '1w' | '1m' | '3m' | '6m' | '12m'
 
-const RANGE_MONTHS: Record<Range, number> = { '1m': 1, '3m': 3, '6m': 6, '12m': 12 }
-const RANGES: Range[] = ['1m', '3m', '6m', '12m']
+const RANGE_MONTHS: Partial<Record<Range, number>> = { '1m': 1, '3m': 3, '6m': 6, '12m': 12 }
+const RANGES: Range[] = ['1w', '1m', '3m', '6m', '12m']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
@@ -34,7 +34,7 @@ export default function CtlTrendStrip({
   chartsData?: ChartsData | null
 }) {
   const [fetched, setFetched] = useState<ChartsData | null>(null)
-  const [range, setRange] = useState<Range>('1m')
+  const [range, setRange] = useState<Range>('1w')
   const [activeDotIdx, setActiveDotIdx] = useState<number | null>(null)
 
   useEffect(() => {
@@ -54,7 +54,11 @@ export default function CtlTrendStrip({
   if (!data) return null
 
   const cutoff = new Date()
-  cutoff.setMonth(cutoff.getMonth() - RANGE_MONTHS[range])
+  if (range === '1w') {
+    cutoff.setDate(cutoff.getDate() - 7)
+  } else {
+    cutoff.setMonth(cutoff.getMonth() - RANGE_MONTHS[range]!)
+  }
   const cutoffStr = cutoff.toISOString().slice(0, 10)
 
   const ctlPoints = (data.wellness ?? []).filter(w => w.id >= cutoffStr && w.ctl !== null)
@@ -117,7 +121,16 @@ export default function CtlTrendStrip({
   // X-axis ticks: weekly for 1m, monthly for 3m/6m, every 2 months for 12m
   const endDate = new Date(ctlPoints[ctlPoints.length - 1].id)
   const xTicks: Array<{ x: number; label: string }> = []
-  if (range === '1m') {
+  if (range === '1w') {
+    const d = new Date(ctlPoints[0].id)
+    while (d <= endDate) {
+      xTicks.push({
+        x: PAD_L + ((d.getTime() - startMs) / spanMs) * CW,
+        label: DOW[d.getDay()],
+      })
+      d.setDate(d.getDate() + 1)
+    }
+  } else if (range === '1m') {
     const firstDate = new Date(ctlPoints[0].id)
     const dow = (firstDate.getDay() + 6) % 7
     const d = new Date(firstDate)
@@ -205,8 +218,8 @@ export default function CtlTrendStrip({
             strokeWidth="1"
           />
         ))}
-        {/* Ride hit-targets — 1m tab only, one slot per day, snapped to nearest session dot */}
-        {range === '1m' && sessionDots.length > 0 && (() => {
+        {/* Ride hit-targets — 1w/1m tabs only, one slot per day, snapped to nearest session dot */}
+        {(range === '1w' || range === '1m') && sessionDots.length > 0 && (() => {
           const nSlots = ctlPoints.length
           const slotW = CW / nSlots
           return ctlPoints.map((w, i) => {
@@ -286,7 +299,7 @@ export default function CtlTrendStrip({
             </span>
           </>
         )}
-        {/* Ride breakdown tooltip — 1m tab only */}
+        {/* Ride breakdown tooltip — 1w/1m tabs only */}
         {activeDotIdx !== null && sessionDots[activeDotIdx] && (() => {
           const dot = sessionDots[activeDotIdx]
           const rhr = rhrByDate.get(dot.date)
