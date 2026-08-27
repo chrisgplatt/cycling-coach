@@ -23,16 +23,23 @@ export default function ActivityDetailModal({ activity, onClose, effectiveMaxHr 
   const [streams, setStreams] = useState<RideStreams | null>(null)
   const [streamsError, setStreamsError] = useState(false)
   const [distributions, setDistributions] = useState<SessionDistributions | null>(null)
+  const [bestEfforts, setBestEfforts] = useState<Array<{ secs: number; watts: number }> | null>(null)
   const [highlights, setHighlights] = useState<RideHighlight[]>([])
 
-  // Distributions live on the linked workout row (keyed by activity id); fetch them
-  // so the Stats tab can show the histogram. Null when the ride has no enriched row.
+  // Distributions and best-effort power live on the linked workout row (keyed by
+  // activity id); fetch them so the Stats tab can show the histogram and the
+  // 5s/15s/60min best-power cells ICUActivity itself doesn't carry. Both are null
+  // when the ride has no enriched row.
   useEffect(() => {
     let cancelled = false
     fetch(`/api/rides/activity/${activity.id}/distributions`)
       .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (!cancelled && d) setDistributions(d.distributions ?? null) })
-      .catch(() => { /* no histogram if it can't be loaded */ })
+      .then(d => {
+        if (cancelled || !d) return
+        setDistributions(d.distributions ?? null)
+        setBestEfforts(d.bestEfforts ?? null)
+      })
+      .catch(() => { /* no histogram/best-power if it can't be loaded */ })
     return () => { cancelled = true }
   }, [activity.id])
 
@@ -93,7 +100,7 @@ export default function ActivityDetailModal({ activity, onClose, effectiveMaxHr 
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto p-6 pt-4 space-y-4">
-            <RideStats data={rideStatsFromActivity(activity)} effectiveMaxHr={effectiveMaxHr} />
+            <RideStats data={rideStatsFromActivity(activity, bestEfforts)} effectiveMaxHr={effectiveMaxHr} />
             <SessionHistogram distributions={distributions} />
           </div>
         )}

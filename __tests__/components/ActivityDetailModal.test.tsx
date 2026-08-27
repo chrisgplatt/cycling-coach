@@ -33,6 +33,21 @@ describe('ActivityDetailModal', () => {
     expect(await screen.findByText(/VI 1.12/)).toBeInTheDocument()
   })
 
+  it('merges best_efforts from the linked workout row into the 5s/15s/60min best-power cells', async () => {
+    global.fetch = jest.fn((url: string) =>
+      String(url).includes('/distributions')
+        ? Promise.resolve({ ok: true, json: async () => ({
+            distributions: null,
+            bestEfforts: [{ secs: 5, watts: 950 }, { secs: 15, watts: 700 }, { secs: 3600, watts: 230 }],
+          }) })
+        : Promise.resolve({ ok: true, json: async () => ({ streams: null }) }),
+    ) as never
+    render(<ActivityDetailModal activity={activity} onClose={() => {}} />)
+    expect(await screen.findByText('950')).toBeInTheDocument()
+    expect(screen.getByText('700')).toBeInTheDocument()
+    expect(screen.getByText('230')).toBeInTheDocument()
+  })
+
   it('fetches the activity streams when the Map tab is opened', async () => {
     const fetchMock = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ streams: { time: [0], power: [100], distance: [0], latlng: null, hr: null, altitude: null, cadence: null, velocity: null } }) }))
     global.fetch = fetchMock as never

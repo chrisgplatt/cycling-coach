@@ -5,7 +5,7 @@ export interface RideStatsData {
   avgWatts: number | null
   np: number | null
   tss: number | null
-  best: { p1: number | null; p5: number | null; p10: number | null; p20: number | null }
+  best: { p5s: number | null; p15s: number | null; p1: number | null; p5: number | null; p10: number | null; p20: number | null; p60min: number | null }
   distanceM: number | null
   elevationM: number | null
   durationSecs: number
@@ -32,14 +32,19 @@ export function formatHrsMins(secs: number): string {
   return `${h}h ${m}m`
 }
 
-export function rideStatsFromActivity(a: ICUActivity): RideStatsData {
+// extraBest supplies durations ICUActivity doesn't carry natively (5s/15s/60min) —
+// pass the linked workout row's activity_metrics.best_efforts when available.
+export function rideStatsFromActivity(a: ICUActivity, extraBest?: Array<{ secs: number; watts: number }> | null): RideStatsData {
+  const extra = (secs: number) => extraBest?.find(e => e.secs === secs)?.watts ?? null
   return {
     avgWatts: a.average_watts,
     np: a.weighted_average_watts,
     tss: a.training_load,
     best: {
+      p5s: extra(5), p15s: extra(15),
       p1: a.power_1min ?? null, p5: a.power_5min ?? null,
       p10: a.power_10min ?? null, p20: a.power_20min ?? null,
+      p60min: extra(3600),
     },
     distanceM: a.distance,
     elevationM: a.total_elevation_gain,
@@ -65,7 +70,11 @@ export function rideStatsFromMetrics(m: ActivityMetrics, durationSecs: number, t
     avgWatts: m.avg_power,
     np: m.np,
     tss,
-    best: { p1: effort(60), p5: effort(300), p10: effort(600), p20: effort(1200) },
+    best: {
+      p5s: effort(5), p15s: effort(15),
+      p1: effort(60), p5: effort(300), p10: effort(600), p20: effort(1200),
+      p60min: effort(3600),
+    },
     distanceM: m.distance_m,
     elevationM: m.elevation_m,
     durationSecs,
@@ -113,7 +122,8 @@ export function SectionCard({ title, children, accent }: { title: string; childr
 // Per-ride stat cards (Totals / Power / Best Power / Speed / Heart Rate / Temperature /
 // L-R Balance). Cards whose data is absent are hidden. Shared by the stats page and the ride modals.
 export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsData; effectiveMaxHr?: number | null }) {
-  const hasBest = data.best.p1 != null || data.best.p5 != null || data.best.p10 != null || data.best.p20 != null
+  const hasBest = data.best.p5s != null || data.best.p15s != null || data.best.p1 != null
+    || data.best.p5 != null || data.best.p10 != null || data.best.p20 != null || data.best.p60min != null
   const hasSpeed = data.avgSpeedKph !== null || data.maxSpeedKph !== null
   const hasTemp = data.avgTempC !== null || data.minTempC !== null || data.maxTempC !== null
   const balance = data.lrBalanceRight !== null
@@ -157,10 +167,15 @@ export default function RideStats({ data, effectiveMaxHr }: { data: RideStatsDat
       {hasBest && (
         <SectionCard title="Best Power" accent="bg-orange-400">
           <div className="flex divide-x divide-gray-100">
+            <StatCell label="5 sec" value={num(data.best.p5s)} unit={data.best.p5s != null ? 'w' : undefined} valueClass="text-orange-500" />
+            <StatCell label="15 sec" value={num(data.best.p15s)} unit={data.best.p15s != null ? 'w' : undefined} valueClass="text-orange-500" />
             <StatCell label="1 min" value={num(data.best.p1)} unit={data.best.p1 != null ? 'w' : undefined} valueClass="text-orange-500" />
             <StatCell label="5 min" value={num(data.best.p5)} unit={data.best.p5 != null ? 'w' : undefined} valueClass="text-orange-500" />
+          </div>
+          <div className="flex divide-x divide-gray-100 border-t border-gray-100">
             <StatCell label="10 min" value={num(data.best.p10)} unit={data.best.p10 != null ? 'w' : undefined} valueClass="text-orange-500" />
             <StatCell label="20 min" value={num(data.best.p20)} unit={data.best.p20 != null ? 'w' : undefined} valueClass="text-orange-500" />
+            <StatCell label="60 min" value={num(data.best.p60min)} unit={data.best.p60min != null ? 'w' : undefined} valueClass="text-orange-500" />
           </div>
         </SectionCard>
       )}

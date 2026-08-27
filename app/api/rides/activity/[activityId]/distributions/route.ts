@@ -23,6 +23,9 @@ export async function GET(
     .eq('icu_activity_id', activityId)
     .limit(1)
 
-  const metrics = (rows?.[0]?.activity_metrics ?? null) as { distributions?: unknown } | null
-  return NextResponse.json({ distributions: metrics?.distributions ?? null })
+  const metrics = (rows?.[0]?.activity_metrics ?? null) as { distributions?: unknown; best_efforts?: unknown } | null
+  return NextResponse.json({
+    distributions: metrics?.distributions ?? null,
+    bestEfforts: metrics?.best_efforts ?? null,
+  })
 }
