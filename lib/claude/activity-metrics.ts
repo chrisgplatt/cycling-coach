@@ -6,8 +6,8 @@ import { alignPlannedToLaps } from '@/lib/ride/planned-actual'
 import { downsamplePoints } from '@/lib/intervals/streams'
 
 // Best-effort durations we sample the power curve down to (seconds): 5s, 15s,
-// 1m, 5m, 10m, 20m, 60m — the durations RideStats surfaces.
-const CANONICAL_SECS = [5, 15, 60, 300, 600, 1200, 3600]
+// 30s, 1m, 5m, 10m, 20m, 60m — the durations RideStats surfaces.
+const CANONICAL_SECS = [5, 15, 30, 60, 300, 600, 1200, 3600]
 const CLIMB_PATH_MAX_POINTS = 12
 const SPEED_SPLIT_KM = [1, 5, 10, 20]
 
@@ -25,7 +25,7 @@ const MAX_PLAUSIBLE_SPEED_SPLIT_KMH = 70
 // new derived fields, etc.). The backfill re-enriches rows below this version so
 // existing rides pick up the change once — without churning rows that can't
 // produce a given field (the version stamp lands regardless).
-export const METRICS_VERSION = 9
+export const METRICS_VERSION = 10
 
 function plausibleMaxSpeedMs(maxSpeedMs: number | null | undefined): number | null {
   if (maxSpeedMs == null) return null

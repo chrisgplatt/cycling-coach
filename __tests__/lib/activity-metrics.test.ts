@@ -87,8 +87,13 @@ describe('extractActivityMetrics', () => {
     expect(m.max_temp_c).toBeNull()
   })
 
-  it('bumps METRICS_VERSION to 9', () => {
-    expect(METRICS_VERSION).toBe(9)
+  it('bumps METRICS_VERSION to 10', () => {
+    expect(METRICS_VERSION).toBe(10)
+  })
+
+  it('samples a 30s best when the curve has a nearby point', () => {
+    const m = extractActivityMetrics(act, [...curve, { secs: 30, watts: 500 }], intervals)
+    expect(m.best_efforts?.find(e => e.secs === 30)?.watts).toBe(500)
   })
 
   it('rejects an implausible top speed as a GPS/sensor glitch', () => {
