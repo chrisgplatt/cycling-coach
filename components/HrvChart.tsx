@@ -144,6 +144,14 @@ export default function HrvChart({
               <circle key={w.id} cx={xOf(i)} cy={yOf(w.hrv as number)}
                 r={data.length > 15 ? 2 : 2.8} fill="#fff" stroke="#7c3aed" strokeWidth="1.4" />
             ))}
+            {/* Exact value above each dot — only on 1w/1m, where the point spacing
+                is wide enough for the labels not to collide with each other. */}
+            {(rangeDays === 7 || rangeDays === 30) && data.map((w, i) => (
+              <text key={`val-${w.id}`} x={xOf(i)} y={yOf(w.hrv as number) - 6}
+                fontSize="7" fontWeight="600" fill="#6d28d9" textAnchor="middle" pointerEvents="none">
+                {Math.round(w.hrv as number)}
+              </text>
+            ))}
             {/* X-axis scale: month labels */}
             {monthLabels.map(ml => (
               <text key={ml.label + ml.x} x={ml.x} y={svgBottom + 18} fontSize="8" fill="#9ca3af" textAnchor="middle">{ml.label}</text>

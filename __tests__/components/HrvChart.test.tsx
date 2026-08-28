@@ -62,6 +62,24 @@ describe('HrvChart', () => {
     expect(screen.queryByTestId('hrv-tooltip')).not.toBeInTheDocument()
   })
 
+  it('shows the exact HRV value above each dot on the 1w and 1m views', () => {
+    render(<HrvChart wellness={makeWellness(10)} defaultRangeDays={7} />)
+    // 1w window over this fixture includes the last 8 days (indices 2-9, hrv 52-59)
+    expect(screen.getByText('59')).toBeInTheDocument()
+    expect(screen.getByText('52')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('1m'))
+    expect(screen.getByText('59')).toBeInTheDocument()
+  })
+
+  it('hides the per-dot HRV values on the 3m/6m/12m views', () => {
+    render(<HrvChart wellness={makeWellness(10)} defaultRangeDays={7} />)
+    expect(screen.getByText('59')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('3m'))
+    expect(screen.queryByText('59')).not.toBeInTheDocument()
+  })
+
   it('resets the open tooltip when the range changes', () => {
     render(<HrvChart wellness={makeWellness(10)} />)
     fireEvent.click(screen.getByTestId('hrv-hit-9'))
