@@ -135,6 +135,9 @@ describe('DashboardPage week navigation', () => {
     // it would show "0/2" after clicking Next — making this assertion
     // load-bearing rather than vacuous.
     render(<DashboardPage />)
+    await screen.findByText('Current week ride')
+    // The Progress card is collapsed by default — open it to reveal the Sessions tile.
+    fireEvent.click(screen.getByText('Progress'))
     expect(await screen.findByText('0/1')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Next week' }))

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import ProgressStats from '@/components/ProgressStats'
 import { localDateStr } from '@/lib/local-date'
 import { isoWeekStart } from '@/lib/chart-helpers'
@@ -24,10 +24,16 @@ const briefData = {
 
 beforeEach(() => mockFetch.mockReset())
 
+// The Progress card is collapsed by default — open it before asserting on its contents.
+async function openSection() {
+  fireEvent.click(await screen.findByText('Progress'))
+}
+
 describe('ProgressStats', () => {
   it('renders FTP tile with positive delta', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} />)
+    await openSection()
     expect(await screen.findByText('245W')).toBeInTheDocument()
     expect(await screen.findByText('+15W')).toBeInTheDocument()
   })
@@ -35,6 +41,7 @@ describe('ProgressStats', () => {
   it('renders fitness (CTL) tile', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} />)
+    await openSection()
     expect(await screen.findByText('70')).toBeInTheDocument()
     expect(await screen.findByText('+15pts')).toBeInTheDocument()
   })
@@ -42,6 +49,7 @@ describe('ProgressStats', () => {
   it('renders sessions adherence tile', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} />)
+    await openSection()
     expect(await screen.findByText('14/16')).toBeInTheDocument()
     expect(await screen.findByText('88%')).toBeInTheDocument()
   })
@@ -61,6 +69,7 @@ describe('ProgressStats', () => {
       { date: addDays(monday, -14), type: 'Ride', distanceM: 20000, elevationM: 200, movingTimeSecs: 3600 },
     ]
     render(<ProgressStats syncVersion={0} activities={activities} />)
+    await openSection()
     await screen.findByText('245W')
     expect(await screen.findByText('🔥 3')).toBeInTheDocument()
   })
@@ -68,6 +77,7 @@ describe('ProgressStats', () => {
   it('renders weight tile with negative delta as good (green)', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} />)
+    await openSection()
     expect(await screen.findByText('73.5kg')).toBeInTheDocument()
     const badge = screen.getByText('-1.5kg')
     expect(badge).toBeInTheDocument()
@@ -77,6 +87,7 @@ describe('ProgressStats', () => {
   it('renders total rides tile with "since start" sub label when a plan start date exists', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} />)
+    await openSection()
     expect(await screen.findByText('47')).toBeInTheDocument()
     expect(screen.getByText('since start')).toBeInTheDocument()
   })
@@ -85,6 +96,7 @@ describe('ProgressStats', () => {
     const noplan = { ...briefData, metrics_snapshot: { ...briefData.metrics_snapshot, planStartDate: null } }
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => noplan })
     render(<ProgressStats syncVersion={0} />)
+    await openSection()
     expect(await screen.findByText('47')).toBeInTheDocument()
     expect(screen.getByText('last 6wk')).toBeInTheDocument()
   })
@@ -92,6 +104,7 @@ describe('ProgressStats', () => {
 it('does not render the coaching narrative text', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} />)
+    await openSection()
     await screen.findByText('245W') // wait for data to load
     expect(screen.queryByText(/CTL has grown 15 points/)).not.toBeInTheDocument()
   })
@@ -109,6 +122,7 @@ it('does not render the coaching narrative text', async () => {
       .mockResolvedValueOnce({ ok: true, json: async () => updated })
 
     const { rerender } = render(<ProgressStats syncVersion={0} />)
+    await openSection()
     await screen.findByText('245W')
     rerender(<ProgressStats syncVersion={1} />)
     expect(await screen.findByText('250W')).toBeInTheDocument()
@@ -118,6 +132,7 @@ it('does not render the coaching narrative text', async () => {
   it('renders event banner with name and days', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} eventCountdown={{ name: 'Dragon Ride', daysAway: 78 }} />)
+    await openSection()
     await screen.findByText('245W')
     expect(screen.getByText(/Dragon Ride/)).toBeInTheDocument()
     expect(screen.getByText(/78d/)).toBeInTheDocument()
@@ -126,6 +141,7 @@ it('does not render the coaching narrative text', async () => {
   it('renders "Today!" when daysAway is 0', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} eventCountdown={{ name: 'Gran Fondo', daysAway: 0 }} />)
+    await openSection()
     await screen.findByText('245W')
     expect(screen.getByText('Today!')).toBeInTheDocument()
   })
@@ -133,6 +149,7 @@ it('does not render the coaching narrative text', async () => {
   it('renders form tile with fresh badge when TSB > 5', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} form={12} />)
+    await openSection()
     await screen.findByText('245W')
     expect(screen.getByText('+12')).toBeInTheDocument()
     expect(screen.getByText('fresh')).toBeInTheDocument()
@@ -141,6 +158,7 @@ it('does not render the coaching narrative text', async () => {
   it('renders form tile with building badge when TSB is -8', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} form={-8} />)
+    await openSection()
     await screen.findByText('245W')
     expect(screen.getByText('-8')).toBeInTheDocument()
     expect(screen.getByText('building')).toBeInTheDocument()
@@ -149,6 +167,7 @@ it('does not render the coaching narrative text', async () => {
   it('renders form tile with tired badge when TSB is -20', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
     render(<ProgressStats syncVersion={0} form={-20} />)
+    await openSection()
     await screen.findByText('245W')
     expect(screen.getByText('-20')).toBeInTheDocument()
     expect(screen.getByText('tired')).toBeInTheDocument()
@@ -160,6 +179,7 @@ it('does not render the coaching narrative text', async () => {
       { date: '2026-06-22', type: 'Ride', distanceM: 40000, elevationM: 500, movingTimeSecs: 7200 },
     ]
     render(<ProgressStats syncVersion={0} activities={activities} />)
+    await openSection()
     await screen.findByText('245W')
     // Streak header row should be present (contains "Streak")
     expect(screen.getAllByText(/Streak/).length).toBeGreaterThan(0)
@@ -171,7 +191,28 @@ it('does not render the coaching narrative text', async () => {
       { date: '2026-06-22', type: 'Ride', distanceM: 40000, elevationM: 500, movingTimeSecs: 7200 },
     ]
     render(<ProgressStats syncVersion={0} activities={activities} />)
+    await openSection()
     await screen.findByText('245W')
     expect(screen.getByText(/Activity/)).toBeInTheDocument()
+  })
+
+  it('is collapsed by default, hiding tiles until the header is tapped', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
+    render(<ProgressStats syncVersion={0} />)
+    await screen.findByText('Progress')
+    expect(screen.queryByText('245W')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Progress'))
+    expect(await screen.findByText('245W')).toBeInTheDocument()
+  })
+
+  it('collapses again when the header is tapped a second time', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => briefData })
+    render(<ProgressStats syncVersion={0} />)
+    await openSection()
+    await screen.findByText('245W')
+
+    fireEvent.click(screen.getByText('Progress'))
+    expect(screen.queryByText('245W')).not.toBeInTheDocument()
   })
 })

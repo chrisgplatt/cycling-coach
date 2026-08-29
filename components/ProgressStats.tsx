@@ -39,6 +39,7 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
   const [loading, setLoading] = useState(true)
   const [streakOpen, setStreakOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
+  const [sectionOpen, setSectionOpen] = useState(false)
 
   useEffect(() => {
     const ac = new AbortController()
@@ -93,12 +94,26 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
+      <button
+        onClick={() => setSectionOpen(o => !o)}
+        className="w-full px-4 py-2.5 border-b border-gray-200 flex items-center justify-between min-h-[44px]"
+      >
         <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.06em]">Progress</h2>
-        {weeksRemainingInPlan != null && (
-          <span className="text-[10px] font-semibold text-gray-400">{weeksRemainingInPlan}wk plan remaining</span>
-        )}
-      </div>
+        <div className="flex items-center gap-2">
+          {weeksRemainingInPlan != null && (
+            <span className="text-[10px] font-semibold text-gray-400">{weeksRemainingInPlan}wk plan remaining</span>
+          )}
+          <svg
+            viewBox="0 0 10 6"
+            className={`w-3 h-3 text-gray-400 transition-transform ${sectionOpen ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" strokeWidth="1.5"
+          >
+            <path d="M1 1 L5 5 L9 1"/>
+          </svg>
+        </div>
+      </button>
+      {sectionOpen && (
+      <>
       {(() => {
         type EventRow = { kind: 'event'; date: string; label: string; icon: string; priority: string; priorityColour: string }
         type TestRow  = { kind: 'test';  date: string; label: string }
@@ -254,6 +269,8 @@ export default function ProgressStats({ syncVersion, weeklyProgress, eventCountd
             {activityOpen && <ActivityStatsPanel activities={activities} today={todayStr} />}
           </div>
         </>
+      )}
+      </>
       )}
     </div>
   )
