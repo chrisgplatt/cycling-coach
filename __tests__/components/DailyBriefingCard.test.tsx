@@ -25,6 +25,34 @@ function makeProps(overrides: Partial<ComponentProps<typeof DailyBriefingCard>> 
   }
 }
 
+describe('DailyBriefingCard — notification time picker', () => {
+  afterEach(() => jest.useRealTimers())
+
+  it('renders a select limited to the cron-supported times, not free text', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-15T12:00:00Z'))
+    render(<DailyBriefingCard {...makeProps({ editingBriefing: true, notifTime: '07:00', timezone: 'Europe/London' })} />)
+    const select = screen.getByRole('combobox', { name: /notification time/i }) as HTMLSelectElement
+    const values = Array.from(select.options).map(o => o.value)
+    expect(values).toEqual(['07:00', '08:00'])
+  })
+
+  it('calls onNotifTimeChange with the selected option', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-15T12:00:00Z'))
+    const onChange = jest.fn()
+    render(<DailyBriefingCard {...makeProps({ editingBriefing: true, notifTime: '07:00', timezone: 'Europe/London', onNotifTimeChange: onChange })} />)
+    fireEvent.change(screen.getByRole('combobox', { name: /notification time/i }), { target: { value: '08:00' } })
+    expect(onChange).toHaveBeenCalledWith('08:00')
+  })
+
+  it('offers different local times for a different timezone', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-15T12:00:00Z'))
+    render(<DailyBriefingCard {...makeProps({ editingBriefing: true, notifTime: '02:00', timezone: 'America/New_York' })} />)
+    const select = screen.getByRole('combobox', { name: /notification time/i }) as HTMLSelectElement
+    const values = Array.from(select.options).map(o => o.value)
+    expect(values).toEqual(['02:00', '03:00'])
+  })
+})
+
 describe('DailyBriefingCard — all-time bests backfill button', () => {
   it('renders the button when admin', () => {
     render(<DailyBriefingCard {...makeProps()} />)

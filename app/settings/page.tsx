@@ -7,6 +7,7 @@ import DailyBriefingCard from '@/components/DailyBriefingCard'
 import LocationWeatherCard from '@/components/LocationWeatherCard'
 import RideHistoryCard from '@/components/RideHistoryCard'
 import AboutCard from '@/components/AboutCard'
+import { notificationTimeOptions } from '@/lib/cron-schedule'
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -725,8 +726,16 @@ export default function SettingsPage() {
         labelClass={labelClass}
         inputClass={inputClass}
         onNotifTimeChange={setNotifTime}
-        onTimezoneChange={setTimezone}
-        onStartEditing={() => setEditingBriefing(true)}
+        onTimezoneChange={tz => {
+          setTimezone(tz)
+          const opts = notificationTimeOptions(tz)
+          setNotifTime(prev => opts.includes(prev) ? prev : opts[0])
+        }}
+        onStartEditing={() => {
+          setEditingBriefing(true)
+          const opts = notificationTimeOptions(timezone)
+          setNotifTime(prev => opts.includes(prev) ? prev : opts[0])
+        }}
         onCancelEditing={() => { setNotifTime(savedNotifTime); setTimezone(savedTimezone); setEditingBriefing(false); setSaveError(null) }}
         onSave={async () => { const ok = await save('briefing'); if (ok) setEditingBriefing(false) }}
         onToggleNotifications={toggleNotifications}

@@ -1,3 +1,5 @@
+import { notificationTimeOptions } from '@/lib/cron-schedule'
+
 const TIMEZONE_LABEL: Record<string, string> = {
   'Europe/London': 'London (GMT/BST)',
   'Europe/Paris': 'Paris / Amsterdam (CET)',
@@ -89,6 +91,7 @@ export default function DailyBriefingCard({
   deepHistoryBackfilling, deepHistoryResult, onRunDeepHistoryBackfill, onStopDeepHistoryBackfill,
   resyncing, resyncResult, onRunResyncBests,
 }: Props) {
+  const timeOptions = notificationTimeOptions(timezone)
   return (
     <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
       <div className="flex items-center justify-between">
@@ -117,13 +120,18 @@ export default function DailyBriefingCard({
       {editingBriefing ? (
         <div className="space-y-3">
           <div>
-            <label className={labelClass}>Notification time</label>
-            <input
-              type="time"
+            <label htmlFor="notification-time-select" className={labelClass}>Notification time</label>
+            <select
+              id="notification-time-select"
               value={notifTime}
               onChange={e => onNotifTimeChange(e.target.value)}
               className={inputClass}
-            />
+            >
+              {timeOptions.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 mt-1">Only these times are currently supported.</p>
           </div>
           <div>
             <label className={labelClass}>Timezone</label>
