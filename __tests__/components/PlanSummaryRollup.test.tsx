@@ -13,7 +13,7 @@ const originalFetch = global.fetch
 afterEach(() => { global.fetch = originalFetch; jest.resetAllMocks() })
 
 function mockFetch(body: unknown) {
-  global.fetch = jest.fn().mockResolvedValue({ json: async () => body }) as never
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => body }) as never
 }
 
 describe('PlanSummaryRollup', () => {
@@ -54,12 +54,21 @@ describe('PlanSummaryRollup', () => {
     global.fetch = jest.fn().mockReturnValue(new Promise(resolve => { resolveFetch = resolve })) as never
     render(<PlanSummaryRollup />)
     expect(screen.getByTestId('plan-summary-skeleton')).toBeInTheDocument()
-    resolveFetch({ json: async () => SUMMARY })
+    resolveFetch({ ok: true, json: async () => SUMMARY })
     await screen.findByText('42')
   })
 
   it('shows an error message when the fetch fails', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('network error')) as never
+    render(<PlanSummaryRollup />)
+    expect(await screen.findByText("Couldn't load your training summary.")).toBeInTheDocument()
+  })
+
+  it('shows an error message instead of crashing when the response is not ok', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'Unauthorized' }),
+    }) as never
     render(<PlanSummaryRollup />)
     expect(await screen.findByText("Couldn't load your training summary.")).toBeInTheDocument()
   })

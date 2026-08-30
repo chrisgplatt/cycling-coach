@@ -18,17 +18,26 @@ export async function GET(req: NextRequest) {
   const today = new Date().toISOString().split('T')[0]
   const windowStart = addDaysUtc(today, -windowMonths * 30)
 
-  const [{ data: archivedPlans }, { data: activePlanRow }, { data: profile }, { data: predictions }] = await Promise.all([
+  const [
+    { data: archivedPlans, error: archivedPlansError },
+    { data: activePlanRow, error: activePlanError },
+    { data: profile },
+    { data: predictions },
+  ] = await Promise.all([
     supabase.from('training_plans').select('archive_summary').eq('user_id', user.id).eq('status', 'archived'),
     supabase.from('training_plans').select('id, created_at, plan_weeks, workouts(*)').eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('user_profile').select('current_ftp, intervals_icu_athlete_id, intervals_icu_api_key').maybeSingle(),
     supabase.from('ftp_predictions').select('predicted_ftp, created_at').eq('confirmed', true),
   ])
 
+  if (archivedPlansError || activePlanError) {
+    return NextResponse.json({ error: 'Failed to load training summary' }, { status: 500 })
+  }
+
   const archivedPlanWeeks = (archivedPlans ?? [])
     .map(p => p.archive_summary as PlanArchiveSummary | null)
     .filter((s): s is PlanArchiveSummary => s != null)
-    .flatMap(s => s.weeks)
+    .flatMap(s => s.weeks.filter(w => w.weekStart <= s.closedAt))
 
   const planStart = activePlanRow ? (activePlanRow.created_at as string).split('T')[0] : null
   const hasIcu = !!profile?.intervals_icu_athlete_id && !!profile?.intervals_icu_api_key

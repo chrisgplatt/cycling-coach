@@ -48,7 +48,9 @@ export function buildTrainingSummary(input: {
 
   const ridesCompleted = clippedWeeks.reduce((sum, w) => sum + w.completedSessions, 0)
   const hoursTrained = Math.round(clippedWeeks.reduce((sum, w) => sum + w.hours, 0) * 10) / 10
-  const weeksWithPlan = clippedWeeks.filter(w => w.plannedSessions > 0).length
+  const weeksWithPlan = new Set(
+    clippedWeeks.filter(w => w.plannedSessions > 0).map(w => w.weekStart)
+  ).size
   const weeksInWindow = Math.max(1, Math.round(daysBetweenUtc(windowStart, today) / 7))
 
   const ctlStart = ctlNearestOnOrBefore(wellness, windowStart)

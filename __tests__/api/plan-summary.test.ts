@@ -24,7 +24,9 @@ function wellness(over: Partial<ICUWellness>): ICUWellness {
 
 function makeSupabase({
   archivedPlans = [] as unknown[],
+  archivedPlansError = null as unknown,
   activePlanRow = null as unknown,
+  activePlanError = null as unknown,
   profile = null as unknown,
   predictions = [] as unknown[],
 } = {}) {
@@ -36,9 +38,9 @@ function makeSupabase({
           select: () => ({
             eq: (col1: string) => {
               if (col1 === 'user_id') {
-                return { eq: async () => ({ data: archivedPlans, error: null }) }
+                return { eq: async () => ({ data: archivedPlans, error: archivedPlansError }) }
               }
-              return { order: () => ({ limit: () => ({ maybeSingle: async () => ({ data: activePlanRow }) }) }) }
+              return { order: () => ({ limit: () => ({ maybeSingle: async () => ({ data: activePlanRow, error: activePlanError }) }) }) }
             },
           }),
         }
@@ -95,6 +97,7 @@ describe('GET /api/plan/summary', () => {
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({
       archivedPlans: [{
         archive_summary: {
+          closedAt: '2026-07-31',
           weeks: [{ weekIndex: 0, weekStart: '2026-01-01', plannedSessions: 2, completedSessions: 2, plannedTss: 100, actualTss: 100, hours: 3 }],
         },
       }],
@@ -124,7 +127,7 @@ describe('GET /api/plan/summary', () => {
 
   it('returns nulled CTL fields and skips intervals.icu calls when it is not configured', async () => {
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({
-      archivedPlans: [{ archive_summary: { weeks: [{ weekIndex: 0, weekStart: '2026-06-01', plannedSessions: 1, completedSessions: 1, plannedTss: 50, actualTss: 50, hours: 1 }] } }],
+      archivedPlans: [{ archive_summary: { closedAt: '2026-06-15', weeks: [{ weekIndex: 0, weekStart: '2026-06-01', plannedSessions: 1, completedSessions: 1, plannedTss: 50, actualTss: 50, hours: 1 }] } }],
       profile: { current_ftp: 250, intervals_icu_athlete_id: '', intervals_icu_api_key: '' },
     }))
 
@@ -138,9 +141,29 @@ describe('GET /api/plan/summary', () => {
     expect(mockGetWellness).not.toHaveBeenCalled()
   })
 
+  it('returns 500 when the archived-plans query fails, instead of silently rendering zeros', async () => {
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({
+      archivedPlansError: { message: 'db down' },
+    }))
+    const res = await GET(makeRequest())
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBeTruthy()
+  })
+
+  it('returns 500 when the active-plan query fails, instead of silently rendering zeros', async () => {
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({
+      activePlanError: { message: 'db down' },
+    }))
+    const res = await GET(makeRequest())
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBeTruthy()
+  })
+
   it('degrades to nulled CTL fields (still 200) when intervals.icu throws', async () => {
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({
-      archivedPlans: [{ archive_summary: { weeks: [{ weekIndex: 0, weekStart: '2026-06-01', plannedSessions: 1, completedSessions: 1, plannedTss: 50, actualTss: 50, hours: 1 }] } }],
+      archivedPlans: [{ archive_summary: { closedAt: '2026-06-15', weeks: [{ weekIndex: 0, weekStart: '2026-06-01', plannedSessions: 1, completedSessions: 1, plannedTss: 50, actualTss: 50, hours: 1 }] } }],
       profile: { current_ftp: 250, intervals_icu_athlete_id: 'ath1', intervals_icu_api_key: 'key1' },
     }))
     mockGetWellness.mockRejectedValue(new Error('ICU down'))

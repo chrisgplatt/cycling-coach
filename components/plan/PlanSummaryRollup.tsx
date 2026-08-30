@@ -32,7 +32,7 @@ export default function PlanSummaryRollup() {
     setSummary(null)
     setError(null)
     fetch(`/api/plan/summary?months=${months}`)
-      .then(res => res.json())
+      .then(res => { if (!res.ok) throw new Error('Failed to fetch training summary'); return res.json() })
       .then(data => { if (!cancelled) setSummary(data) })
       .catch(() => { if (!cancelled) setError("Couldn't load your training summary.") })
     return () => { cancelled = true }

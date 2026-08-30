@@ -104,6 +104,20 @@ describe('buildTrainingSummary', () => {
     expect(summary.ftpChange).toBe(20)
   })
 
+  it('dedupes weeksWithPlan when an archived plan and the active plan both have a planned week on the same weekStart (early-closure/same-day-replacement overlap)', () => {
+    const summary = buildTrainingSummary({
+      ...baseInput,
+      archivedPlanWeeks: [
+        week({ weekStart: '2026-07-01', plannedSessions: 3, completedSessions: 1, hours: 2 }),
+      ],
+      activePlan: {
+        planStart: '2026-07-01',
+        buckets: [bucket({ weekIndex: 0, plannedSessions: 4, completedSessions: 0, hours: 0 })], // weekStart 2026-07-01, same calendar week as the archived one above
+      },
+    })
+    expect(summary.weeksWithPlan).toBe(1)
+  })
+
   it('returns zero counts and null fitness/FTP fields when there is no plan and no data in the window', () => {
     const summary = buildTrainingSummary({ ...baseInput, windowMonths: 12, today: '2026-08-30' })
     expect(summary.ridesCompleted).toBe(0)
