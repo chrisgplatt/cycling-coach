@@ -104,7 +104,7 @@ Steps:
 ## Error handling & edge cases
 
 - **No plans (active or archived) at all in the window:** all count/sum tiles show `0`; CTL/FTP tiles show "Not available" if there's genuinely no data, or real deltas if wellness/FTP data exists independent of any plan (e.g. an athlete who logged free rides with no structured plan for a while).
-- **intervals.icu not connected:** rides/hours/weeks tiles still compute correctly (sourced from `workouts` rows, not intervals.icu); CTL tile shows "Not available".
+- **intervals.icu not connected:** rides-completed and weeks-trained tiles still compute correctly (`completedSessions`/`plannedSessions` come from `workouts` rows, not intervals.icu). The hours tile does not have this fallback — per-week `hours` (reused from `archive_summary.weeks` / `buildWeekBuckets`) is summed from actual ride activity only, same limitation `PlanHistoryCard`'s existing per-week table already has — so it under-reports (shows 0) without a connection. CTL tile shows "Not available".
 - **intervals.icu fetch throws:** same as above — degrade, don't error.
 - **No confirmed FTP predictions before window start, but some exist after:** `ftpStartIsPartial = true`, tile still renders with the caveat note rather than hiding.
 - **No confirmed FTP predictions ever:** FTP tile shows "Not available".
