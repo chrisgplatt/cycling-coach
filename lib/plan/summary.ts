@@ -75,8 +75,15 @@ export function buildTrainingSummary(input: {
   if (beforeWindow.length) {
     ftpStart = beforeWindow[beforeWindow.length - 1].predicted_ftp
   } else if (sortedConfirmed.length) {
-    ftpStart = sortedConfirmed[0].predicted_ftp
-    ftpStartIsPartial = true
+    const earliest = sortedConfirmed[0].predicted_ftp
+    // A confirmed prediction only ever records the value a change was applied TO, never what it
+    // replaced — so if the earliest one we have equals the current FTP, it isn't a genuine
+    // "before" data point (most likely it's the only confirmed prediction that exists at all).
+    // Reporting a "+0W" from it would fabricate a change that was never actually measured.
+    if (earliest !== currentFtp) {
+      ftpStart = earliest
+      ftpStartIsPartial = true
+    }
   }
   const ftpEnd = currentFtp
   const ftpChange = ftpStart != null && ftpEnd != null ? ftpEnd - ftpStart : null

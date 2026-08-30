@@ -105,6 +105,21 @@ describe('buildTrainingSummary', () => {
     expect(summary.ftpChange).toBe(20)
   })
 
+  it('treats a partial FTP start that equals the current FTP as no data, rather than reporting a false 0W change', () => {
+    // Only confirmed prediction is the one that set the current FTP itself (e.g. it's the only
+    // one ever confirmed) — a predicted_ftp row always records the value AFTER a change, never
+    // what FTP was before it, so this gives no genuine "before" data point to compare against.
+    const summary = buildTrainingSummary({
+      ...baseInput,
+      confirmedPredictions: [{ predicted_ftp: 250, created_at: '2026-05-18T00:00:00Z' }],
+      currentFtp: 250,
+    })
+    expect(summary.ftpStart).toBeNull()
+    expect(summary.ftpEnd).toBe(250) // current FTP is still real, known data
+    expect(summary.ftpChange).toBeNull()
+    expect(summary.ftpStartIsPartial).toBe(false)
+  })
+
   it('dedupes weeksWithPlan when an archived plan and the active plan both have a planned week on the same weekStart (early-closure/same-day-replacement overlap)', () => {
     const summary = buildTrainingSummary({
       ...baseInput,
