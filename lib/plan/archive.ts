@@ -4,7 +4,7 @@ import type { Workout, ICUActivity, ICUWellness, PlanArchiveSummary } from '@/ty
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { IntervalsClient } from '@/lib/intervals/client'
 
-function ctlNearestOnOrBefore(wellness: ICUWellness[], date: string): number | null {
+export function ctlNearestOnOrBefore(wellness: ICUWellness[], date: string): number | null {
   const rows = wellness
     .filter(w => w.ctl != null && w.id <= date)
     .sort((a, b) => a.id.localeCompare(b.id))
