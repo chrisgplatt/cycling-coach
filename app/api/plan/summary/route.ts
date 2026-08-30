@@ -22,12 +22,10 @@ export async function GET(req: NextRequest) {
     { data: archivedPlans, error: archivedPlansError },
     { data: activePlanRow, error: activePlanError },
     { data: profile },
-    { data: predictions },
   ] = await Promise.all([
     supabase.from('training_plans').select('archive_summary').eq('user_id', user.id).eq('status', 'archived'),
     supabase.from('training_plans').select('id, created_at, plan_weeks, workouts(*)').eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('user_profile').select('current_ftp, intervals_icu_athlete_id, intervals_icu_api_key').maybeSingle(),
-    supabase.from('ftp_predictions').select('predicted_ftp, created_at').eq('confirmed', true),
   ])
 
   if (archivedPlansError || activePlanError) {
@@ -51,11 +49,15 @@ export async function GET(req: NextRequest) {
     // so this range is sufficient for the plan-week buckets too — no need to widen it to planStart
     // separately for that purpose. Fetched unconditionally (not just when a plan is active) since
     // weeksActive tracks ride activity independent of any plan.
-    const wellnessFrom = planStart && planStart < windowStart ? planStart : windowStart
+    // A 90-day lookback margin before windowStart lets ctlNearestOnOrBefore/the FTP-before-window
+    // lookup actually find a reading instead of always falling back to a "partial" result, without
+    // fetching an unbounded amount of history.
+    const lookback = addDaysUtc(windowStart, -90)
+    const fetchFrom = planStart && planStart < lookback ? planStart : lookback
     try {
       ;[wellness, activities] = await Promise.all([
-        client.getWellness(wellnessFrom, today),
-        client.getActivities(wellnessFrom, today),
+        client.getWellness(fetchFrom, today),
+        client.getActivities(fetchFrom, today),
       ])
     } catch {
       // intervals.icu unreachable — CTL fields fall back to null, active-plan hours fall
@@ -83,7 +85,6 @@ export async function GET(req: NextRequest) {
     archivedPlanWeeks,
     activePlan,
     wellness,
-    confirmedPredictions: (predictions ?? []) as Array<{ predicted_ftp: number; created_at: string }>,
     currentFtp: (profile?.current_ftp as number | null) ?? null,
     activities,
   })

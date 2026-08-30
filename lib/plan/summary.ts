@@ -27,11 +27,10 @@ export function buildTrainingSummary(input: {
   archivedPlanWeeks: PlanWeekSummary[]
   activePlan: { planStart: string; buckets: WeekBucket[] } | null
   wellness: ICUWellness[]
-  confirmedPredictions: Array<{ predicted_ftp: number; created_at: string }>
   currentFtp: number | null
-  activities: Array<{ start_date_local: string; type: string }>
+  activities: Array<{ start_date_local: string; type: string; ftp?: number | null }>
 }): TrainingSummary {
-  const { windowMonths, today, archivedPlanWeeks, activePlan, wellness, confirmedPredictions, currentFtp, activities } = input
+  const { windowMonths, today, archivedPlanWeeks, activePlan, wellness, currentFtp, activities } = input
   const windowStart = addDaysUtc(today, -windowMonths * 30)
 
   const activeWeeks: PlanWeekSummary[] = activePlan
@@ -68,22 +67,22 @@ export function buildTrainingSummary(input: {
   const ctlEnd = ctlNearestOnOrBefore(wellness, today)
   const fitnessChange = ctlStart != null && ctlEnd != null ? Math.round((ctlEnd - ctlStart) * 10) / 10 : null
 
-  const sortedConfirmed = [...confirmedPredictions].sort((a, b) => a.created_at.localeCompare(b.created_at))
-  const beforeWindow = sortedConfirmed.filter(p => p.created_at.split('T')[0] <= windowStart)
+  // FTP-at-time-of-ride (intervals.icu's own athlete FTP history), not confirmed predictions —
+  // a ride's ftp is a passive snapshot of what was in effect, unlike a predicted_ftp row (which
+  // only ever records the value a change was applied TO, never what it replaced), so it's a
+  // trustworthy "before" reading even when it happens to equal the current FTP.
+  const rideFtpPoints = activities
+    .filter(a => /ride/i.test(a.type) && a.ftp != null)
+    .map(a => ({ date: a.start_date_local.split('T')[0], ftp: a.ftp as number }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+  const beforeWindow = rideFtpPoints.filter(p => p.date <= windowStart)
   let ftpStart: number | null = null
   let ftpStartIsPartial = false
   if (beforeWindow.length) {
-    ftpStart = beforeWindow[beforeWindow.length - 1].predicted_ftp
-  } else if (sortedConfirmed.length) {
-    const earliest = sortedConfirmed[0].predicted_ftp
-    // A confirmed prediction only ever records the value a change was applied TO, never what it
-    // replaced — so if the earliest one we have equals the current FTP, it isn't a genuine
-    // "before" data point (most likely it's the only confirmed prediction that exists at all).
-    // Reporting a "+0W" from it would fabricate a change that was never actually measured.
-    if (earliest !== currentFtp) {
-      ftpStart = earliest
-      ftpStartIsPartial = true
-    }
+    ftpStart = beforeWindow[beforeWindow.length - 1].ftp
+  } else if (rideFtpPoints.length) {
+    ftpStart = rideFtpPoints[0].ftp
+    ftpStartIsPartial = true
   }
   const ftpEnd = currentFtp
   const ftpChange = ftpStart != null && ftpEnd != null ? ftpEnd - ftpStart : null

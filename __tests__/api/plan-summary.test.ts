@@ -28,7 +28,6 @@ function makeSupabase({
   activePlanRow = null as unknown,
   activePlanError = null as unknown,
   profile = null as unknown,
-  predictions = [] as unknown[],
 } = {}) {
   return {
     auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) },
@@ -47,9 +46,6 @@ function makeSupabase({
       }
       if (table === 'user_profile') {
         return { select: () => ({ maybeSingle: async () => ({ data: profile }) }) }
-      }
-      if (table === 'ftp_predictions') {
-        return { select: () => ({ eq: async () => ({ data: predictions }) }) }
       }
       throw new Error(`unexpected table ${table}`)
     },
@@ -93,7 +89,7 @@ describe('GET /api/plan/summary', () => {
     expect((await res.json()).windowMonths).toBe(6)
   })
 
-  it("combines archived-plan weeks, the active plan's live progress, and confirmed FTP predictions into one summary", async () => {
+  it("combines archived-plan weeks, the active plan's live progress, CTL, and ride-FTP history into one summary", async () => {
     ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({
       archivedPlans: [{
         archive_summary: {
@@ -103,12 +99,12 @@ describe('GET /api/plan/summary', () => {
       }],
       activePlanRow: { id: 'p2', created_at: '2026-07-01T00:00:00Z', plan_weeks: 4, workouts: [] },
       profile: { current_ftp: 250, intervals_icu_athlete_id: 'ath1', intervals_icu_api_key: 'key1' },
-      predictions: [{ predicted_ftp: 230, created_at: '2025-01-01T00:00:00Z' }],
     }))
     mockGetWellness.mockResolvedValue([wellness({ id: '2025-09-01', ctl: 40 }), wellness({ id: '2026-08-25', ctl: 52 })])
     mockGetActivities.mockResolvedValue([
-      { start_date_local: '2026-08-10T08:00:00', type: 'Ride' },
-      { start_date_local: '2026-08-24T08:00:00', type: 'Run' }, // not a ride, excluded
+      { start_date_local: '2025-07-01T08:00:00', type: 'Ride', ftp: 230 }, // before window, anchors ftpStart
+      { start_date_local: '2026-08-10T08:00:00', type: 'Ride', ftp: 250 },
+      { start_date_local: '2026-08-24T08:00:00', type: 'Run', ftp: 999 }, // not a ride, excluded
     ])
 
     const res = await GET(makeRequest())
@@ -125,8 +121,8 @@ describe('GET /api/plan/summary', () => {
     expect(body.ftpStart).toBe(230)
     expect(body.ftpEnd).toBe(250)
     expect(body.ftpChange).toBe(20)
-    expect(mockGetWellness).toHaveBeenCalledWith('2025-09-04', '2026-08-30')
-    expect(mockGetActivities).toHaveBeenCalledWith('2025-09-04', '2026-08-30')
+    expect(mockGetWellness).toHaveBeenCalledWith('2025-06-06', '2026-08-30')
+    expect(mockGetActivities).toHaveBeenCalledWith('2025-06-06', '2026-08-30')
   })
 
   it('fetches activities and computes weeksActive even when there is no active plan', async () => {
@@ -144,7 +140,7 @@ describe('GET /api/plan/summary', () => {
 
     expect(res.status).toBe(200)
     expect(body.weeksActive).toBe(2)
-    expect(mockGetActivities).toHaveBeenCalledWith('2025-09-04', '2026-08-30')
+    expect(mockGetActivities).toHaveBeenCalledWith('2025-06-06', '2026-08-30')
   })
 
   it('returns nulled CTL fields and skips intervals.icu calls when it is not configured', async () => {

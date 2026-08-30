@@ -27,9 +27,8 @@ const baseInput = {
   archivedPlanWeeks: [] as PlanWeekSummary[],
   activePlan: null as { planStart: string; buckets: WeekBucket[] } | null,
   wellness: [] as ICUWellness[],
-  confirmedPredictions: [] as Array<{ predicted_ftp: number; created_at: string }>,
   currentFtp: null as number | null,
-  activities: [] as Array<{ start_date_local: string; type: string }>,
+  activities: [] as Array<{ start_date_local: string; type: string; ftp?: number | null }>,
 }
 
 describe('buildTrainingSummary', () => {
@@ -79,12 +78,12 @@ describe('buildTrainingSummary', () => {
     expect(summary.fitnessChange).toBeNull()
   })
 
-  it('computes FTP change from the latest confirmed prediction on or before the window start', () => {
+  it('computes FTP change from the nearest ride FTP on or before the window start', () => {
     const summary = buildTrainingSummary({
       ...baseInput,
-      confirmedPredictions: [
-        { predicted_ftp: 220, created_at: '2026-01-15T10:00:00Z' }, // before window (starts 2026-03-03)
-        { predicted_ftp: 245, created_at: '2026-06-01T10:00:00Z' }, // after window start
+      activities: [
+        { start_date_local: '2026-01-15T10:00:00', type: 'Ride', ftp: 220 }, // before window (starts 2026-03-03)
+        { start_date_local: '2026-06-01T10:00:00', type: 'Ride', ftp: 245 }, // after window start
       ],
       currentFtp: 250,
     })
@@ -94,10 +93,10 @@ describe('buildTrainingSummary', () => {
     expect(summary.ftpChange).toBe(30)
   })
 
-  it('flags a partial FTP start when no confirmed prediction exists before the window', () => {
+  it('flags a partial FTP start when no ride exists before the window', () => {
     const summary = buildTrainingSummary({
       ...baseInput,
-      confirmedPredictions: [{ predicted_ftp: 230, created_at: '2026-04-01T00:00:00Z' }],
+      activities: [{ start_date_local: '2026-04-01T00:00:00', type: 'Ride', ftp: 230 }],
       currentFtp: 250,
     })
     expect(summary.ftpStart).toBe(230)
@@ -105,19 +104,32 @@ describe('buildTrainingSummary', () => {
     expect(summary.ftpChange).toBe(20)
   })
 
-  it('treats a partial FTP start that equals the current FTP as no data, rather than reporting a false 0W change', () => {
-    // Only confirmed prediction is the one that set the current FTP itself (e.g. it's the only
-    // one ever confirmed) — a predicted_ftp row always records the value AFTER a change, never
-    // what FTP was before it, so this gives no genuine "before" data point to compare against.
+  it('trusts a genuine 0W change from ride FTP data even via the partial fallback', () => {
+    // Unlike a confirmed prediction (which only ever records a value AFTER a change), every ride
+    // carries the FTP that was in effect for it — so if the earliest ride we have in range shows
+    // the same FTP as now, that's real evidence your FTP hasn't changed, not a fabricated zero.
     const summary = buildTrainingSummary({
       ...baseInput,
-      confirmedPredictions: [{ predicted_ftp: 250, created_at: '2026-05-18T00:00:00Z' }],
+      activities: [{ start_date_local: '2026-05-18T00:00:00', type: 'Ride', ftp: 250 }],
       currentFtp: 250,
     })
-    expect(summary.ftpStart).toBeNull()
-    expect(summary.ftpEnd).toBe(250) // current FTP is still real, known data
-    expect(summary.ftpChange).toBeNull()
-    expect(summary.ftpStartIsPartial).toBe(false)
+    expect(summary.ftpStart).toBe(250)
+    expect(summary.ftpStartIsPartial).toBe(true)
+    expect(summary.ftpChange).toBe(0)
+  })
+
+  it('ignores non-ride activities and rides with no FTP recorded when computing FTP change', () => {
+    const summary = buildTrainingSummary({
+      ...baseInput,
+      activities: [
+        { start_date_local: '2026-01-15T10:00:00', type: 'Run', ftp: 999 }, // not a ride
+        { start_date_local: '2026-01-20T10:00:00', type: 'Ride', ftp: null }, // no FTP recorded
+        { start_date_local: '2026-06-01T10:00:00', type: 'Ride', ftp: 220 },
+      ],
+      currentFtp: 250,
+    })
+    expect(summary.ftpStart).toBe(220)
+    expect(summary.ftpStartIsPartial).toBe(true)
   })
 
   it('dedupes weeksWithPlan when an archived plan and the active plan both have a planned week on the same weekStart (early-closure/same-day-replacement overlap)', () => {
