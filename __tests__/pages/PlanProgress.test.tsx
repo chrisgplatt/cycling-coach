@@ -54,6 +54,13 @@ beforeEach(() => {
         summary: 'added 15 min', approved: true, had_proposal: true,
       }],
     }) } as Response)
+    if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) } as Response)
+    if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+      windowMonths: 12, windowStart: '2025-09-04',
+      ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+      ctlStart: null, ctlEnd: null, fitnessChange: null,
+      ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+    }) } as Response)
     return Promise.resolve({ ok: true, json: async () => ({}) } as Response)
   })
 })

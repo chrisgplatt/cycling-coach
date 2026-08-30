@@ -1,16 +1,34 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import PlanHistoryTab from '@/components/plan/PlanHistoryTab'
 import { makeArchiveSummary } from '../support/factories'
+import type { TrainingSummary } from '@/lib/plan/summary'
 
 const originalFetch = global.fetch
 
 afterEach(() => { global.fetch = originalFetch; jest.resetAllMocks() })
 
-function mockFetch(body: unknown) {
-  global.fetch = jest.fn().mockResolvedValue({ json: async () => body }) as never
+const SUMMARY: TrainingSummary = {
+  windowMonths: 12, windowStart: '2025-09-04',
+  ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+  ctlStart: null, ctlEnd: null, fitnessChange: null,
+  ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+}
+
+function mockFetch(historyBody: unknown, summaryBody: unknown = SUMMARY) {
+  global.fetch = jest.fn((input: RequestInfo | URL) => {
+    const url = String(input)
+    const body = url.includes('/api/plan/summary') ? summaryBody : historyBody
+    return Promise.resolve({ json: async () => body })
+  }) as never
 }
 
 describe('PlanHistoryTab', () => {
+  it('renders the training summary rollup above the plan list', async () => {
+    mockFetch({ plans: [] })
+    render(<PlanHistoryTab />)
+    await waitFor(() => expect(screen.getByText('Training summary')).toBeInTheDocument())
+  })
+
   it('renders a card per archived plan', async () => {
     mockFetch({
       plans: [

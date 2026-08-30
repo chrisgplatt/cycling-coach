@@ -39,6 +39,19 @@ function setupFetch(syncEventsOk: boolean, syncEventsData: unknown) {
     if (url === '/api/events/sync') {
       return Promise.resolve({ ok: syncEventsOk, json: async () => syncEventsData } as Response)
     }
+    if (url.includes('/api/plan/history')) {
+      // mock for PlanHistoryTab
+      return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) } as Response)
+    }
+    if (url.includes('/api/plan/summary')) {
+      // mock for PlanSummaryRollup in PlanHistoryTab
+      return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) } as Response)
+    }
     return Promise.resolve({ ok: true, json: async () => ({}) } as Response)
   })
 }

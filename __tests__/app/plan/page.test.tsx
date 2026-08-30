@@ -41,19 +41,29 @@ describe('PlanPage tabs', () => {
 
 describe('Profile & Schedule tab', () => {
   beforeEach(() => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: 'p1',
-        current_ftp: 265,
-        weight_kg: 78.5,
-        goals: 'Complete Dragon Ride',
-        weekly_availability: [
-          { day: 'monday', duration_minutes: 90 },
-          { day: 'saturday', duration_minutes: 180 },
-        ],
-        events: [],
-      }),
+    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          id: 'p1',
+          current_ftp: 265,
+          weight_kg: 78.5,
+          goals: 'Complete Dragon Ride',
+          weekly_availability: [
+            { day: 'monday', duration_minutes: 90 },
+            { day: 'saturday', duration_minutes: 180 },
+          ],
+          events: [],
+        }),
+      })
     })
   })
 
@@ -80,13 +90,23 @@ describe('Profile & Schedule tab', () => {
   })
 
   it('shows the calculated Max HR when a date of birth is on file', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: 'p1', current_ftp: 265, weight_kg: 78.5, goals: '',
-        weekly_availability: [], events: [],
-        date_of_birth: '1990-01-01', max_hr_manual: null, observed_max_hr: null,
-      }),
+    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          id: 'p1', current_ftp: 265, weight_kg: 78.5, goals: '',
+          weekly_availability: [], events: [],
+          date_of_birth: '1990-01-01', max_hr_manual: null, observed_max_hr: null,
+        }),
+      })
     })
     render(<PlanPage />)
     fireEvent.click(screen.getByRole('button', { name: /profile/i }))
@@ -95,13 +115,23 @@ describe('Profile & Schedule tab', () => {
   })
 
   it('shows a "not set" message when no date of birth or Max HR source is available', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: 'p1', current_ftp: 265, weight_kg: 78.5, goals: '',
-        weekly_availability: [], events: [],
-        date_of_birth: null, max_hr_manual: null, observed_max_hr: null,
-      }),
+    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          id: 'p1', current_ftp: 265, weight_kg: 78.5, goals: '',
+          weekly_availability: [], events: [],
+          date_of_birth: null, max_hr_manual: null, observed_max_hr: null,
+        }),
+      })
     })
     render(<PlanPage />)
     fireEvent.click(screen.getByRole('button', { name: /profile/i }))
@@ -114,6 +144,13 @@ describe('Profile & Schedule tab', () => {
       if (url === '/api/weight-log') {
         return Promise.resolve({ ok: true, json: async () => ({ entries: [{ id: 'w1', date: '2026-07-10', weight_kg: 76.2 }] }) })
       }
+      if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
       return Promise.resolve({
         ok: true,
         json: async () => ({ id: 'p1', current_ftp: 265, weight_kg: 76.2, goals: '', weekly_availability: [], events: [] }),
@@ -127,13 +164,23 @@ describe('Profile & Schedule tab', () => {
   })
 
   it('shows an editable Max HR input with an auto-calculate hint when Stats Edit is clicked', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: 'p1', current_ftp: 265, weight_kg: 78.5, goals: '',
-        weekly_availability: [], events: [],
-        date_of_birth: '1990-01-01', max_hr_manual: null, observed_max_hr: null,
-      }),
+    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          id: 'p1', current_ftp: 265, weight_kg: 78.5, goals: '',
+          weekly_availability: [], events: [],
+          date_of_birth: '1990-01-01', max_hr_manual: null, observed_max_hr: null,
+        }),
+      })
     })
     render(<PlanPage />)
     fireEvent.click(screen.getByRole('button', { name: /profile/i }))
@@ -148,6 +195,13 @@ describe('Profile & Schedule tab', () => {
       if (init?.method === 'PATCH') {
         return Promise.resolve({ ok: true, json: async () => ({ ok: true }) })
       }
+      if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
       return Promise.resolve({
         ok: true,
         json: async () => ({
@@ -173,6 +227,13 @@ describe('Profile & Schedule tab', () => {
       if (url === '/api/weight-log') {
         return Promise.resolve({ ok: true, json: async () => ({ entries: [{ id: 'w1', date: '2026-07-10', weight_kg: 76.2 }] }) })
       }
+      if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
       return Promise.resolve({
         ok: true,
         json: async () => ({ id: 'p1', current_ftp: 265, weight_kg: 76.2, goals: '', weekly_availability: [], events: [] }),
@@ -189,18 +250,28 @@ describe('Profile & Schedule tab', () => {
 
 describe('Events tab', () => {
   beforeEach(() => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: 'p1',
-        goals: '',
-        current_ftp: 200,
-        weight_kg: 70,
-        weekly_availability: [],
-        events: [
-          { name: 'Dragon Ride', date: '2026-06-25', type: 'sportive', priority: 'A', icu_event_id: 'evt1' },
-        ],
-      }),
+    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          id: 'p1',
+          goals: '',
+          current_ftp: 200,
+          weight_kg: 70,
+          weekly_availability: [],
+          events: [
+            { name: 'Dragon Ride', date: '2026-06-25', type: 'sportive', priority: 'A', icu_event_id: 'evt1' },
+          ],
+        }),
+      })
     })
   })
 
@@ -236,6 +307,13 @@ describe('My Plan tab', () => {
           ],
         }),
       })
+      if (String(url).includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (String(url).includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
       return Promise.resolve({ ok: true, json: async () => ({ id: 'p1', goals: '', current_ftp: 200, weight_kg: 70, weekly_availability: [], events: [] }) })
     })
     render(<PlanPage />)
@@ -248,6 +326,13 @@ describe('My Plan tab', () => {
         ok: true,
         json: async () => ({ name: 'Dragon Ride Build', workouts: [] }),
       })
+      if (String(url).includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (String(url).includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
       return Promise.resolve({ ok: true, json: async () => ({ id: 'p1', goals: '', current_ftp: 200, weight_kg: 70, weekly_availability: [], events: [{ name: 'Dragon Ride', date: '2026-06-25', type: 'sportive', priority: 'A' }] }) })
     })
     render(<PlanPage />)
@@ -257,6 +342,13 @@ describe('My Plan tab', () => {
   it('shows empty state when no plan', async () => {
     (global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === '/api/plan') return Promise.resolve({ ok: true, json: async () => null })
+      if (String(url).includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (String(url).includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
       return Promise.resolve({ ok: true, json: async () => ({ id: 'p1', goals: '', current_ftp: 200, weight_kg: 70, weekly_availability: [], events: [] }) })
     })
     render(<PlanPage />)
@@ -279,6 +371,13 @@ describe('My Plan tab', () => {
           }),
         })
       }
+      if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
       return Promise.resolve({
         ok: true,
         json: async () => ({
@@ -309,6 +408,13 @@ describe('My Plan tab — batched plan generation wiring', () => {
     (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
       if (url === '/api/plan') return Promise.resolve({ ok: true, json: async () => ({ workouts: [] }) })
+      if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
+      if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
+        windowMonths: 12, windowStart: '2025-09-04',
+        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
+        ctlStart: null, ctlEnd: null, fitnessChange: null,
+        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
+      }) })
       return Promise.resolve({
         ok: true,
         json: async () => ({
