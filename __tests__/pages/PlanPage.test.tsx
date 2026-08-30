@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import PlanPage from '@/app/plan/page'
+import { makeTrainingSummary } from '../support/factories'
 
 // The events-sync feature lives in the Events tab of the plan page (it was
 // moved here from Settings). These tests cover the sync button and its result
@@ -45,12 +46,7 @@ function setupFetch(syncEventsOk: boolean, syncEventsData: unknown) {
     }
     if (url.includes('/api/plan/summary')) {
       // mock for PlanSummaryRollup in PlanHistoryTab
-      return Promise.resolve({ ok: true, json: async () => ({
-        windowMonths: 12, windowStart: '2025-09-04',
-        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
-        ctlStart: null, ctlEnd: null, fitnessChange: null,
-        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
-      }) } as Response)
+      return Promise.resolve({ ok: true, json: async () => makeTrainingSummary() } as Response)
     }
     return Promise.resolve({ ok: true, json: async () => ({}) } as Response)
   })

@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import PlanPage from '@/app/plan/page'
+import { makeTrainingSummary } from '../support/factories'
 
 const profileData = {
   id: 1, goals: '', current_ftp: 250, weight_kg: 72, weekly_availability: [],
@@ -55,12 +56,7 @@ beforeEach(() => {
       }],
     }) } as Response)
     if (url.includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) } as Response)
-    if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
-      windowMonths: 12, windowStart: '2025-09-04',
-      ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
-      ctlStart: null, ctlEnd: null, fitnessChange: null,
-      ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
-    }) } as Response)
+    if (url.includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => makeTrainingSummary() } as Response)
     return Promise.resolve({ ok: true, json: async () => ({}) } as Response)
   })
 })

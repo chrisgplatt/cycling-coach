@@ -6,6 +6,7 @@ import type {
   GeneratedPlan,
   PlanArchiveSummary,
 } from '@/types'
+import type { TrainingSummary } from '@/lib/plan/summary'
 
 export function makeWorkout(overrides: Partial<Workout> = {}): Workout {
   return {
@@ -136,6 +137,25 @@ export function makeWeightEntry(overrides: Partial<import('@/types').WeightEntry
     id: 'we-1',
     date: '2026-06-01',
     weight_kg: 75,
+    ...overrides,
+  }
+}
+
+export function makeTrainingSummary(overrides: Partial<TrainingSummary> = {}): TrainingSummary {
+  return {
+    windowMonths: 12,
+    windowStart: '2025-09-04',
+    ridesCompleted: 0,
+    hoursTrained: 0,
+    weeksWithPlan: 0,
+    weeksInWindow: 52,
+    ctlStart: null,
+    ctlEnd: null,
+    fitnessChange: null,
+    ftpStart: null,
+    ftpEnd: null,
+    ftpChange: null,
+    ftpStartIsPartial: false,
     ...overrides,
   }
 }

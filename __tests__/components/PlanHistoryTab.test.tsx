@@ -1,20 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import PlanHistoryTab from '@/components/plan/PlanHistoryTab'
-import { makeArchiveSummary } from '../support/factories'
-import type { TrainingSummary } from '@/lib/plan/summary'
+import { makeArchiveSummary, makeTrainingSummary } from '../support/factories'
 
 const originalFetch = global.fetch
 
 afterEach(() => { global.fetch = originalFetch; jest.resetAllMocks() })
 
-const SUMMARY: TrainingSummary = {
-  windowMonths: 12, windowStart: '2025-09-04',
-  ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
-  ctlStart: null, ctlEnd: null, fitnessChange: null,
-  ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
-}
-
-function mockFetch(historyBody: unknown, summaryBody: unknown = SUMMARY) {
+function mockFetch(historyBody: unknown, summaryBody: unknown = makeTrainingSummary()) {
   global.fetch = jest.fn((input: RequestInfo | URL) => {
     const url = String(input)
     const body = url.includes('/api/plan/summary') ? summaryBody : historyBody
