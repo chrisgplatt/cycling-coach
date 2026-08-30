@@ -269,12 +269,7 @@ describe('My Plan tab', () => {
         }),
       })
       if (String(url).includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
-      if (String(url).includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
-        windowMonths: 12, windowStart: '2025-09-04',
-        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
-        ctlStart: null, ctlEnd: null, fitnessChange: null,
-        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
-      }) })
+      if (String(url).includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => makeTrainingSummary() })
       return Promise.resolve({ ok: true, json: async () => ({ id: 'p1', goals: '', current_ftp: 200, weight_kg: 70, weekly_availability: [], events: [] }) })
     })
     render(<PlanPage />)
@@ -288,12 +283,7 @@ describe('My Plan tab', () => {
         json: async () => ({ name: 'Dragon Ride Build', workouts: [] }),
       })
       if (String(url).includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
-      if (String(url).includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
-        windowMonths: 12, windowStart: '2025-09-04',
-        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
-        ctlStart: null, ctlEnd: null, fitnessChange: null,
-        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
-      }) })
+      if (String(url).includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => makeTrainingSummary() })
       return Promise.resolve({ ok: true, json: async () => ({ id: 'p1', goals: '', current_ftp: 200, weight_kg: 70, weekly_availability: [], events: [{ name: 'Dragon Ride', date: '2026-06-25', type: 'sportive', priority: 'A' }] }) })
     })
     render(<PlanPage />)
@@ -304,12 +294,7 @@ describe('My Plan tab', () => {
     (global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === '/api/plan') return Promise.resolve({ ok: true, json: async () => null })
       if (String(url).includes('/api/plan/history')) return Promise.resolve({ ok: true, json: async () => ({ plans: [] }) })
-      if (String(url).includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => ({
-        windowMonths: 12, windowStart: '2025-09-04',
-        ridesCompleted: 0, hoursTrained: 0, weeksWithPlan: 0, weeksInWindow: 52,
-        ctlStart: null, ctlEnd: null, fitnessChange: null,
-        ftpStart: null, ftpEnd: null, ftpChange: null, ftpStartIsPartial: false,
-      }) })
+      if (String(url).includes('/api/plan/summary')) return Promise.resolve({ ok: true, json: async () => makeTrainingSummary() })
       return Promise.resolve({ ok: true, json: async () => ({ id: 'p1', goals: '', current_ftp: 200, weight_kg: 70, weekly_availability: [], events: [] }) })
     })
     render(<PlanPage />)
