@@ -1,5 +1,6 @@
 import { addDaysUtc, daysBetweenUtc } from '@/lib/plan/forecast'
 import { ctlNearestOnOrBefore } from '@/lib/plan/archive'
+import { isoWeekStart } from '@/lib/chart-helpers'
 import type { PlanWeekSummary, ICUWellness } from '@/types'
 import type { WeekBucket } from '@/lib/plan/progress'
 
@@ -9,6 +10,7 @@ export interface TrainingSummary {
   ridesCompleted: number
   hoursTrained: number
   weeksWithPlan: number
+  weeksActive: number
   weeksInWindow: number
   ctlStart: number | null
   ctlEnd: number | null
@@ -27,8 +29,9 @@ export function buildTrainingSummary(input: {
   wellness: ICUWellness[]
   confirmedPredictions: Array<{ predicted_ftp: number; created_at: string }>
   currentFtp: number | null
+  activities: Array<{ start_date_local: string; type: string }>
 }): TrainingSummary {
-  const { windowMonths, today, archivedPlanWeeks, activePlan, wellness, confirmedPredictions, currentFtp } = input
+  const { windowMonths, today, archivedPlanWeeks, activePlan, wellness, confirmedPredictions, currentFtp, activities } = input
   const windowStart = addDaysUtc(today, -windowMonths * 30)
 
   const activeWeeks: PlanWeekSummary[] = activePlan
@@ -53,6 +56,14 @@ export function buildTrainingSummary(input: {
   ).size
   const weeksInWindow = Math.max(1, Math.round(daysBetweenUtc(windowStart, today) / 7))
 
+  const weeksActive = new Set(
+    activities
+      .filter(a => /ride/i.test(a.type))
+      .map(a => a.start_date_local.split('T')[0])
+      .filter(d => d >= windowStart && d <= today)
+      .map(d => isoWeekStart(d))
+  ).size
+
   const ctlStart = ctlNearestOnOrBefore(wellness, windowStart)
   const ctlEnd = ctlNearestOnOrBefore(wellness, today)
   const fitnessChange = ctlStart != null && ctlEnd != null ? Math.round((ctlEnd - ctlStart) * 10) / 10 : null
@@ -71,7 +82,7 @@ export function buildTrainingSummary(input: {
   const ftpChange = ftpStart != null && ftpEnd != null ? ftpEnd - ftpStart : null
 
   return {
-    windowMonths, windowStart, ridesCompleted, hoursTrained, weeksWithPlan, weeksInWindow,
+    windowMonths, windowStart, ridesCompleted, hoursTrained, weeksWithPlan, weeksActive, weeksInWindow,
     ctlStart, ctlEnd, fitnessChange, ftpStart, ftpEnd, ftpChange, ftpStartIsPartial,
   }
 }

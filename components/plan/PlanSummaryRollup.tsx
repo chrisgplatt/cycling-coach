@@ -61,10 +61,11 @@ export default function PlanSummaryRollup() {
         <div className="h-20 bg-slate-100 rounded-lg animate-pulse" data-testid="plan-summary-skeleton" />
       )}
       {!error && summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <Tile label="Rides" value={String(summary.ridesCompleted)} />
           <Tile label="Hours" value={summary.hoursTrained.toFixed(1)} />
           <Tile label="Weeks trained" value={`${summary.weeksWithPlan}/${summary.weeksInWindow}`} />
+          <Tile label="Weeks active" value={`${summary.weeksActive}/${summary.weeksInWindow}`} />
           <Tile label="Fitness" value={fmtDelta(summary.fitnessChange, '')} />
           <Tile
             label="FTP"

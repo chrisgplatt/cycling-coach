@@ -47,11 +47,15 @@ export async function GET(req: NextRequest) {
 
   if (hasIcu) {
     const client = new IntervalsClient(profile!.intervals_icu_athlete_id as string, profile!.intervals_icu_api_key as string)
+    // Activities only ever affect weeks that survive the window clip inside buildTrainingSummary,
+    // so this range is sufficient for the plan-week buckets too — no need to widen it to planStart
+    // separately for that purpose. Fetched unconditionally (not just when a plan is active) since
+    // weeksActive tracks ride activity independent of any plan.
     const wellnessFrom = planStart && planStart < windowStart ? planStart : windowStart
     try {
       ;[wellness, activities] = await Promise.all([
         client.getWellness(wellnessFrom, today),
-        planStart ? client.getActivities(planStart, today) : Promise.resolve([] as ICUActivity[]),
+        client.getActivities(wellnessFrom, today),
       ])
     } catch {
       // intervals.icu unreachable — CTL fields fall back to null, active-plan hours fall
@@ -81,6 +85,7 @@ export async function GET(req: NextRequest) {
     wellness,
     confirmedPredictions: (predictions ?? []) as Array<{ predicted_ftp: number; created_at: string }>,
     currentFtp: (profile?.current_ftp as number | null) ?? null,
+    activities,
   })
 
   return NextResponse.json(summary)

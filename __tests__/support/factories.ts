@@ -148,6 +148,7 @@ export function makeTrainingSummary(overrides: Partial<TrainingSummary> = {}): T
     ridesCompleted: 0,
     hoursTrained: 0,
     weeksWithPlan: 0,
+    weeksActive: 0,
     weeksInWindow: 52,
     ctlStart: null,
     ctlEnd: null,

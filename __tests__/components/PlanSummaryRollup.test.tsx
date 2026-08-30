@@ -4,7 +4,7 @@ import type { TrainingSummary } from '@/lib/plan/summary'
 
 const SUMMARY: TrainingSummary = {
   windowMonths: 12, windowStart: '2025-09-04',
-  ridesCompleted: 42, hoursTrained: 63.5, weeksWithPlan: 30, weeksInWindow: 52,
+  ridesCompleted: 42, hoursTrained: 63.5, weeksWithPlan: 30, weeksActive: 25, weeksInWindow: 52,
   ctlStart: 40, ctlEnd: 55, fitnessChange: 15,
   ftpStart: 230, ftpEnd: 250, ftpChange: 20, ftpStartIsPartial: false,
 }
@@ -23,6 +23,7 @@ describe('PlanSummaryRollup', () => {
     expect(await screen.findByText('42')).toBeInTheDocument()
     expect(screen.getByText('63.5')).toBeInTheDocument()
     expect(screen.getByText('30/52')).toBeInTheDocument()
+    expect(screen.getByText('25/52')).toBeInTheDocument()
     expect(screen.getByText('+15')).toBeInTheDocument()
     expect(screen.getByText('+20W')).toBeInTheDocument()
   })

@@ -29,6 +29,7 @@ const baseInput = {
   wellness: [] as ICUWellness[],
   confirmedPredictions: [] as Array<{ predicted_ftp: number; created_at: string }>,
   currentFtp: null as number | null,
+  activities: [] as Array<{ start_date_local: string; type: string }>,
 }
 
 describe('buildTrainingSummary', () => {
@@ -123,8 +124,37 @@ describe('buildTrainingSummary', () => {
     expect(summary.ridesCompleted).toBe(0)
     expect(summary.hoursTrained).toBe(0)
     expect(summary.weeksWithPlan).toBe(0)
+    expect(summary.weeksActive).toBe(0)
     expect(summary.ctlStart).toBeNull()
     expect(summary.ftpStart).toBeNull()
     expect(summary.ftpChange).toBeNull()
+  })
+
+  it('counts weeksActive from ride activities in the window, deduping rides in the same ISO calendar week', () => {
+    const summary = buildTrainingSummary({
+      ...baseInput,
+      activities: [
+        { start_date_local: '2026-03-10T08:00:00', type: 'Ride' },
+        { start_date_local: '2026-03-12T08:00:00', type: 'Ride' }, // same ISO week as above (2026-03-09)
+        { start_date_local: '2026-07-01T08:00:00', type: 'Ride' }, // different week
+      ],
+    })
+    expect(summary.weeksActive).toBe(2)
+  })
+
+  it('excludes non-ride activities from weeksActive', () => {
+    const summary = buildTrainingSummary({
+      ...baseInput,
+      activities: [{ start_date_local: '2026-07-01T08:00:00', type: 'Run' }],
+    })
+    expect(summary.weeksActive).toBe(0)
+  })
+
+  it('excludes ride activities before the window start', () => {
+    const summary = buildTrainingSummary({
+      ...baseInput,
+      activities: [{ start_date_local: '2026-02-20T08:00:00', type: 'Ride' }], // before window (starts 2026-03-03)
+    })
+    expect(summary.weeksActive).toBe(0)
   })
 })

@@ -106,7 +106,10 @@ describe('GET /api/plan/summary', () => {
       predictions: [{ predicted_ftp: 230, created_at: '2025-01-01T00:00:00Z' }],
     }))
     mockGetWellness.mockResolvedValue([wellness({ id: '2025-09-01', ctl: 40 }), wellness({ id: '2026-08-25', ctl: 52 })])
-    mockGetActivities.mockResolvedValue([])
+    mockGetActivities.mockResolvedValue([
+      { start_date_local: '2026-08-10T08:00:00', type: 'Ride' },
+      { start_date_local: '2026-08-24T08:00:00', type: 'Run' }, // not a ride, excluded
+    ])
 
     const res = await GET(makeRequest())
     const body = await res.json()
@@ -115,6 +118,7 @@ describe('GET /api/plan/summary', () => {
     expect(body.ridesCompleted).toBe(2)
     expect(body.hoursTrained).toBe(3)
     expect(body.weeksWithPlan).toBe(1)
+    expect(body.weeksActive).toBe(1)
     expect(body.ctlStart).toBe(40)
     expect(body.ctlEnd).toBe(52)
     expect(body.fitnessChange).toBe(12)
@@ -122,7 +126,25 @@ describe('GET /api/plan/summary', () => {
     expect(body.ftpEnd).toBe(250)
     expect(body.ftpChange).toBe(20)
     expect(mockGetWellness).toHaveBeenCalledWith('2025-09-04', '2026-08-30')
-    expect(mockGetActivities).toHaveBeenCalledWith('2026-07-01', '2026-08-30')
+    expect(mockGetActivities).toHaveBeenCalledWith('2025-09-04', '2026-08-30')
+  })
+
+  it('fetches activities and computes weeksActive even when there is no active plan', async () => {
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({
+      profile: { current_ftp: 250, intervals_icu_athlete_id: 'ath1', intervals_icu_api_key: 'key1' },
+    }))
+    mockGetWellness.mockResolvedValue([])
+    mockGetActivities.mockResolvedValue([
+      { start_date_local: '2026-08-10T08:00:00', type: 'Ride' },
+      { start_date_local: '2026-08-17T08:00:00', type: 'Ride' },
+    ])
+
+    const res = await GET(makeRequest())
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.weeksActive).toBe(2)
+    expect(mockGetActivities).toHaveBeenCalledWith('2025-09-04', '2026-08-30')
   })
 
   it('returns nulled CTL fields and skips intervals.icu calls when it is not configured', async () => {
