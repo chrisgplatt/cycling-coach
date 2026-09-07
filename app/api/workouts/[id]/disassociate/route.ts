@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { resolveFallbackFtpForWorkout } from '@/lib/ftp/resolve-ftp'
 import { enrichActivity } from '@/lib/intervals/enrich'
+import { rekeyBestRecordWorkoutId } from '@/lib/ride/best-records'
 
 export async function POST(
   _req: NextRequest,
@@ -67,6 +68,16 @@ export async function POST(
     .update({ status: 'planned', icu_activity_id: null, tss: null, actual_duration_minutes: null, ftp_at_completion: null, activity_metrics: null })
     .eq('id', id)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+
+  // The ride's best_records entries (medals) still credit the old workout id — repoint
+  // them to the new standalone row so they follow the ride, not the now-empty planned
+  // workout (which the athlete is free to reschedule). Non-fatal: a failure here leaves
+  // stale medals on the old workout, recoverable via /api/admin/resync-bests.
+  try {
+    await rekeyBestRecordWorkoutId(supabase, user.id, id, inserted.id)
+  } catch (err) {
+    console.error('[disassociate] failed to rekey best_records:', err)
+  }
 
   // Compute full ride stats (power curve, best efforts, stream-derived insights) right
   // away, rather than leaving the new standalone row waiting for the next sync's

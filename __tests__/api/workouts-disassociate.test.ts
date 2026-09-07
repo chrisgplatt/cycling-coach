@@ -37,12 +37,16 @@ function makeSupabase({
   })),
   updateSpy = jest.fn(async (_fields: unknown) => ({ error: null })),
   metricsUpdateSpy = jest.fn(async (_fields: unknown) => ({ error: null })),
+  bestRecordRows = [] as unknown[],
+  bestRecordsUpsertSpy = jest.fn(async (_rows: unknown, _opts: unknown) => ({ error: null })),
 }: {
   workoutRow?: unknown
   profileRow?: unknown
   insertSpy?: jest.Mock
   updateSpy?: jest.Mock
   metricsUpdateSpy?: jest.Mock
+  bestRecordRows?: unknown[]
+  bestRecordsUpsertSpy?: jest.Mock
 } = {}) {
   let updateCallCount = 0
   return {
@@ -64,6 +68,12 @@ function makeSupabase({
       }
       if (table === 'user_profile') {
         return { select: () => ({ maybeSingle: async () => ({ data: profileRow }) }) }
+      }
+      if (table === 'best_records') {
+        return {
+          select: () => ({ eq: () => Promise.resolve({ data: bestRecordRows, error: null }) }),
+          upsert: bestRecordsUpsertSpy,
+        }
       }
       throw new Error(`unexpected table: ${table}`)
     },
@@ -134,6 +144,22 @@ describe('POST /api/workouts/[id]/disassociate', () => {
       null,
     )
     expect(metricsUpdateSpy).toHaveBeenCalledWith({ activity_metrics: { np: 210, avg_power: 200 } })
+  })
+
+  it('rekeys best_records entries from the old workout id to the new standalone row', async () => {
+    const bestRecordRows = [
+      { period: 'all', category: 'power', sub_key: '300', value: 310, is_indoor: false, rank: 1, detail: { date: '2026-07-10', workoutId: 'w1', icuActivityId: 'a1' } },
+      { period: 'all', category: 'power', sub_key: '60', value: 400, is_indoor: false, rank: 1, detail: { date: '2026-05-01', workoutId: 'w-other', icuActivityId: 'a-other' } },
+    ]
+    const bestRecordsUpsertSpy = jest.fn(async (_rows: unknown, _opts: unknown) => ({ error: null }))
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ bestRecordRows, bestRecordsUpsertSpy }))
+
+    const res = await POST(makeRequest(), makeParams('w1'))
+    expect(res.status).toBe(200)
+    expect(bestRecordsUpsertSpy).toHaveBeenCalledTimes(1)
+    const [upserted] = bestRecordsUpsertSpy.mock.calls[0] as unknown as [Array<{ detail: { workoutId: string } }>, unknown]
+    expect(upserted).toHaveLength(1)
+    expect(upserted[0].detail.workoutId).toBe('new-w1')
   })
 
   it('still succeeds when activity-metrics enrichment fails (non-fatal)', async () => {

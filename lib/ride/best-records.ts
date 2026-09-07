@@ -152,6 +152,34 @@ export async function fetchBestRecordRows(supabase: SupabaseClient, userId: stri
   return ((data ?? []) as BestRecordRow[]).map(row => ({ ...row, value: Number(row.value) }))
 }
 
+// Repoints every stored podium row that credits the given (now-vacated) workout to a
+// different workout id — used when a ride is disassociated from a planned workout and
+// its data moves to a new standalone workout row. The ride's stats haven't changed,
+// only which workout row now hosts it, so this is a rekey, not a recompute.
+export async function rekeyBestRecordWorkoutId(
+  supabase: SupabaseClient,
+  userId: string,
+  oldWorkoutId: string,
+  newWorkoutId: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('best_records')
+    .select('period, category, sub_key, value, detail, is_indoor, rank')
+    .eq('user_id', userId)
+  if (error) throw new Error(error.message)
+
+  const toRekey = ((data ?? []) as BestRecordRow[]).filter(
+    r => (r.detail as { workoutId?: string | null }).workoutId === oldWorkoutId
+  )
+  if (!toRekey.length) return
+
+  await upsertBestRecordRows(
+    supabase,
+    userId,
+    toRekey.map(r => ({ ...r, value: Number(r.value), detail: { ...r.detail, workoutId: newWorkoutId } })),
+  )
+}
+
 export async function upsertBestRecordRows(supabase: SupabaseClient, userId: string, rows: BestRecordRow[]): Promise<void> {
   if (!rows.length) return
   const { error } = await supabase

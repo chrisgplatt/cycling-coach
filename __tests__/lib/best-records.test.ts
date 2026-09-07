@@ -1,5 +1,6 @@
 import {
   reconstructSyntheticRides, flattenAllTimeBestsToRows, assembleAllTimeBests, mergeCandidateIntoBests, fetchBestRecordRows, upsertBestRecordRows,
+  rekeyBestRecordWorkoutId,
   type BestRecordRow,
 } from '@/lib/ride/best-records'
 import { computeAllTimeBests, type AllTimeBests, type BestsRide } from '@/lib/ride/all-time-bests'
@@ -235,6 +236,59 @@ describe('upsertBestRecordRows', () => {
     const supabase = { from: () => ({ upsert: upsertSpy }) } as unknown as SupabaseClient
     await upsertBestRecordRows(supabase, 'u1', [])
     expect(upsertSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('rekeyBestRecordWorkoutId', () => {
+  // A ride disassociated from a planned workout gets moved to a brand-new standalone
+  // workout row — its best_records entries must follow the ride (by workoutId), not
+  // stay pinned to the now-empty planned workout that may go on to be rescheduled.
+  function makeSupabase(allRows: unknown[], upsertSpy: jest.Mock) {
+    return {
+      from: () => ({
+        select: () => ({ eq: () => Promise.resolve({ data: allRows, error: null }) }),
+        upsert: (rows: unknown[], opts: unknown) => { upsertSpy(rows, opts); return Promise.resolve({ error: null }) },
+      }),
+    } as unknown as SupabaseClient
+  }
+
+  it('re-keys every row referencing the old workout id and leaves other rows untouched', async () => {
+    const rows = [
+      row({ category: 'power', sub_key: '300', value: 310, rank: 1, detail: { date: '2026-06-01', workoutId: 'w-old', icuActivityId: 'icu-9' } }),
+      row({ category: 'biggest_climb', value: 900, rank: 1, detail: { date: '2026-06-01', workoutId: 'w-old', icuActivityId: 'icu-9', length_km: 3 } }),
+      row({ category: 'power', sub_key: '60', value: 400, rank: 1, detail: { date: '2026-05-01', workoutId: 'w-other', icuActivityId: 'icu-2' } }),
+    ]
+    const upsertSpy = jest.fn()
+    const supabase = makeSupabase(rows, upsertSpy)
+
+    await rekeyBestRecordWorkoutId(supabase, 'u1', 'w-old', 'w-new')
+
+    expect(upsertSpy).toHaveBeenCalledTimes(1)
+    const [upserted] = upsertSpy.mock.calls[0] as [Array<{ category: string; detail: { workoutId: string } }>, unknown]
+    expect(upserted).toHaveLength(2)
+    expect(upserted.every(r => r.detail.workoutId === 'w-new')).toBe(true)
+    expect(upserted.map(r => r.category).sort()).toEqual(['biggest_climb', 'power'])
+  })
+
+  it('does nothing when no rows reference the old workout id', async () => {
+    const rows = [row({ category: 'power', detail: { workoutId: 'w-other', icuActivityId: 'icu-2' } })]
+    const upsertSpy = jest.fn()
+    const supabase = makeSupabase(rows, upsertSpy)
+
+    await rekeyBestRecordWorkoutId(supabase, 'u1', 'w-old', 'w-new')
+
+    expect(upsertSpy).not.toHaveBeenCalled()
+  })
+
+  it('coerces a string value from the driver to a number before upserting', async () => {
+    const rows = [{ ...row({ category: 'power', sub_key: '300', rank: 1, detail: { workoutId: 'w-old', icuActivityId: 'icu-9' } }), value: '310' }]
+    const upsertSpy = jest.fn()
+    const supabase = makeSupabase(rows, upsertSpy)
+
+    await rekeyBestRecordWorkoutId(supabase, 'u1', 'w-old', 'w-new')
+
+    const [upserted] = upsertSpy.mock.calls[0] as [Array<{ value: number }>, unknown]
+    expect(upserted[0].value).toBe(310)
   })
 })
 
