@@ -21,6 +21,7 @@ function makeProps(overrides: Partial<ComponentProps<typeof DailyBriefingCard>> 
     metricsBackfilling: false, metricsBackfillResult: null, onRunBackfillActivityMetrics: jest.fn(), onStopBackfillActivityMetrics: jest.fn(),
     deepHistoryBackfilling: false, deepHistoryResult: null, onRunDeepHistoryBackfill: jest.fn(), onStopDeepHistoryBackfill: jest.fn(),
     resyncing: false, resyncResult: null, onRunResyncBests: jest.fn(),
+    repairing: false, repairResult: null, onRunRepairBestRecords: jest.fn(),
     ...overrides,
   }
 }
@@ -226,5 +227,27 @@ describe('DailyBriefingCard — resync bests button', () => {
   it('warns that resync wipes deep-history coverage found by the scan-further-back button', () => {
     render(<DailyBriefingCard {...makeProps()} />)
     expect(screen.getByText(/wipes any older years found by/i)).toBeInTheDocument()
+  })
+
+  it('does not render the repair-best-records button for non-admins', () => {
+    render(<DailyBriefingCard {...makeProps({ isAdmin: false })} />)
+    expect(screen.queryByRole('button', { name: 'Repair best-record medals' })).not.toBeInTheDocument()
+  })
+
+  it('calls onRunRepairBestRecords when clicked', () => {
+    const onRun = jest.fn()
+    render(<DailyBriefingCard {...makeProps({ onRunRepairBestRecords: onRun })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Repair best-record medals' }))
+    expect(onRun).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows "Repairing…" and disables the button while running', () => {
+    render(<DailyBriefingCard {...makeProps({ repairing: true })} />)
+    expect(screen.getByRole('button', { name: 'Repairing…' })).toBeDisabled()
+  })
+
+  it('shows the repair result message after completion', () => {
+    render(<DailyBriefingCard {...makeProps({ repairResult: { ok: true, message: 'Fixed 1 stale medal (checked 12).' } })} />)
+    expect(screen.getByText('Fixed 1 stale medal (checked 12).')).toBeInTheDocument()
   })
 })

@@ -180,6 +180,42 @@ export async function rekeyBestRecordWorkoutId(
   )
 }
 
+// Non-destructive recovery pass for staleness rekeyBestRecordWorkoutId now prevents going
+// forward. For every row that still has a local workoutId, repoints it to whichever
+// workout currently holds that ride (by icu_activity_id) — never deletes, and never
+// touches deep-history rows (workoutId: null, no local workout row at all), unlike a
+// full resync-bests wipe-and-recompute.
+export async function repairStaleBestRecordWorkoutIds(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ checked: number; repaired: number }> {
+  const [{ data: recordData, error: recordsError }, { data: workoutData, error: workoutsError }] = await Promise.all([
+    supabase.from('best_records').select('period, category, sub_key, value, detail, is_indoor, rank').eq('user_id', userId),
+    supabase.from('workouts').select('id, icu_activity_id').eq('user_id', userId).not('icu_activity_id', 'is', null),
+  ])
+  if (recordsError) throw new Error(recordsError.message)
+  if (workoutsError) throw new Error(workoutsError.message)
+
+  const currentWorkoutIdByActivity = new Map<string, string>()
+  for (const w of (workoutData ?? []) as Array<{ id: string; icu_activity_id: string }>) {
+    currentWorkoutIdByActivity.set(w.icu_activity_id, w.id)
+  }
+
+  const rows = (recordData ?? []) as BestRecordRow[]
+  const toRepair: BestRecordRow[] = []
+  for (const r of rows) {
+    const d = r.detail as { workoutId?: string | null; icuActivityId?: string }
+    if (!d.workoutId || !d.icuActivityId) continue // deep-history row, or malformed — nothing local to repair
+    const current = currentWorkoutIdByActivity.get(d.icuActivityId)
+    if (current && current !== d.workoutId) {
+      toRepair.push({ ...r, value: Number(r.value), detail: { ...r.detail, workoutId: current } })
+    }
+  }
+
+  if (toRepair.length) await upsertBestRecordRows(supabase, userId, toRepair)
+  return { checked: rows.length, repaired: toRepair.length }
+}
+
 export async function upsertBestRecordRows(supabase: SupabaseClient, userId: string, rows: BestRecordRow[]): Promise<void> {
   if (!rows.length) return
   const { error } = await supabase

@@ -72,6 +72,9 @@ interface Props {
   resyncing: boolean
   resyncResult: ActionResult
   onRunResyncBests: () => void
+  repairing: boolean
+  repairResult: ActionResult
+  onRunRepairBestRecords: () => void
 }
 
 export default function DailyBriefingCard({
@@ -90,6 +93,7 @@ export default function DailyBriefingCard({
   metricsBackfilling, metricsBackfillResult, onRunBackfillActivityMetrics, onStopBackfillActivityMetrics,
   deepHistoryBackfilling, deepHistoryResult, onRunDeepHistoryBackfill, onStopDeepHistoryBackfill,
   resyncing, resyncResult, onRunResyncBests,
+  repairing, repairResult, onRunRepairBestRecords,
 }: Props) {
   const timeOptions = notificationTimeOptions(timezone)
   return (
@@ -337,6 +341,25 @@ export default function DailyBriefingCard({
                     {metricsBackfillResult.message}
                   </p>
                 )}
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={onRunRepairBestRecords}
+                    disabled={repairing}
+                    className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 disabled:opacity-50 transition-colors"
+                  >
+                    {repairing ? 'Repairing…' : 'Repair best-record medals'}
+                  </button>
+                  {repairResult && (
+                    <p className={`text-xs ${repairResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {repairResult.message}
+                    </p>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Fixes medals stuck on the wrong workout after disassociating a ride (e.g. a moved/rescheduled workout still showing a badge). Safe — never deletes anything. Try this before resyncing below.
+                </p>
               </div>
               <div>
                 <div className="flex items-center gap-3">

@@ -1,6 +1,6 @@
 import {
   reconstructSyntheticRides, flattenAllTimeBestsToRows, assembleAllTimeBests, mergeCandidateIntoBests, fetchBestRecordRows, upsertBestRecordRows,
-  rekeyBestRecordWorkoutId,
+  rekeyBestRecordWorkoutId, repairStaleBestRecordWorkoutIds,
   type BestRecordRow,
 } from '@/lib/ride/best-records'
 import { computeAllTimeBests, type AllTimeBests, type BestsRide } from '@/lib/ride/all-time-bests'
@@ -289,6 +289,86 @@ describe('rekeyBestRecordWorkoutId', () => {
 
     const [upserted] = upsertSpy.mock.calls[0] as [Array<{ value: number }>, unknown]
     expect(upserted[0].value).toBe(310)
+  })
+})
+
+describe('repairStaleBestRecordWorkoutIds', () => {
+  // A non-destructive recovery pass for the same staleness rekeyBestRecordWorkoutId
+  // prevents going forward: for records predating that fix (or any other drift),
+  // repoints each row's workoutId to whichever workout currently holds that ride's
+  // icu_activity_id — never deletes, never touches rows with no local workout at all
+  // (deep-history champions), unlike a full resync-bests wipe-and-recompute.
+  function makeSupabase(bestRecordRows: unknown[], workoutRows: unknown[], upsertSpy: jest.Mock) {
+    return {
+      from: (table: string) => {
+        if (table === 'best_records') {
+          return {
+            select: () => ({ eq: () => Promise.resolve({ data: bestRecordRows, error: null }) }),
+            upsert: (rows: unknown[], opts: unknown) => { upsertSpy(rows, opts); return Promise.resolve({ error: null }) },
+          }
+        }
+        if (table === 'workouts') {
+          return { select: () => ({ eq: () => ({ not: () => Promise.resolve({ data: workoutRows, error: null }) }) }) }
+        }
+        throw new Error(`unexpected table: ${table}`)
+      },
+    } as unknown as SupabaseClient
+  }
+
+  it('repoints a row whose workoutId no longer matches the workout currently holding that ride', async () => {
+    const bestRecordRows = [
+      row({ category: 'power', sub_key: '300', value: 310, rank: 1, detail: { date: '2026-06-01', workoutId: 'w-old', icuActivityId: 'a1' } }),
+    ]
+    const workoutRows = [{ id: 'w-new', icu_activity_id: 'a1' }]
+    const upsertSpy = jest.fn()
+    const supabase = makeSupabase(bestRecordRows, workoutRows, upsertSpy)
+
+    const result = await repairStaleBestRecordWorkoutIds(supabase, 'u1')
+
+    expect(result).toEqual({ checked: 1, repaired: 1 })
+    expect(upsertSpy).toHaveBeenCalledTimes(1)
+    const [upserted] = upsertSpy.mock.calls[0] as [Array<{ detail: { workoutId: string } }>, unknown]
+    expect(upserted[0].detail.workoutId).toBe('w-new')
+  })
+
+  it('leaves a row alone when its workoutId already matches the current workout', async () => {
+    const bestRecordRows = [
+      row({ category: 'power', sub_key: '300', value: 310, rank: 1, detail: { workoutId: 'w1', icuActivityId: 'a1' } }),
+    ]
+    const workoutRows = [{ id: 'w1', icu_activity_id: 'a1' }]
+    const upsertSpy = jest.fn()
+    const supabase = makeSupabase(bestRecordRows, workoutRows, upsertSpy)
+
+    const result = await repairStaleBestRecordWorkoutIds(supabase, 'u1')
+
+    expect(result).toEqual({ checked: 1, repaired: 0 })
+    expect(upsertSpy).not.toHaveBeenCalled()
+  })
+
+  it('leaves deep-history rows (no workoutId) untouched', async () => {
+    const bestRecordRows = [
+      row({ category: 'power', sub_key: '300', value: 310, rank: 1, detail: { workoutId: null, icuActivityId: 'a1' } }),
+    ]
+    const upsertSpy = jest.fn()
+    const supabase = makeSupabase(bestRecordRows, [], upsertSpy)
+
+    const result = await repairStaleBestRecordWorkoutIds(supabase, 'u1')
+
+    expect(result).toEqual({ checked: 1, repaired: 0 })
+    expect(upsertSpy).not.toHaveBeenCalled()
+  })
+
+  it('leaves a row alone when its ride no longer has any current workout row (fully deleted)', async () => {
+    const bestRecordRows = [
+      row({ category: 'power', sub_key: '300', value: 310, rank: 1, detail: { workoutId: 'w-old', icuActivityId: 'a1' } }),
+    ]
+    const upsertSpy = jest.fn()
+    const supabase = makeSupabase(bestRecordRows, [], upsertSpy)
+
+    const result = await repairStaleBestRecordWorkoutIds(supabase, 'u1')
+
+    expect(result).toEqual({ checked: 1, repaired: 0 })
+    expect(upsertSpy).not.toHaveBeenCalled()
   })
 })
 

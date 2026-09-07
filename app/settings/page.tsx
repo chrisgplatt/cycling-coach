@@ -69,6 +69,8 @@ export default function SettingsPage() {
   const deepHistoryStopRef = useRef(false)
   const [resyncing, setResyncing] = useState(false)
   const [resyncResult, setResyncResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [repairing, setRepairing] = useState(false)
+  const [repairResult, setRepairResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [locationLabel, setLocationLabel] = useState('')
@@ -579,6 +581,29 @@ export default function SettingsPage() {
     }
   }
 
+  async function runRepairBestRecords() {
+    setRepairing(true)
+    setRepairResult(null)
+    try {
+      const res = await fetch('/api/admin/repair-best-records', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setRepairResult({
+          ok: true,
+          message: data.repaired > 0
+            ? `Fixed ${data.repaired} stale medal${data.repaired === 1 ? '' : 's'} (checked ${data.checked}).`
+            : `No stale medals found (checked ${data.checked}).`,
+        })
+      } else {
+        setRepairResult({ ok: false, message: data.error ?? 'Repair failed.' })
+      }
+    } catch {
+      setRepairResult({ ok: false, message: 'Network error.' })
+    } finally {
+      setRepairing(false)
+    }
+  }
+
   async function previewZonesFix() {
     setZonesFixing(true)
     setZonesResult(null)
@@ -777,6 +802,9 @@ export default function SettingsPage() {
         resyncing={resyncing}
         resyncResult={resyncResult}
         onRunResyncBests={runResyncBests}
+        repairing={repairing}
+        repairResult={repairResult}
+        onRunRepairBestRecords={runRepairBestRecords}
       />
 
       {/* Location for weather */}
