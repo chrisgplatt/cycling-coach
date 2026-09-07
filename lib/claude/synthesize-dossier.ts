@@ -38,19 +38,33 @@ export async function synthesizeDossier(
         .gte('created_at', ninetyDaysAgoTs)
         .order('created_at'),
       supabase.from('coach_messages')
-        .select('role, content, surface')
+        .select('role, content, surface, created_at')
         .eq('user_id', profile.user_id)
         .gte('created_at', ninetyDaysAgoTs)
         .order('created_at', { ascending: true })
         .limit(200),
       supabase.from('athlete_dossier')
-        .select('explicit_notes')
+        .select('explicit_notes, synthesized_at')
         .eq('user_id', profile.user_id)
         .maybeSingle(),
     ])
 
   const readError = workoutsError ?? feedbacksError ?? coachMessagesError
   if (readError) throw new Error(`synthesizeDossier read failed: ${readError.message}`)
+
+  // Re-synthesizing costs a full Opus 5 call over 90 days of history, so skip nights where
+  // nothing new has happened since the last dossier — a 7-day staleness backstop still
+  // forces a refresh even if none of these signals ever fire (e.g. a status edited long
+  // after the fact, which `workouts` has no updated_at column to detect).
+  const lastSynth = (existing as { synthesized_at?: string } | null)?.synthesized_at
+  if (lastSynth) {
+    const lastSynthDate = lastSynth.split('T')[0]
+    const daysSinceSynth = (Date.now() - new Date(lastSynth).getTime()) / 864e5
+    const hasNewWorkout = ((workouts ?? []) as Array<{ date: string }>).some(w => w.date > lastSynthDate)
+    const hasNewFeedback = ((feedbacks ?? []) as Array<{ created_at: string }>).some(f => f.created_at > lastSynth)
+    const hasNewMessage = ((coachMessages ?? []) as Array<{ created_at: string }>).some(m => m.created_at > lastSynth)
+    if (!hasNewWorkout && !hasNewFeedback && !hasNewMessage && daysSinceSynth < 7) return
+  }
 
   const eventResults = ((profile.events ?? []) as TrainingEvent[]).filter(e => e.icu_activity_id)
 

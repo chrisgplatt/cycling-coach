@@ -1,4 +1,5 @@
 import { anthropic, MODEL } from './client'
+import { logUsage } from './usage-log'
 import type { Workout, ReportedSignals } from '@/types'
 import { formatReportedSignals } from './feedback-signals'
 
@@ -58,6 +59,7 @@ Assess this session and indicate whether the athlete should explore adaptations 
     tool_choice: { type: 'tool', name: 'session_note' },
     messages: [{ role: 'user', content: prompt }],
   })
+  logUsage('sessionNote.assess', response)
 
   const toolUse = response.content.find(b => b.type === 'tool_use')
   if (toolUse?.type !== 'tool_use') throw new Error('No tool_use block in response')

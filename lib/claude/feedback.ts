@@ -1,4 +1,5 @@
 import { anthropic, MODEL } from './client'
+import { logUsage } from './usage-log'
 import type { Workout, ProposedAdjustment, TrainingEvent, ReportedSignals } from '@/types'
 import { eventEndDate, eventDateRangeLabel } from '@/lib/events'
 import { formatReportedSignals } from './feedback-signals'
@@ -89,6 +90,7 @@ If no changes needed: {"summary": "No adjustments needed", "changes": [], "worko
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
   }).finalMessage()
+  logUsage('feedback.analyse', response)
 
   const block = response.content.find(b => b.type === 'text')
   const raw = block?.type === 'text' ? block.text : ''

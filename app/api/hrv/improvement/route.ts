@@ -4,6 +4,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { computeHrvImprovement, focusSignature } from '@/lib/hrv/improvement'
 import { buildHrvFocusPrompt } from '@/lib/claude/hrv-coach'
 import { anthropic, MODEL } from '@/lib/claude/client'
+import { logUsage } from '@/lib/claude/usage-log'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,6 +56,7 @@ export async function GET() {
         model: MODEL, max_tokens: 4096,
         messages: [{ role: 'user', content: buildHrvFocusPrompt(improvement) }],
       })
+      logUsage('hrv.improvement', res)
       const block = res.content.find(b => b.type === 'text')
       coachNote = block?.type === 'text' ? block.text.trim() : null
       if (coachNote) {

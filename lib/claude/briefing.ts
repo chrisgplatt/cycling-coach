@@ -1,4 +1,5 @@
 import { anthropic, MODEL } from './client'
+import { logUsage } from './usage-log'
 import type { BriefingContext } from '@/types'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import { formatWeatherForPrompt } from '@/lib/weather/format'
@@ -99,7 +100,7 @@ function buildEventsString(ctx: BriefingContext): string {
     : 'none in next 4 weeks'
 }
 
-async function callClaude(system: string, prompt: string): Promise<string> {
+async function callClaude(label: string, system: string, prompt: string): Promise<string> {
   const response = await anthropic.messages.create({
     model: MODEL,
     // Adaptive thinking (default on Opus 5) draws from this same budget, so
@@ -108,6 +109,7 @@ async function callClaude(system: string, prompt: string): Promise<string> {
     system,
     messages: [{ role: 'user', content: prompt }],
   })
+  logUsage(label, response)
   const block = response.content.find(b => b.type === 'text')
   return block?.type === 'text' ? block.text.trim() : ''
 }
@@ -223,7 +225,7 @@ ${ctx.athleteModel ? '\n' + ctx.athleteModel : ''}
 ${wellnessLine ? '\n' + wellnessLine : ''}${garminLine ? '\nGarmin: ' + garminLine : ''}
 Write the morning briefing. Respond ONLY with a JSON object: {"verdict":"green|amber|red","headline":"<=4 words","note":"<the briefing prose>"}`
 
-  const raw = await callClaude(SYSTEM_MORNING, prompt)
+  const raw = await callClaude('briefing.morning', SYSTEM_MORNING, prompt)
   return parseVerdict(raw, 'Have a great session today.')
 }
 
@@ -288,7 +290,7 @@ Upcoming events: ${buildEventsString(ctx)}
 
 Write the post-ride note.`
 
-  return await callClaude(SYSTEM_POST_RIDE, prompt) || 'Good work — rest up and recover well.'
+  return await callClaude('briefing.postRide', SYSTEM_POST_RIDE, prompt) || 'Good work — rest up and recover well.'
 }
 
 async function generatePostRaceNote(ctx: BriefingContext): Promise<string> {
@@ -314,5 +316,5 @@ Upcoming events: ${buildEventsString(ctx)}
 
 Write the post-race note.`
 
-  return await callClaude(SYSTEM_POST_RACE, prompt) || 'Great effort today — focus on recovery now.'
+  return await callClaude('briefing.postRace', SYSTEM_POST_RACE, prompt) || 'Great effort today — focus on recovery now.'
 }

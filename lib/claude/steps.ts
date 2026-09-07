@@ -1,4 +1,5 @@
 import { anthropic, MODEL } from './client'
+import { logUsage } from './usage-log'
 import type { Workout, WorkoutStep } from '@/types'
 
 export async function generateWorkoutSteps(workout: Workout): Promise<WorkoutStep[]> {
@@ -30,6 +31,7 @@ Return ONLY a JSON array of steps, no markdown:
     system: 'You are a cycling coach. Always respond with ONLY valid JSON. No markdown, no text outside the JSON.',
     messages: [{ role: 'user', content: prompt }],
   })
+  logUsage('steps.generate', response)
 
   const block = response.content.find(b => b.type === 'text')
   const raw = block?.type === 'text' ? block.text : ''

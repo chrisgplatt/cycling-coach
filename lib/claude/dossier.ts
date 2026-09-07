@@ -186,6 +186,7 @@ Return ONLY valid JSON matching this exact schema:
 }`
 
   const { anthropic, MODEL } = await import('./client')
+  const { logUsage } = await import('./usage-log')
   const response = await anthropic.messages.create({
     model: MODEL,
     // The 7-field profile can run long now that workout lines carry enriched
@@ -197,6 +198,7 @@ Return ONLY valid JSON matching this exact schema:
     system: SYNTHESIS_SYSTEM,
     messages: [{ role: 'user', content: prompt }],
   })
+  logUsage('dossier.generate', response)
   const block = response.content.find(b => b.type === 'text')
   if (!block || block.type !== 'text') {
     throw new Error('generateDossier: Claude returned no text block')

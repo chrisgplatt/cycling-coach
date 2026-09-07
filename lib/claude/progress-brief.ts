@@ -1,4 +1,5 @@
 import { anthropic, MODEL } from './client'
+import { logUsage } from './usage-log'
 import type { ProgressMetrics } from '@/types'
 
 interface ProgressBriefInput {
@@ -58,6 +59,7 @@ Return ONLY:
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
   })
+  logUsage('progressBrief.generate', response)
 
   const block = response.content.find(b => b.type === 'text')
   const raw = block?.type === 'text' ? block.text : ''

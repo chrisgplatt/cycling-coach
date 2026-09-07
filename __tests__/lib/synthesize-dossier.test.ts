@@ -152,4 +152,70 @@ describe('synthesizeDossier', () => {
     // chatMessages arg (index 7) should contain the coach_messages row
     expect(JSON.stringify(promptArg[7])).toContain('discussed knee pain')
   })
+
+  describe('staleness skip', () => {
+    const NOW = new Date('2026-06-09T03:00:00Z')
+
+    beforeEach(() => jest.useFakeTimers().setSystemTime(NOW))
+    afterEach(() => jest.useRealTimers())
+
+    it('skips generateDossier when nothing is newer than the last synthesis', async () => {
+      (generateDossier as jest.Mock).mockResolvedValue(fakeContent)
+      const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
+      const supabase = makeSupabase({
+        existing: { explicit_notes: [], synthesized_at: '2026-06-09T02:00:00Z' },
+        workouts: [{ date: '2026-06-08', type: 'endurance', duration_minutes: 60, tss: 40, status: 'completed', missed_reason: null, activity_metrics: null }],
+        feedbacks: [{ created_at: '2026-06-08T18:00:00Z', feedback_text: 'ok', rpe: 5, feel: 3, completion: 'full', tags: [] }],
+        coachMessages: [{ role: 'user', content: 'hi', surface: 'coach', created_at: '2026-06-08T20:00:00Z' }],
+        upsertSpy,
+      })
+
+      await synthesizeDossier(supabase as never, profile as never)
+
+      expect(generateDossier).not.toHaveBeenCalled()
+      expect(upsertSpy).not.toHaveBeenCalled()
+    })
+
+    it('re-synthesizes when a workout is newer than the last synthesis', async () => {
+      (generateDossier as jest.Mock).mockResolvedValue(fakeContent)
+      const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
+      const supabase = makeSupabase({
+        existing: { explicit_notes: [], synthesized_at: '2026-06-08T02:00:00Z' },
+        workouts: [{ date: '2026-06-09', type: 'endurance', duration_minutes: 60, tss: 40, status: 'completed', missed_reason: null, activity_metrics: null }],
+        upsertSpy,
+      })
+
+      await synthesizeDossier(supabase as never, profile as never)
+
+      expect(generateDossier).toHaveBeenCalledTimes(1)
+      expect(upsertSpy).toHaveBeenCalledTimes(1)
+    })
+
+    it('re-synthesizes when session feedback postdates the last synthesis', async () => {
+      (generateDossier as jest.Mock).mockResolvedValue(fakeContent)
+      const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
+      const supabase = makeSupabase({
+        existing: { explicit_notes: [], synthesized_at: '2026-06-08T02:00:00Z' },
+        feedbacks: [{ created_at: '2026-06-08T10:00:00Z', feedback_text: 'ok', rpe: 5, feel: 3, completion: 'full', tags: [] }],
+        upsertSpy,
+      })
+
+      await synthesizeDossier(supabase as never, profile as never)
+
+      expect(generateDossier).toHaveBeenCalledTimes(1)
+    })
+
+    it('re-synthesizes past the 7-day staleness backstop even with no new signal', async () => {
+      (generateDossier as jest.Mock).mockResolvedValue(fakeContent)
+      const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
+      const supabase = makeSupabase({
+        existing: { explicit_notes: [], synthesized_at: '2026-06-01T00:00:00Z' }, // 8 days before NOW
+        upsertSpy,
+      })
+
+      await synthesizeDossier(supabase as never, profile as never)
+
+      expect(generateDossier).toHaveBeenCalledTimes(1)
+    })
+  })
 })

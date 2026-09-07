@@ -7,7 +7,11 @@ jest.mock('@/lib/claude/client', () => ({
   MODEL: 'claude-opus-5',
 }))
 
-function makeSupabase(opts: { messages?: unknown[]; upsertSpy?: jest.Mock }) {
+function makeSupabase(opts: {
+  messages?: unknown[]
+  upsertSpy?: jest.Mock
+  existing?: { synthesized_at: string } | null
+}) {
   const b: Record<string, unknown> = {}
   const self = () => b
   Object.assign(b, {
@@ -15,7 +19,7 @@ function makeSupabase(opts: { messages?: unknown[]; upsertSpy?: jest.Mock }) {
     then: (resolve: (v: { data: unknown; error: null }) => void) =>
       resolve({ data: opts.messages ?? [], error: null }),
     upsert: opts.upsertSpy ?? (() => Promise.resolve({ error: null })),
-    maybeSingle: () => Promise.resolve({ data: null, error: null }),
+    maybeSingle: () => Promise.resolve({ data: opts.existing ?? null, error: null }),
   })
   return { from: () => b }
 }
@@ -57,6 +61,48 @@ describe('synthesizeConversationMemory', () => {
     await synthesizeConversationMemory(supabase as never, 'u1', NOW)
     expect(anthropic.messages.create).not.toHaveBeenCalled()
     expect(upsertSpy).not.toHaveBeenCalled()
+  })
+
+  it('skips the Claude call when no message is newer than the last synthesis', async () => {
+    const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
+    const supabase = makeSupabase({
+      messages: [{ role: 'user', content: 'my knee hurts', surface: 'workout', created_at: '2026-06-08T10:00:00Z' }],
+      existing: { synthesized_at: '2026-06-09T02:00:00Z' },
+      upsertSpy,
+    })
+    await synthesizeConversationMemory(supabase as never, 'u1', NOW)
+    expect(anthropic.messages.create).not.toHaveBeenCalled()
+    expect(upsertSpy).not.toHaveBeenCalled()
+  })
+
+  it('still synthesizes when a message postdates the last synthesis', async () => {
+    const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
+    const supabase = makeSupabase({
+      messages: [{ role: 'user', content: 'my knee hurts', surface: 'workout', created_at: '2026-06-09T02:30:00Z' }],
+      existing: { synthesized_at: '2026-06-09T02:00:00Z' },
+      upsertSpy,
+    })
+    ;(anthropic.messages.create as jest.Mock).mockResolvedValue({
+      content: [{ type: 'text', text: fakeDigestJson }],
+    })
+    await synthesizeConversationMemory(supabase as never, 'u1', NOW)
+    expect(anthropic.messages.create).toHaveBeenCalledTimes(1)
+    expect(upsertSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-synthesizes past the 7-day staleness backstop even with no new messages', async () => {
+    const upsertSpy = jest.fn(() => Promise.resolve({ error: null }))
+    const supabase = makeSupabase({
+      messages: [{ role: 'user', content: 'my knee hurts', surface: 'workout', created_at: '2026-05-01T10:00:00Z' }],
+      existing: { synthesized_at: '2026-06-01T00:00:00Z' }, // 8 days before NOW
+      upsertSpy,
+    })
+    ;(anthropic.messages.create as jest.Mock).mockResolvedValue({
+      content: [{ type: 'text', text: fakeDigestJson }],
+    })
+    await synthesizeConversationMemory(supabase as never, 'u1', NOW)
+    expect(anthropic.messages.create).toHaveBeenCalledTimes(1)
+    expect(upsertSpy).toHaveBeenCalledTimes(1)
   })
 
   it('throws on upsert error', async () => {

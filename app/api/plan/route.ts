@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { createPlanStream, parsePlanText, countPlannedWorkouts, estimateTss } from '@/lib/claude/plan'
+import { logUsage } from '@/lib/claude/usage-log'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
 import type { AthleteDossier } from '@/lib/claude/dossier'
@@ -142,7 +143,8 @@ export async function POST(req: NextRequest) {
       })
 
       try {
-        await messageStream.finalMessage()
+        const finalMsg = await messageStream.finalMessage()
+        logUsage('plan.generate', finalMsg)
         const plan = parsePlanText(accumulatedText)
         controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', plan }) + '\n'))
       } catch (err) {

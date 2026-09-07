@@ -1,4 +1,5 @@
 import { anthropic, MODEL } from './client'
+import { logUsage } from './usage-log'
 import { formatZones } from './zones'
 import type { UserProfile, CoachingNotes, Workout, WorkoutStep } from '@/types'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
@@ -60,6 +61,7 @@ Return ONLY this JSON:
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
   }).finalMessage()
+  logUsage('coachingNotes.generate', response)
 
   const block = response.content.find(b => b.type === 'text')
   const raw = block?.type === 'text' ? block.text : ''

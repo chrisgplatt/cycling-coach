@@ -1,4 +1,5 @@
 import { anthropic, MODEL } from './client'
+import { logUsage } from './usage-log'
 import type { CriticalPowerResult } from '@/lib/critical-power'
 
 export interface FTPPredictionInput {
@@ -114,6 +115,7 @@ Return ONLY:
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: prompt }],
   })
+  logUsage('ftp.predict', response)
 
   const block = response.content.find(b => b.type === 'text')
   const raw = block?.type === 'text' ? block.text : ''

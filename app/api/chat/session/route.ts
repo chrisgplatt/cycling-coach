@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
+import { logUsage } from '@/lib/claude/usage-log'
 import { buildSessionSystemPrompt } from '@/lib/claude/session-chat'
 import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { formatDossier, fetchDossier } from '@/lib/claude/dossier'
@@ -98,7 +99,9 @@ export async function POST(req: NextRequest) {
     // Headroom for adaptive thinking (default on Opus 5), which draws from
     // this same budget as the visible chat reply.
     max_tokens: 8192,
-    system: systemPrompt,
+    // The system prompt is stable across turns within a sitting, so an explicit cache
+    // breakpoint means every follow-up message pays ~0.1x for it instead of full price.
+    system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
     messages,
   })
 
@@ -111,6 +114,8 @@ export async function POST(req: NextRequest) {
             controller.enqueue(new TextEncoder().encode(chunk.delta.text))
           }
         }
+        const finalMsg = await stream.finalMessage()
+        logUsage('chat.session', finalMsg)
         controller.close()
         await supabase.from('coach_messages').insert({
           user_id: user.id, surface: 'workout', role: 'assistant',
