@@ -198,6 +198,43 @@ describe('DashboardPage week navigation', () => {
     const header = screen.getByText('~81 → 40').parentElement!
     expect(header.textContent).toBe('~81 → 40 TSS · 105 → 45 min')
   })
+
+  it('uses actual ridden duration, not planned duration, for completed minutes', async () => {
+    // Workout was planned for 60 min but the athlete only actually rode 30 min
+    // (actual_duration_minutes=30). The header must reflect the 30 min actually
+    // completed, not fall back to the 60 min that was merely planned.
+    const shortCompletedRide = makeWorkout({
+      id: 'w-current-3', date: currentWeekWorkoutDate, name: 'Short completed ride',
+      duration_minutes: 60, actual_duration_minutes: 30, status: 'completed', tss: 20, icu_activity_id: 'act-2',
+    })
+    global.fetch = jest.fn((url: string) => {
+      const u = String(url)
+      if (u === '/api/sync') {
+        return Promise.resolve({ ok: true, json: async () => ({ activities: [], wellness: [], athlete_ftp: null, athlete_weight: null }) })
+      }
+      if (u === '/api/plan') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            workouts: [shortCompletedRide],
+            name: '',
+            last_reviewed_week: '9999-W53',
+          }),
+        })
+      }
+      if (u === '/api/profile') return Promise.resolve({ ok: true, json: async () => ({}) })
+      if (u === '/api/weight-log') return Promise.resolve({ ok: true, json: async () => ({ entries: [] }) })
+      if (u.startsWith('/api/wellness')) return Promise.resolve({ ok: true, json: async () => ({ wellness: [] }) })
+      if (u === '/api/charts') return Promise.resolve({ ok: true, json: async () => ({ charts: null }) })
+      if (u === '/api/weather/week') return Promise.resolve({ ok: true, json: async () => ({ dates: [] }) })
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    }) as jest.Mock
+
+    render(<DashboardPage />)
+    await screen.findByText('Short completed ride')
+    const header = screen.getByText('~46 → 20').parentElement!
+    expect(header.textContent).toBe('~46 → 20 TSS · 60 → 30 min')
+  })
 })
 
 describe('DashboardPage wellness save refreshes recovery', () => {

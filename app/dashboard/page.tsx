@@ -765,7 +765,7 @@ export default function DashboardPage() {
               const plannedMins = weekWorkouts.reduce((sum, w) => sum + w.duration_minutes, 0)
               const completedMins = weekWorkouts
                 .filter(w => w.status === 'completed')
-                .reduce((sum, w) => sum + w.duration_minutes, 0)
+                .reduce((sum, w) => sum + (w.actual_duration_minutes ?? w.duration_minutes), 0)
               const hasCompleted = weekWorkouts.some(w => w.status === 'completed')
               return hasCompleted ? (
                 <span className="text-sm text-gray-400">
