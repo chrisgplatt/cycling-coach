@@ -11,16 +11,22 @@ const philosophy: TrainingPhilosophy = {
   rationale: 'Based on your 9.0h/week schedule.',
 }
 
+function daysFromNow(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
 const eventA: TrainingEvent = {
   name: 'Dragon Ride',
-  date: '2026-09-14',
+  date: daysFromNow(30),
   type: 'sportive',
   priority: 'A',
 }
 
 const eventC: TrainingEvent = {
   name: 'Club Ride',
-  date: '2026-09-14',
+  date: daysFromNow(30),
   type: 'sportive',
   priority: 'C',
 }
