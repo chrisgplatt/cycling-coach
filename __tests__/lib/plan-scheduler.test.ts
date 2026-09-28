@@ -83,10 +83,10 @@ describe('eventWindowFor', () => {
     expect(eventWindowFor('2026-09-05', [a])?.mode).toBe('pre_taper_early')
     expect(eventWindowFor('2026-09-05', [b])).toBeNull()
   })
-  it('flags 1-2 days after as post_recovery', () => {
+  it('flags 2-3 days after as post_recovery', () => {
     const e = event({ date: '2026-09-14' })
-    expect(eventWindowFor('2026-09-15', [e])?.mode).toBe('post_recovery')
     expect(eventWindowFor('2026-09-16', [e])?.mode).toBe('post_recovery')
+    expect(eventWindowFor('2026-09-17', [e])?.mode).toBe('post_recovery')
   })
   it('lets an A event taper override a same-day B event', () => {
     const a = event({ name: 'A-race', date: '2026-09-20', priority: 'A' })
@@ -98,6 +98,11 @@ describe('eventWindowFor', () => {
   it('returns null outside any event window', () => {
     const e = event({ date: '2026-09-14' })
     expect(eventWindowFor('2026-08-01', [e])).toBeNull()
+  })
+  it('does not apply pre/post windows to a Priority C event (CLAUDE.md: "no significant disruption")', () => {
+    const c = event({ date: '2026-09-14', priority: 'C' })
+    expect(eventWindowFor('2026-09-13', [c])).toBeNull()  // would be pre_activation for A/B
+    expect(eventWindowFor('2026-09-16', [c])).toBeNull()  // would be post_recovery for A/B
   })
 })
 

@@ -101,11 +101,14 @@ export function eventWindowFor(dateStr: string, events: TrainingEvent[]): EventW
   for (const event of ordered) {
     if (!PREP_EVENT_TYPES.has(event.type)) continue
     const daysUntil = daysBetweenUtc(dateStr, event.date)
+    if (event.priority === 'A' && daysUntil >= 7 && daysUntil <= 10) return { mode: 'pre_taper_early', event }
+    // Priority C: "no significant disruption to surrounding training; treat adjacent
+    // days normally" (CLAUDE.md) — only A/B events get the pre/post windows below.
+    if (event.priority === 'C') continue
     if (daysUntil >= 1 && daysUntil <= 2) return { mode: 'pre_activation', event }
     if (daysUntil >= 3 && daysUntil <= 6) return { mode: 'pre_reduce', event }
-    if (event.priority === 'A' && daysUntil >= 7 && daysUntil <= 10) return { mode: 'pre_taper_early', event }
     const daysSince = daysBetweenUtc(eventEndDate(event), dateStr)
-    if (daysSince >= 1 && daysSince <= 2) return { mode: 'post_recovery', event }
+    if (daysSince >= 2 && daysSince <= 3) return { mode: 'post_recovery', event }
   }
   return null
 }
@@ -136,10 +139,12 @@ export function holidayOptionalSessionDates(
     }
     if (!candidateDates.length) continue
 
-    const step = Math.max(1, Math.floor(candidateDates.length / targetSlots))
+    // Evenly-spaced index sampling (not a fixed step) so slots spread across the whole
+    // window instead of clustering in its first half on longer holidays.
     let kindToggle: SessionKind = 'threshold'
-    for (let i = 0; i < candidateDates.length && overrides.size < targetSlots; i += step) {
-      overrides.set(candidateDates[i], kindToggle)
+    for (let slot = 0; slot < targetSlots; slot++) {
+      const idx = Math.floor((slot * candidateDates.length) / targetSlots)
+      overrides.set(candidateDates[idx], kindToggle)
       kindToggle = kindToggle === 'threshold' ? 'intervals' : 'threshold'
     }
   }
