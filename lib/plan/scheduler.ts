@@ -43,3 +43,19 @@ export function targetTssForSession(kind: SessionKind, durationMinutes: number):
   const intensityFactor = IF_BY_KIND[kind]
   return Math.round((durationMinutes / 60) * intensityFactor * intensityFactor * 100)
 }
+
+// "Every 3rd training week is a de-load week" (CLAUDE.md) — counted across the
+// contiguous base+build+peak span, since taper already reduces load through its own
+// event-preparation rules and isn't part of this cycle.
+export function computeDeloadWeeks(phases: PlanPhase[]): Set<number> {
+  const trainingWeekIndices = phases
+    .map((phase, i) => ({ phase, i }))
+    .filter(({ phase }) => phase !== 'taper')
+    .map(({ i }) => i)
+
+  const deload = new Set<number>()
+  trainingWeekIndices.forEach((weekIndex, position) => {
+    if ((position + 1) % 3 === 0) deload.add(weekIndex)
+  })
+  return deload
+}
