@@ -2541,7 +2541,9 @@ async function runReviewPlanJob(supabase: SupabaseClient, jobId: string, request
 }
 ```
 
-Factor the push-sending block from Task 13 into a shared `sendCompletionPush(request, plan, title)` helper used by both `runGeneratePlanJob` and `runReviewPlanJob`. Export `computeLoadMultiplier`'s result computation from the route below (not the job runner) since it needs last week's actual workouts/wellness, which only the route has loaded.
+Factor the push-sending block from Task 13 into a shared `sendCompletionPush(request: { pushSubscription?: StoredSubscription | null }, plan: GeneratedPlan, title: string): Promise<void>` helper used by both `runGeneratePlanJob` and `runReviewPlanJob`, replacing the inline `if (request.pushSubscription) { try { await sendPush(...) } catch {} }` block Task 13 added to `runGeneratePlanJob` with a call to this helper. Export `computeLoadMultiplier`'s result computation from the route below (not the job runner) since it needs last week's actual workouts/wellness, which only the route has loaded.
+
+**Also change `runGeneratePlanJob`'s own parameter type** from `request: PlanJobRequest` (Task 10's original signature) to `request: GeneratePlanJobRequest` — now that `PlanJobRequest` below is a union, the function body's field accesses (`request.totalWeeks`, `request.notes`, `request.trainingPhilosophy`, `request.profile`, etc.) only typecheck against the single-shape `GeneratePlanJobRequest`, not the union. This is a signature-line change only; the function body from Tasks 10 and 13 is otherwise unchanged.
 
 In `app/api/plan/review/route.ts`, replace `POST` (keep `PATCH` untouched):
 
