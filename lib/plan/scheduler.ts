@@ -59,3 +59,89 @@ export function computeDeloadWeeks(phases: PlanPhase[]): Set<number> {
   })
   return deload
 }
+
+// Event window classification and holiday optional sessions (CLAUDE.md's
+// event-preparation table and conflict rules).
+import type { TrainingEvent } from '@/types'
+import { eventCoversDate, eventEndDate } from '@/lib/events'
+import { addDaysUtc, daysBetweenUtc } from '@/lib/plan/forecast'
+import { weekdayName } from '@/lib/calendar-helpers'
+
+export type EventWindowMode =
+  | 'blocked'
+  | 'continue_training'
+  | 'pre_activation'
+  | 'pre_reduce'
+  | 'pre_taper_early'
+  | 'post_recovery'
+
+export interface EventWindow {
+  mode: EventWindowMode
+  event: TrainingEvent
+}
+
+const PREP_EVENT_TYPES = new Set(['race', 'sportive', 'fitness'])
+
+// Priority order A > B > C so an A event's taper always wins a same-day conflict with a
+// lower-priority event's own window (CLAUDE.md's conflict rule).
+function byPriority(events: TrainingEvent[]): TrainingEvent[] {
+  return [...events].sort((a, b) => a.priority.localeCompare(b.priority))
+}
+
+export function eventWindowFor(dateStr: string, events: TrainingEvent[]): EventWindow | null {
+  const ordered = byPriority(events)
+
+  for (const event of ordered) {
+    if (eventCoversDate(event, dateStr)) {
+      if (event.type === 'holiday' && event.continue_training) return { mode: 'continue_training', event }
+      return { mode: 'blocked', event }
+    }
+  }
+
+  for (const event of ordered) {
+    if (!PREP_EVENT_TYPES.has(event.type)) continue
+    const daysUntil = daysBetweenUtc(dateStr, event.date)
+    if (daysUntil >= 1 && daysUntil <= 2) return { mode: 'pre_activation', event }
+    if (daysUntil >= 3 && daysUntil <= 6) return { mode: 'pre_reduce', event }
+    if (event.priority === 'A' && daysUntil >= 7 && daysUntil <= 10) return { mode: 'pre_taper_early', event }
+    const daysSince = daysBetweenUtc(eventEndDate(event), dateStr)
+    if (daysSince >= 1 && daysSince <= 2) return { mode: 'post_recovery', event }
+  }
+  return null
+}
+
+// ~2 optional sessions per 7 days of a continue-training holiday (1 threshold + 1
+// interval/VO2max per CLAUDE.md), spread evenly across the window's trainable days and
+// alternating kind. Every other day in the window stays free (the caller treats a day
+// with no override as self-directed rest).
+export function holidayOptionalSessionDates(
+  events: TrainingEvent[],
+  availability: Array<{ day: string; duration_minutes: number }>,
+): Map<string, SessionKind> {
+  const overrides = new Map<string, SessionKind>()
+  const trainableDays = new Set(
+    availability.filter(a => a.duration_minutes > 0).map(a => a.day.toLowerCase())
+  )
+
+  for (const event of events) {
+    if (event.type !== 'holiday' || !event.continue_training) continue
+    const end = eventEndDate(event)
+    const totalDays = daysBetweenUtc(event.date, end) + 1
+    const targetSlots = Math.max(1, Math.round((totalDays / 7) * 2))
+
+    const candidateDates: string[] = []
+    for (let d = 0; d < totalDays; d++) {
+      const dateStr = addDaysUtc(event.date, d)
+      if (trainableDays.has(weekdayName(dateStr).toLowerCase())) candidateDates.push(dateStr)
+    }
+    if (!candidateDates.length) continue
+
+    const step = Math.max(1, Math.floor(candidateDates.length / targetSlots))
+    let kindToggle: SessionKind = 'threshold'
+    for (let i = 0; i < candidateDates.length && overrides.size < targetSlots; i += step) {
+      overrides.set(candidateDates[i], kindToggle)
+      kindToggle = kindToggle === 'threshold' ? 'intervals' : 'threshold'
+    }
+  }
+  return overrides
+}

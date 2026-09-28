@@ -50,3 +50,72 @@ describe('computeDeloadWeeks', () => {
     expect(computeDeloadWeeks(phases)).toEqual(new Set())
   })
 })
+
+import { eventWindowFor, holidayOptionalSessionDates } from '@/lib/plan/scheduler'
+import type { TrainingEvent } from '@/types'
+
+function event(overrides: Partial<TrainingEvent>): TrainingEvent {
+  return { name: 'E', date: '2026-09-14', type: 'sportive', priority: 'A', ...overrides }
+}
+
+describe('eventWindowFor', () => {
+  it('blocks the event date itself', () => {
+    const e = event({ date: '2026-09-14' })
+    expect(eventWindowFor('2026-09-14', [e])).toEqual({ mode: 'blocked', event: e })
+  })
+  it('marks a continue_training holiday as not blocked', () => {
+    const e = event({ type: 'holiday', date: '2026-09-10', end_date: '2026-09-17', continue_training: true })
+    expect(eventWindowFor('2026-09-12', [e])?.mode).toBe('continue_training')
+  })
+  it('flags 1-2 days before as pre_activation', () => {
+    const e = event({ date: '2026-09-14' })
+    expect(eventWindowFor('2026-09-13', [e])?.mode).toBe('pre_activation')
+    expect(eventWindowFor('2026-09-12', [e])?.mode).toBe('pre_activation')
+  })
+  it('flags 3-6 days before as pre_reduce', () => {
+    const e = event({ date: '2026-09-14' })
+    expect(eventWindowFor('2026-09-11', [e])?.mode).toBe('pre_reduce')
+    expect(eventWindowFor('2026-09-08', [e])?.mode).toBe('pre_reduce')
+  })
+  it('flags 7-10 days before an A-priority event as pre_taper_early, but not for a B event', () => {
+    const a = event({ date: '2026-09-14', priority: 'A' })
+    const b = event({ date: '2026-09-14', priority: 'B' })
+    expect(eventWindowFor('2026-09-05', [a])?.mode).toBe('pre_taper_early')
+    expect(eventWindowFor('2026-09-05', [b])).toBeNull()
+  })
+  it('flags 1-2 days after as post_recovery', () => {
+    const e = event({ date: '2026-09-14' })
+    expect(eventWindowFor('2026-09-15', [e])?.mode).toBe('post_recovery')
+    expect(eventWindowFor('2026-09-16', [e])?.mode).toBe('post_recovery')
+  })
+  it('lets an A event taper override a same-day B event', () => {
+    const a = event({ name: 'A-race', date: '2026-09-20', priority: 'A' })
+    const b = event({ name: 'B-race', date: '2026-09-14', priority: 'B' })
+    // 2026-09-13 is both "1 day before the B event" and "7 days before the A event" —
+    // the A taper wins per CLAUDE.md's conflict rule.
+    expect(eventWindowFor('2026-09-13', [a, b])?.event.name).toBe('A-race')
+  })
+  it('returns null outside any event window', () => {
+    const e = event({ date: '2026-09-14' })
+    expect(eventWindowFor('2026-08-01', [e])).toBeNull()
+  })
+})
+
+describe('holidayOptionalSessionDates', () => {
+  it('places roughly 2 optional sessions per 7 days, alternating threshold and intervals', () => {
+    const availability = [
+      { day: 'monday', duration_minutes: 60 }, { day: 'wednesday', duration_minutes: 60 },
+      { day: 'friday', duration_minutes: 60 },
+    ]
+    const holiday = event({
+      type: 'holiday', date: '2026-09-14', end_date: '2026-09-27', continue_training: true,
+    }) // 2 weeks, Mon 2026-09-14
+    const overrides = holidayOptionalSessionDates([holiday], availability)
+    expect(overrides.size).toBe(4) // ~2 per 7 days over 14 days
+    expect(new Set(overrides.values())).toEqual(new Set(['threshold', 'intervals']))
+  })
+  it('ignores holidays without continue_training', () => {
+    const holiday = event({ type: 'holiday', date: '2026-09-14', end_date: '2026-09-20' })
+    expect(holidayOptionalSessionDates([holiday], []).size).toBe(0)
+  })
+})
