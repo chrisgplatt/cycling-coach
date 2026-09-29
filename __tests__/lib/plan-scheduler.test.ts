@@ -255,6 +255,61 @@ describe('buildPlanSkeleton', () => {
     expect(days[0].date).toBe('2026-06-08')
     expect(days[6].date).toBe('2026-06-14')
   })
+  it('does not pad a session to the full day cap when the type has a lower natural ceiling (anti-padding rule)', () => {
+    const phases: PlanPhase[] = Array(1).fill('build')
+    const days = buildPlanSkeleton({
+      profile: { events: [], weekly_availability: [{ day: 'saturday', duration_minutes: 120 }] },
+      planStartDate: '2026-06-06', phases, fromDate: '2026-06-06', toDate: '2026-06-06',
+    })
+    const saturday = days.find((d): d is ScheduledSession => d.status === 'session' && d.date === '2026-06-06')
+    expect(saturday?.sessionKind).toBe('threshold')
+    expect(saturday?.durationMinutes).toBe(90) // capped at threshold's natural ceiling, not padded to the 120min day cap
+  })
+  it('counts an event-window intervals session toward the weekly intervals cap', () => {
+    const phases: PlanPhase[] = Array(2).fill('build')
+    const days = buildPlanSkeleton({
+      profile: {
+        events: [{ name: 'Race', date: '2026-06-03', type: 'sportive', priority: 'B' }],
+        weekly_availability: [
+          { day: 'monday', duration_minutes: 90 }, { day: 'thursday', duration_minutes: 90 }, { day: 'friday', duration_minutes: 90 },
+        ],
+      },
+      planStartDate: '2026-06-01', phases, fromDate: '2026-06-01', toDate: '2026-06-14',
+      emphasis: { climbing: 0, speed: 1, enduranceVolume: 0, weightLoss: 0 },
+    })
+    const sessions = days.filter((d): d is ScheduledSession => d.status === 'session')
+    const monday = sessions.find(s => s.date === '2026-06-01')
+    const thursday = sessions.find(s => s.date === '2026-06-04')
+    expect(monday?.sessionKind).toBe('intervals')       // from the pre_activation event window (2 days before the race)
+    expect(thursday?.sessionKind).not.toBe('intervals')  // weekly intervals cap already used by Monday's event-window session
+  })
+  it('does not allow a hard session on both sides of an internal week boundary', () => {
+    const phases: PlanPhase[] = Array(2).fill('build')
+    const days = buildPlanSkeleton({
+      profile: {
+        events: [],
+        weekly_availability: [{ day: 'sunday', duration_minutes: 90 }, { day: 'monday', duration_minutes: 90 }],
+      },
+      planStartDate: '2026-06-01', phases, fromDate: '2026-06-01', toDate: '2026-06-14',
+    })
+    const sessions = days.filter((d): d is ScheduledSession => d.status === 'session')
+    const sunday = sessions.find(s => s.date === '2026-06-07')  // last day of week 0 (day index 6)
+    const monday = sessions.find(s => s.date === '2026-06-08')  // first day of week 1 (day index 7) — calendar-adjacent to the above
+    const bothHard = ['threshold', 'intervals'].includes(sunday!.sessionKind) && ['threshold', 'intervals'].includes(monday!.sessionKind)
+    expect(bothHard).toBe(false)
+  })
+  it('never exceeds the day cap even when a fractional event-window duration would round above it', () => {
+    const phases: PlanPhase[] = Array(1).fill('build')
+    const days = buildPlanSkeleton({
+      profile: {
+        events: [{ name: 'Race', date: '2026-06-03', type: 'sportive', priority: 'A' }],
+        weekly_availability: [{ day: 'monday', duration_minutes: 10 }],
+      },
+      planStartDate: '2026-06-01', phases, fromDate: '2026-06-01', toDate: '2026-06-01',
+    })
+    const monday = days.find((d): d is ScheduledSession => d.status === 'session' && d.date === '2026-06-01')
+    expect(monday!.durationMinutes).toBeLessThanOrEqual(10)
+  })
 })
 
 function weekdayOf(dateStr: string): string {

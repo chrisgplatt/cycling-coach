@@ -234,11 +234,24 @@ export interface BuildSkeletonInput {
 
 const round5 = (n: number) => Math.max(15, Math.round(n / 5) * 5)
 
+// CLAUDE.md's "Session type definitions" table, as an upper bound per kind — the normal
+// picker uses this to cap duration instead of always filling the day's full cap (the
+// anti-padding scheduling hard rule). min(dayCap, ceiling) still lets endurance/tempo use
+// most of a long day when that's genuinely useful (long Z2 volume), while keeping
+// recovery/threshold/intervals from ballooning just because a lot of time happens to be
+// available that day.
+const DURATION_CEILING_BY_KIND: Record<SessionKind, number> = {
+  recovery: 60, endurance: 180, tempo: 120, threshold: 90, intervals: 90, long_ride: 240,
+}
+
 function sessionForEventWindow(dateStr: string, window: EventWindow, dayCap: number, phase: PlanPhase): ScheduledSession {
-  const make = (sessionKind: SessionKind, durationMinutes: number): ScheduledSession => ({
-    date: dateStr, status: 'session', sessionKind, workoutType: toWorkoutType(sessionKind),
-    durationMinutes, phase, targetTss: targetTssForSession(sessionKind, durationMinutes), optional: false,
-  })
+  const make = (sessionKind: SessionKind, rawDuration: number): ScheduledSession => {
+    const durationMinutes = Math.min(dayCap, rawDuration)
+    return {
+      date: dateStr, status: 'session', sessionKind, workoutType: toWorkoutType(sessionKind),
+      durationMinutes, phase, targetTss: targetTssForSession(sessionKind, durationMinutes), optional: false,
+    }
+  }
   switch (window.mode) {
     case 'pre_activation': return make('intervals', round5(dayCap * 0.5))
     case 'pre_reduce': return make('endurance', round5(dayCap * 0.75))
@@ -246,6 +259,17 @@ function sessionForEventWindow(dateStr: string, window: EventWindow, dayCap: num
     case 'post_recovery': return make('recovery', round5(dayCap * 0.5))
     default: return make('endurance', dayCap) // unreachable for 'blocked'/'continue_training' — filtered earlier
   }
+}
+
+// A session counts toward this week's hard-cap tracking regardless of which branch
+// produced it (event window, holiday override, or the normal picker) — otherwise the
+// weekly caps from Task 4 are only enforced for normally-picked sessions and can be
+// silently defeated by an event-window or holiday session earlier in the same week.
+function applyToWeekState(weekState: WeekState, sessionKind: SessionKind): void {
+  if (sessionKind === 'threshold') weekState.thresholdUsed = true
+  if (sessionKind === 'intervals') weekState.intervalsUsed = true
+  if (sessionKind === 'recovery') weekState.recoveryCount++
+  weekState.lastKindWasHard = HARD_KINDS.has(sessionKind)
 }
 
 export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
@@ -261,6 +285,10 @@ export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
 
   const days: ScheduledDay[] = []
   const totalDays = daysBetweenUtc(fromDate, toDate) + 1
+  // lastKindWasHard is a ROLLING day-to-day flag (yesterday vs. today), not week-scoped —
+  // it must survive the weekly reset below and be explicitly maintained on every branch,
+  // including rest/blocked days, or "no two hard sessions on consecutive days" silently
+  // stops holding across a week boundary or a rest day.
   let weekState: WeekState = { thresholdUsed: false, intervalsUsed: false, recoveryCount: 0, lastKindWasHard: false }
   let lastWeekIndex = -1
 
@@ -269,7 +297,7 @@ export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
     const weekIndex = Math.floor(daysBetweenUtc(planStartDate, dateStr) / 7)
     const phase = phases[weekIndex] ?? phases[phases.length - 1] ?? 'base'
     if (weekIndex !== lastWeekIndex) {
-      weekState = { thresholdUsed: false, intervalsUsed: false, recoveryCount: 0, lastKindWasHard: false }
+      weekState = { thresholdUsed: false, intervalsUsed: false, recoveryCount: 0, lastKindWasHard: weekState.lastKindWasHard }
       lastWeekIndex = weekIndex
     }
 
@@ -279,17 +307,18 @@ export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
 
     if (window?.mode === 'blocked') {
       days.push({ date: dateStr, status: 'event_blocked', eventName: window.event.name })
+      weekState.lastKindWasHard = false
       continue
     }
     if (dayCap <= 0 && window?.mode !== 'continue_training') {
       days.push({ date: dateStr, status: 'rest' })
+      weekState.lastKindWasHard = false
       continue
     }
     if (window && window.mode !== 'continue_training') {
       const session = sessionForEventWindow(dateStr, window, dayCap, phase)
       days.push(session)
-      weekState.lastKindWasHard = HARD_KINDS.has(session.sessionKind)
-      if (session.sessionKind === 'recovery') weekState.recoveryCount++
+      applyToWeekState(weekState, session.sessionKind)
       continue
     }
 
@@ -300,33 +329,32 @@ export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
         date: dateStr, status: 'session', sessionKind: holidayKind, workoutType: toWorkoutType(holidayKind),
         durationMinutes: duration, phase, targetTss: targetTssForSession(holidayKind, duration), optional: true,
       })
+      applyToWeekState(weekState, holidayKind)
       continue
     }
     if (window?.mode === 'continue_training') {
       days.push({ date: dateStr, status: 'rest' }) // self-directed; no mandatory workout
+      weekState.lastKindWasHard = false
       continue
     }
 
     if (deloadWeeks.has(weekIndex)) {
       const kind: SessionKind = dayCap <= 60 ? 'recovery' : 'endurance'
-      const duration = Math.max(20, round5(dayCap * 0.5))
+      const duration = Math.min(dayCap, Math.max(20, round5(dayCap * 0.5)))
       days.push({
         date: dateStr, status: 'session', sessionKind: kind, workoutType: toWorkoutType(kind),
         durationMinutes: duration, phase, targetTss: targetTssForSession(kind, duration), optional: false,
       })
-      weekState.lastKindWasHard = false
-      if (kind === 'recovery') weekState.recoveryCount++
+      applyToWeekState(weekState, kind) // always recovery/endurance during de-load, never hard
       continue
     }
 
     const kind = pickNormalSessionKind(phase, weekState, weekIndex === lastBaseWeekIndex, intensityProfile, emphasis)
-    if (kind === 'threshold') weekState.thresholdUsed = true
-    if (kind === 'intervals') weekState.intervalsUsed = true
-    if (kind === 'recovery') weekState.recoveryCount++
-    weekState.lastKindWasHard = HARD_KINDS.has(kind)
+    const duration = Math.min(dayCap, DURATION_CEILING_BY_KIND[kind])
+    applyToWeekState(weekState, kind)
     days.push({
       date: dateStr, status: 'session', sessionKind: kind, workoutType: toWorkoutType(kind),
-      durationMinutes: dayCap, phase, targetTss: targetTssForSession(kind, dayCap), optional: false,
+      durationMinutes: duration, phase, targetTss: targetTssForSession(kind, duration), optional: false,
     })
   }
   return days
