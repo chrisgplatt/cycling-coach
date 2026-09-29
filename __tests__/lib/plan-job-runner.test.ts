@@ -1,0 +1,86 @@
+/** @jest-environment node */
+const mockInterpretGoals = jest.fn()
+jest.mock('@/lib/claude/plan-emphasis', () => ({ interpretGoals: (...args: unknown[]) => mockInterpretGoals(...args) }))
+
+const mockFillSession = jest.fn()
+const mockFallbackSession = jest.fn()
+jest.mock('@/lib/claude/session-fill', () => ({
+  fillSession: (...args: unknown[]) => mockFillSession(...args),
+  fallbackSession: (...args: unknown[]) => mockFallbackSession(...args),
+}))
+
+import { runGeneratePlanJob } from '@/lib/plan/job-runner'
+import type { PlanJobRequest } from '@/lib/plan/job-runner'
+import type { UserProfile } from '@/types'
+
+function makeSupabase() {
+  const updates: Array<Record<string, unknown>> = []
+  return {
+    updates,
+    from: () => ({
+      update: (fields: Record<string, unknown>) => ({
+        eq: () => { updates.push(fields); return Promise.resolve({ error: null }) },
+      }),
+    }),
+  }
+}
+
+function profile(): UserProfile {
+  return {
+    goals: 'Climb better', events: [{ name: 'E', date: '2026-07-01', type: 'sportive', priority: 'A' }],
+    weekly_availability: [{ day: 'monday', duration_minutes: 60 }],
+    current_ftp: 200, weight_kg: 70, intervals_icu_athlete_id: 'i', intervals_icu_api_key: 'k',
+  }
+}
+
+function request(overrides: Partial<PlanJobRequest> = {}): PlanJobRequest {
+  return {
+    kind: 'generate', userId: 'u1', totalWeeks: 1, startDate: '2026-06-01', notes: '',
+    trainingPhilosophy: null, profile: profile(), recentActivitiesSummary: 'No recent activities.',
+    athleteStateLine: 'CTL: 50', ...overrides,
+  }
+}
+
+describe('runGeneratePlanJob', () => {
+  beforeEach(() => {
+    mockInterpretGoals.mockReset().mockResolvedValue({ emphasis: { climbing: 0.5, speed: 0.5, enduranceVolume: 0.5, weightLoss: 0.5 }, rationale: 'r' })
+    mockFillSession.mockReset()
+    mockFallbackSession.mockReset().mockReturnValue({
+      description: 'fallback', target_zones: 'Zone 2', steps: [{ label: 'Steady', duration_minutes: 60, power_pct_ftp: 65 }], coaching_notes: { summary: 's', focus: [] },
+    })
+  })
+
+  it('marks the job done with a GeneratedPlan built from filled sessions', async () => {
+    mockFillSession.mockResolvedValue({
+      description: 'd', target_zones: 'z', steps: [{ label: 'Ride', duration_minutes: 60, power_pct_ftp: 65 }], coaching_notes: { summary: 's', focus: [] },
+    })
+    const supabase = makeSupabase()
+    await runGeneratePlanJob(supabase as never, 'job1', request())
+
+    const done = supabase.updates.find(u => u.status === 'done')
+    expect(done).toBeDefined()
+    const plan = done!.result as { rationale: string; workouts: Array<{ date: string; description: string }> }
+    expect(plan.rationale).toBe('r')
+    expect(plan.workouts.some(w => w.date === '2026-06-01')).toBe(true)
+  })
+
+  it('falls back to a safe session after two failed fill attempts, without failing the job', async () => {
+    mockFillSession.mockRejectedValue(new Error('Claude error'))
+    const supabase = makeSupabase()
+    await runGeneratePlanJob(supabase as never, 'job1', request())
+
+    expect(mockFillSession).toHaveBeenCalledTimes(2) // one retry
+    expect(mockFallbackSession).toHaveBeenCalledTimes(1)
+    const done = supabase.updates.find(u => u.status === 'done')
+    expect(done).toBeDefined()
+    const progress = supabase.updates[supabase.updates.length - 2]?.progress as { failed_days: string[] } | undefined
+    expect(done!.progress).toMatchObject({ failed_days: ['2026-06-01'] })
+  })
+
+  it('marks the job as error when the profile has no events', async () => {
+    const supabase = makeSupabase()
+    await runGeneratePlanJob(supabase as never, 'job1', request({ profile: { ...profile(), events: [] } }))
+    const errored = supabase.updates.find(u => u.status === 'error')
+    expect(errored).toBeDefined()
+  })
+})
