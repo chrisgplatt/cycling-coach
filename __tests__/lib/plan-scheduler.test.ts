@@ -307,6 +307,16 @@ describe('buildPlanSkeleton', () => {
     const monday = days.find((d): d is ScheduledSession => d.status === 'session' && d.date === '2026-06-01')
     expect(monday?.durationMinutes).toBe(30) // 60 * 0.5
   })
+  it('never lets a durationMultiplier above 1 push duration past the day cap', () => {
+    const phases: PlanPhase[] = Array(4).fill('build')
+    const days = buildPlanSkeleton({
+      profile: { events: [], weekly_availability: [{ day: 'monday', duration_minutes: 60 }] },
+      planStartDate: '2026-06-01', phases,
+      fromDate: '2026-06-01', toDate: '2026-06-01', durationMultiplier: 1.1, // review's "+10% good week" bonus
+    })
+    const monday = days.find((d): d is ScheduledSession => d.status === 'session' && d.date === '2026-06-01')
+    expect(monday!.durationMinutes).toBeLessThanOrEqual(60) // round5(60*1.1)=65 must still clamp to the 60min cap
+  })
   it('never exceeds the day cap even when a fractional event-window duration would round above it', () => {
     const phases: PlanPhase[] = Array(1).fill('build')
     const days = buildPlanSkeleton({

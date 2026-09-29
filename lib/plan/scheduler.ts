@@ -352,7 +352,7 @@ export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
     }
 
     const kind = pickNormalSessionKind(phase, weekState, weekIndex === lastBaseWeekIndex, intensityProfile, emphasis)
-    const duration = Math.min(round5(dayCap * durationMultiplier), DURATION_CEILING_BY_KIND[kind])
+    const duration = Math.min(dayCap, round5(dayCap * durationMultiplier), DURATION_CEILING_BY_KIND[kind])
     applyToWeekState(weekState, kind)
     days.push({
       date: dateStr, status: 'session', sessionKind: kind, workoutType: toWorkoutType(kind),
