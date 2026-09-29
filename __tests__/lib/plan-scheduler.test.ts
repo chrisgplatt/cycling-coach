@@ -170,3 +170,94 @@ describe('pickNormalSessionKind', () => {
   })
 })
 type PlanEmphasisArg = Parameters<typeof pickNormalSessionKind>[4]
+
+import { buildPlanSkeleton } from '@/lib/plan/scheduler'
+import type { ScheduledSession } from '@/lib/plan/scheduler'
+import type { UserProfile, PlanPhase } from '@/types'
+
+function profile(overrides: Partial<UserProfile> = {}): Pick<UserProfile, 'events' | 'weekly_availability'> {
+  return {
+    events: [],
+    weekly_availability: [
+      { day: 'monday', duration_minutes: 60 }, { day: 'wednesday', duration_minutes: 60 },
+      { day: 'friday', duration_minutes: 90 }, { day: 'saturday', duration_minutes: 120 },
+    ],
+    ...overrides,
+  }
+}
+
+describe('buildPlanSkeleton', () => {
+  it('never schedules a session on a rest day', () => {
+    const phases: PlanPhase[] = Array(4).fill('base')
+    const days = buildPlanSkeleton({
+      profile: profile(), planStartDate: '2026-06-01', phases,
+      fromDate: '2026-06-01', toDate: '2026-06-28',
+    })
+    const tuesday = days.find(d => d.date === '2026-06-02') // Tue, not in availability
+    expect(tuesday?.status).toBe('rest')
+  })
+  it('never schedules a session on an event date', () => {
+    const phases: PlanPhase[] = Array(4).fill('base')
+    const days = buildPlanSkeleton({
+      profile: profile({ events: [{ name: 'Race', date: '2026-06-01', type: 'sportive', priority: 'A' }] }),
+      planStartDate: '2026-06-01', phases, fromDate: '2026-06-01', toDate: '2026-06-28',
+    })
+    const raceDay = days.find(d => d.date === '2026-06-01')
+    expect(raceDay?.status).toBe('event_blocked')
+  })
+  it('caps every session at that day\'s available minutes', () => {
+    const phases: PlanPhase[] = Array(4).fill('build')
+    const days = buildPlanSkeleton({
+      profile: profile(), planStartDate: '2026-06-01', phases,
+      fromDate: '2026-06-01', toDate: '2026-06-28',
+    })
+    const sessions = days.filter((d): d is ScheduledSession => d.status === 'session')
+    for (const s of sessions) {
+      const cap = { monday: 60, wednesday: 60, friday: 90, saturday: 120 }[s.date === s.date ? weekdayOf(s.date) : '']
+      expect(s.durationMinutes).toBeLessThanOrEqual(cap!)
+    }
+  })
+  it('respects the max-1-threshold-per-week cap across a whole build phase', () => {
+    const phases: PlanPhase[] = Array(8).fill('build')
+    const days = buildPlanSkeleton({
+      profile: profile(), planStartDate: '2026-06-01', phases,
+      fromDate: '2026-06-01', toDate: '2026-07-26',
+    })
+    const sessions = days.filter((d): d is ScheduledSession => d.status === 'session')
+    for (let week = 0; week < 8; week++) {
+      const weekStart = new Date('2026-06-01T00:00:00Z')
+      weekStart.setUTCDate(weekStart.getUTCDate() + week * 7)
+      const weekEnd = new Date(weekStart)
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 6)
+      const inWeek = sessions.filter(s => {
+        const d = new Date(s.date + 'T00:00:00Z')
+        return d >= weekStart && d <= weekEnd
+      })
+      expect(inWeek.filter(s => s.sessionKind === 'threshold').length).toBeLessThanOrEqual(1)
+    }
+  })
+  it('reduces intensity to easy-only during a de-load week', () => {
+    const phases: PlanPhase[] = Array(3).fill('build') // week index 2 (3rd) de-loads
+    const days = buildPlanSkeleton({
+      profile: profile(), planStartDate: '2026-06-01', phases,
+      fromDate: '2026-06-15', toDate: '2026-06-21', // that 3rd week
+    })
+    const sessions = days.filter((d): d is ScheduledSession => d.status === 'session')
+    expect(sessions.every(s => s.sessionKind === 'recovery' || s.sessionKind === 'endurance')).toBe(true)
+  })
+  it('only emits days within [fromDate, toDate]', () => {
+    const phases: PlanPhase[] = Array(4).fill('base')
+    const days = buildPlanSkeleton({
+      profile: profile(), planStartDate: '2026-06-01', phases,
+      fromDate: '2026-06-08', toDate: '2026-06-14',
+    })
+    expect(days).toHaveLength(7)
+    expect(days[0].date).toBe('2026-06-08')
+    expect(days[6].date).toBe('2026-06-14')
+  })
+})
+
+function weekdayOf(dateStr: string): string {
+  const names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+  return names[new Date(dateStr + 'T00:00:00Z').getUTCDay()]
+}

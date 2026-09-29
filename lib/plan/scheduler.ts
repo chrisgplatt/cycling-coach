@@ -200,3 +200,134 @@ export function pickNormalSessionKind(
   if (phase === 'base') return emphasis.climbing > 0.3 ? 'tempo' : 'endurance'
   return emphasis.enduranceVolume + emphasis.weightLoss > emphasis.climbing + emphasis.speed ? 'endurance' : 'tempo'
 }
+
+import type { UserProfile } from '@/types'
+
+export interface ScheduledSession {
+  date: string
+  status: 'session'
+  sessionKind: SessionKind
+  workoutType: WorkoutType
+  durationMinutes: number
+  phase: PlanPhase
+  targetTss: number
+  optional: boolean
+}
+
+export interface ScheduledOff {
+  date: string
+  status: 'rest' | 'event_blocked'
+  eventName?: string
+}
+
+export type ScheduledDay = ScheduledSession | ScheduledOff
+
+export interface BuildSkeletonInput {
+  profile: Pick<UserProfile, 'events' | 'weekly_availability'>
+  planStartDate: string       // the whole plan's week-0 start date, for absolute week indexing
+  phases: PlanPhase[]         // the whole plan's phase-per-week array (computeWeekPhases output)
+  fromDate: string            // inclusive — first date to actually emit
+  toDate: string              // inclusive — last date to actually emit
+  emphasis?: PlanEmphasis
+  trainingPhilosophy?: TrainingPhilosophy | null
+}
+
+const round5 = (n: number) => Math.max(15, Math.round(n / 5) * 5)
+
+function sessionForEventWindow(dateStr: string, window: EventWindow, dayCap: number, phase: PlanPhase): ScheduledSession {
+  const make = (sessionKind: SessionKind, durationMinutes: number): ScheduledSession => ({
+    date: dateStr, status: 'session', sessionKind, workoutType: toWorkoutType(sessionKind),
+    durationMinutes, phase, targetTss: targetTssForSession(sessionKind, durationMinutes), optional: false,
+  })
+  switch (window.mode) {
+    case 'pre_activation': return make('intervals', round5(dayCap * 0.5))
+    case 'pre_reduce': return make('endurance', round5(dayCap * 0.75))
+    case 'pre_taper_early': return make('endurance', round5(dayCap * 0.7))
+    case 'post_recovery': return make('recovery', round5(dayCap * 0.5))
+    default: return make('endurance', dayCap) // unreachable for 'blocked'/'continue_training' — filtered earlier
+  }
+}
+
+export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
+  const { profile, planStartDate, phases, fromDate, toDate } = input
+  const emphasis = input.emphasis ?? DEFAULT_EMPHASIS
+  const intensityProfile = input.trainingPhilosophy?.intensity_profile ?? null
+  const events = profile.events ?? []
+  const availability = profile.weekly_availability ?? []
+  const capByDay = new Map(availability.filter(a => a.duration_minutes > 0).map(a => [a.day.toLowerCase(), a.duration_minutes]))
+  const deloadWeeks = computeDeloadWeeks(phases)
+  const holidayOverrides = holidayOptionalSessionDates(events, availability)
+  const lastBaseWeekIndex = phases.lastIndexOf('base')
+
+  const days: ScheduledDay[] = []
+  const totalDays = daysBetweenUtc(fromDate, toDate) + 1
+  let weekState: WeekState = { thresholdUsed: false, intervalsUsed: false, recoveryCount: 0, lastKindWasHard: false }
+  let lastWeekIndex = -1
+
+  for (let i = 0; i < totalDays; i++) {
+    const dateStr = addDaysUtc(fromDate, i)
+    const weekIndex = Math.floor(daysBetweenUtc(planStartDate, dateStr) / 7)
+    const phase = phases[weekIndex] ?? phases[phases.length - 1] ?? 'base'
+    if (weekIndex !== lastWeekIndex) {
+      weekState = { thresholdUsed: false, intervalsUsed: false, recoveryCount: 0, lastKindWasHard: false }
+      lastWeekIndex = weekIndex
+    }
+
+    const weekday = weekdayName(dateStr).toLowerCase()
+    const dayCap = capByDay.get(weekday) ?? 0
+    const window = eventWindowFor(dateStr, events)
+
+    if (window?.mode === 'blocked') {
+      days.push({ date: dateStr, status: 'event_blocked', eventName: window.event.name })
+      continue
+    }
+    if (dayCap <= 0 && window?.mode !== 'continue_training') {
+      days.push({ date: dateStr, status: 'rest' })
+      continue
+    }
+    if (window && window.mode !== 'continue_training') {
+      const session = sessionForEventWindow(dateStr, window, dayCap, phase)
+      days.push(session)
+      weekState.lastKindWasHard = HARD_KINDS.has(session.sessionKind)
+      if (session.sessionKind === 'recovery') weekState.recoveryCount++
+      continue
+    }
+
+    const holidayKind = holidayOverrides.get(dateStr)
+    if (holidayKind) {
+      const duration = Math.min(dayCap, holidayKind === 'intervals' ? 75 : 90)
+      days.push({
+        date: dateStr, status: 'session', sessionKind: holidayKind, workoutType: toWorkoutType(holidayKind),
+        durationMinutes: duration, phase, targetTss: targetTssForSession(holidayKind, duration), optional: true,
+      })
+      continue
+    }
+    if (window?.mode === 'continue_training') {
+      days.push({ date: dateStr, status: 'rest' }) // self-directed; no mandatory workout
+      continue
+    }
+
+    if (deloadWeeks.has(weekIndex)) {
+      const kind: SessionKind = dayCap <= 60 ? 'recovery' : 'endurance'
+      const duration = Math.max(20, round5(dayCap * 0.5))
+      days.push({
+        date: dateStr, status: 'session', sessionKind: kind, workoutType: toWorkoutType(kind),
+        durationMinutes: duration, phase, targetTss: targetTssForSession(kind, duration), optional: false,
+      })
+      weekState.lastKindWasHard = false
+      if (kind === 'recovery') weekState.recoveryCount++
+      continue
+    }
+
+    const kind = pickNormalSessionKind(phase, weekState, weekIndex === lastBaseWeekIndex, intensityProfile, emphasis)
+    if (kind === 'threshold') weekState.thresholdUsed = true
+    if (kind === 'intervals') weekState.intervalsUsed = true
+    if (kind === 'recovery') weekState.recoveryCount++
+    weekState.lastKindWasHard = HARD_KINDS.has(kind)
+    days.push({
+      date: dateStr, status: 'session', sessionKind: kind, workoutType: toWorkoutType(kind),
+      durationMinutes: dayCap, phase, targetTss: targetTssForSession(kind, dayCap), optional: false,
+    })
+  }
+  return days
+}
