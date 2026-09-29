@@ -2305,9 +2305,10 @@ export async function generatePlan(
     const data = await res.json().catch(() => ({}))
     return { ok: false, error: data.error ?? 'Plan generation failed' }
   }
-  const { job_id: jobId } = await res.json()
+  const startData = await res.json().catch(() => null)
+  if (!startData?.job_id) return { ok: false, error: 'Invalid response from server' }
   try {
-    return await pollJob(jobId, '/api/plan/jobs', callbacks)
+    return await pollJob(startData.job_id, '/api/plan/jobs', callbacks)
   } catch {
     return { ok: false, error: 'Network error while checking plan status' }
   }
