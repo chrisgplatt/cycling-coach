@@ -125,7 +125,6 @@ export default function PlanPage() {
   const [jobPhase, setJobPhase] = useState<'scheduling' | 'writing_sessions' | null>(null)
 
   // Adaptation (plan review after event changes)
-  const reviewAbortRef = useRef<AbortController | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
@@ -185,9 +184,6 @@ export default function PlanPage() {
   }
 
   async function startAdaptation(note: string) {
-    reviewAbortRef.current?.abort()
-    const controller = new AbortController()
-    reviewAbortRef.current = controller
     setReviewLoading(true)
     setReviewPlan(null)
     setReviewWorkoutsFound(0)
@@ -197,37 +193,27 @@ export default function PlanPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note }),
-        signal: controller.signal,
       })
-      if (!res.ok || !res.body) { setReviewLoading(false); return }
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buf = ''
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setReviewLoading(false)
+        setSaveError(data.error ?? 'Failed to start review')
+        return
+      }
+      const { job_id: jobId } = await res.json()
       while (true) {
-        const { done, value } = await reader.read()
-        if (done || controller.signal.aborted) break
-        buf += decoder.decode(value, { stream: true })
-        const lines = buf.split('\n')
-        buf = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.trim()) continue
-          try {
-            const msg = JSON.parse(line)
-            if (msg.type === 'total') setReviewEstimatedWorkouts(msg.count)
-            if (msg.type === 'progress') setReviewWorkoutsFound(msg.found)
-            if (msg.type === 'done') { setReviewPlan(msg.plan); setReviewLoading(false) }
-            if (msg.type === 'error') setReviewLoading(false)
-          } catch { /* ignore */ }
+        await new Promise(resolve => setTimeout(resolve, 3000))
+        const statusRes = await fetch(`/api/plan/jobs/${jobId}`)
+        if (!statusRes.ok) { setReviewLoading(false); return }
+        const job = await statusRes.json()
+        if (job.progress.total > 0) {
+          setReviewEstimatedWorkouts(job.progress.total)
+          setReviewWorkoutsFound(job.progress.completed)
         }
+        if (job.status === 'done') { setReviewPlan(job.result); setReviewLoading(false); return }
+        if (job.status === 'error') { setReviewLoading(false); return }
       }
-      if (buf.trim()) {
-        try {
-          const msg = JSON.parse(buf)
-          if (msg.type === 'done') { setReviewPlan(msg.plan); setReviewLoading(false) }
-        } catch { /* ignore */ }
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return
+    } catch {
       setReviewLoading(false)
     }
   }
