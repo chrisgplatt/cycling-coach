@@ -90,7 +90,7 @@ ${eventsSection}
 NEXT 7 DAYS (ID | date: type duration — description):
 ${weekSection}
 
-Answer questions about today's session. If the athlete asks to modify or rework the session, propose specific changes. When proposing changes, end your response with:
+Answer questions about today's session. Keep your conversational reply concise — a few sentences is usually enough; the athlete can always ask a follow-up if they want more detail. If the athlete asks to modify or rework the session, propose specific changes. When proposing changes, end your response with:
 
 __PROPOSAL__
 {"today_update": {"duration_minutes": <number>, "type": "<type>", "description": "<text>", "target_zones": "<text>"}, "rationale": "<short explanation>", "week_follow_up": "<optional: single question asking if they want to adjust the week — omit field if change doesn't affect weekly load>"}

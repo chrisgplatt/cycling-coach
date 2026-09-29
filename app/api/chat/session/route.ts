@@ -96,9 +96,10 @@ export async function POST(req: NextRequest) {
 
   const stream = await anthropic.messages.stream({
     model: MODEL,
-    // Headroom for adaptive thinking (default on Opus 5), which draws from
-    // this same budget as the visible chat reply.
-    max_tokens: 8192,
+    // Headroom for adaptive thinking (default on Opus 5), which draws from this same
+    // budget as the visible chat reply AND the __PROPOSAL__/__WEEK_PROPOSAL__ JSON that
+    // follows it — sized generously since a verbose reply must never crowd out the JSON.
+    max_tokens: 16000,
     // The system prompt is stable across turns within a sitting, so an explicit cache
     // breakpoint means every follow-up message pays ~0.1x for it instead of full price.
     system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
@@ -116,6 +117,12 @@ export async function POST(req: NextRequest) {
         }
         const finalMsg = await stream.finalMessage()
         logUsage('chat.session', finalMsg)
+        if (finalMsg.stop_reason === 'max_tokens') {
+          // Reply and/or proposal JSON is incomplete — tell the client explicitly rather
+          // than letting a proposal silently fail to parse with no visible explanation.
+          console.warn('[chat.session] response truncated at max_tokens')
+          controller.enqueue(new TextEncoder().encode('\n__TRUNCATED__'))
+        }
         controller.close()
         await supabase.from('coach_messages').insert({
           user_id: user.id, surface: 'workout', role: 'assistant',

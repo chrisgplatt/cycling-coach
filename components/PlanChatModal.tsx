@@ -21,6 +21,7 @@ interface Props {
 const PLAN_MARKER = '__PLAN_PROPOSAL__'
 const REMEMBER_MARKER = '__REMEMBER__'
 const FORGET_MARKER = '__FORGET__'
+const TRUNCATED_MARKER = '__TRUNCATED__'
 
 function extractNoteMarker(text: string): { visible: string; note?: string; forget?: string } {
   for (const [marker, key] of [
@@ -105,6 +106,7 @@ export default function PlanChatModal({
         fullText.includes(PLAN_MARKER) ? fullText.indexOf(PLAN_MARKER) : Infinity,
         fullText.includes(REMEMBER_MARKER) ? fullText.indexOf(REMEMBER_MARKER) : Infinity,
         fullText.includes(FORGET_MARKER) ? fullText.indexOf(FORGET_MARKER) : Infinity,
+        fullText.includes(TRUNCATED_MARKER) ? fullText.indexOf(TRUNCATED_MARKER) : Infinity,
       )
       const visibleText = cutIdx < Infinity ? fullText.slice(0, cutIdx) : fullText
       setMessages(prev => {
@@ -114,8 +116,14 @@ export default function PlanChatModal({
       })
     }
 
+    const wasTruncated = fullText.includes(TRUNCATED_MARKER)
     const markerIdx = fullText.indexOf(PLAN_MARKER)
-    if (markerIdx !== -1) {
+    if (wasTruncated) {
+      // The server ran out of token budget mid-reply or mid-JSON — never attempt to
+      // parse a truncated proposal; tell the athlete plainly instead of a generic
+      // "trouble formatting" message or (with a bad proposal) silently dropping it.
+      setMessages(prev => [...prev, { role: 'assistant', content: 'My reply got cut off before I could finish — try asking again, or ask for something more specific.' }])
+    } else if (markerIdx !== -1) {
       try {
         setProposal(JSON.parse(fullText.slice(markerIdx + PLAN_MARKER.length).trim()) as ProposedAdjustment)
       } catch (e) {
@@ -125,7 +133,7 @@ export default function PlanChatModal({
     }
 
     // Handle note markers (mutually exclusive with plan proposals)
-    if (fullText.indexOf(PLAN_MARKER) === -1) {
+    if (!wasTruncated && fullText.indexOf(PLAN_MARKER) === -1) {
       const { visible, note, forget } = extractNoteMarker(fullText)
       if (note || forget) {
         postNote(note, forget)

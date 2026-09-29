@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     model: MODEL,
     // Headroom for adaptive thinking (default on Opus 5), which draws from
     // this same budget as the visible chat reply.
-    max_tokens: 8192,
+    max_tokens: 16000,
     // The system prompt is stable across turns within a sitting (dossier/memory/wellness
     // don't change mid-conversation), so an explicit cache breakpoint here means every
     // follow-up message in a chat session pays ~0.1x for it instead of full price again.
@@ -120,6 +120,9 @@ export async function POST(req: NextRequest) {
         }
         const finalMsg = await stream.finalMessage()
         logUsage('chat.general', finalMsg)
+        if (finalMsg.stop_reason === 'max_tokens') {
+          console.warn('[chat.general] response truncated at max_tokens')
+        }
         await Promise.all([
           supabase.from('chat_messages').insert({ role: 'assistant', content: fullResponse, user_id: userId }),
           supabase.from('coach_messages').insert({ user_id: userId, surface: 'coach', role: 'assistant', content: fullResponse, context: null }),

@@ -33,6 +33,7 @@ const PROPOSAL_MARKER = '__PROPOSAL__'
 const WEEK_MARKER = '__WEEK_PROPOSAL__'
 const REMEMBER_MARKER = '__REMEMBER__'
 const FORGET_MARKER = '__FORGET__'
+const TRUNCATED_MARKER = '__TRUNCATED__'
 
 function extractNoteMarker(text: string): { visible: string; note?: string; forget?: string } {
   for (const [marker, key] of [
@@ -112,6 +113,7 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
         fullText.includes(WEEK_MARKER) ? fullText.indexOf(WEEK_MARKER) : Infinity,
         fullText.includes(REMEMBER_MARKER) ? fullText.indexOf(REMEMBER_MARKER) : Infinity,
         fullText.includes(FORGET_MARKER) ? fullText.indexOf(FORGET_MARKER) : Infinity,
+        fullText.includes(TRUNCATED_MARKER) ? fullText.indexOf(TRUNCATED_MARKER) : Infinity,
       )
       const visibleText = cutIdx < Infinity ? fullText.slice(0, cutIdx) : fullText
       setMessages(prev => {
@@ -121,11 +123,17 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
       })
     }
 
+    const wasTruncated = fullText.includes(TRUNCATED_MARKER)
     // Parse proposal blocks from the full buffered response
     const proposalIdx = fullText.indexOf(PROPOSAL_MARKER)
     const weekIdx = fullText.indexOf(WEEK_MARKER)
 
-    if (proposalIdx !== -1) {
+    if (wasTruncated) {
+      // The server ran out of token budget mid-reply or mid-JSON — never attempt to
+      // parse a truncated proposal; tell the athlete plainly instead of silently
+      // dropping it (the previous behavior when JSON.parse failed here).
+      setMessages(prev => [...prev, { role: 'assistant', content: 'My reply got cut off before I could finish — try asking again, or ask for something more specific.' }])
+    } else if (proposalIdx !== -1) {
       try {
         setProposal(JSON.parse(fullText.slice(proposalIdx + PROPOSAL_MARKER.length).trim()) as SessionProposal)
       } catch { /* malformed — ignore */ }
@@ -136,7 +144,7 @@ export default function SessionChatModal({ workout, wellness, onClose, onWorkout
     }
 
     // Handle note markers (mutually exclusive with proposals)
-    if (fullText.indexOf(PROPOSAL_MARKER) === -1 && fullText.indexOf(WEEK_MARKER) === -1) {
+    if (!wasTruncated && fullText.indexOf(PROPOSAL_MARKER) === -1 && fullText.indexOf(WEEK_MARKER) === -1) {
       const { visible, note, forget } = extractNoteMarker(fullText)
       if (note || forget) {
         postNote(note, forget)

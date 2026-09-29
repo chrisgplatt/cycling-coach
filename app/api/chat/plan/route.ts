@@ -132,7 +132,7 @@ ${eventsSection}
 FUTURE PLANNED WORKOUTS (ID | date | type | duration | description):
 ${workoutsSection}
 
-Discuss training approach, answer questions, and propose changes when appropriate. Whenever your response text mentions modifying an existing session OR adding a new session, you MUST end your response with a __PLAN_PROPOSAL__ block containing ALL proposed changes. If you mention something in your text, it must be in the JSON — if it is not in the JSON it will be silently ignored and not applied.
+Discuss training approach, answer questions, and propose changes when appropriate. Keep your conversational reply concise — a few sentences is usually enough; the athlete can always ask a follow-up if they want more detail. Whenever your response text mentions modifying an existing session OR adding a new session, you MUST end your response with a __PLAN_PROPOSAL__ block containing ALL proposed changes. If you mention something in your text, it must be in the JSON — if it is not in the JSON it will be silently ignored and not applied.
 
 __PLAN_PROPOSAL__
 {
@@ -234,9 +234,10 @@ export async function POST(req: NextRequest) {
 
   const stream = await anthropic.messages.stream({
     model: MODEL,
-    // Headroom for adaptive thinking (default on Opus 5), which draws from
-    // this same budget as the visible chat reply.
-    max_tokens: 8192,
+    // Headroom for adaptive thinking (default on Opus 5), which draws from this same
+    // budget as the visible chat reply AND the __PLAN_PROPOSAL__ JSON that follows it —
+    // sized generously since a verbose reply must never be allowed to crowd out the JSON.
+    max_tokens: 16000,
     // The system prompt is stable across turns within a sitting, so an explicit cache
     // breakpoint means every follow-up message pays ~0.1x for it instead of full price.
     system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
@@ -255,6 +256,12 @@ export async function POST(req: NextRequest) {
         }
         const finalMsg = await stream.finalMessage()
         logUsage('chat.plan', finalMsg)
+        if (finalMsg.stop_reason === 'max_tokens') {
+          // Reply and/or __PLAN_PROPOSAL__ JSON is incomplete — tell the client explicitly
+          // rather than letting it fail an opaque JSON.parse on a truncated tail.
+          console.warn('[chat.plan] response truncated at max_tokens')
+          controller.enqueue(new TextEncoder().encode('\n__TRUNCATED__'))
+        }
         controller.close()
       } catch (err) {
         controller.error(err)
