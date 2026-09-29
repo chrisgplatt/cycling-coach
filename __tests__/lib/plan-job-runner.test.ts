@@ -163,3 +163,23 @@ describe('runPlanJob — review', () => {
     )
   })
 })
+
+describe('runPlanJob — extend', () => {
+  it('schedules only the newly appended weeks and returns the new total week count via week_phases length', async () => {
+    mockFillSession.mockReset().mockResolvedValue({
+      description: 'd', target_zones: 'z', steps: [{ label: 'Ride', duration_minutes: 60, power_pct_ftp: 65 }], coaching_notes: { summary: 's', focus: [] },
+    })
+    const supabase = makeSupabase()
+    await runPlanJob(supabase as never, 'job1', {
+      kind: 'extend', userId: 'u1', planStartDate: '2026-06-01', phases: ['base', 'base'],
+      fromDate: '2026-06-08', toDate: '2026-06-14', trainingPhilosophy: null,
+      profile: { ...profile(), weekly_availability: [{ day: 'monday', duration_minutes: 60 }] },
+      recentActivitiesSummary: '', athleteStateLine: '',
+      priorRationale: 'r', priorTargetEventName: 'E', priorTargetEventDate: '2026-09-01',
+    })
+    const done = supabase.updates.find(u => u.status === 'done')
+    const plan = done!.result as { workouts: Array<{ date: string }>; week_phases: string[] }
+    expect(plan.workouts.every(w => w.date >= '2026-06-08')).toBe(true)
+    expect(plan.week_phases).toEqual(['base', 'base'])
+  })
+})
