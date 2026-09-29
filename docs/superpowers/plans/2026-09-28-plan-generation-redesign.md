@@ -3143,6 +3143,92 @@ export async function POST(req: NextRequest) {
 }
 ```
 
+Also write the new route test file, `__tests__/api/plan-extend-post-job.test.ts`, in full:
+
+```ts
+/** @jest-environment node */
+jest.mock('@/lib/supabase-server', () => ({ createSupabaseServerClient: jest.fn() }))
+jest.mock('@/lib/intervals/client', () => ({ IntervalsClient: jest.fn() }))
+jest.mock('@/lib/hrv/server', () => ({ fetchHrvStatusBestSource: jest.fn(async () => null) }))
+jest.mock('@vercel/functions', () => ({ waitUntil: jest.fn() }))
+
+const mockRunPlanJob = jest.fn(async (..._args: unknown[]) => {})
+jest.mock('@/lib/plan/job-runner', () => ({ runPlanJob: (...args: unknown[]) => mockRunPlanJob(...args) }))
+
+import { POST } from '@/app/api/plan/extend/route'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { waitUntil } from '@vercel/functions'
+
+const goodProfile = {
+  goals: 'g', events: [], weekly_availability: [{ day: 'monday', duration_minutes: 60 }],
+  current_ftp: 200, weight_kg: 70, intervals_icu_athlete_id: 'i1', intervals_icu_api_key: 'k1', garmin_email: null,
+}
+
+const activePlan = {
+  id: 'plan1', plan_weeks: 12, created_at: '2026-06-01T00:00:00Z',
+  training_philosophy: null, week_phases: Array(12).fill('build'), phase: 'build',
+  rationale: 'Original rationale', target_event_name: 'Dragon Ride', target_event_date: '2026-09-01',
+}
+
+function makeSupabase(overrides: { plan?: unknown; insertResult?: unknown } = {}) {
+  return {
+    auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) },
+    from: (table: string) => {
+      if (table === 'training_plans') {
+        return { select: () => ({ eq: () => ({ eq: () => ({ order: () => ({ limit: () => ({ maybeSingle: async () => ({ data: 'plan' in overrides ? overrides.plan : activePlan }) }) }) }) }) }) }
+      }
+      if (table === 'workouts') {
+        return { select: () => ({ eq: () => ({ eq: () => ({ eq: () => ({ limit: () => ({ maybeSingle: async () => ({ data: null }) }) }) }) }) }) }
+      }
+      if (table === 'user_profile') return { select: () => ({ maybeSingle: async () => ({ data: goodProfile }) }) }
+      if (table === 'plan_generation_jobs') return { insert: () => ({ select: () => ({ single: async () => overrides.insertResult ?? { data: { id: 'job1' }, error: null } }) }) }
+      throw new Error(`unexpected table ${table}`)
+    },
+  }
+}
+
+function makeRequest(body: unknown) {
+  return new Request('http://localhost/api/plan/extend', { method: 'POST', body: JSON.stringify(body) }) as never
+}
+
+beforeEach(() => jest.clearAllMocks())
+
+describe('POST /api/plan/extend', () => {
+  it('creates a pending extend job, kicks it off via waitUntil, and returns 202 with job id + extra_weeks + new_total_weeks', async () => {
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase())
+    const res = await POST(makeRequest({ extra_weeks: 4 }))
+    expect(res.status).toBe(202)
+    const body = await res.json()
+    expect(body.job_id).toBe('job1')
+    expect(body.extra_weeks).toBe(4)
+    expect(waitUntil).toHaveBeenCalledTimes(1)
+    expect(mockRunPlanJob).toHaveBeenCalledWith(
+      expect.anything(), 'job1',
+      expect.objectContaining({ kind: 'extend', priorRationale: 'Original rationale', priorTargetEventName: 'Dragon Ride' }),
+    )
+  })
+
+  it('returns 400 when extra_weeks is out of range', async () => {
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase())
+    const res = await POST(makeRequest({ extra_weeks: 30 }))
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 when there is no active plan', async () => {
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ plan: null }))
+    const res = await POST(makeRequest({ extra_weeks: 4 }))
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 500 when the job row fails to insert', async () => {
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ insertResult: { data: null, error: new Error('db down') } }))
+    const res = await POST(makeRequest({ extra_weeks: 4 }))
+    expect(res.status).toBe(500)
+    expect(waitUntil).not.toHaveBeenCalled()
+  })
+})
+```
+
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `npm test -- __tests__/lib/plan-job-runner.test.ts __tests__/api/plan-extend-post-job.test.ts`
@@ -3153,13 +3239,19 @@ Expected: no errors
 
 - [ ] **Step 5: Commit**
 
+Note: despite the phrase "only the newly appended weeks" in this task's title, the job actually schedules from `genStartDate` (today, or tomorrow if today's session is already completed) through the extended plan's new end date — i.e. all remaining weeks of the original plan plus the newly appended ones, not just the new tail. This matches the pre-existing (pre-redesign) extend behavior exactly, and matches what `app/api/plan/extend/apply/route.ts` already expects (it deletes all planned workouts from today onward before inserting the incoming plan's workouts) — a plan can't have some weeks on the old periodization and some on the new without recomputing phases holistically for the new total length. Word the commit message accordingly:
+
 ```bash
 git add lib/plan/job-runner.ts app/api/plan/extend/route.ts __tests__/lib/plan-job-runner.test.ts __tests__/api/plan-extend-post-job.test.ts
 git commit -m "$(cat <<'EOF'
-Make plan extension job-based, scheduling only the new weeks
+Make plan extension job-based, regenerating from today through the new end
 
-Reuses buildPlanSkeleton and the parallel fill-in for just the weeks
-being appended — existing weeks are untouched, same as before.
+Reuses buildPlanSkeleton and the parallel fill-in for the remaining +
+newly appended weeks together (today through the extended plan's new
+end date), matching the existing extend/apply behavior of replacing
+all future workouts rather than only the new tail -- periodization
+phases for the new total length can't be split across old and new
+week-numbering.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_017khvX6Xxvu6e7n5pJZJJaD
