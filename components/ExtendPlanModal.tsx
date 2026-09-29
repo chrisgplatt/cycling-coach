@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { computeMethodology } from '@/lib/claude/methodology'
 import type { GeneratedPlan, TrainingEvent, TrainingPhilosophy } from '@/types'
 
@@ -62,7 +62,6 @@ export default function ExtendPlanModal({
     new_total_weeks: number
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
 
   const selectedEvent = upcomingEvents.find(e => e.date === selectedEventDate) ?? null
 
@@ -77,9 +76,6 @@ export default function ExtendPlanModal({
   }
 
   async function handleGenerate() {
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
     setPhase('loading')
     setError(null)
     setWorkoutsFound(0)
@@ -89,7 +85,6 @@ export default function ExtendPlanModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ extra_weeks: selectedWeeks }),
-        signal: controller.signal,
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -97,44 +92,28 @@ export default function ExtendPlanModal({
         setPhase('select')
         return
       }
-      if (!res.body) {
-        setError('No response from server')
-        setPhase('select')
-        return
-      }
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
+      const { job_id: jobId, extra_weeks: extraWeeksResolved, new_total_weeks: newTotalWeeks } = await res.json()
       while (true) {
-        const { done, value } = await reader.read()
-        if (done || controller.signal.aborted) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.trim()) continue
-          try {
-            const event = JSON.parse(line)
-            if (event.type === 'total') setTotalWorkouts(event.count)
-            else if (event.type === 'progress') setWorkoutsFound(event.found)
-            else if (event.type === 'plan') {
-              setPendingResult({
-                plan: event.plan,
-                extra_weeks: event.extra_weeks,
-                new_total_weeks: event.new_total_weeks,
-              })
-              setPhase('review')
-              return
-            } else if (event.type === 'error') {
-              setError(event.message ?? 'Generation failed')
-              setPhase('select')
-              return
-            }
-          } catch { /* ignore malformed lines */ }
+        await new Promise(resolve => setTimeout(resolve, 3000))
+        const statusRes = await fetch(`/api/plan/jobs/${jobId}`)
+        if (!statusRes.ok) { setError('Failed to check extension status'); setPhase('select'); return }
+        const job = await statusRes.json()
+        if (job.progress.total > 0) {
+          setTotalWorkouts(job.progress.total)
+          setWorkoutsFound(job.progress.completed)
+        }
+        if (job.status === 'done') {
+          setPendingResult({ plan: job.result, extra_weeks: extraWeeksResolved, new_total_weeks: newTotalWeeks })
+          setPhase('review')
+          return
+        }
+        if (job.status === 'error') {
+          setError(job.error ?? 'Generation failed')
+          setPhase('select')
+          return
         }
       }
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return
       setError(err instanceof Error ? err.message : 'Network error')
       setPhase('select')
     }
