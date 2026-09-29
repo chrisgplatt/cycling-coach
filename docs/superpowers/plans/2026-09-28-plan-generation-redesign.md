@@ -2647,7 +2647,7 @@ Expected: FAIL — `runPlanJob` not exported, and `Cannot find module '@/app/api
 
 - [ ] **Step 3: Implement**
 
-Extend `lib/plan/scheduler.ts`'s `BuildSkeletonInput` and the final session-construction branch in `buildPlanSkeleton` to accept an optional `durationMultiplier` (default 1), applied via `round5(dayCap * durationMultiplier)` wherever a session's duration is currently just `dayCap`, then re-deriving `targetTss` from the scaled duration. Add one test to `__tests__/lib/plan-scheduler.test.ts`:
+Extend `lib/plan/scheduler.ts`'s `BuildSkeletonInput` to accept an optional `durationMultiplier` (default 1). In the normal-picker branch, change the duration line from `Math.min(dayCap, DURATION_CEILING_BY_KIND[kind])` (Task 5's fix) to `Math.min(dayCap, round5(dayCap * durationMultiplier), DURATION_CEILING_BY_KIND[kind])` — the `dayCap` bound must stay in the `Math.min(...)` alongside the rounded, scaled value, not be replaced by it: review's `loadMultiplier` can be as high as 1.1 (the "+10% good week" bonus), so `round5(dayCap * durationMultiplier)` can legitimately exceed `dayCap` whenever load increases, and dropping the direct `dayCap` bound would violate the hard "never exceed available minutes" rule on exactly the review flow's own headline feature. Then re-derive `targetTss` from the final scaled duration. Add two tests to `__tests__/lib/plan-scheduler.test.ts`:
 
 ```ts
 it('scales normal-week session duration by durationMultiplier', () => {
@@ -2658,6 +2658,16 @@ it('scales normal-week session duration by durationMultiplier', () => {
   })
   const monday = days.find((d): d is ScheduledSession => d.status === 'session' && d.date === '2026-06-01')
   expect(monday?.durationMinutes).toBe(30) // 60 * 0.5
+})
+it('never lets a durationMultiplier above 1 push duration past the day cap', () => {
+  const phases: PlanPhase[] = Array(4).fill('build')
+  const days = buildPlanSkeleton({
+    profile: { events: [], weekly_availability: [{ day: 'monday', duration_minutes: 60 }] },
+    planStartDate: '2026-06-01', phases,
+    fromDate: '2026-06-01', toDate: '2026-06-01', durationMultiplier: 1.1, // review's "+10% good week" bonus
+  })
+  const monday = days.find((d): d is ScheduledSession => d.status === 'session' && d.date === '2026-06-01')
+  expect(monday!.durationMinutes).toBeLessThanOrEqual(60) // round5(60*1.1)=65 must still clamp to the 60min cap
 })
 ```
 
