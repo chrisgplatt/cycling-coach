@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import PlanPage from '@/app/plan/page'
-import { generatePlanInBatches } from '@/lib/plan/generate-batches'
+import { generatePlan } from '@/lib/plan/generate-job'
 import { makeTrainingSummary } from '../../support/factories'
 
 global.fetch = jest.fn().mockResolvedValue({
@@ -8,7 +8,7 @@ global.fetch = jest.fn().mockResolvedValue({
   json: async () => ({}),
 })
 
-jest.mock('@/lib/plan/generate-batches', () => ({ generatePlanInBatches: jest.fn() }))
+jest.mock('@/lib/plan/generate-job', () => ({ generatePlan: jest.fn() }))
 
 describe('PlanPage tabs', () => {
   it('renders all three tab buttons', () => {
@@ -362,8 +362,8 @@ describe('My Plan tab — batched plan generation wiring', () => {
     })
   }
 
-  it('shows the approval modal when generatePlanInBatches succeeds', async () => {
-    (generatePlanInBatches as jest.Mock).mockResolvedValue({
+  it('shows the approval modal when generatePlan succeeds', async () => {
+    (generatePlan as jest.Mock).mockResolvedValue({
       ok: true,
       plan: {
         rationale: 'r', target_event_name: 'Dragon Ride', target_event_date: '2026-09-01',
@@ -380,15 +380,15 @@ describe('My Plan tab — batched plan generation wiring', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^start$/i }))
 
     expect(await screen.findByText(/New Training Plan/i)).toBeInTheDocument()
-    expect(generatePlanInBatches).toHaveBeenCalledWith(
+    expect(generatePlan).toHaveBeenCalledWith(
       6,
       expect.objectContaining({ startDate: expect.any(String), notes: '' }),
-      expect.objectContaining({ onTotal: expect.any(Function), onProgress: expect.any(Function) }),
+      expect.objectContaining({ onTotal: expect.any(Function), onProgress: expect.any(Function), onPhase: expect.any(Function) }),
     )
   })
 
-  it('shows the batch failure message on the Training Plan screen when generatePlanInBatches fails', async () => {
-    (generatePlanInBatches as jest.Mock).mockResolvedValue({
+  it('shows the batch failure message on the Training Plan screen when generatePlan fails', async () => {
+    (generatePlan as jest.Mock).mockResolvedValue({
       ok: false, error: 'Plan generation failed while building weeks 5-8',
     })
     mockProfileAndPlanFetch()

@@ -51,37 +51,19 @@ describe('PlanApprovalModal', () => {
 describe('PlanApprovalModal — loading state', () => {
   afterEach(() => { jest.useRealTimers() })
 
-  it('shows a generic heading while loading with no batch status', () => {
+  it('shows a generic heading while loading with no job phase', () => {
     render(<PlanApprovalModal plan={null} loading onApprove={jest.fn()} onReject={jest.fn()} />)
-    expect(screen.getByText('Building your training plan…')).toBeInTheDocument()
+    expect(screen.getByText('Building your 6-week plan…')).toBeInTheDocument()
   })
 
-  it('shows the week range and batch count when batchStatus is provided', () => {
-    render(
-      <PlanApprovalModal
-        plan={null}
-        loading
-        weeks={12}
-        batchStatus={{ weekLabel: 'weeks 7-12', batchIndex: 1, totalBatches: 2 }}
-        onApprove={jest.fn()}
-        onReject={jest.fn()}
-      />
-    )
-    expect(screen.getByText('Building weeks 7-12 of 12 (batch 2 of 2)…')).toBeInTheDocument()
+  it('shows a scheduling message before any sessions are being written', () => {
+    render(<PlanApprovalModal plan={null} loading weeks={12} jobPhase="scheduling" workoutsFound={0} estimatedWorkouts={0} onApprove={jest.fn()} onReject={jest.fn()} />)
+    expect(screen.getByText(/scheduling your plan/i)).toBeInTheDocument()
   })
 
-  it('omits the batch count suffix when there is only one batch', () => {
-    render(
-      <PlanApprovalModal
-        plan={null}
-        loading
-        weeks={6}
-        batchStatus={{ weekLabel: 'weeks 1-6', batchIndex: 0, totalBatches: 1 }}
-        onApprove={jest.fn()}
-        onReject={jest.fn()}
-      />
-    )
-    expect(screen.getByText('Building weeks 1-6 of 6…')).toBeInTheDocument()
+  it('shows session-writing progress once Tier 2 starts', () => {
+    render(<PlanApprovalModal plan={null} loading weeks={12} jobPhase="writing_sessions" workoutsFound={4} estimatedWorkouts={10} onApprove={jest.fn()} onReject={jest.fn()} />)
+    expect(screen.getByText(/writing session 4 of 10/i)).toBeInTheDocument()
   })
 
   it('counts up an elapsed-seconds timer while loading', () => {

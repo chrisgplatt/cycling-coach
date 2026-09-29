@@ -4,19 +4,13 @@ import type { GeneratedPlan, TrainingPhilosophy } from '@/types'
 import AnimatedLogo from './AnimatedLogo'
 import { WORKOUT_TYPE_BADGE } from '@/lib/workout-colours'
 
-interface BatchStatus {
-  weekLabel: string
-  batchIndex: number
-  totalBatches: number
-}
-
 interface Props {
   plan: GeneratedPlan | null
   loading?: boolean
   weeks?: number
   workoutsFound?: number
   estimatedWorkouts?: number
-  batchStatus?: BatchStatus | null
+  jobPhase?: 'scheduling' | 'writing_sessions' | null
   trainingPhilosophy?: TrainingPhilosophy | null
   onApprove: () => void
   onReject: () => void
@@ -33,7 +27,7 @@ const THINKING_MESSAGES = [
   'Checking for event and rest-day conflicts…',
 ]
 
-export default function PlanApprovalModal({ plan, loading = false, weeks = 6, workoutsFound = 0, estimatedWorkouts = 0, batchStatus = null, trainingPhilosophy = null, onApprove, onReject }: Props) {
+export default function PlanApprovalModal({ plan, loading = false, weeks = 6, workoutsFound = 0, estimatedWorkouts = 0, jobPhase = null, trainingPhilosophy = null, onApprove, onReject }: Props) {
   const [name, setName] = useState('')
   const [approving, setApproving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -76,11 +70,11 @@ export default function PlanApprovalModal({ plan, loading = false, weeks = 6, wo
 
   if (loading || !plan) {
     const pct = estimatedWorkouts > 0 ? Math.min(100, (workoutsFound / estimatedWorkouts) * 100) : 0
-    const heading = batchStatus
-      ? `Building ${batchStatus.weekLabel} of ${weeks}${
-          batchStatus.totalBatches > 1 ? ` (batch ${batchStatus.batchIndex + 1} of ${batchStatus.totalBatches})` : ''
-        }…`
-      : 'Building your training plan…'
+    const heading = jobPhase === 'scheduling'
+      ? 'Scheduling your plan…'
+      : jobPhase === 'writing_sessions'
+        ? `Writing session ${workoutsFound} of ${estimatedWorkouts || '…'}`
+        : `Building your ${weeks}-week plan…`
     const thinkingMessage = THINKING_MESSAGES[Math.floor(elapsedSec / 4) % THINKING_MESSAGES.length]
     return (
       <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
