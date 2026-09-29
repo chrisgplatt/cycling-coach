@@ -52,6 +52,12 @@ export async function POST(req: NextRequest) {
   const { data: profileData } = await supabase.from('user_profile').select('*').maybeSingle()
   if (!profileData) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
 
+  let pushSubscription = null
+  if (profileData.notifications_enabled) {
+    const { data: sub } = await supabase.from('push_subscriptions').select('endpoint, p256dh, auth').eq('user_id', user.id).limit(1).maybeSingle()
+    pushSubscription = sub ?? null
+  }
+
   const weeklyHours = ((profileData.weekly_availability ?? []) as Array<{ duration_minutes: number }>).reduce((sum, a) => sum + a.duration_minutes, 0) / 60
   const nearestEvent = [...(profileData.events ?? [])]
     .filter((e: { date: string; priority: string }) => e.date >= today && (e.priority === 'A' || e.priority === 'B'))
@@ -86,6 +92,7 @@ export async function POST(req: NextRequest) {
     fromDate: genStartDate, toDate: toDate.toISOString().split('T')[0], trainingPhilosophy: philosophyToUse,
     profile: profileData, recentActivitiesSummary: 'No recent activities.', athleteStateLine,
     priorRationale: activePlan.rationale, priorTargetEventName: activePlan.target_event_name, priorTargetEventDate: activePlan.target_event_date,
+    pushSubscription,
   }))
 
   return NextResponse.json({ job_id: job.id, extra_weeks: extraWeeks, new_total_weeks: newTotal }, { status: 202 })

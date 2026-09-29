@@ -159,6 +159,7 @@ export function holidayOptionalSessionDates(
 export interface WeekState {
   thresholdUsed: boolean
   intervalsUsed: boolean
+  tempoUsed: boolean
   recoveryCount: number
   lastKindWasHard: boolean
 }
@@ -197,8 +198,16 @@ export function pickNormalSessionKind(
 
   if (state.recoveryCount === 0) return 'recovery'
 
-  if (phase === 'base') return emphasis.climbing > 0.3 ? 'tempo' : 'endurance'
-  return emphasis.enduranceVolume + emphasis.weightLoss > emphasis.climbing + emphasis.speed ? 'endurance' : 'tempo'
+  // CLAUDE.md's build/peak distribution puts Z3 (tempo) at only 10-15% of the week — at
+  // most one tempo session, with every other remaining slot defaulting to endurance.
+  // This must default to endurance on a tie, not tempo, since DEFAULT_EMPHASIS (used by
+  // every review/extend job and generate's fallback path) is exactly tied.
+  if (phase === 'base') {
+    if (!state.tempoUsed && emphasis.climbing > 0.3) return 'tempo'
+    return 'endurance'
+  }
+  if (!state.tempoUsed && (emphasis.climbing + emphasis.speed) > (emphasis.enduranceVolume + emphasis.weightLoss)) return 'tempo'
+  return 'endurance'
 }
 
 import type { UserProfile } from '@/types'
@@ -254,7 +263,14 @@ function sessionForEventWindow(dateStr: string, window: EventWindow, dayCap: num
     }
   }
   switch (window.mode) {
-    case 'pre_activation': return make('intervals', round5(dayCap * 0.5))
+    case 'pre_activation': {
+      const daysUntilEvent = daysBetweenUtc(dateStr, window.event.date)
+      // Only the day immediately before the event gets the short, sharp activation
+      // effort; CLAUDE.md's "otherwise Z1-Z2" means the earlier of the two pre-race
+      // days must not also be a hard session, or two hard days land back to back.
+      if (daysUntilEvent === 1) return make('intervals', round5(dayCap * 0.5))
+      return make('endurance', round5(dayCap * 0.4))
+    }
     case 'pre_reduce': return make('endurance', round5(dayCap * 0.75))
     case 'pre_taper_early': return make('endurance', round5(dayCap * 0.7))
     case 'post_recovery': return make('recovery', round5(dayCap * 0.5))
@@ -269,6 +285,7 @@ function sessionForEventWindow(dateStr: string, window: EventWindow, dayCap: num
 function applyToWeekState(weekState: WeekState, sessionKind: SessionKind): void {
   if (sessionKind === 'threshold') weekState.thresholdUsed = true
   if (sessionKind === 'intervals') weekState.intervalsUsed = true
+  if (sessionKind === 'tempo') weekState.tempoUsed = true
   if (sessionKind === 'recovery') weekState.recoveryCount++
   weekState.lastKindWasHard = HARD_KINDS.has(sessionKind)
 }
@@ -291,7 +308,7 @@ export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
   // it must survive the weekly reset below and be explicitly maintained on every branch,
   // including rest/blocked days, or "no two hard sessions on consecutive days" silently
   // stops holding across a week boundary or a rest day.
-  let weekState: WeekState = { thresholdUsed: false, intervalsUsed: false, recoveryCount: 0, lastKindWasHard: false }
+  let weekState: WeekState = { thresholdUsed: false, intervalsUsed: false, tempoUsed: false, recoveryCount: 0, lastKindWasHard: false }
   let lastWeekIndex = -1
 
   for (let i = 0; i < totalDays; i++) {
@@ -299,7 +316,7 @@ export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
     const weekIndex = Math.floor(daysBetweenUtc(planStartDate, dateStr) / 7)
     const phase = phases[weekIndex] ?? phases[phases.length - 1] ?? 'base'
     if (weekIndex !== lastWeekIndex) {
-      weekState = { thresholdUsed: false, intervalsUsed: false, recoveryCount: 0, lastKindWasHard: weekState.lastKindWasHard }
+      weekState = { thresholdUsed: false, intervalsUsed: false, tempoUsed: false, recoveryCount: 0, lastKindWasHard: weekState.lastKindWasHard }
       lastWeekIndex = weekIndex
     }
 

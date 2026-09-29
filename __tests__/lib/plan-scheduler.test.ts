@@ -129,7 +129,7 @@ import { pickNormalSessionKind } from '@/lib/plan/scheduler'
 import type { WeekState } from '@/lib/plan/scheduler'
 
 function freshState(): WeekState {
-  return { thresholdUsed: false, intervalsUsed: false, recoveryCount: 0, lastKindWasHard: false }
+  return { thresholdUsed: false, intervalsUsed: false, tempoUsed: false, recoveryCount: 0, lastKindWasHard: false }
 }
 
 describe('pickNormalSessionKind', () => {
@@ -167,6 +167,20 @@ describe('pickNormalSessionKind', () => {
     const state = freshState()
     const speedFocused: PlanEmphasisArg = { climbing: 0, speed: 1, enduranceVolume: 0, weightLoss: 0 }
     expect(pickNormalSessionKind('build', state, false, null, speedFocused)).toBe('intervals')
+  })
+  it('defaults to endurance, not tempo, on a tied emphasis in build/peak/taper', () => {
+    // recoveryCount: 1 so the "ensure a recovery session first" branch doesn't preempt the
+    // tempo/endurance tie-break this test targets.
+    const state: WeekState = { ...freshState(), thresholdUsed: true, intervalsUsed: true, recoveryCount: 1 }
+    // DEFAULT_EMPHASIS is a tie (0.25 on all four fields) — this must not fall through to tempo.
+    const kind = pickNormalSessionKind('build', state, false, null, { climbing: 0.25, speed: 0.25, enduranceVolume: 0.25, weightLoss: 0.25 })
+    expect(kind).toBe('endurance')
+  })
+  it('never picks tempo twice in the same week', () => {
+    const climbingEmphasis = { climbing: 1, speed: 0, enduranceVolume: 0, weightLoss: 0 }
+    const state: WeekState = { ...freshState(), thresholdUsed: true, intervalsUsed: true, tempoUsed: true, recoveryCount: 1 }
+    const kind = pickNormalSessionKind('build', state, false, null, climbingEmphasis)
+    expect(kind).toBe('endurance')
   })
 })
 type PlanEmphasisArg = Parameters<typeof pickNormalSessionKind>[4]
@@ -271,17 +285,18 @@ describe('buildPlanSkeleton', () => {
       profile: {
         events: [{ name: 'Race', date: '2026-06-03', type: 'sportive', priority: 'B' }],
         weekly_availability: [
-          { day: 'monday', duration_minutes: 90 }, { day: 'thursday', duration_minutes: 90 }, { day: 'friday', duration_minutes: 90 },
+          { day: 'monday', duration_minutes: 90 }, { day: 'tuesday', duration_minutes: 90 },
+          { day: 'thursday', duration_minutes: 90 }, { day: 'friday', duration_minutes: 90 },
         ],
       },
       planStartDate: '2026-06-01', phases, fromDate: '2026-06-01', toDate: '2026-06-14',
       emphasis: { climbing: 0, speed: 1, enduranceVolume: 0, weightLoss: 0 },
     })
     const sessions = days.filter((d): d is ScheduledSession => d.status === 'session')
-    const monday = sessions.find(s => s.date === '2026-06-01')
+    const tuesday = sessions.find(s => s.date === '2026-06-02')
     const thursday = sessions.find(s => s.date === '2026-06-04')
-    expect(monday?.sessionKind).toBe('intervals')       // from the pre_activation event window (2 days before the race)
-    expect(thursday?.sessionKind).not.toBe('intervals')  // weekly intervals cap already used by Monday's event-window session
+    expect(tuesday?.sessionKind).toBe('intervals')       // from the pre_activation event window (1 day before the race)
+    expect(thursday?.sessionKind).not.toBe('intervals')  // weekly intervals cap already used by Tuesday's event-window session
   })
   it('does not allow a hard session on both sides of an internal week boundary', () => {
     const phases: PlanPhase[] = Array(2).fill('build')
@@ -328,6 +343,33 @@ describe('buildPlanSkeleton', () => {
     })
     const monday = days.find((d): d is ScheduledSession => d.status === 'session' && d.date === '2026-06-01')
     expect(monday!.durationMinutes).toBeLessThanOrEqual(10)
+  })
+  it('does not fill a build week with tempo sessions under default emphasis', () => {
+    const phases: PlanPhase[] = Array(4).fill('build')
+    const days = buildPlanSkeleton({
+      profile: profile(), planStartDate: '2026-06-01', phases,
+      fromDate: '2026-06-01', toDate: '2026-06-07', // one full week
+    })
+    const sessions = days.filter((d): d is ScheduledSession => d.status === 'session')
+    const tempoCount = sessions.filter(s => s.sessionKind === 'tempo').length
+    expect(tempoCount).toBeLessThanOrEqual(1)
+  })
+  it('does not schedule intervals on both pre-race activation days', () => {
+    const phases: PlanPhase[] = Array(2).fill('taper')
+    const days = buildPlanSkeleton({
+      profile: {
+        events: [{ name: 'Race', date: '2026-06-10', type: 'sportive', priority: 'A' }],
+        weekly_availability: [
+          { day: 'monday', duration_minutes: 90 }, { day: 'tuesday', duration_minutes: 90 },
+        ],
+      },
+      planStartDate: '2026-06-01', phases, fromDate: '2026-06-01', toDate: '2026-06-10',
+    })
+    // 2026-06-08 (Mon) is 2 days before the race, 2026-06-09 (Tue) is 1 day before.
+    const twoDaysBefore = days.find(d => d.date === '2026-06-08')
+    const oneDayBefore = days.find(d => d.date === '2026-06-09')
+    expect(twoDaysBefore).toMatchObject({ status: 'session', sessionKind: 'endurance' })
+    expect(oneDayBefore).toMatchObject({ status: 'session', sessionKind: 'intervals' })
   })
 })
 

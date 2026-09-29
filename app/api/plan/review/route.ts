@@ -26,6 +26,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
   }
 
+  let pushSubscription = null
+  if (profile.notifications_enabled) {
+    const { data: sub } = await supabase.from('push_subscriptions').select('endpoint, p256dh, auth').eq('user_id', user.id).limit(1).maybeSingle()
+    pushSubscription = sub ?? null
+  }
+
   const { data: plan } = await supabase
     .from('training_plans')
     .select('*, workouts(*)')
@@ -86,8 +92,9 @@ export async function POST(req: NextRequest) {
 
   waitUntil(runPlanJob(supabase, job.id, {
     kind: 'review', userId: user.id, planStartDate, phases, fromDate: today, toDate: toDate.toISOString().split('T')[0],
-    loadMultiplier, note, profile, recentActivitiesSummary, athleteStateLine,
+    loadMultiplier, note, trainingPhilosophy: plan.training_philosophy ?? null, profile, recentActivitiesSummary, athleteStateLine,
     priorRationale: plan.rationale, priorTargetEventName: plan.target_event_name, priorTargetEventDate: plan.target_event_date,
+    pushSubscription,
   }))
 
   return NextResponse.json({ job_id: job.id }, { status: 202 })

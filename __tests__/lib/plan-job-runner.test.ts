@@ -138,7 +138,7 @@ describe('runPlanJob — review', () => {
     await runPlanJob(supabase as never, 'job1', {
       kind: 'review', userId: 'u1', planStartDate: '2026-06-01', phases: ['base'],
       fromDate: '2026-06-01', toDate: '2026-06-07', loadMultiplier: 1, note: '',
-      profile: profile(), recentActivitiesSummary: 'No recent activities.', athleteStateLine: 'CTL: 50',
+      trainingPhilosophy: null, profile: profile(), recentActivitiesSummary: 'No recent activities.', athleteStateLine: 'CTL: 50',
       priorRationale: 'Original rationale', priorTargetEventName: 'Dragon Ride', priorTargetEventDate: '2026-09-01',
     })
     const done = supabase.updates.find(u => u.status === 'done')
@@ -153,7 +153,7 @@ describe('runPlanJob — review', () => {
     await runPlanJob(supabase as never, 'job1', {
       kind: 'review', userId: 'u1', planStartDate: '2026-06-01', phases: ['base'],
       fromDate: '2026-06-01', toDate: '2026-06-01', loadMultiplier: 0.5, note: '',
-      profile: { ...profile(), weekly_availability: [{ day: 'monday', duration_minutes: 60 }] },
+      trainingPhilosophy: null, profile: { ...profile(), weekly_availability: [{ day: 'monday', duration_minutes: 60 }] },
       recentActivitiesSummary: '', athleteStateLine: '',
       priorRationale: 'r', priorTargetEventName: 'E', priorTargetEventDate: '2026-09-01',
     })
@@ -161,6 +161,32 @@ describe('runPlanJob — review', () => {
       expect.objectContaining({ durationMinutes: 30 }), // 60 * 0.5, rounded to nearest 5
       expect.anything(),
     )
+  })
+
+  it('threads trainingPhilosophy through to the scheduler, so a simplified profile suppresses intervals on review', async () => {
+    mockFillSession.mockReset().mockResolvedValue({
+      description: 'd', target_zones: 'z', steps: [{ label: 'Ride', duration_minutes: 60, power_pct_ftp: 65 }], coaching_notes: { summary: 's', focus: [] },
+    })
+    const supabase = makeSupabase()
+    await runPlanJob(supabase as never, 'job1', {
+      kind: 'review', userId: 'u1', planStartDate: '2026-06-01', phases: ['build', 'build'],
+      fromDate: '2026-06-01', toDate: '2026-06-14', loadMultiplier: 1, note: '',
+      trainingPhilosophy: {
+        name: 'simplified', label: 'Simplified', phase_weeks: { base: 0, build: 2, peak: 0, taper: 0 },
+        intensity_profile: 'simplified', weekly_hours_at_creation: 5, rationale: 'r',
+      },
+      profile: {
+        ...profile(),
+        weekly_availability: [
+          { day: 'monday', duration_minutes: 60 }, { day: 'tuesday', duration_minutes: 60 }, { day: 'wednesday', duration_minutes: 60 },
+          { day: 'thursday', duration_minutes: 60 }, { day: 'friday', duration_minutes: 60 },
+        ],
+      },
+      recentActivitiesSummary: '', athleteStateLine: '',
+      priorRationale: 'r', priorTargetEventName: 'E', priorTargetEventDate: '2026-09-01',
+    })
+    const sessionKinds = mockFillSession.mock.calls.map(([session]) => (session as { sessionKind: string }).sessionKind)
+    expect(sessionKinds).not.toContain('intervals') // simplified profile disallows intervals entirely
   })
 })
 

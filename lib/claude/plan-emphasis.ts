@@ -17,10 +17,10 @@ function parseCleaned(text: string): { emphasis: PlanEmphasis; rationale: string
     const parsed = JSON.parse(cleaned)
     return {
       emphasis: {
-        climbing: Number(parsed.climbing) || 0,
-        speed: Number(parsed.speed) || 0,
-        enduranceVolume: Number(parsed.enduranceVolume) || 0,
-        weightLoss: Number(parsed.weightLoss) || 0,
+        climbing: Math.min(1, Math.max(0, Number(parsed.climbing) || 0)),
+        speed: Math.min(1, Math.max(0, Number(parsed.speed) || 0)),
+        enduranceVolume: Math.min(1, Math.max(0, Number(parsed.enduranceVolume) || 0)),
+        weightLoss: Math.min(1, Math.max(0, Number(parsed.weightLoss) || 0)),
       },
       rationale: typeof parsed.rationale === 'string' ? parsed.rationale : '',
     }

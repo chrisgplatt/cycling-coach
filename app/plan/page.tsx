@@ -200,21 +200,36 @@ export default function PlanPage() {
         setSaveError(data.error ?? 'Failed to start review')
         return
       }
-      const { job_id: jobId } = await res.json()
+      const startData = await res.json().catch(() => null)
+      if (!startData?.job_id) {
+        setReviewLoading(false)
+        setSaveError('Invalid response from server')
+        return
+      }
+      const jobId = startData.job_id
       while (true) {
         await new Promise(resolve => setTimeout(resolve, 3000))
         const statusRes = await fetch(`/api/plan/jobs/${jobId}`)
-        if (!statusRes.ok) { setReviewLoading(false); return }
+        if (!statusRes.ok) {
+          setReviewLoading(false)
+          setSaveError('Failed to check review status')
+          return
+        }
         const job = await statusRes.json()
         if (job.progress.total > 0) {
           setReviewEstimatedWorkouts(job.progress.total)
           setReviewWorkoutsFound(job.progress.completed)
         }
         if (job.status === 'done') { setReviewPlan(job.result); setReviewLoading(false); return }
-        if (job.status === 'error') { setReviewLoading(false); return }
+        if (job.status === 'error') {
+          setReviewLoading(false)
+          setSaveError(job.error ?? 'Review generation failed')
+          return
+        }
       }
     } catch {
       setReviewLoading(false)
+      setSaveError('Network error during review')
     }
   }
 

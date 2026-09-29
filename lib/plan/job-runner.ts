@@ -32,6 +32,7 @@ export interface ReviewPlanJobRequest {
   toDate: string
   loadMultiplier: number
   note: string
+  trainingPhilosophy: TrainingPhilosophy | null
   profile: UserProfile
   recentActivitiesSummary: string
   athleteStateLine: string
@@ -191,6 +192,7 @@ async function runReviewPlanJob(supabase: SupabaseClient, jobId: string, request
     const skeleton = buildPlanSkeleton({
       profile: request.profile, planStartDate: request.planStartDate, phases: request.phases,
       fromDate: request.fromDate, toDate: request.toDate, durationMultiplier: request.loadMultiplier,
+      trainingPhilosophy: request.trainingPhilosophy,
     })
     const sessions = skeleton.filter((d): d is ScheduledSession => d.status === 'session')
     await updateJob(supabase, jobId, { progress: { total: sessions.length, completed: 0, failed_days: [] } })
