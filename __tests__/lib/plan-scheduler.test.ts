@@ -124,3 +124,49 @@ describe('holidayOptionalSessionDates', () => {
     expect(holidayOptionalSessionDates([holiday], []).size).toBe(0)
   })
 })
+
+import { pickNormalSessionKind } from '@/lib/plan/scheduler'
+import type { WeekState } from '@/lib/plan/scheduler'
+
+function freshState(): WeekState {
+  return { thresholdUsed: false, intervalsUsed: false, recoveryCount: 0, lastKindWasHard: false }
+}
+
+describe('pickNormalSessionKind', () => {
+  it('never picks threshold or intervals in base except the final base week', () => {
+    const state = freshState()
+    expect(pickNormalSessionKind('base', state, false, null, { climbing: 1, speed: 1, enduranceVolume: 0, weightLoss: 0 }))
+      .not.toMatch(/threshold|intervals/)
+  })
+  it('allows one threshold in the final base week', () => {
+    const state = freshState()
+    expect(pickNormalSessionKind('base', state, true, null, { climbing: 1, speed: 0, enduranceVolume: 0, weightLoss: 0 }))
+      .toBe('threshold')
+  })
+  it('never assigns a second threshold in the same week', () => {
+    const state: WeekState = { ...freshState(), thresholdUsed: true }
+    expect(pickNormalSessionKind('build', state, false, null, { climbing: 1, speed: 0, enduranceVolume: 0, weightLoss: 0 }))
+      .not.toBe('threshold')
+  })
+  it('never assigns a hard session the day after another hard session', () => {
+    const state: WeekState = { ...freshState(), lastKindWasHard: true }
+    const kind = pickNormalSessionKind('build', state, false, null, { climbing: 1, speed: 1, enduranceVolume: 0, weightLoss: 0 })
+    expect(['threshold', 'intervals']).not.toContain(kind)
+  })
+  it('disables intervals entirely under the simplified intensity profile', () => {
+    const state = freshState()
+    expect(pickNormalSessionKind('build', state, false, 'simplified', { climbing: 0, speed: 1, enduranceVolume: 0, weightLoss: 0 }))
+      .not.toBe('intervals')
+  })
+  it('ensures at least one recovery session before repeating easy kinds', () => {
+    const state: WeekState = { ...freshState(), thresholdUsed: true, intervalsUsed: true }
+    expect(pickNormalSessionKind('build', state, false, null, { climbing: 0, speed: 0, enduranceVolume: 0, weightLoss: 0 }))
+      .toBe('recovery')
+  })
+  it('breaks a threshold-vs-intervals tie toward speed emphasis', () => {
+    const state = freshState()
+    const speedFocused: PlanEmphasisArg = { climbing: 0, speed: 1, enduranceVolume: 0, weightLoss: 0 }
+    expect(pickNormalSessionKind('build', state, false, null, speedFocused)).toBe('intervals')
+  })
+})
+type PlanEmphasisArg = Parameters<typeof pickNormalSessionKind>[4]

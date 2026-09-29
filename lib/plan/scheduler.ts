@@ -1,5 +1,5 @@
 // lib/plan/scheduler.ts
-import type { WorkoutType, PlanPhase } from '@/types'
+import type { WorkoutType, PlanPhase, TrainingPhilosophy } from '@/types'
 
 export type SessionKind = 'recovery' | 'endurance' | 'tempo' | 'threshold' | 'intervals' | 'long_ride'
 
@@ -149,4 +149,54 @@ export function holidayOptionalSessionDates(
     }
   }
   return overrides
+}
+
+// Session-kind picker for normal weeks (non-de-load, non-event-governed training days).
+// Hard caps (max 1 threshold/week, max 1 intervals/week, never two hard days in a row,
+// at least 1 recovery/week) are enforced unconditionally; PlanEmphasis only breaks ties
+// among the kinds that are still valid once those caps are applied.
+
+export interface WeekState {
+  thresholdUsed: boolean
+  intervalsUsed: boolean
+  recoveryCount: number
+  lastKindWasHard: boolean
+}
+
+const HARD_KINDS = new Set<SessionKind>(['threshold', 'intervals'])
+
+function allowsThreshold(phase: PlanPhase, isLastBaseWeek: boolean): boolean {
+  if (phase === 'base') return isLastBaseWeek
+  if (phase === 'taper') return false // taper intensity comes from event windows, not this quota
+  return true // build, peak
+}
+
+function allowsIntervals(phase: PlanPhase, intensityProfile: TrainingPhilosophy['intensity_profile'] | null): boolean {
+  if (intensityProfile === 'simplified') return false
+  if (phase === 'base' || phase === 'taper') return false
+  return true
+}
+
+export function pickNormalSessionKind(
+  phase: PlanPhase,
+  state: WeekState,
+  isLastBaseWeek: boolean,
+  intensityProfile: TrainingPhilosophy['intensity_profile'] | null,
+  emphasis: PlanEmphasis,
+): SessionKind {
+  const canThreshold = !state.thresholdUsed && !state.lastKindWasHard && allowsThreshold(phase, isLastBaseWeek)
+  const canIntervals = !state.intervalsUsed && !state.lastKindWasHard && allowsIntervals(phase, intensityProfile)
+
+  if (canThreshold && canIntervals) {
+    const thresholdScore = emphasis.climbing + emphasis.enduranceVolume
+    const intervalsScore = emphasis.speed
+    return intervalsScore > thresholdScore ? 'intervals' : 'threshold'
+  }
+  if (canThreshold) return 'threshold'
+  if (canIntervals) return 'intervals'
+
+  if (state.recoveryCount === 0) return 'recovery'
+
+  if (phase === 'base') return emphasis.climbing > 0.3 ? 'tempo' : 'endurance'
+  return emphasis.enduranceVolume + emphasis.weightLoss > emphasis.climbing + emphasis.speed ? 'endurance' : 'tempo'
 }
