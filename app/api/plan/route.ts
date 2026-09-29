@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
-import { createPlanStream, parsePlanText, countPlannedWorkouts, estimateTss } from '@/lib/claude/plan'
-import { logUsage } from '@/lib/claude/usage-log'
-import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
-import { fetchActiveBeliefs, formatAthleteModel } from '@/lib/claude/athlete-model'
-import type { AthleteDossier } from '@/lib/claude/dossier'
+import { estimateTss } from '@/lib/claude/plan'
+import { runGeneratePlanJob } from '@/lib/plan/job-runner'
+import type { PlanJobRequest } from '@/lib/plan/job-runner'
+import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { nameForWorkout } from '@/lib/workout-names'
 import { archivePlan } from '@/lib/plan/archive'
@@ -75,25 +76,14 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const {
-    syncData, totalWeeks = 6, startDate, notes = '', training_philosophy = null,
-    batchStartWeek = 0, batchWeekCount, priorWorkouts = [],
-  } = await req.json()
-  const safeWeeks = Math.min(13, Math.max(1, Math.round(Number(totalWeeks) || 6)))
+
+  const { syncData, totalWeeks = 6, startDate, notes = '', training_philosophy = null } = await req.json()
+  const safeWeeks = Math.min(20, Math.max(1, Math.round(Number(totalWeeks) || 6)))
   const safeStartDate = typeof startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(startDate)
     ? startDate
     : new Date().toISOString().split('T')[0]
-  const safeBatchStartWeek = Math.min(safeWeeks - 1, Math.max(0, Math.round(Number(batchStartWeek) || 0)))
-  const safeBatchWeekCount = Math.max(
-    1,
-    Math.min(safeWeeks - safeBatchStartWeek, Math.round(Number(batchWeekCount) || (safeWeeks - safeBatchStartWeek)))
-  )
-  const safePriorWorkouts = Array.isArray(priorWorkouts) ? priorWorkouts : []
-  const [{ data: profileData }, dossier, beliefs] = await Promise.all([
-    supabase.from('user_profile').select('*').maybeSingle(),
-    fetchDossier(supabase, user.id),
-    fetchActiveBeliefs(supabase, user.id),
-  ])
+
+  const { data: profileData } = await supabase.from('user_profile').select('*').maybeSingle()
   if (!profileData) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
   if (!profileData.events?.length) return NextResponse.json({ error: 'Add and save at least one event in Settings before generating a plan' }, { status: 400 })
 
@@ -105,60 +95,35 @@ export async function POST(req: NextRequest) {
     : null
   try { hrvStatus = await fetchHrvStatusBestSource(hrvToday, garminParams, icuClient) } catch { /* optional */ }
 
-  let messageStream
-  try {
-    messageStream = createPlanStream(
-      profileData,
-      syncData ?? { activities: [], wellness: [], athlete_ftp: null, athlete_weight: null },
-      safeWeeks,
-      safeStartDate,
-      typeof notes === 'string' ? notes.trim() : '',
-      [formatDossier(dossier as AthleteDossier | null), formatAthleteModel(beliefs)].filter(Boolean).join('\n\n'),
-      hrvStatus,
-      (training_philosophy as TrainingPhilosophy | null) ?? null,
-      { batchStartWeek: safeBatchStartWeek, batchWeekCount: safeBatchWeekCount, priorWorkouts: safePriorWorkouts },
-    )
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Plan generation failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+  const wellness = syncData?.wellness ?? []
+  const latest = wellness[wellness.length - 1] ?? null
+  const athleteStateLine = hrvStatus
+    ? `${buildAthleteStateLine(latest, null)}\n${formatHrvForPrompt(hrvStatus)}`
+    : buildAthleteStateLine(latest, null)
+  const activities = (syncData?.activities ?? []).slice(-10)
+  const recentActivitiesSummary = activities.length
+    ? activities.map((a: { start_date_local: string; name: string; type: string; moving_time: number; weighted_average_watts: number | null; training_load: number | null }) =>
+        `- ${a.start_date_local.split('T')[0]}: ${a.name} [${a.type}], ${Math.round(a.moving_time / 60)}min, NP ${a.weighted_average_watts ?? '?'}W, TSS ${a.training_load ?? '?'}`
+      ).join('\n')
+    : 'No recent activities.'
+
+  const jobRequest: PlanJobRequest = {
+    kind: 'generate', userId: user.id, totalWeeks: safeWeeks, startDate: safeStartDate,
+    notes: typeof notes === 'string' ? notes.trim() : '',
+    trainingPhilosophy: (training_philosophy as TrainingPhilosophy | null) ?? null,
+    profile: profileData, recentActivitiesSummary, athleteStateLine,
   }
 
-  const totalWorkouts = countPlannedWorkouts(profileData, safeWeeks, safeStartDate)
-  const encoder = new TextEncoder()
-  const readable = new ReadableStream({
-    async start(controller) {
-      controller.enqueue(encoder.encode(JSON.stringify({ type: 'total', count: totalWorkouts }) + '\n'))
-      let accumulatedText = ''
-      let workoutsFound = 0
+  const { data: job, error } = await supabase
+    .from('plan_generation_jobs')
+    .insert({ user_id: user.id, kind: 'generate', status: 'pending' })
+    .select('id')
+    .single()
+  if (error || !job) return NextResponse.json({ error: 'Failed to start plan generation' }, { status: 500 })
 
-      messageStream.on('text', (text: string) => {
-        accumulatedText += text
-        const newCount = (accumulatedText.match(/"date"\s*:/g) ?? []).length
-        if (newCount > workoutsFound) {
-          workoutsFound = newCount
-          controller.enqueue(encoder.encode(
-            JSON.stringify({ type: 'progress', found: workoutsFound }) + '\n'
-          ))
-        }
-      })
+  waitUntil(runGeneratePlanJob(supabase, job.id, jobRequest))
 
-      try {
-        const finalMsg = await messageStream.finalMessage()
-        logUsage('plan.generate', finalMsg)
-        const plan = parsePlanText(accumulatedText)
-        controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', plan }) + '\n'))
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Plan generation failed'
-        console.error('[plan] generation failed:', message)
-        controller.enqueue(encoder.encode(JSON.stringify({ type: 'error', message }) + '\n'))
-      }
-      controller.close()
-    },
-  })
-
-  return new Response(readable, {
-    headers: { 'Content-Type': 'application/x-ndjson' },
-  })
+  return NextResponse.json({ job_id: job.id }, { status: 202 })
 }
 
 export async function PATCH(req: NextRequest) {
