@@ -3226,6 +3226,30 @@ describe('POST /api/plan/extend', () => {
     expect(res.status).toBe(500)
     expect(waitUntil).not.toHaveBeenCalled()
   })
+
+  it('computes the new phase array and total week count from plan_weeks + extra_weeks', async () => {
+    // created_at = today pins weeksCompleted at 0, keeping the assertion deterministic
+    // regardless of which real date this test actually runs on.
+    const today = new Date().toISOString().split('T')[0]
+    const planStartingToday = { ...activePlan, created_at: `${today}T00:00:00Z`, plan_weeks: 12 }
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ plan: planStartingToday }))
+    const res = await POST(makeRequest({ extra_weeks: 4 }))
+    expect(res.status).toBe(202)
+    const body = await res.json()
+    expect(body.new_total_weeks).toBe(16) // 0 completed + 12 remaining + 4 extra
+    const call = mockRunPlanJob.mock.calls[0][2] as { phases: string[] }
+    expect(call.phases).toHaveLength(16) // computeWeekPhases(16), not the old computeWeekPhases(remainingWeeks + extraWeeks) formula
+  })
+
+  it('falls back to a 12-week current plan length when plan_weeks is null', async () => {
+    const today = new Date().toISOString().split('T')[0]
+    const planWithoutWeeks = { ...activePlan, created_at: `${today}T00:00:00Z`, plan_weeks: null }
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue(makeSupabase({ plan: planWithoutWeeks }))
+    const res = await POST(makeRequest({ extra_weeks: 4 }))
+    expect(res.status).toBe(202)
+    const body = await res.json()
+    expect(body.new_total_weeks).toBe(16) // currentPlanWeeks falls back to 12 -> 0 completed + 12 remaining + 4 extra
+  })
 })
 ```
 
