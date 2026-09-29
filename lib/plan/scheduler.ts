@@ -230,6 +230,7 @@ export interface BuildSkeletonInput {
   toDate: string              // inclusive — last date to actually emit
   emphasis?: PlanEmphasis
   trainingPhilosophy?: TrainingPhilosophy | null
+  durationMultiplier?: number  // scales normal-week session duration (review load calibration); default 1
 }
 
 const round5 = (n: number) => Math.max(15, Math.round(n / 5) * 5)
@@ -276,6 +277,7 @@ export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
   const { profile, planStartDate, phases, fromDate, toDate } = input
   const emphasis = input.emphasis ?? DEFAULT_EMPHASIS
   const intensityProfile = input.trainingPhilosophy?.intensity_profile ?? null
+  const durationMultiplier = input.durationMultiplier ?? 1
   const events = profile.events ?? []
   const availability = profile.weekly_availability ?? []
   const capByDay = new Map(availability.filter(a => a.duration_minutes > 0).map(a => [a.day.toLowerCase(), a.duration_minutes]))
@@ -350,7 +352,7 @@ export function buildPlanSkeleton(input: BuildSkeletonInput): ScheduledDay[] {
     }
 
     const kind = pickNormalSessionKind(phase, weekState, weekIndex === lastBaseWeekIndex, intensityProfile, emphasis)
-    const duration = Math.min(dayCap, DURATION_CEILING_BY_KIND[kind])
+    const duration = Math.min(round5(dayCap * durationMultiplier), DURATION_CEILING_BY_KIND[kind])
     applyToWeekState(weekState, kind)
     days.push({
       date: dateStr, status: 'session', sessionKind: kind, workoutType: toWorkoutType(kind),

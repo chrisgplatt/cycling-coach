@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { GeneratedPlan, TrainingPhilosophy, UserProfile } from '@/types'
+import type { GeneratedPlan, PlanPhase, TrainingPhilosophy, UserProfile } from '@/types'
 import { buildPlanSkeleton } from '@/lib/plan/scheduler'
 import type { ScheduledSession } from '@/lib/plan/scheduler'
 import { interpretGoals } from '@/lib/claude/plan-emphasis'
@@ -8,7 +8,9 @@ import { computeWeekPhases } from '@/lib/plan/phases'
 import { sendPush } from '@/lib/push'
 import type { StoredSubscription } from '@/lib/push'
 
-export interface PlanJobRequest {
+export type PlanJobRequest = GeneratePlanJobRequest | ReviewPlanJobRequest
+
+export interface GeneratePlanJobRequest {
   kind: 'generate'
   userId: string
   totalWeeks: number
@@ -18,6 +20,24 @@ export interface PlanJobRequest {
   profile: UserProfile
   recentActivitiesSummary: string
   athleteStateLine: string
+  pushSubscription?: StoredSubscription | null
+}
+
+export interface ReviewPlanJobRequest {
+  kind: 'review'
+  userId: string
+  planStartDate: string
+  phases: PlanPhase[]
+  fromDate: string
+  toDate: string
+  loadMultiplier: number
+  note: string
+  profile: UserProfile
+  recentActivitiesSummary: string
+  athleteStateLine: string
+  priorRationale: string
+  priorTargetEventName: string
+  priorTargetEventDate: string
   pushSubscription?: StoredSubscription | null
 }
 
@@ -73,10 +93,32 @@ async function fillAllSessions(
   return filled
 }
 
+// Best-effort completion push, shared by both job kinds — a failed or absent
+// subscription never fails the job itself, since the job already succeeded.
+async function sendCompletionPush(
+  request: { pushSubscription?: StoredSubscription | null },
+  plan: GeneratedPlan,
+  title: string,
+): Promise<void> {
+  if (!request.pushSubscription) return
+  try {
+    await sendPush(request.pushSubscription, {
+      title,
+      body: `${plan.workouts.length} sessions planned through ${plan.target_event_date}.`,
+      url: '/plan',
+    })
+  } catch { /* notification is best-effort; the job already succeeded */ }
+}
+
+export async function runPlanJob(supabase: SupabaseClient, jobId: string, request: PlanJobRequest): Promise<void> {
+  if (request.kind === 'review') return runReviewPlanJob(supabase, jobId, request)
+  return runGeneratePlanJob(supabase, jobId, request)
+}
+
 export async function runGeneratePlanJob(
   supabase: SupabaseClient,
   jobId: string,
-  request: PlanJobRequest,
+  request: GeneratePlanJobRequest,
 ): Promise<void> {
   await updateJob(supabase, jobId, { status: 'running' })
   try {
@@ -119,16 +161,36 @@ export async function runGeneratePlanJob(
     }
     await updateJob(supabase, jobId, { status: 'done', result: plan, progress: { total: sessions.length, completed: sessions.length, failed_days: finalFailedDays } })
 
-    if (request.pushSubscription) {
-      try {
-        await sendPush(request.pushSubscription, {
-          title: 'Your training plan is ready',
-          body: `${plan.workouts.length} sessions planned through ${plan.target_event_date}.`,
-          url: '/plan',
-        })
-      } catch { /* notification is best-effort; the job already succeeded */ }
-    }
+    await sendCompletionPush(request, plan, 'Your training plan is ready')
   } catch (err) {
     await updateJob(supabase, jobId, { status: 'error', error: err instanceof Error ? err.message : 'Plan generation failed' })
+  }
+}
+
+async function runReviewPlanJob(supabase: SupabaseClient, jobId: string, request: ReviewPlanJobRequest): Promise<void> {
+  await updateJob(supabase, jobId, { status: 'running' })
+  try {
+    const skeleton = buildPlanSkeleton({
+      profile: request.profile, planStartDate: request.planStartDate, phases: request.phases,
+      fromDate: request.fromDate, toDate: request.toDate, durationMultiplier: request.loadMultiplier,
+    })
+    const sessions = skeleton.filter((d): d is ScheduledSession => d.status === 'session')
+    await updateJob(supabase, jobId, { progress: { total: sessions.length, completed: 0, failed_days: [] } })
+
+    const context = { athleteStateLine: request.athleteStateLine, recentActivitiesSummary: request.recentActivitiesSummary, ftp: request.profile.current_ftp }
+    let finalFailedDays: string[] = []
+    const workouts = await fillAllSessions(sessions, context, (completed, failedDays) => {
+      finalFailedDays = failedDays
+      return updateJob(supabase, jobId, { progress: { total: sessions.length, completed, failed_days: failedDays } })
+    })
+
+    const plan: GeneratedPlan = {
+      rationale: request.priorRationale, target_event_name: request.priorTargetEventName,
+      target_event_date: request.priorTargetEventDate, phase: request.phases[0], week_phases: request.phases, workouts,
+    }
+    await updateJob(supabase, jobId, { status: 'done', result: plan, progress: { total: sessions.length, completed: sessions.length, failed_days: finalFailedDays } })
+    await sendCompletionPush(request, plan, 'Your weekly review is ready')
+  } catch (err) {
+    await updateJob(supabase, jobId, { status: 'error', error: err instanceof Error ? err.message : 'Review generation failed' })
   }
 }

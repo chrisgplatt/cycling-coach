@@ -12,8 +12,8 @@ jest.mock('@/lib/claude/session-fill', () => ({
 const mockSendPush = jest.fn()
 jest.mock('@/lib/push', () => ({ sendPush: (...args: unknown[]) => mockSendPush(...args) }))
 
-import { runGeneratePlanJob } from '@/lib/plan/job-runner'
-import type { PlanJobRequest } from '@/lib/plan/job-runner'
+import { runGeneratePlanJob, runPlanJob } from '@/lib/plan/job-runner'
+import type { GeneratePlanJobRequest } from '@/lib/plan/job-runner'
 import type { UserProfile } from '@/types'
 
 function makeSupabase() {
@@ -36,7 +36,7 @@ function profile(): UserProfile {
   }
 }
 
-function request(overrides: Partial<PlanJobRequest> = {}): PlanJobRequest {
+function request(overrides: Partial<GeneratePlanJobRequest> = {}): GeneratePlanJobRequest {
   return {
     kind: 'generate', userId: 'u1', totalWeeks: 1, startDate: '2026-06-01', notes: '',
     trainingPhilosophy: null, profile: profile(), recentActivitiesSummary: 'No recent activities.',
@@ -122,5 +122,44 @@ describe('runGeneratePlanJob', () => {
     }))
     const done = supabase.updates.find(u => u.status === 'done')
     expect(done).toBeDefined()
+  })
+})
+
+describe('runPlanJob — review', () => {
+  beforeEach(() => {
+    mockInterpretGoals.mockReset().mockResolvedValue({ emphasis: { climbing: 0.5, speed: 0.5, enduranceVolume: 0.5, weightLoss: 0.5 }, rationale: 'r' })
+    mockFillSession.mockReset().mockResolvedValue({
+      description: 'd', target_zones: 'z', steps: [{ label: 'Ride', duration_minutes: 60, power_pct_ftp: 65 }], coaching_notes: { summary: 's', focus: [] },
+    })
+  })
+
+  it('keeps the plan\'s existing rationale and target event rather than re-deriving them', async () => {
+    const supabase = makeSupabase()
+    await runPlanJob(supabase as never, 'job1', {
+      kind: 'review', userId: 'u1', planStartDate: '2026-06-01', phases: ['base'],
+      fromDate: '2026-06-01', toDate: '2026-06-07', loadMultiplier: 1, note: '',
+      profile: profile(), recentActivitiesSummary: 'No recent activities.', athleteStateLine: 'CTL: 50',
+      priorRationale: 'Original rationale', priorTargetEventName: 'Dragon Ride', priorTargetEventDate: '2026-09-01',
+    })
+    const done = supabase.updates.find(u => u.status === 'done')
+    const plan = done!.result as { rationale: string; target_event_name: string }
+    expect(plan.rationale).toBe('Original rationale')
+    expect(plan.target_event_name).toBe('Dragon Ride')
+    expect(mockInterpretGoals).not.toHaveBeenCalled() // review doesn't re-derive emphasis from goals
+  })
+
+  it('scales scheduled durations by loadMultiplier', async () => {
+    const supabase = makeSupabase()
+    await runPlanJob(supabase as never, 'job1', {
+      kind: 'review', userId: 'u1', planStartDate: '2026-06-01', phases: ['base'],
+      fromDate: '2026-06-01', toDate: '2026-06-01', loadMultiplier: 0.5, note: '',
+      profile: { ...profile(), weekly_availability: [{ day: 'monday', duration_minutes: 60 }] },
+      recentActivitiesSummary: '', athleteStateLine: '',
+      priorRationale: 'r', priorTargetEventName: 'E', priorTargetEventDate: '2026-09-01',
+    })
+    expect(mockFillSession).toHaveBeenCalledWith(
+      expect.objectContaining({ durationMinutes: 30 }), // 60 * 0.5, rounded to nearest 5
+      expect.anything(),
+    )
   })
 })

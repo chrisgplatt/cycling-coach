@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
-import { createReviewStream, parsePlanText } from '@/lib/claude/review'
-import { logUsage } from '@/lib/claude/usage-log'
-import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
-import type { AthleteDossier } from '@/lib/claude/dossier'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { isoWeek } from '@/lib/iso-week'
+import { runPlanJob } from '@/lib/plan/job-runner'
+import { computeLoadMultiplier } from '@/lib/plan/load-calibration'
+import { computeWeekPhases } from '@/lib/plan/phases'
+import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
+import { formatHrvForPrompt } from '@/lib/hrv/format'
 import { nameForWorkout } from '@/lib/workout-names'
-import type { GeneratedPlan, ICUActivity, Workout, TrainingPhilosophy } from '@/types'
+import type { GeneratedPlan, ICUActivity, Workout } from '@/types'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -18,10 +20,7 @@ export async function POST(req: NextRequest) {
   const { note: rawNote = '' } = await req.json().catch(() => ({}))
   const note = String(rawNote).slice(0, 1000)
 
-  const [{ data: profile }, dossier] = await Promise.all([
-    supabase.from('user_profile').select('*').maybeSingle(),
-    fetchDossier(supabase, user.id),
-  ])
+  const { data: profile } = await supabase.from('user_profile').select('*').maybeSingle()
   if (!profile) return NextResponse.json({ error: 'Profile not configured' }, { status: 400 })
   if (!profile.intervals_icu_athlete_id || !profile.intervals_icu_api_key) {
     return NextResponse.json({ error: 'intervals.icu not configured' }, { status: 400 })
@@ -34,85 +33,64 @@ export async function POST(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-
   if (!plan) return NextResponse.json({ error: 'No active plan' }, { status: 400 })
 
-  const trainingPhilosophy = plan.training_philosophy as TrainingPhilosophy | null ?? null
-
   const today = new Date().toISOString().split('T')[0]
-  const fourteenDaysAgo = new Date(Date.now() - 14 * 864e5).toISOString().split('T')[0]
-
-  // Compute last week date range (Mon–Sun)
   const todayDate = new Date()
-  const dayOfWeek = (todayDate.getDay() + 6) % 7  // 0=Mon, 6=Sun
-  const thisMonday = new Date(todayDate)
-  thisMonday.setDate(todayDate.getDate() - dayOfWeek)
-  const lastMonday = new Date(thisMonday)
-  lastMonday.setDate(thisMonday.getDate() - 7)
-  const lastSunday = new Date(thisMonday)
-  lastSunday.setDate(thisMonday.getDate() - 1)
+  const dayOfWeek = (todayDate.getDay() + 6) % 7
+  const thisMonday = new Date(todayDate); thisMonday.setDate(todayDate.getDate() - dayOfWeek)
+  const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7)
+  const lastSunday = new Date(thisMonday); lastSunday.setDate(thisMonday.getDate() - 1)
   const lastMondayStr = lastMonday.toISOString().split('T')[0]
   const lastSundayStr = lastSunday.toISOString().split('T')[0]
 
   const workouts: Workout[] = plan.workouts ?? []
-  const lastWeekWorkouts = workouts.filter(w => w.date >= lastMondayStr && w.date <= lastSundayStr)
-  const remainingWorkouts = workouts.filter(w => w.date >= today && w.status === 'planned')
+  const lastWeekPlanned = workouts.filter(w => w.date >= lastMondayStr && w.date <= lastSundayStr)
+  const plannedTss = lastWeekPlanned.reduce((sum, w) => sum + (w.tss ?? 0), 0)
+  const actualTss = lastWeekPlanned.filter(w => w.status === 'completed').reduce((sum, w) => sum + (w.tss ?? 0), 0)
+  const allPlannedCompleted = lastWeekPlanned.length > 0 && lastWeekPlanned.every(w => w.status === 'completed')
 
   const client = new IntervalsClient(profile.intervals_icu_athlete_id, profile.intervals_icu_api_key)
-  let wellness: Awaited<ReturnType<typeof client.getWellness>> = []
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 864e5).toISOString().split('T')[0]
   let recentActivities: ICUActivity[] = []
-  try {
-    ;[wellness, recentActivities] = await Promise.all([
-      client.getWellness(fourteenDaysAgo, today),
-      client.getActivities(fourteenDaysAgo, today),
-    ])
-  } catch { /* proceed without live data */ }
+  try { recentActivities = await client.getActivities(fourteenDaysAgo, today) } catch { /* proceed without */ }
+  const plannedActivityIds = new Set(lastWeekPlanned.map(w => w.icu_activity_id).filter(Boolean))
+  const unplannedTss = recentActivities
+    .filter(a => a.start_date_local.split('T')[0] >= lastMondayStr && a.start_date_local.split('T')[0] <= lastSundayStr && !plannedActivityIds.has(a.id))
+    .reduce((sum, a) => sum + (a.training_load ?? 0), 0)
 
-  const garminParams = profile?.garmin_email ? { supabase, userId: user.id } : null
-  const hrvStatus = await fetchHrvStatusBestSource(today, garminParams, client).catch(() => null)
-
-  let messageStream
-  try {
-    messageStream = createReviewStream(profile, lastWeekWorkouts, wellness, remainingWorkouts, note, recentActivities, formatDossier(dossier as AthleteDossier | null), hrvStatus, trainingPhilosophy)
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Review generation failed'
-    return NextResponse.json({ error: message }, { status: 500 })
-  }
-
-  const encoder = new TextEncoder()
-  const readable = new ReadableStream({
-    async start(controller) {
-      controller.enqueue(encoder.encode(JSON.stringify({ type: 'total', count: remainingWorkouts.length }) + '\n'))
-      let accumulatedText = ''
-      let workoutsFound = 0
-
-      messageStream.on('text', (text: string) => {
-        accumulatedText += text
-        const newCount = (accumulatedText.match(/"date"\s*:/g) ?? []).length
-        if (newCount > workoutsFound) {
-          workoutsFound = newCount
-          try {
-            controller.enqueue(encoder.encode(
-              JSON.stringify({ type: 'progress', found: workoutsFound }) + '\n'
-            ))
-          } catch { /* stream already closed */ }
-        }
-      })
-
-      try {
-        const finalMsg = await messageStream.finalMessage()
-        logUsage('plan.review', finalMsg)
-        const generatedPlan = parsePlanText(accumulatedText)
-        controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', plan: generatedPlan }) + '\n'))
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Review generation failed'
-        controller.enqueue(encoder.encode(JSON.stringify({ type: 'error', message }) + '\n'))
-      }
-      controller.close()
-    },
+  const loadMultiplier = computeLoadMultiplier({
+    plannedTss, actualTss, unplannedTss, allPlannedCompleted, positiveFeedback: note.length > 0 && !/tired|struggl|hard|sore/i.test(note),
   })
 
-  return new Response(readable, { headers: { 'Content-Type': 'application/x-ndjson' } })
+  const planStartDate = plan.created_at.split('T')[0]
+  const planWeeks = plan.plan_weeks ?? 12  // matches the existing fallback convention in app/api/plan/extend/route.ts
+  const phases = plan.week_phases ?? computeWeekPhases(planWeeks)
+  const toDate = new Date(planStartDate); toDate.setUTCDate(toDate.getUTCDate() + phases.length * 7 - 1)
+
+  const garminParams = profile.garmin_email ? { supabase, userId: user.id } : null
+  const hrvStatus = await fetchHrvStatusBestSource(today, garminParams, client).catch(() => null)
+  const wellness = await client.getWellness(fourteenDaysAgo, today).catch(() => [])
+  const latest = wellness[wellness.length - 1] ?? null
+  const athleteStateLine = hrvStatus ? `${buildAthleteStateLine(latest, null)}\n${formatHrvForPrompt(hrvStatus)}` : buildAthleteStateLine(latest, null)
+  const recentActivitiesSummary = recentActivities.slice(-10).map(a =>
+    `- ${a.start_date_local.split('T')[0]}: ${a.name} [${a.type}], ${Math.round(a.moving_time / 60)}min, NP ${a.weighted_average_watts ?? '?'}W, TSS ${a.training_load ?? '?'}`
+  ).join('\n') || 'No recent activities.'
+
+  const { data: job, error } = await supabase
+    .from('plan_generation_jobs')
+    .insert({ user_id: user.id, kind: 'review', status: 'pending' })
+    .select('id')
+    .single()
+  if (error || !job) return NextResponse.json({ error: 'Failed to start review' }, { status: 500 })
+
+  waitUntil(runPlanJob(supabase, job.id, {
+    kind: 'review', userId: user.id, planStartDate, phases, fromDate: today, toDate: toDate.toISOString().split('T')[0],
+    loadMultiplier, note, profile, recentActivitiesSummary, athleteStateLine,
+    priorRationale: plan.rationale, priorTargetEventName: plan.target_event_name, priorTargetEventDate: plan.target_event_date,
+  }))
+
+  return NextResponse.json({ job_id: job.id }, { status: 202 })
 }
 
 export async function PATCH(req: NextRequest) {
