@@ -2,6 +2,12 @@ import '@testing-library/jest-dom'
 import { TextEncoder, TextDecoder } from 'util'
 import { webcrypto } from 'crypto'
 
+// Mock web-push to avoid VAPID initialization errors in tests
+jest.mock('web-push', () => ({
+  setVapidDetails: jest.fn(),
+  sendNotification: jest.fn().mockResolvedValue(undefined),
+}))
+
 // Polyfill Web Encoding API globals for jsdom test environment
 globalThis.TextEncoder = TextEncoder as typeof globalThis.TextEncoder
 globalThis.TextDecoder = TextDecoder as typeof globalThis.TextDecoder

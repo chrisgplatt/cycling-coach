@@ -9,6 +9,9 @@ jest.mock('@/lib/claude/session-fill', () => ({
   fallbackSession: (...args: unknown[]) => mockFallbackSession(...args),
 }))
 
+const mockSendPush = jest.fn()
+jest.mock('@/lib/push', () => ({ sendPush: (...args: unknown[]) => mockSendPush(...args) }))
+
 import { runGeneratePlanJob } from '@/lib/plan/job-runner'
 import type { PlanJobRequest } from '@/lib/plan/job-runner'
 import type { UserProfile } from '@/types'
@@ -48,6 +51,7 @@ describe('runGeneratePlanJob', () => {
     mockFallbackSession.mockReset().mockReturnValue({
       description: 'fallback', target_zones: 'Zone 2', steps: [{ label: 'Steady', duration_minutes: 60, power_pct_ftp: 65 }], coaching_notes: { summary: 's', focus: [] },
     })
+    mockSendPush.mockReset()
   })
 
   it('marks the job done with a GeneratedPlan built from filled sessions', async () => {
@@ -82,5 +86,41 @@ describe('runGeneratePlanJob', () => {
     await runGeneratePlanJob(supabase as never, 'job1', request({ profile: { ...profile(), events: [] } }))
     const errored = supabase.updates.find(u => u.status === 'error')
     expect(errored).toBeDefined()
+  })
+
+  it('sends a push notification on completion when a subscription is provided', async () => {
+    mockFillSession.mockResolvedValue({
+      description: 'd', target_zones: 'z', steps: [{ label: 'Ride', duration_minutes: 60, power_pct_ftp: 65 }], coaching_notes: { summary: 's', focus: [] },
+    })
+    const supabase = makeSupabase()
+    await runGeneratePlanJob(supabase as never, 'job1', request({
+      pushSubscription: { endpoint: 'https://push.example/1', p256dh: 'p', auth: 'a' },
+    }))
+    expect(mockSendPush).toHaveBeenCalledWith(
+      { endpoint: 'https://push.example/1', p256dh: 'p', auth: 'a' },
+      expect.objectContaining({ title: expect.stringContaining('plan') }),
+    )
+  })
+
+  it('does not attempt a push when no subscription was provided', async () => {
+    mockFillSession.mockResolvedValue({
+      description: 'd', target_zones: 'z', steps: [{ label: 'Ride', duration_minutes: 60, power_pct_ftp: 65 }], coaching_notes: { summary: 's', focus: [] },
+    })
+    const supabase = makeSupabase()
+    await runGeneratePlanJob(supabase as never, 'job1', request())
+    expect(mockSendPush).not.toHaveBeenCalled()
+  })
+
+  it('does not fail the job when the push send itself throws', async () => {
+    mockSendPush.mockRejectedValue(new Error('push service down'))
+    mockFillSession.mockResolvedValue({
+      description: 'd', target_zones: 'z', steps: [{ label: 'Ride', duration_minutes: 60, power_pct_ftp: 65 }], coaching_notes: { summary: 's', focus: [] },
+    })
+    const supabase = makeSupabase()
+    await runGeneratePlanJob(supabase as never, 'job1', request({
+      pushSubscription: { endpoint: 'https://push.example/1', p256dh: 'p', auth: 'a' },
+    }))
+    const done = supabase.updates.find(u => u.status === 'done')
+    expect(done).toBeDefined()
   })
 })

@@ -107,11 +107,17 @@ export async function POST(req: NextRequest) {
       ).join('\n')
     : 'No recent activities.'
 
+  let pushSubscription = null
+  if (profileData.notifications_enabled) {
+    const { data: sub } = await supabase.from('push_subscriptions').select('endpoint, p256dh, auth').eq('user_id', user.id).limit(1).maybeSingle()
+    pushSubscription = sub ?? null
+  }
+
   const jobRequest: PlanJobRequest = {
     kind: 'generate', userId: user.id, totalWeeks: safeWeeks, startDate: safeStartDate,
     notes: typeof notes === 'string' ? notes.trim() : '',
     trainingPhilosophy: (training_philosophy as TrainingPhilosophy | null) ?? null,
-    profile: profileData, recentActivitiesSummary, athleteStateLine,
+    profile: profileData, recentActivitiesSummary, athleteStateLine, pushSubscription,
   }
 
   const { data: job, error } = await supabase

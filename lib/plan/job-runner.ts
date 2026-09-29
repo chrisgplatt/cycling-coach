@@ -5,6 +5,8 @@ import type { ScheduledSession } from '@/lib/plan/scheduler'
 import { interpretGoals } from '@/lib/claude/plan-emphasis'
 import { fillSession, fallbackSession } from '@/lib/claude/session-fill'
 import { computeWeekPhases } from '@/lib/plan/phases'
+import { sendPush } from '@/lib/push'
+import type { StoredSubscription } from '@/lib/push'
 
 export interface PlanJobRequest {
   kind: 'generate'
@@ -16,6 +18,7 @@ export interface PlanJobRequest {
   profile: UserProfile
   recentActivitiesSummary: string
   athleteStateLine: string
+  pushSubscription?: StoredSubscription | null
 }
 
 const CONCURRENCY = 8
@@ -115,6 +118,16 @@ export async function runGeneratePlanJob(
       phase: phases[0], week_phases: phases, workouts,
     }
     await updateJob(supabase, jobId, { status: 'done', result: plan, progress: { total: sessions.length, completed: sessions.length, failed_days: finalFailedDays } })
+
+    if (request.pushSubscription) {
+      try {
+        await sendPush(request.pushSubscription, {
+          title: 'Your training plan is ready',
+          body: `${plan.workouts.length} sessions planned through ${plan.target_event_date}.`,
+          url: '/plan',
+        })
+      } catch { /* notification is best-effort; the job already succeeded */ }
+    }
   } catch (err) {
     await updateJob(supabase, jobId, { status: 'error', error: err instanceof Error ? err.message : 'Plan generation failed' })
   }
