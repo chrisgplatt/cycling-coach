@@ -6,6 +6,7 @@ import { fitCriticalPower } from '@/lib/critical-power'
 import { findNearestPower } from '@/lib/stats-helpers'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { ICUPowerCurvePoint, PredictionDraft } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/ftp' })
 
   const { currentFTP } = await req.json()
 

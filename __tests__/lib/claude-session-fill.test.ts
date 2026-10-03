@@ -32,6 +32,17 @@ describe('fillSession', () => {
     expect(result.description).toBe('Steady endurance ride')
   })
 
+  it('reads the text block even when a thinking block comes first', async () => {
+    const json = {
+      description: 'Steady endurance ride', target_zones: 'Zone 2 (56-75% FTP)',
+      steps: [{ label: 'Ride', duration_minutes: 60, power_pct_ftp: 65 }],
+      coaching_notes: { summary: 'Build the base.', focus: [] },
+    }
+    mockCreate.mockResolvedValue({ content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: JSON.stringify(json) }] })
+    const result = await fillSession(session(), context)
+    expect(result.description).toBe('Steady endurance ride')
+  })
+
   it('throws when the steps do not sum to the assigned duration', async () => {
     mockCreate.mockResolvedValue(textResponse({
       description: 'd', target_zones: 'z',

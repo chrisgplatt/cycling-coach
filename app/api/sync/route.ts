@@ -9,6 +9,7 @@ import { maybeGenerateProgressBrief } from '@/lib/progress/brief-generator'
 import { GarminClient } from '@/lib/garmin/client'
 import { batchMaxHeartRate } from '@/lib/max-hr'
 import type { ICUActivity, GarminWellness } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 async function syncGarmin(
   supabase: Awaited<ReturnType<typeof import('@/lib/supabase-server').createSupabaseServerClient>>,
@@ -105,6 +106,7 @@ export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/sync' })
 
   const { data: profile } = await supabase
     .from('user_profile')

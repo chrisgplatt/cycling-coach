@@ -76,7 +76,8 @@ export async function synthesizeConversationMemory(
   })
   logUsage('conversationMemory.synthesize', response)
 
-  const raw = (response.content[0] as { type: string; text: string }).text
+  const block = response.content.find(b => b.type === 'text')
+  const raw = block?.type === 'text' ? block.text : ''
   const result = JSON.parse(raw) as DigestResult
 
   const { error } = await supabase.from('coach_conversation_memory').upsert(

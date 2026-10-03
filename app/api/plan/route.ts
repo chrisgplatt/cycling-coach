@@ -11,6 +11,7 @@ import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { nameForWorkout } from '@/lib/workout-names'
 import { archivePlan } from '@/lib/plan/archive'
 import type { GeneratedPlan, TrainingPhilosophy } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/plan' })
 
   const { syncData, totalWeeks = 6, startDate, notes = '', training_philosophy = null } = await req.json()
   const safeWeeks = Math.min(20, Math.max(1, Math.round(Number(totalWeeks) || 6)))

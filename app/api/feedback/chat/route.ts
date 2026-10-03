@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
-import { logUsage } from '@/lib/claude/usage-log'
+import { logUsage, setUsageContext } from '@/lib/claude/usage-log'
 import { buildFeedbackChatSystemPrompt } from '@/lib/claude/feedback-chat'
 import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { formatRideExecution, formatRideShape, formatDistributions } from '@/lib/claude/activity-metrics'
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/feedback/chat' })
   const userId = user.id
 
   let feedbackId: string

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { anthropic, MODEL } from '@/lib/claude/client'
-import { logUsage } from '@/lib/claude/usage-log'
+import { logUsage, setUsageContext } from '@/lib/claude/usage-log'
 import { buildSessionSystemPrompt } from '@/lib/claude/session-chat'
 import { loadCoachMemory } from '@/lib/claude/coach-memory'
 import { formatDossier, fetchDossier } from '@/lib/claude/dossier'
@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/chat/session' })
 
   let workoutId: string
   let message: string

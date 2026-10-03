@@ -12,6 +12,7 @@ import { fetchRecoveryInputsForRange } from '@/lib/recovery-inputs'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
 import { eventCoversDate, eventEndDate } from '@/lib/events'
 import type { Workout, TrainingEvent, BriefingContext, ICUActivity, ICUWellness, DailyWellness, GarminWellness } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/briefing/today' })
 
   const refresh = new URL(req.url).searchParams.get('refresh') === 'true'
 

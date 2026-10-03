@@ -20,6 +20,16 @@ describe('interpretGoals', () => {
     expect(result.rationale).toBe('Climb-focused plan.')
   })
 
+  it('reads the text block even when a thinking block comes first', async () => {
+    mockCreate.mockResolvedValue({ content: [
+      { type: 'thinking', thinking: '' },
+      { type: 'text', text: JSON.stringify({ climbing: 0.9, speed: 0.1, enduranceVolume: 0.2, weightLoss: 0, rationale: 'Climbs.' }) },
+    ] })
+    const result = await interpretGoals('climb', '')
+    expect(result.emphasis.climbing).toBe(0.9)
+    expect(result.rationale).toBe('Climbs.')
+  })
+
   it('strips a markdown code fence before parsing', async () => {
     mockCreate.mockResolvedValue(textResponse({ climbing: 0.5, speed: 0.5, enduranceVolume: 0.5, weightLoss: 0.5, rationale: 'r' }))
     mockCreate.mockResolvedValueOnce({ content: [{ type: 'text', text: '```json\n{"climbing":0.5,"speed":0.5,"enduranceVolume":0.5,"weightLoss":0.5,"rationale":"r"}\n```' }] })

@@ -7,6 +7,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchDailyForecast } from '@/lib/weather/open-meteo'
 import { eventEndDate } from '@/lib/events'
 import type { Workout, TrainingEvent, BriefingContext } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 function readinessLabel(tsb: number | null): BriefingContext['readinessLabel'] {
   if (tsb === null) return 'Unknown'
@@ -30,6 +31,7 @@ export async function POST() {
     .eq('user_id', user.id)
     .single()
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  setUsageContext({ userId: user.id, trigger: 'admin', route: '/api/cron/test' })
 
   const runAt = new Date()
   const logged: Array<{ event: string; status: string; details: unknown }> = []

@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { synthesizeDossier } from '@/lib/claude/synthesize-dossier'
 import type { TrainingEvent } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export async function POST() {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/dossier/refresh' })
 
   const { data: profile } = await supabase
     .from('user_profile')
