@@ -7,6 +7,7 @@ import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { nameForWorkout } from '@/lib/workout-names'
 import type { Workout, ProposedAdjustment } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export async function GET(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/feedback' })
   const { workoutId, activityId, feedbackText, activityTSS, activityAvgPower, activityAvgHR, adapt,
           rpe, feel, completion, tags, mood } = await req.json()
 

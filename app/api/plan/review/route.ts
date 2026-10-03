@@ -11,11 +11,13 @@ import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import { nameForWorkout } from '@/lib/workout-names'
 import type { GeneratedPlan, ICUActivity, Workout } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/plan/review' })
 
   const { note: rawNote = '' } = await req.json().catch(() => ({}))
   const note = String(rawNote).slice(0, 1000)

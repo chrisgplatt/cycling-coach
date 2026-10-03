@@ -4,6 +4,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { generateWorkoutSteps } from '@/lib/claude/steps'
 import { nameForWorkout } from '@/lib/workout-names'
 import type { Workout, WorkoutStep, CoachingNotes } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export async function POST(
   _req: NextRequest,
@@ -12,6 +13,7 @@ export async function POST(
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/workouts/[id]/refresh-icu' })
 
   const { id } = await params
 

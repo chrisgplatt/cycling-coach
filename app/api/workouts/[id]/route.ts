@@ -6,6 +6,7 @@ import { generateWorkoutSteps } from '@/lib/claude/steps'
 import { generateCoachingNotes } from '@/lib/claude/coaching-notes'
 import { nameForWorkout } from '@/lib/workout-names'
 import type { Workout, WorkoutStep, CoachingNotes, UserProfile } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export async function DELETE(
   _req: NextRequest,
@@ -46,6 +47,7 @@ export async function PATCH(
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/workouts/[id]' })
   const { id } = await params
   const body = await req.json()
 

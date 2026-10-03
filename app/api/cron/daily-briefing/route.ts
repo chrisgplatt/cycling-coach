@@ -11,6 +11,7 @@ import { eventEndDate } from '@/lib/events'
 import type { Workout, TrainingEvent, BriefingContext } from '@/types'
 import { fetchRecoveryInputsForRange, type RecoveryInputsRangeResult } from '@/lib/recovery-inputs'
 import { computeRecoveryScore, getConsecutiveRedDays } from '@/lib/recovery-score'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export const dynamic = 'force-dynamic'
 
@@ -92,6 +93,7 @@ export async function GET(req: NextRequest) {
 
   for (const profile of profiles ?? []) {
     if (!profile.user_id) continue
+    setUsageContext({ userId: profile.user_id, trigger: 'cron', route: '/api/cron/daily-briefing' })
 
     const notifTime = (profile.notification_time as string | null) ?? '07:00:00'
     const tz = (profile.timezone as string | null) ?? 'Europe/London'

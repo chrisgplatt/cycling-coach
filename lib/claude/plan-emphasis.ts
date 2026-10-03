@@ -1,4 +1,5 @@
 import { anthropic, PLAN_MODEL } from './client'
+import { logUsage } from './usage-log'
 import { DEFAULT_EMPHASIS } from '@/lib/plan/scheduler'
 import type { PlanEmphasis } from '@/lib/plan/scheduler'
 
@@ -53,7 +54,10 @@ Return ONLY this JSON: {"climbing": 0.0, "speed": 0.0, "enduranceVolume": 0.0, "
       output_config: { effort: 'low' },
       messages: [{ role: 'user', content: prompt }],
     })
-    const text = response.content[0].type === 'text' ? response.content[0].text : ''
+    logUsage('plan.interpretGoals', response)
+    // With adaptive thinking the first block may be a thinking block, so find the text block.
+    const block = response.content.find(b => b.type === 'text')
+    const text = block?.type === 'text' ? block.text : ''
     const parsed = parseCleaned(text)
     if (!parsed) return { emphasis: DEFAULT_EMPHASIS, rationale: defaultRationale(goals) }
     return { emphasis: parsed.emphasis, rationale: parsed.rationale || defaultRationale(goals) }

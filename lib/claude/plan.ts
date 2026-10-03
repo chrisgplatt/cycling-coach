@@ -1,4 +1,5 @@
 import { anthropic, PLAN_MODEL } from './client'
+import { logUsage } from './usage-log'
 import { formatZones } from './zones'
 import { formatSchedule, formatPlanCalendar } from './schedule'
 import { coachingNotesGuidance } from './coaching-notes'
@@ -414,7 +415,9 @@ export async function generatePlan(
 ): Promise<GeneratedPlan> {
   const stream = createPlanStream(profile, syncData, weeks, startDate, '', dossierSection)
   const response = await stream.finalMessage()
-  const raw = response.content[0].type === 'text' ? response.content[0].text : ''
+  logUsage('plan.generate', response)
+  const block = response.content.find(b => b.type === 'text')
+  const raw = block?.type === 'text' ? block.text : ''
   try {
     return parsePlanText(raw)
   } catch {

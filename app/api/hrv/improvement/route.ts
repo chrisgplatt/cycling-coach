@@ -4,7 +4,7 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { computeHrvImprovement, focusSignature } from '@/lib/hrv/improvement'
 import { buildHrvFocusPrompt } from '@/lib/claude/hrv-coach'
 import { anthropic, MODEL } from '@/lib/claude/client'
-import { logUsage } from '@/lib/claude/usage-log'
+import { logUsage, setUsageContext } from '@/lib/claude/usage-log'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +14,7 @@ export async function GET() {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/hrv/improvement' })
 
   const { data: profile } = await supabase
     .from('user_profile')

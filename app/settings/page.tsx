@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import GarminConnectCard from '@/components/GarminConnectCard'
 import RiderPersonalDetailsCard from '@/components/RiderPersonalDetailsCard'
 import IntervalsIcuCard from '@/components/IntervalsIcuCard'
@@ -851,6 +852,19 @@ export default function SettingsPage() {
       />
 
       {/* About */}
+      {isAdmin && (
+        <Link
+          href="/settings/usage"
+          className="flex items-center justify-between bg-white rounded-xl border border-slate-100 shadow-sm px-6 py-4 hover:bg-slate-50 transition-colors"
+        >
+          <span>
+            <span className="block text-sm font-bold text-slate-700 uppercase tracking-wider">Claude usage</span>
+            <span className="block text-sm text-slate-500 mt-0.5">Token spend by feature, user and day</span>
+          </span>
+          <span className="text-slate-400" aria-hidden>→</span>
+        </Link>
+      )}
+
       <AboutCard />
     </div>
   )

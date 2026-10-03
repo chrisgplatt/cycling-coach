@@ -4,6 +4,7 @@ import { synthesizeDossier } from '@/lib/claude/synthesize-dossier'
 import { synthesizeBeliefs } from '@/lib/claude/synthesize-beliefs'
 import { synthesizeConversationMemory } from '@/lib/claude/synthesize-conversation-memory'
 import type { TrainingEvent } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,6 +74,7 @@ export async function GET(req: NextRequest) {
 
   for (const profile of profiles ?? []) {
     if (!profile.user_id) continue
+    setUsageContext({ userId: profile.user_id, trigger: 'cron', route: '/api/cron/dossier' })
 
     const tz = (profile.timezone as string | null) ?? 'Europe/London'
 

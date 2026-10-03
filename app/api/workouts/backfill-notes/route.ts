@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { generateCoachingNotes, type WorkoutForNotes } from '@/lib/claude/coaching-notes'
 import type { UserProfile } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 // Admin-only one-off: fill coaching_notes for the user's planned workouts that don't
 // have any yet (workouts created before the feature). Notes for new plans are baked in
@@ -17,6 +18,7 @@ export async function POST() {
     .maybeSingle()
 
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  setUsageContext({ userId: user.id, trigger: 'admin', route: '/api/workouts/backfill-notes' })
 
   const { data: missing } = await supabase
     .from('workouts')

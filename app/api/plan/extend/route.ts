@@ -9,11 +9,13 @@ import { buildAthleteStateLine } from '@/lib/claude/athlete-state'
 import { formatHrvForPrompt } from '@/lib/hrv/format'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import type { TrainingPhilosophy } from '@/types'
+import { setUsageContext } from '@/lib/claude/usage-log'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  setUsageContext({ userId: user.id, trigger: 'user', route: '/api/plan/extend' })
 
   let extraWeeks: number
   try {

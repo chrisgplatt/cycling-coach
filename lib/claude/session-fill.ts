@@ -1,4 +1,5 @@
 import { anthropic, PLAN_MODEL } from './client'
+import { logUsage } from './usage-log'
 import { formatZones } from './zones'
 import { coachingNotesGuidance } from './coaching-notes'
 import type { ScheduledSession } from '@/lib/plan/scheduler'
@@ -58,7 +59,10 @@ export async function fillSession(session: ScheduledSession, context: SessionFil
     output_config: { effort: 'low' },
     messages: [{ role: 'user', content: buildSessionPrompt(session, context) }],
   })
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
+  logUsage('plan.fillSession', response, { metadata: { date: session.date, workout_type: session.workoutType } })
+  // With adaptive thinking the first block may be a thinking block, so find the text block.
+  const block = response.content.find(b => b.type === 'text')
+  const text = block?.type === 'text' ? block.text : ''
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
   const parsed = JSON.parse(cleaned) as FilledSession
   const stepTotal = parsed.steps.reduce((sum, s) => sum + s.duration_minutes, 0)
