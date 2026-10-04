@@ -130,6 +130,7 @@ export interface Workout {
   intervals_icu_event_id: string | null
   status: WorkoutStatus
   icu_activity_id: string | null
+  bike_id?: string | null  // bike the ride was done on (see lib/gear); null/absent = unassigned
   tss: number | null
   ftp_at_completion: number | null  // FTP in effect when this workout/ride was marked completed
   actual_duration_minutes: number | null
@@ -828,4 +829,42 @@ export interface TrainingPhilosophy {
   intensity_profile: 'polarised-base' | 'threshold-heavy' | 'simplified'
   weekly_hours_at_creation: number
   rationale: string
+}
+
+export type BikeKind = 'road' | 'gravel' | 'mtb' | 'trainer' | 'other'
+export type ComponentCategory = 'chain' | 'cassette' | 'chainring' | 'tyre' | 'brake_pads' | 'cables' | 'bar_tape' | 'other'
+export type TriggerKind = 'recurring' | 'lifetime'
+export type TriggerMetric = 'km' | 'hours'
+
+export interface Bike {
+  id: string
+  user_id: string
+  name: string
+  kind: BikeKind
+  is_default: boolean
+  is_indoor_default: boolean
+  retired_at: string | null
+}
+
+export interface BikeComponent {
+  id: string
+  user_id: string
+  bike_id: string
+  name: string
+  category: ComponentCategory
+  installed_at: string   // YYYY-MM-DD
+  retired_at: string | null
+}
+
+export interface ComponentTrigger {
+  id: string
+  user_id: string
+  component_id: string
+  label: string
+  kind: TriggerKind
+  metric: TriggerMetric
+  interval_value: number
+  last_done_at: string | null
+  heads_up_notified_at: string | null
+  due_notified_at: string | null
 }

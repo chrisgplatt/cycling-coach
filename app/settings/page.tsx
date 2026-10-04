@@ -851,6 +851,17 @@ export default function SettingsPage() {
         }}
       />
 
+      <Link
+        href="/settings/gear"
+        className="flex items-center justify-between bg-white rounded-xl border border-slate-100 shadow-sm px-6 py-4 hover:bg-slate-50 transition-colors"
+      >
+        <span>
+          <span className="block text-sm font-bold text-slate-700 uppercase tracking-wider">Bikes &amp; components</span>
+          <span className="block text-sm text-slate-500 mt-0.5">Mileage, wear and maintenance reminders</span>
+        </span>
+        <span className="text-slate-400" aria-hidden>→</span>
+      </Link>
+
       {/* About */}
       {isAdmin && (
         <Link
