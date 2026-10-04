@@ -50,7 +50,10 @@ New migration `supabase/migrations/20261004_bikes_components.sql` — idempotent
 | `metric` | `km \| hours` |
 | `interval_value` | numeric > 0 |
 | `last_done_at` | date, nullable; only used by `recurring` triggers, treated as the component's `installed_at` when null |
-| `notified_at` | nullable timestamp; set when the due push is sent, cleared by "Mark done" |
+| `heads_up_notified_at` | nullable timestamp; set when the ≥80% heads-up push is sent |
+| `due_notified_at` | nullable timestamp; set when the ≥100% due push is sent |
+
+Both notification timestamps are cleared by "Mark done" (recurring triggers). A `lifetime` trigger's are never cleared — replacing the component retires it and its copy starts with both null.
 
 ### `workouts`
 Add `bike_id uuid references bikes(id) on delete set null` (nullable) plus an index on `(bike_id)`.
@@ -84,7 +87,7 @@ New routes under `app/api/gear/` (auth and error handling matching existing rout
 - `GET /api/gear` → bikes with components, triggers, computed usage and trigger progress.
 - `POST/PATCH/DELETE /api/gear/bikes[/id]` — create, edit, set default / trainer, archive.
 - `POST/PATCH /api/gear/components[/id]`; `POST /api/gear/components/[id]/replace` — retires the component and creates a fresh one on the same bike with copies of its triggers (`last_done_at` null).
-- `POST/PATCH/DELETE /api/gear/triggers[/id]`; `POST /api/gear/triggers/[id]/done` — recurring triggers only (400 for `lifetime`); sets `last_done_at` (default today, optional back-date) and clears `notified_at`.
+- `POST/PATCH/DELETE /api/gear/triggers[/id]`; `POST /api/gear/triggers/[id]/done` — recurring triggers only (400 for `lifetime`); sets `last_done_at` (default today, optional back-date) and clears `heads_up_notified_at` and `due_notified_at`.
 - `POST /api/gear/backfill` — assigns bikes to rides with null `bike_id`.
 - `PATCH /api/workouts/[id]/bike` — manual ride override (a dedicated route, so it can't be clobbered by sync-driven workout updates).
 
@@ -100,7 +103,12 @@ New routes under `app/api/gear/` (auth and error handling matching existing rout
 
 ## Reminders
 
-After a sync imports rides, check the triggers on the affected bikes. When a trigger first reaches 100% and `notified_at` is null, send one push via `lib/push.ts` and set `notified_at`. "Mark done" clears it so the next cycle notifies again.
+After a sync imports rides, evaluate the triggers on the affected bikes (all kinds: re-wax, service, replacement) with `triggerProgress`. Each trigger sends at most two pushes per cycle via `lib/push.ts`:
+
+- **Heads-up** at ≥80% (`status` `due_soon`) when `heads_up_notified_at` is null, e.g. "Chain re-wax coming up — 245 / 300 km". Sets `heads_up_notified_at`.
+- **Due** at ≥100% (`overdue`) when `due_notified_at` is null, e.g. "Chain re-wax due — 312 / 300 km". Sets `due_notified_at`.
+
+The 80% threshold is the same one the progress bar uses for amber, so the UI and the push agree. If a single sync jumps a trigger from below 80% straight past 100%, only the due push is sent and `heads_up_notified_at` is set too, so no stale heads-up follows. Pushes for several triggers from one sync are sent individually (one per trigger). "Mark done" re-arms a recurring trigger for the next cycle.
 
 ## Edge cases
 
@@ -111,7 +119,7 @@ After a sync imports rides, check the triggers on the affected bikes. When a tri
 
 ## Testing
 
-- Unit: `resolveBikeForRide` (indoor / default / none / retired bikes), usage aggregation (date bounds, retired components, null `bike_id`), trigger progress thresholds, `last_done_at` fallback, and `lifetime` triggers ignoring `last_done_at`.
+- Unit: `resolveBikeForRide` (indoor / default / none / retired bikes), usage aggregation (date bounds, retired components, null `bike_id`), trigger progress thresholds, `last_done_at` fallback, `lifetime` triggers ignoring `last_done_at`, and notification selection (heads-up at 80%, due at 100%, skipped heads-up on a jump, no repeats, re-arm on Mark done).
 - API route tests for CRUD, replace, mark-done, backfill and the ride override, in the style of `__tests__/api`.
 - Sync test: `importUnplannedRides` sets `bike_id` and does not overwrite an existing one.
 - `npm run typecheck` before every commit.
