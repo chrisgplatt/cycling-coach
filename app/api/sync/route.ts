@@ -5,6 +5,8 @@ import { importUnplannedRides } from '@/lib/intervals/import-rides'
 import { matchWorkoutsToActivities, excludeClaimedActivities } from '@/lib/sync/match-workouts'
 import { resolveFallbackFtpForWorkout } from '@/lib/ftp/resolve-ftp'
 import { backfillActivityMetrics } from '@/lib/intervals/enrich'
+import { assignBikesToRides } from '@/lib/gear/assign-bikes'
+import { notifyDueTriggers } from '@/lib/gear/notify'
 import { maybeGenerateProgressBrief } from '@/lib/progress/brief-generator'
 import { GarminClient } from '@/lib/garmin/client'
 import { batchMaxHeartRate } from '@/lib/max-hr'
@@ -192,6 +194,14 @@ export async function POST(req: Request) {
       const message = err instanceof Error ? err.message : String(err)
       console.error('[sync] activity-metrics backfill failed:', err)
       backfill = { error: message }
+    }
+
+    // Bike assignment needs is_indoor from enrichment, so it runs after it. Non-fatal.
+    try {
+      await assignBikesToRides(supabase, user.id)
+      await notifyDueTriggers(supabase, user.id)
+    } catch (err) {
+      console.error('[sync] gear assignment/notifications failed:', err)
     }
 
     // Generate progress brief (4h debounce, non-fatal)
