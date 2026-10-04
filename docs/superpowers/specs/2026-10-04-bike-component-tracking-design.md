@@ -45,10 +45,11 @@ New migration `supabase/migrations/20261004_bikes_components.sql` — idempotent
 |--------|-------|
 | `id` | uuid pk |
 | `component_id` | FK → `bike_components`, cascade |
-| `label` | e.g. "Re-wax" |
+| `label` | e.g. "Re-wax", "Replace chain" |
+| `kind` | `recurring \| lifetime`. `recurring` counts from `last_done_at` and resets on "Mark done" (re-wax, service). `lifetime` always counts from the component's `installed_at` (wear/replacement limit); it has no "Mark done" and clears only when the component is replaced |
 | `metric` | `km \| hours` |
 | `interval_value` | numeric > 0 |
-| `last_done_at` | date, nullable; treated as the component's `installed_at` when null |
+| `last_done_at` | date, nullable; only used by `recurring` triggers, treated as the component's `installed_at` when null |
 | `notified_at` | nullable timestamp; set when the due push is sent, cleared by "Mark done" |
 
 ### `workouts`
@@ -71,7 +72,7 @@ It is called where `workouts` rows are created or matched to a ride: `importUnpl
 `lib/gear/usage.ts` exposes pure functions over a list of rides `{ date, distance_m, moving_s, bike_id }`:
 
 - `componentUsage(component, rides)` → `{ km, hours }` for rides on the component's bike with `installed_at <= date <= (retired_at ?? ∞)`.
-- `triggerProgress(trigger, component, rides)` → `{ used, interval, fraction, status }` summing the trigger's metric from `last_done_at ?? installed_at`. `status` is `ok` (<80%), `due_soon` (≥80%), `overdue` (≥100%).
+- `triggerProgress(trigger, component, rides)` → `{ used, interval, fraction, status }` summing the trigger's metric from `last_done_at ?? installed_at` for `recurring` triggers, and from `installed_at` for `lifetime` triggers. `status` is `ok` (<80%), `due_soon` (≥80%), `overdue` (≥100%).
 - `bikeTotals(bike, rides)` → lifetime km and hours.
 
 API routes load the user's rides once (`workouts` columns needed for distance/time/date/`bike_id`) and call these functions; no per-component queries.
@@ -83,16 +84,17 @@ New routes under `app/api/gear/` (auth and error handling matching existing rout
 - `GET /api/gear` → bikes with components, triggers, computed usage and trigger progress.
 - `POST/PATCH/DELETE /api/gear/bikes[/id]` — create, edit, set default / trainer, archive.
 - `POST/PATCH /api/gear/components[/id]`; `POST /api/gear/components/[id]/replace` — retires the component and creates a fresh one on the same bike with copies of its triggers (`last_done_at` null).
-- `POST/PATCH/DELETE /api/gear/triggers[/id]`; `POST /api/gear/triggers/[id]/done` — sets `last_done_at` (default today, optional back-date) and clears `notified_at`.
+- `POST/PATCH/DELETE /api/gear/triggers[/id]`; `POST /api/gear/triggers/[id]/done` — recurring triggers only (400 for `lifetime`); sets `last_done_at` (default today, optional back-date) and clears `notified_at`.
 - `POST /api/gear/backfill` — assigns bikes to rides with null `bike_id`.
 - `PATCH /api/workouts/[id]/bike` — manual ride override (a dedicated route, so it can't be clobbered by sync-driven workout updates).
 
 ## UI (mobile-first, per AGENTS.md)
 
+- **Trigger presets:** adding a component offers category presets, e.g. chain → "Re-wax" (`recurring`, 300 km) + "Replace chain" (`lifetime`, 4,000 km); cassette → "Replace" (`lifetime`); tyres → "Replace" (`lifetime`). Values are editable defaults.
 - **`/settings/gear`**, linked from the settings page (sibling of `/settings/usage`; no new NavBar item).
   - Bike list: card per bike with name, default/trainer badge, lifetime km and hours.
   - Bike detail: component list with usage since install; each trigger as a progress bar ("Re-wax: 212 / 300 km"), amber at ≥80%, red when overdue.
-  - Actions in bottom sheets (`items-end sm:items-center`, `max-h-[92vh] overflow-y-auto`, ≥44px targets): add bike, add component (category presets), add trigger, Mark done (optional back-date), Replace, Set as default / trainer bike, archive.
+  - Actions in bottom sheets (`items-end sm:items-center`, `max-h-[92vh] overflow-y-auto`, ≥44px targets): add bike, add component (category presets), add trigger, Mark done (recurring triggers only; optional back-date), Replace, Set as default / trainer bike, archive.
 - **Ride detail:** a "Bike: X" chip with a picker to override the ride's bike.
 - **Dashboard:** due-soon/overdue triggers shown via the existing `NotificationBanner` ("Chain re-wax due — 312 / 300 km").
 
@@ -109,7 +111,7 @@ After a sync imports rides, check the triggers on the affected bikes. When a tri
 
 ## Testing
 
-- Unit: `resolveBikeForRide` (indoor / default / none / retired bikes), usage aggregation (date bounds, retired components, null `bike_id`), trigger progress thresholds and `last_done_at` fallback.
+- Unit: `resolveBikeForRide` (indoor / default / none / retired bikes), usage aggregation (date bounds, retired components, null `bike_id`), trigger progress thresholds, `last_done_at` fallback, and `lifetime` triggers ignoring `last_done_at`.
 - API route tests for CRUD, replace, mark-done, backfill and the ride override, in the style of `__tests__/api`.
 - Sync test: `importUnplannedRides` sets `bike_id` and does not overwrite an existing one.
 - `npm run typecheck` before every commit.
