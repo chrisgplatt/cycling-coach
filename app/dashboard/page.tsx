@@ -39,6 +39,8 @@ import type { ReactNode } from 'react'
 import RescheduleConfirmModal from '@/components/RescheduleConfirmModal'
 import TodayCard from '@/components/TodayCard'
 import NotificationBanner from '@/components/NotificationBanner'
+import GearDueBanner from '@/components/gear/GearDueBanner'
+import { useGear } from '@/lib/gear/client'
 import SessionChatModal from '@/components/SessionChatModal'
 import PlanChatModal from '@/components/PlanChatModal'
 import EventDetailModal from '@/components/EventDetailModal'
@@ -118,6 +120,7 @@ export default function DashboardPage() {
   const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null)
   const [pendingReschedule, setPendingReschedule] = useState<{ workout: Workout; toDate: string } | null>(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const { bikes: gearBikes } = useGear()  // failures are silent; the banner just doesn't render
   const [chatWorkout, setChatWorkout] = useState<Workout | null>(null)
   const [planChatOpen, setPlanChatOpen] = useState(false)
   const [planTargetEvent, setPlanTargetEvent] = useState('')
@@ -694,6 +697,7 @@ export default function DashboardPage() {
         {!notificationsEnabled && (
           <NotificationBanner onEnabled={() => setNotificationsEnabled(true)} />
         )}
+        {gearBikes && <GearDueBanner bikes={gearBikes} />}
         <TodayCard
           workout={todayWorkout}
           wellness={latestWellnessWithLoad}

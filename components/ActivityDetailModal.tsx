@@ -5,6 +5,7 @@ import RideStats, { rideStatsFromActivity } from './RideStats'
 import RideMapGraph from './ride/RideMapGraph'
 import SessionHistogram from './SessionHistogram'
 import TabBar from './TabBar'
+import RideBikeChip from './gear/RideBikeChip'
 import { buildHighlightList, type RideHighlight } from '@/lib/ride-highlights'
 
 interface Props {
@@ -100,6 +101,7 @@ export default function ActivityDetailModal({ activity, onClose, effectiveMaxHr 
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto p-6 pt-4 space-y-4">
+            <RideBikeChip activityId={activity.id} isIndoor={activity.type === 'VirtualRide'} />
             <RideStats data={rideStatsFromActivity(activity, bestEfforts)} effectiveMaxHr={effectiveMaxHr} />
             <SessionHistogram distributions={distributions} />
           </div>
