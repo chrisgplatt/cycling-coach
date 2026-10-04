@@ -19,6 +19,8 @@ The app has no concept of which bike a ride was done on, or of the components (c
 
 New migration `supabase/migrations/20261004_bikes_components.sql` — idempotent (`create table if not exists`, `add column if not exists`), RLS policies matching the other user-owned tables, ending with `notify pgrst, 'reload schema';`. Per AGENTS.md it must be run manually against the shared Supabase project before the app version that depends on it ships.
 
+All three new tables also carry a `user_id` column (FK to `auth.users`, cascade) so the standard `user_id = auth.uid()` RLS policy applies directly.
+
 ### `bikes`
 | Column | Notes |
 |--------|-------|
@@ -66,9 +68,9 @@ A pure function `resolveBikeForRide({ isIndoor }, bikes)` in `lib/gear/`:
 2. Else the non-retired `is_default` bike.
 3. Else `null`.
 
-It is called where `workouts` rows are created or matched to a ride: `importUnplannedRides` (`lib/intervals/import-rides.ts`) and the planned-workout match path (`lib/sync/match-workouts.ts`). It sets `bike_id` only when currently null, so a manual override is never overwritten by a re-sync. Changing the default bike affects only rides imported afterwards.
+`is_indoor` is only known once a ride has been enriched (`activity_metrics.is_indoor`, set by `lib/intervals/enrich.ts`), so assignment runs as its own step in the sync route **after** `backfillActivityMetrics`, not inside `importUnplannedRides` / `matchWorkoutsToActivities`. `assignBikesToRides` selects completed workouts with `icu_activity_id` set, `bike_id` null and `activity_metrics` non-null, resolves each, and writes `bike_id`. Rides not yet enriched (the backfill is capped per run) are left null and picked up by a later sync — the same self-healing pattern as enrichment. Because it only touches rows where `bike_id` is null, a manual override is never overwritten by a re-sync. Changing the default bike affects only rides assigned afterwards.
 
-**Backfill:** when the athlete creates their first bike, offer "Assign your existing N rides to this bike?" with an optional "from date" bound. Backfill applies the same resolution function to rides with a null `bike_id`.
+**Backfill:** when the athlete creates their first bike, offer "Assign your existing N rides to this bike?" with an optional "from date" bound. It runs the same `assignBikesToRides` over the user's history.
 
 ## Usage and trigger progress (derived on read)
 
@@ -78,7 +80,7 @@ It is called where `workouts` rows are created or matched to a ride: `importUnpl
 - `triggerProgress(trigger, component, rides)` → `{ used, interval, fraction, status }` summing the trigger's metric from `last_done_at ?? installed_at` for `recurring` triggers, and from `installed_at` for `lifetime` triggers. `status` is `ok` (<80%), `due_soon` (≥80%), `overdue` (≥100%).
 - `bikeTotals(bike, rides)` → lifetime km and hours.
 
-API routes load the user's rides once (`workouts` columns needed for distance/time/date/`bike_id`) and call these functions; no per-component queries.
+A ride's usage inputs are `date`, `bike_id`, distance = `activity_metrics.distance_m` (null → 0 km; rides count toward distance only once enriched) and time = `actual_duration_minutes ?? duration_minutes`. API routes load the user's completed rides once (those columns only) and call these functions; no per-component queries.
 
 ## API
 
@@ -99,11 +101,11 @@ New routes under `app/api/gear/` (auth and error handling matching existing rout
   - Bike detail: component list with usage since install; each trigger as a progress bar ("Re-wax: 212 / 300 km"), amber at ≥80%, red when overdue.
   - Actions in bottom sheets (`items-end sm:items-center`, `max-h-[92vh] overflow-y-auto`, ≥44px targets): add bike, add component (category presets), add trigger, Mark done (recurring triggers only; optional back-date), Replace, Set as default / trainer bike, archive.
 - **Ride detail:** a "Bike: X" chip with a picker to override the ride's bike.
-- **Dashboard:** due-soon/overdue triggers shown via the existing `NotificationBanner` ("Chain re-wax due — 312 / 300 km").
+- **Dashboard:** a new `GearDueBanner` component lists due-soon/overdue triggers ("Chain re-wax due — 312 / 300 km") and links to `/settings/gear`. (The existing `NotificationBanner` is the push-permission prompt and is not reused.)
 
 ## Reminders
 
-After a sync imports rides, evaluate the triggers on the affected bikes (all kinds: re-wax, service, replacement) with `triggerProgress`. Each trigger sends at most two pushes per cycle via `lib/push.ts`:
+After `assignBikesToRides` in the sync route, evaluate the triggers on the affected bikes (all kinds: re-wax, service, replacement) with `triggerProgress`. Each trigger sends at most two pushes per cycle via `lib/push.ts`:
 
 - **Heads-up** at ≥80% (`status` `due_soon`) when `heads_up_notified_at` is null, e.g. "Chain re-wax coming up — 245 / 300 km". Sets `heads_up_notified_at`.
 - **Due** at ≥100% (`overdue`) when `due_notified_at` is null, e.g. "Chain re-wax due — 312 / 300 km". Sets `due_notified_at`.
@@ -121,7 +123,7 @@ The 80% threshold is the same one the progress bar uses for amber, so the UI and
 
 - Unit: `resolveBikeForRide` (indoor / default / none / retired bikes), usage aggregation (date bounds, retired components, null `bike_id`), trigger progress thresholds, `last_done_at` fallback, `lifetime` triggers ignoring `last_done_at`, and notification selection (heads-up at 80%, due at 100%, skipped heads-up on a jump, no repeats, re-arm on Mark done).
 - API route tests for CRUD, replace, mark-done, backfill and the ride override, in the style of `__tests__/api`.
-- Sync test: `importUnplannedRides` sets `bike_id` and does not overwrite an existing one.
+- `assignBikesToRides`: assigns only enriched, completed, unassigned rides; never overwrites an existing `bike_id`; indoor rides go to the trainer bike.
 - `npm run typecheck` before every commit.
 
 ## Out of scope
