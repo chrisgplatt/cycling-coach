@@ -13,21 +13,34 @@ export async function gearFetch<T = unknown>(url: string, method = 'GET', body?:
   return data as T
 }
 
+interface GearResult { bikes: BikeView[] | null; error: string | null }
+
+async function loadGear(): Promise<GearResult> {
+  try {
+    const d = await gearFetch<{ bikes: BikeView[] }>('/api/gear')
+    return { bikes: Array.isArray(d.bikes) ? d.bikes : [], error: null }
+  } catch (e) {
+    return { bikes: null, error: e instanceof Error ? e.message : 'Could not load gear' }
+  }
+}
+
 export function useGear() {
   const [bikes, setBikes] = useState<BikeView[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const reload = useCallback(async () => {
-    try {
-      const d = await gearFetch<{ bikes: BikeView[] }>('/api/gear')
-      setBikes(Array.isArray(d.bikes) ? d.bikes : [])
-      setError(null)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load gear')
-    }
+  // A failed refresh keeps the last good data on screen and just reports the error.
+  const apply = useCallback((r: GearResult) => {
+    if (r.bikes) setBikes(r.bikes)
+    setError(r.error)
   }, [])
 
-  useEffect(() => { reload() }, [reload])
+  const reload = useCallback(async () => { apply(await loadGear()) }, [apply])
+
+  useEffect(() => {
+    let cancelled = false
+    loadGear().then(r => { if (!cancelled) apply(r) })
+    return () => { cancelled = true }
+  }, [apply])
 
   return { bikes, error, reload }
 }
