@@ -9,6 +9,7 @@ import RideStats, { rideStatsFromMetrics } from './RideStats'
 import SessionHistogram from './SessionHistogram'
 import RideMapGraph from './ride/RideMapGraph'
 import TabBar from './TabBar'
+import RideBikeChip from './gear/RideBikeChip'
 import { buildHighlightList } from '@/lib/ride-highlights'
 import PlannedVsActualChart from './PlannedVsActualChart'
 import PlannedVsActualList from './PlannedVsActualList'
@@ -508,6 +509,9 @@ export default function WorkoutDetailModal({
           </div>
         ) : (
         <div className="p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
+          {hasRide && tab === 'stats' && workout.icu_activity_id && (
+            <RideBikeChip activityId={workout.icu_activity_id} isIndoor={workout.activity_metrics?.is_indoor ?? false} />
+          )}
           {hasRide && tab === 'stats' && (
             workout.activity_metrics
               ? <>
