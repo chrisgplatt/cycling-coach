@@ -85,3 +85,30 @@ describe('RideBikeChip', () => {
     expect(screen.getByRole('button', { name: /Bike: Road/ })).toBeInTheDocument()
   })
 })
+
+describe('RideBikeChip row design', () => {
+  it('shows the bike name with a visible "Change" affordance', async () => {
+    mockFetch({ bikes: [road, gravel], bikeId: 'road' })
+    render(<RideBikeChip activityId="a1" isIndoor={false} />)
+    const row = await screen.findByRole('button', { name: /Bike: Road/ })
+    expect(row).toHaveTextContent('Road')
+    expect(row).toHaveTextContent('Change')
+    expect(row.className).toContain('w-full')
+  })
+
+  it('prompts to choose a bike when the ride has none', async () => {
+    mockFetch({ bikes: [road], bikeId: null })
+    render(<RideBikeChip activityId="a1" isIndoor={false} />)
+    const row = await screen.findByRole('button', { name: /Bike: None/ })
+    expect(row).toHaveTextContent('No bike')
+    expect(row).toHaveTextContent('Choose')
+  })
+
+  it('truncates long bike names instead of overflowing', async () => {
+    const long = bike({ id: 'long', name: 'Specialized S-Works Tarmac SL8 Dura-Ace Di2 Limited Edition', is_default: true })
+    mockFetch({ bikes: [long], bikeId: 'long' })
+    render(<RideBikeChip activityId="a1" isIndoor={false} />)
+    const row = await screen.findByRole('button', { name: /Bike: Specialized/ })
+    expect(row.querySelector('.truncate')).toHaveTextContent('Specialized S-Works Tarmac SL8')
+  })
+})
