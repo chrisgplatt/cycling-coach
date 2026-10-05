@@ -4,6 +4,16 @@ import { gearFetch, useGear } from '@/lib/gear/client'
 import { resolveBikeForRide } from '@/lib/gear/resolve-bike'
 import GearSheet from '@/components/gear/GearSheet'
 
+function BikeIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="w-5 h-5 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5.5" cy="16.5" r="3.5" />
+      <circle cx="18.5" cy="16.5" r="3.5" />
+      <path d="M5.5 16.5 9 8h5l4.5 8.5M9 8 12 16.5h-6.5M14 8l-1.5-3H10" />
+    </svg>
+  )
+}
+
 interface Props {
   activityId: string
   isIndoor: boolean
@@ -51,9 +61,14 @@ export default function RideBikeChip({ activityId, isIndoor }: Props) {
     <>
       <button
         onClick={() => { setError(null); setOpen(true) }}
-        className="inline-flex items-center min-h-[44px] px-3 rounded-full bg-slate-100 text-sm font-medium text-slate-700"
+        aria-label={`Bike: ${current?.name ?? 'None'}. ${current ? 'Change' : 'Choose'}`}
+        className="w-full flex items-center gap-3 min-h-[44px] px-4 py-2.5 rounded-xl border border-slate-100 bg-white shadow-sm text-left"
       >
-        Bike: {current?.name ?? 'None'}
+        <BikeIcon />
+        <span className={`flex-1 min-w-0 truncate text-sm font-semibold ${current ? 'text-slate-900' : 'text-slate-400'}`}>
+          {current?.name ?? 'No bike'}
+        </span>
+        <span aria-hidden className="shrink-0 text-sm font-medium text-blue-600">{current ? 'Change' : 'Choose'} ›</span>
       </button>
       {open && (
         <GearSheet title="Bike for this ride" onClose={() => setOpen(false)}>
