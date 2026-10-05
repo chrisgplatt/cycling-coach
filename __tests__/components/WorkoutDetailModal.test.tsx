@@ -565,3 +565,46 @@ describe('WorkoutDetailModal tabs', () => {
     expect(await screen.findByText(/Climb/)).toBeInTheDocument()
   })
 })
+
+describe('WorkoutDetailModal bike chip', () => {
+  const road = {
+    id: 'road', user_id: 'u', name: 'Road', kind: 'road', is_default: true, is_indoor_default: false,
+    retired_at: null, totals: { km: 0, hours: 0 }, components: [],
+  }
+  function mockApi() {
+    const urls: string[] = []
+    global.fetch = jest.fn((url: string) => {
+      urls.push(String(url))
+      if (url === '/api/gear') return Promise.resolve({ ok: true, json: async () => ({ bikes: [road] }) })
+      if (String(url).endsWith('/bike')) return Promise.resolve({ ok: true, json: async () => ({ workoutId: 'w1', bikeId: 'road' }) })
+      if (String(url).includes('/weather/')) return Promise.resolve({ ok: false })
+      return Promise.resolve({ ok: true, json: async () => ({ feedback: null }) })
+    }) as never
+    return urls
+  }
+
+  it('shows the ride’s bike at the top of the Stats tab of a completed ride', async () => {
+    const urls = mockApi()
+    const completed = makeWorkout({ status: 'completed', icu_activity_id: 'a1', activity_metrics: makeActivityMetrics() })
+    render(<WorkoutDetailModal workout={completed} athleteId="i1" ftp={250} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Stats' }))
+    expect(await screen.findByRole('button', { name: /Bike: Road/ })).toBeInTheDocument()
+    expect(urls).toContain('/api/rides/activity/a1/bike')
+  })
+
+  it('still shows the chip while ride stats are not available yet', async () => {
+    mockApi()
+    const completed = makeWorkout({ status: 'completed', icu_activity_id: 'a1', activity_metrics: null })
+    render(<WorkoutDetailModal workout={completed} athleteId="i1" ftp={250} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Stats' }))
+    expect(await screen.findByRole('button', { name: /Bike: Road/ })).toBeInTheDocument()
+    expect(screen.getByText(/Ride stats not available yet/)).toBeInTheDocument()
+  })
+
+  it('does not show or look up a bike for a planned session with no ride', () => {
+    const urls = mockApi()
+    render(<WorkoutDetailModal workout={plannedWorkout} athleteId="i1" ftp={250} onClose={() => {}} />)
+    expect(screen.queryByRole('button', { name: /Bike:/ })).not.toBeInTheDocument()
+    expect(urls.some(u => u.endsWith('/bike'))).toBe(false)
+  })
+})
