@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 import withPWAInit from '@ducanh2912/next-pwa'
+import { resolveAppVersion } from './lib/app-version'
 
 const withPWA = withPWAInit({
   dest: 'public',
@@ -28,7 +29,9 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   env: {
-    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version,
+    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version
+      ? resolveAppVersion(process.env.npm_package_version)
+      : undefined,
     NEXT_PUBLIC_BUILD_DATE: new Date().toISOString(),
   },
 }
