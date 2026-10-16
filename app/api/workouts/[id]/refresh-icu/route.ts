@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { generateWorkoutSteps } from '@/lib/claude/steps'
-import { stepsTss } from '@/lib/estimate-tss'
+import { plannedWorkoutTss } from '@/lib/estimate-tss'
 import { nameForWorkout } from '@/lib/workout-names'
 import type { Workout, WorkoutStep, CoachingNotes } from '@/types'
 import { setUsageContext } from '@/lib/claude/usage-log'
@@ -50,7 +50,7 @@ export async function POST(
   if (!steps.length) {
     try {
       steps = await generateWorkoutSteps(workout as Workout)
-      await supabase.from('workouts').update({ steps, tss: stepsTss(steps) }).eq('id', id)
+      await supabase.from('workouts').update({ steps, tss: plannedWorkoutTss({ type: workout.type, duration_minutes: workout.duration_minutes, steps }) }).eq('id', id)
     } catch {
       steps = []
     }

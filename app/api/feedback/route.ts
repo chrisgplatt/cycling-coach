@@ -6,7 +6,7 @@ import { assessSession } from '@/lib/claude/session-note'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { nameForWorkout } from '@/lib/workout-names'
-import { stepsTss } from '@/lib/estimate-tss'
+import { plannedWorkoutTss } from '@/lib/estimate-tss'
 import type { Workout, ProposedAdjustment } from '@/types'
 import { setUsageContext } from '@/lib/claude/usage-log'
 
@@ -225,8 +225,20 @@ export async function PATCH(req: NextRequest) {
     if (newSteps?.length) {
       await supabase
         .from('workouts')
-        .update({ steps: newSteps, tss: stepsTss(newSteps) })
+        .update({ steps: newSteps })
         .eq('id', workoutId)
+    }
+
+    // Re-derive the stored planned TSS from the workout's final steps/type/duration —
+    // the adjustment may have changed any of them.
+    const { data: current } = await supabase
+      .from('workouts')
+      .select('type, duration_minutes, steps, status, tss')
+      .eq('id', workoutId)
+      .single()
+    if (current?.status === 'planned') {
+      const tss = plannedWorkoutTss(current as Pick<Workout, 'type' | 'duration_minutes' | 'steps'>)
+      if (tss !== current.tss) await supabase.from('workouts').update({ tss }).eq('id', workoutId)
     }
 
     if (!client) continue

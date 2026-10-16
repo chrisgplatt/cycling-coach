@@ -4,6 +4,8 @@ import { IntervalsClient } from '@/lib/intervals/client'
 import { resolveFallbackFtpForWorkout } from '@/lib/ftp/resolve-ftp'
 import { enrichActivity } from '@/lib/intervals/enrich'
 import { rekeyBestRecordWorkoutId } from '@/lib/ride/best-records'
+import { plannedWorkoutTss } from '@/lib/estimate-tss'
+import type { Workout } from '@/types'
 
 export async function POST(
   _req: NextRequest,
@@ -17,7 +19,7 @@ export async function POST(
 
   const { data: workout } = await supabase
     .from('workouts')
-    .select('plan_id, date, icu_activity_id, status')
+    .select('plan_id, date, icu_activity_id, status, type, duration_minutes, steps')
     .eq('id', id)
     .maybeSingle()
 
@@ -65,7 +67,7 @@ export async function POST(
 
   const { error: updateError } = await supabase
     .from('workouts')
-    .update({ status: 'planned', icu_activity_id: null, tss: null, actual_duration_minutes: null, ftp_at_completion: null, activity_metrics: null })
+    .update({ status: 'planned', icu_activity_id: null, tss: plannedWorkoutTss(workout as Pick<Workout, 'type' | 'duration_minutes' | 'steps'>), actual_duration_minutes: null, ftp_at_completion: null, activity_metrics: null })
     .eq('id', id)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
