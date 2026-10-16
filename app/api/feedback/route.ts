@@ -6,6 +6,7 @@ import { assessSession } from '@/lib/claude/session-note'
 import { fetchDossier, formatDossier } from '@/lib/claude/dossier'
 import type { AthleteDossier } from '@/lib/claude/dossier'
 import { nameForWorkout } from '@/lib/workout-names'
+import { stepsTss } from '@/lib/estimate-tss'
 import type { Workout, ProposedAdjustment } from '@/types'
 import { setUsageContext } from '@/lib/claude/usage-log'
 
@@ -224,7 +225,7 @@ export async function PATCH(req: NextRequest) {
     if (newSteps?.length) {
       await supabase
         .from('workouts')
-        .update({ steps: newSteps })
+        .update({ steps: newSteps, tss: stepsTss(newSteps) })
         .eq('id', workoutId)
     }
 

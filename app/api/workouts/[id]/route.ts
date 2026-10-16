@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { stepsTss as estimateTss } from '@/lib/estimate-tss'
 import { resolveFallbackFtpForWorkout } from '@/lib/ftp/resolve-ftp'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { generateWorkoutSteps } from '@/lib/claude/steps'
@@ -50,10 +51,6 @@ export async function PATCH(
   setUsageContext({ userId: user.id, trigger: 'user', route: '/api/workouts/[id]' })
   const { id } = await params
   const body = await req.json()
-
-  function estimateTss(steps: WorkoutStep[]): number {
-    return Math.round(steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0))
-  }
 
   const update: Record<string, unknown> = {}
   if (body.status !== undefined) update.status = body.status

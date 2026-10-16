@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { stepsTss as estimateTss } from '@/lib/estimate-tss'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { nameForWorkout } from '@/lib/workout-names'
 import type { WorkoutStep } from '@/types'
-
-function estimateTss(steps: WorkoutStep[]): number {
-  return Math.round(steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0))
-}
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()

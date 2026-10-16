@@ -17,7 +17,7 @@ import { buildPlannedActual, type PlannedActual } from '@/lib/ride/planned-actua
 import WorkoutFeedbackTab from './WorkoutFeedbackTab'
 import { deriveTargetZones } from '@/lib/claude/zones'
 import { WORKOUT_TYPE_BADGE, WORKOUT_STATUS_BADGE, WORKOUT_STATUS_LABEL } from '@/lib/workout-colours'
-import { estimateTss } from '@/lib/estimate-tss'
+import { plannedWorkoutTss } from '@/lib/estimate-tss'
 import { RideMedalList } from '@/components/RideMedals'
 import type { RideMedals } from '@/lib/ride/ride-medals'
 
@@ -411,11 +411,11 @@ export default function WorkoutDetailModal({
               </span>
               {workout.status === 'completed' && workout.tss !== null ? (
                 <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
-                  ~{estimateTss(workout.type, workout.duration_minutes)} → {workout.tss} TSS
+                  ~{plannedWorkoutTss(workout)} → {workout.tss} TSS
                 </span>
-              ) : workout.tss !== null ? (
+              ) : workout.status === 'planned' || workout.tss !== null ? (
                 <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
-                  TSS {workout.tss}
+                  TSS {workout.status === 'planned' ? plannedWorkoutTss(workout) : workout.tss}
                 </span>
               ) : null}
               {workout.status === 'completed' && workout.ftp_at_completion !== null && (
