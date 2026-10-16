@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import AnimatedLogo from './AnimatedLogo'
+import { getBuildInfo } from '@/lib/build-info'
 
 // Shown once per app open (per browser session). The bike rides in from the left
 // with its wheels spinning, settles centre, the name fades in, then the whole
@@ -41,6 +42,9 @@ export default function SplashScreen() {
 
   if (!visible) return null
 
+  const { version, built } = getBuildInfo()
+  const buildLine = [version, built && `Built ${built}`].filter(Boolean).join(' · ')
+
   return (
     <div
       data-testid="splash-screen"
@@ -59,6 +63,14 @@ export default function SplashScreen() {
           My Cycling Coach
         </span>
       </div>
+      {buildLine && (
+        <p
+          data-testid="splash-build-info"
+          className="absolute inset-x-0 bottom-0 px-8 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] text-center text-xs text-white/70 animate-[splash-fade-up_0.4s_ease-out_0.55s_both] motion-reduce:animate-none"
+        >
+          {buildLine}
+        </p>
+      )}
     </div>
   )
 }
