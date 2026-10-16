@@ -16,7 +16,7 @@ import { weekDates as computeWeekDates } from '@/lib/calendar-helpers'
 import { localDateStr } from '@/lib/local-date'
 import { computeHrvBaseline } from '@/lib/hrv/baseline'
 import { resolveMaxHrFromProfile } from '@/lib/max-hr'
-import { estimateTss } from '@/lib/estimate-tss'
+import { plannedWorkoutTss } from '@/lib/estimate-tss'
 import { isSessionCountable, isSessionCompleted } from '@/lib/progress/session-counting'
 import { isGarminSyncStale, formatGarminSyncTime } from '@/lib/garmin/sync-staleness'
 import { formatRelativeSyncTime } from '@/lib/format-sync-time'
@@ -523,7 +523,7 @@ export default function DashboardPage() {
     sessionsCompleted: countableSessionsWP.filter(isSessionCompleted).length,
     sessionsTotal: countableSessionsWP.length,
     tssActual: Math.round(completedWP.filter(w => w.tss !== null).reduce((s, w) => s + (w.tss ?? 0), 0)),
-    tssPlanned: weekWorkoutsWP.reduce((s, w) => s + estimateTss(w.type, w.duration_minutes), 0),
+    tssPlanned: weekWorkoutsWP.reduce((s, w) => s + plannedWorkoutTss(w), 0),
     distanceKm: Math.round(completedWP.reduce((s, w) => s + ((w.activity_metrics?.distance_m ?? 0) / 1000), 0) * 10) / 10,
     elevationM: Math.round(completedWP.reduce((s, w) => s + (w.activity_metrics?.elevation_m ?? 0), 0)),
     timePlannedMins: weekWorkoutsWP.reduce((s, w) => s + w.duration_minutes, 0),
@@ -762,7 +762,7 @@ export default function DashboardPage() {
             {(() => {
               const weekWorkouts = workouts.filter(w => weekDates.includes(w.date))
               if (!weekWorkouts.length) return null
-              const plannedTss = weekWorkouts.reduce((sum, w) => sum + estimateTss(w.type, w.duration_minutes), 0)
+              const plannedTss = weekWorkouts.reduce((sum, w) => sum + plannedWorkoutTss(w), 0)
               const actualTss = weekWorkouts
                 .filter(w => w.status === 'completed' && w.tss !== null)
                 .reduce((sum, w) => sum + (w.tss ?? 0), 0)

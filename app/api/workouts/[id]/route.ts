@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { stepsTss as estimateTss, plannedWorkoutTss } from '@/lib/estimate-tss'
 import { resolveFallbackFtpForWorkout } from '@/lib/ftp/resolve-ftp'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { generateWorkoutSteps } from '@/lib/claude/steps'
@@ -50,10 +51,6 @@ export async function PATCH(
   setUsageContext({ userId: user.id, trigger: 'user', route: '/api/workouts/[id]' })
   const { id } = await params
   const body = await req.json()
-
-  function estimateTss(steps: WorkoutStep[]): number {
-    return Math.round(steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0))
-  }
 
   const update: Record<string, unknown> = {}
   if (body.status !== undefined) update.status = body.status
@@ -115,6 +112,15 @@ export async function PATCH(
   if (contentFieldsChanged) {
     const { data: updated } = await supabase.from('workouts').select('*').eq('id', id).maybeSingle()
     if (updated) {
+      // Keep the stored planned TSS in step with whatever just changed (type, duration or
+      // steps), so weekly calculations that read the column never see a stale target.
+      if (updated.status === 'planned') {
+        const tss = plannedWorkoutTss(updated as Workout)
+        if (tss !== updated.tss) {
+          await supabase.from('workouts').update({ tss }).eq('id', id)
+          updated.tss = tss
+        }
+      }
       const { data: profile } = await supabase
         .from('user_profile')
         .select('intervals_icu_athlete_id, intervals_icu_api_key, goals, current_ftp, weight_kg')

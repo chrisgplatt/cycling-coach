@@ -1,6 +1,7 @@
 import { anthropic, PLAN_MODEL } from './client'
 import { logUsage } from './usage-log'
 import { formatZones } from './zones'
+import { stepsTss } from '@/lib/estimate-tss'
 import { formatSchedule, formatPlanCalendar } from './schedule'
 import { coachingNotesGuidance } from './coaching-notes'
 import type { UserProfile, ICUSyncData, GeneratedPlan, ICUActivity, ICUWellness, TrainingPhilosophy } from '@/types'
@@ -110,11 +111,7 @@ export interface PlanBatchInfo {
 }
 
 /** Target training stress from a workout's steps — shared by prompt continuity summaries and the PATCH save path. */
-export function estimateTss(steps: Array<{ duration_minutes: number; power_pct_ftp: number }>): number {
-  return Math.round(
-    steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0)
-  )
-}
+export const estimateTss = stepsTss
 
 function summariseBatchWorkouts(workouts: GeneratedPlan['workouts'], planStart: string): string {
   if (!workouts.length) return 'No prior weeks yet.'

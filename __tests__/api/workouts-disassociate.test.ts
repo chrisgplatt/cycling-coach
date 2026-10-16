@@ -30,7 +30,11 @@ const mockEnrichActivity = enrichActivity as jest.Mock
 const icuProfile = { intervals_icu_athlete_id: 'i1', intervals_icu_api_key: 'k' }
 
 function makeSupabase({
-  workoutRow = { plan_id: 'p1', date: '2026-07-10', icu_activity_id: 'a1', status: 'completed' },
+  workoutRow = {
+    plan_id: 'p1', date: '2026-07-10', icu_activity_id: 'a1', status: 'completed',
+    type: 'threshold', duration_minutes: 60,
+    steps: [{ label: 'Main', duration_minutes: 60, power_pct_ftp: 100 }],
+  },
   profileRow = icuProfile as unknown,
   insertSpy = jest.fn((_fields: unknown) => ({
     select: () => ({ single: async () => ({ data: { id: 'new-w1' }, error: null }) }),
@@ -124,7 +128,7 @@ describe('POST /api/workouts/[id]/disassociate', () => {
 
     await POST(makeRequest(), makeParams('w1'))
     expect(updateSpy).toHaveBeenCalledWith({
-      status: 'planned', icu_activity_id: null, tss: null, actual_duration_minutes: null, ftp_at_completion: null, activity_metrics: null,
+      status: 'planned', icu_activity_id: null, tss: 100, actual_duration_minutes: null, ftp_at_completion: null, activity_metrics: null,
     })
   })
 

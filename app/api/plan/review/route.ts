@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { stepsTss as estimateTss } from '@/lib/estimate-tss'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { fetchHrvStatusBestSource } from '@/lib/hrv/server'
 import { isoWeek } from '@/lib/iso-week'
@@ -179,12 +180,6 @@ export async function PATCH(req: NextRequest) {
   const workoutIds = (futureWorkouts ?? []).map((w: { id: string }) => w.id)
   if (workoutIds.length) {
     await supabase.from('workouts').delete().in('id', workoutIds)
-  }
-
-  function estimateTss(steps: Array<{ duration_minutes: number; power_pct_ftp: number }>): number {
-    return Math.round(
-      steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0)
-    )
   }
 
   const uploadErrors: string[] = []

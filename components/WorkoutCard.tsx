@@ -1,15 +1,16 @@
 import type { Workout, WorkoutType } from '@/types'
 import { deriveTargetZones } from '@/lib/claude/zones'
 import { WORKOUT_TYPE_CHIP, WORKOUT_STATUS_CHIP, WORKOUT_STATUS_LABEL, WORKOUT_OPTIONAL_BADGE } from '@/lib/workout-colours'
-import { estimateTss } from '@/lib/estimate-tss'
+import { plannedWorkoutTss } from '@/lib/estimate-tss'
 import { RideMedalIcons } from '@/components/RideMedals'
 import type { RideMedals } from '@/lib/ride/ride-medals'
 
 function getTss(workout: Workout): { value: number; estimated: boolean } | null {
-  if (workout.tss !== null) return { value: workout.tss, estimated: false }
+  // Planned workouts: derive from current steps — the stored tss can be stale.
   if (workout.status === 'planned') {
-    return { value: estimateTss(workout.type, workout.duration_minutes), estimated: true }
+    return { value: plannedWorkoutTss(workout), estimated: !workout.steps?.length }
   }
+  if (workout.tss !== null) return { value: workout.tss, estimated: false }
   return null
 }
 
@@ -65,7 +66,7 @@ export default function WorkoutCard({ workout, onClick, ftp, weather, medals }: 
           </span>
           {(() => {
             if (workout.status === 'completed' && workout.tss !== null) {
-              const planned = estimateTss(workout.type, workout.duration_minutes)
+              const planned = plannedWorkoutTss(workout)
               return <span className="text-xs text-gray-400">· ~{planned} → {workout.tss} TSS</span>
             }
             const t = getTss(workout)

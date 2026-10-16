@@ -1,5 +1,5 @@
 import { getWeekBounds } from '@/lib/week-bounds'
-import { estimateTss } from '@/lib/estimate-tss'
+import { plannedWorkoutTss } from '@/lib/estimate-tss'
 import type { Workout, ICUActivity } from '@/types'
 
 export function calendarMonthDays(year: number, month: number): { date: string; inMonth: boolean }[] {
@@ -151,10 +151,10 @@ export function getWeeklySummary(dates: string[], workouts: Workout[], activitie
               + unlinked.reduce((sum, a) => sum + Math.round(a.moving_time / 60), 0),
     // Planned reflects the week's original schedule regardless of what happened to
     // it — every workout counts, including ones later marked skipped/missed, not
-    // just ones still in status 'planned'. Workout.tss only ever holds the achieved
-    // value once completed, never a target, so estimateTss (the same heuristic
-    // WorkoutCard uses for its own planned figure) is used unconditionally here instead.
-    plannedTss:  week.reduce((sum, w) => sum + estimateTss(w.type, w.duration_minutes), 0),
+    // just ones still in status 'planned'. Workout.tss holds the achieved value once
+    // completed, so the target is derived from the workout's steps (falling back to
+    // a per-type heuristic) via plannedWorkoutTss — the same figure WorkoutCard shows.
+    plannedTss:  week.reduce((sum, w) => sum + plannedWorkoutTss(w), 0),
     plannedMins: week.reduce((sum, w) => sum + w.duration_minutes, 0),
   }
 }

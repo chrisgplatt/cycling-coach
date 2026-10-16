@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { stepsTss as estimateTss } from '@/lib/estimate-tss'
 import { IntervalsClient } from '@/lib/intervals/client'
 import { computeMethodology } from '@/lib/claude/methodology'
 import { nameForWorkout } from '@/lib/workout-names'
@@ -115,12 +116,6 @@ export async function POST(req: NextRequest) {
       training_philosophy: philosophyToUse,
     })
     .eq('id', activePlan.id)
-
-  function estimateTss(steps: Array<{ duration_minutes: number; power_pct_ftp: number }>): number {
-    return Math.round(
-      steps.reduce((sum, s) => sum + (s.duration_minutes * 60 * (s.power_pct_ftp / 100) ** 2) / 36, 0)
-    )
-  }
 
   const uploadErrors: string[] = []
   const eventIds: (string | null)[] = []
