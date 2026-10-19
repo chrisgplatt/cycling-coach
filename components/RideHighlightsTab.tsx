@@ -75,7 +75,7 @@ function PersonalBestCard({ p, index, active, onRegisterRef }: {
 }) {
   return (
     <Card icon="🏆" kind="Personal best" index={index} active={active} onRegisterRef={onRegisterRef}>
-      <p className="text-sm text-gray-900">{durationLabel(p.duration_secs)} power: {p.watts}W ({p.window_days}-day best)</p>
+      <p className="text-sm text-gray-900">{durationLabel(p.duration_secs)} power: {p.watts}W ({p.window_days}-day best across indoor and outdoor rides)</p>
     </Card>
   )
 }

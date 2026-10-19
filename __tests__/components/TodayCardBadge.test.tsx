@@ -64,8 +64,8 @@ it('renders the weather strip when the briefing returns weather', async () => {
 
 it('shows medal icons on the workout card when medals are present', async () => {
   const workout = makeWorkout({ status: 'completed' })
-  render(<TodayCard workout={workout} wellness={null} medals={{ allTime: [{ category: 'power', subKey: '300', rank: 1 }], year: [] }} />)
-  expect(await screen.findByTitle('All-time record')).toBeInTheDocument()
+  render(<TodayCard workout={workout} wellness={null} medals={{ allTime: [{ category: 'power', subKey: '300', rank: 1, isIndoor: false }], year: [] }} />)
+  expect(await screen.findByTitle('All-time outdoor record')).toBeInTheDocument()
 })
 
 it('shows no medal icons when medals is absent', async () => {
@@ -73,7 +73,7 @@ it('shows no medal icons when medals is absent', async () => {
   render(<TodayCard workout={workout} wellness={null} />)
   fireEvent.click(screen.getByRole('button', { name: /coach's note/i }))
   await waitFor(() => expect(screen.getByTestId('readiness-badge')).toBeInTheDocument())
-  expect(screen.queryByTitle('All-time record')).not.toBeInTheDocument()
-  expect(screen.queryByTitle('Year-best record')).not.toBeInTheDocument()
+  expect(screen.queryByTitle('All-time outdoor record')).not.toBeInTheDocument()
+  expect(screen.queryByTitle('Year-best outdoor record')).not.toBeInTheDocument()
 })
 

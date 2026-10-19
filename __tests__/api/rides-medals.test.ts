@@ -36,7 +36,7 @@ describe('GET /api/rides/medals', () => {
     const body = await res.json()
     expect(res.status).toBe(200)
     expect(body).toEqual({
-      w1: { allTime: [{ category: 'max_speed', subKey: '', rank: 1 }], year: [] },
+      w1: { allTime: [{ category: 'max_speed', subKey: '', rank: 1, isIndoor: false }], year: [] },
     })
   })
 

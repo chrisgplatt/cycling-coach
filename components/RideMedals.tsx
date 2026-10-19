@@ -43,6 +43,8 @@ function bestRank(entries: MedalEntry[]): number | null {
   return Math.min(...entries.map(e => e.rank))
 }
 
+const surfaceLabel = (isIndoor: boolean) => (isIndoor ? 'indoor' : 'outdoor')
+
 function TierIcon({ icon, label, rank }: { icon: string; label: string; rank: number }) {
   return (
     <span title={label} aria-label={label}>
@@ -55,22 +57,25 @@ export function RideMedalIcons({ medals }: { medals: RideMedals | null | undefin
   if (!medals) return null
   const allTimeRank = bestRank(medals.allTime)
   const yearRank = bestRank(medals.year)
+  // A ride is wholly indoor or outdoor, so every entry in a tier shares one surface.
+  const allTimeSurface = surfaceLabel(medals.allTime[0]?.isIndoor ?? false)
+  const yearSurface = surfaceLabel(medals.year[0]?.isIndoor ?? false)
   if (allTimeRank == null && yearRank == null) return null
   return (
     <span className="inline-flex items-center gap-1">
-      {allTimeRank != null && <TierIcon icon="🏆" label="All-time record" rank={allTimeRank} />}
-      {yearRank != null && <TierIcon icon="🥇" label="Year-best record" rank={yearRank} />}
+      {allTimeRank != null && <TierIcon icon="🏆" label={`All-time ${allTimeSurface} record`} rank={allTimeRank} />}
+      {yearRank != null && <TierIcon icon="🥇" label={`Year-best ${yearSurface} record`} rank={yearRank} />}
     </span>
   )
 }
 
-function MedalRow({ tierIcon, tierLabel, entry }: { tierIcon: string; tierLabel: string; entry: MedalEntry }) {
+function MedalRow({ tierIcon, tierLabel, entry }: { tierIcon: string; tierLabel: (isIndoor: boolean) => string; entry: MedalEntry }) {
   const rankSuffix = entry.rank > 1 ? ` #${entry.rank}` : ''
   return (
     <div className="flex items-center gap-2 text-sm text-gray-700">
       <span aria-hidden="true">{tierIcon}</span>
       <span aria-hidden="true">{CATEGORY_ICON[entry.category]}</span>
-      <span>{tierLabel}{rankSuffix} · {categoryDetail(entry)}</span>
+      <span>{tierLabel(entry.isIndoor)}{rankSuffix} · {categoryDetail(entry)}</span>
     </div>
   )
 }
@@ -81,10 +86,10 @@ export function RideMedalList({ medals, year }: { medals: RideMedals | null | un
   return (
     <div className="space-y-1">
       {medals.allTime.map((entry, i) => (
-        <MedalRow key={`all-${i}`} tierIcon="🏆" tierLabel="All-time" entry={entry} />
+        <MedalRow key={`all-${i}`} tierIcon="🏆" tierLabel={i => `All-time ${surfaceLabel(i)}`} entry={entry} />
       ))}
       {medals.year.map((entry, i) => (
-        <MedalRow key={`year-${i}`} tierIcon="🥇" tierLabel={`${year} best`} entry={entry} />
+        <MedalRow key={`year-${i}`} tierIcon="🥇" tierLabel={i => `${year} ${surfaceLabel(i)} best`} entry={entry} />
       ))}
     </div>
   )
