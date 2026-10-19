@@ -108,14 +108,14 @@ describe('WorkoutCard', () => {
   })
 
   it('shows medal icons when the medals prop has entries', () => {
-    render(<WorkoutCard workout={{ ...workout, status: 'completed' }} medals={{ allTime: [{ category: 'power', subKey: '300', rank: 1 }], year: [] }} />)
-    expect(screen.getByTitle('All-time record')).toBeInTheDocument()
+    render(<WorkoutCard workout={{ ...workout, status: 'completed' }} medals={{ allTime: [{ category: 'power', subKey: '300', rank: 1, isIndoor: false }], year: [] }} />)
+    expect(screen.getByTitle('All-time outdoor record')).toBeInTheDocument()
   })
 
   it('shows no medal icons when the medals prop is absent', () => {
     render(<WorkoutCard workout={{ ...workout, status: 'completed' }} />)
-    expect(screen.queryByTitle('All-time record')).not.toBeInTheDocument()
-    expect(screen.queryByTitle('Year-best record')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('All-time outdoor record')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Year-best outdoor record')).not.toBeInTheDocument()
   })
 
   it('shows the session name at the top when present', () => {

@@ -272,10 +272,10 @@ describe('WorkoutDetailModal', () => {
         workout={matchedWorkout}
         athleteId="i12345"
         onClose={jest.fn()}
-        medals={{ allTime: [{ category: 'biggest_climb', subKey: '', rank: 1 }], year: [] }}
+        medals={{ allTime: [{ category: 'biggest_climb', subKey: '', rank: 1, isIndoor: false }], year: [] }}
       />,
     )
-    expect(await screen.findByText('All-time · Biggest climb')).toBeInTheDocument()
+    expect(await screen.findByText('All-time outdoor · Biggest climb')).toBeInTheDocument()
   })
 
   it("labels a year-best medal with the ride's own year", async () => {
@@ -284,16 +284,16 @@ describe('WorkoutDetailModal', () => {
         workout={matchedWorkout}
         athleteId="i12345"
         onClose={jest.fn()}
-        medals={{ allTime: [], year: [{ category: 'power', subKey: '300', rank: 1 }] }}
+        medals={{ allTime: [], year: [{ category: 'power', subKey: '300', rank: 1, isIndoor: false }] }}
       />,
     )
-    expect(await screen.findByText('2026 best · Power 5 min')).toBeInTheDocument()
+    expect(await screen.findByText('2026 outdoor best · Power 5 min')).toBeInTheDocument()
   })
 
   it('renders nothing extra when medals is absent', async () => {
     render(<WorkoutDetailModal workout={matchedWorkout} athleteId="i12345" onClose={jest.fn()} />)
     await screen.findByText('✓ Completed')
-    expect(screen.queryByText(/All-time ·/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/All-time .* ·/)).not.toBeInTheDocument()
     expect(screen.queryByText(/best ·/)).not.toBeInTheDocument()
   })
 

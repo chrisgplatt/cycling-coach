@@ -4,6 +4,7 @@ export interface MedalEntry {
   category: BestCategory
   subKey: string   // '' for climbs/max_speed; duration (secs) or distance (km) for power/speed
   rank: number      // 1 (gold) through 3 (bronze) — the ride's podium position for this category+subKey+period
+  isIndoor: boolean // podiums are ranked per surface — this record is an indoor best (true) or an outdoor best (false)
 }
 
 export interface RideMedals {
@@ -26,7 +27,7 @@ export interface RideMedals {
 // be redundant, regardless of which rank it holds in each.
 export function buildMedalsByWorkoutId(rows: BestRecordRow[]): Record<string, RideMedals> {
   const result: Record<string, RideMedals> = {}
-  const keyOf = (r: BestRecordRow) => `${r.category}:${r.sub_key}`
+  const keyOf = (r: BestRecordRow) => `${r.category}:${r.sub_key}:${r.is_indoor}`
   const allTimeKeys: Record<string, Set<string>> = {}
 
   for (const r of rows) {
@@ -38,7 +39,7 @@ export function buildMedalsByWorkoutId(rows: BestRecordRow[]): Record<string, Ri
     const key = keyOf(r)
     if (allTimeKeys[workoutId].has(key)) continue
     allTimeKeys[workoutId].add(key)
-    result[workoutId].allTime.push({ category: r.category, subKey: r.sub_key, rank: r.rank })
+    result[workoutId].allTime.push({ category: r.category, subKey: r.sub_key, rank: r.rank, isIndoor: r.is_indoor })
   }
 
   const yearKeys: Record<string, Set<string>> = {}
@@ -52,7 +53,7 @@ export function buildMedalsByWorkoutId(rows: BestRecordRow[]): Record<string, Ri
     if (!yearKeys[workoutId]) yearKeys[workoutId] = new Set()
     if (yearKeys[workoutId].has(key)) continue
     yearKeys[workoutId].add(key)
-    result[workoutId].year.push({ category: r.category, subKey: r.sub_key, rank: r.rank })
+    result[workoutId].year.push({ category: r.category, subKey: r.sub_key, rank: r.rank, isIndoor: r.is_indoor })
   }
 
   return result

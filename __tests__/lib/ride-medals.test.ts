@@ -28,14 +28,14 @@ describe('buildMedalsByWorkoutId', () => {
   it('puts an "all" period row into the allTime list, carrying its rank', () => {
     const rows = [row({ workoutId: 'w1', period: 'all', category: 'biggest_climb', rank: 1 })]
     expect(buildMedalsByWorkoutId(rows)).toEqual({
-      w1: { allTime: [{ category: 'biggest_climb', subKey: '', rank: 1 }], year: [] },
+      w1: { allTime: [{ category: 'biggest_climb', subKey: '', rank: 1, isIndoor: false }], year: [] },
     })
   })
 
   it('puts a non-"all" period row into the year list, carrying its rank', () => {
     const rows = [row({ workoutId: 'w1', period: '2026', category: 'max_speed', rank: 2 })]
     expect(buildMedalsByWorkoutId(rows)).toEqual({
-      w1: { allTime: [], year: [{ category: 'max_speed', subKey: '', rank: 2 }] },
+      w1: { allTime: [], year: [{ category: 'max_speed', subKey: '', rank: 2, isIndoor: false }] },
     })
   })
 
@@ -45,7 +45,7 @@ describe('buildMedalsByWorkoutId', () => {
       row({ workoutId: 'w1', period: '2026', category: 'power', sub_key: '300', rank: 1 }),
     ]
     expect(buildMedalsByWorkoutId(rows)).toEqual({
-      w1: { allTime: [{ category: 'power', subKey: '300', rank: 1 }], year: [] },
+      w1: { allTime: [{ category: 'power', subKey: '300', rank: 1, isIndoor: false }], year: [] },
     })
   })
 
@@ -57,8 +57,8 @@ describe('buildMedalsByWorkoutId', () => {
     const result = buildMedalsByWorkoutId(rows)
     expect(result.w1.allTime).toHaveLength(2)
     expect(result.w1.allTime).toEqual(expect.arrayContaining([
-      { category: 'power', subKey: '300', rank: 1 },
-      { category: 'power', subKey: '1200', rank: 2 },
+      { category: 'power', subKey: '300', rank: 1, isIndoor: false },
+      { category: 'power', subKey: '1200', rank: 2, isIndoor: false },
     ]))
   })
 
@@ -68,7 +68,7 @@ describe('buildMedalsByWorkoutId', () => {
       row({ workoutId: 'w1', period: 'all', category: 'power', sub_key: '300', rank: 1 }),
     ]
     expect(buildMedalsByWorkoutId(rows)).toEqual({
-      w1: { allTime: [{ category: 'power', subKey: '300', rank: 1 }], year: [] },
+      w1: { allTime: [{ category: 'power', subKey: '300', rank: 1, isIndoor: false }], year: [] },
     })
   })
 
@@ -79,8 +79,8 @@ describe('buildMedalsByWorkoutId', () => {
     ]
     expect(buildMedalsByWorkoutId(rows)).toEqual({
       w1: {
-        allTime: [{ category: 'power', subKey: '300', rank: 1 }],
-        year: [{ category: 'power', subKey: '1200', rank: 3 }],
+        allTime: [{ category: 'power', subKey: '300', rank: 1, isIndoor: false }],
+        year: [{ category: 'power', subKey: '1200', rank: 3, isIndoor: false }],
       },
     })
   })
@@ -93,8 +93,8 @@ describe('buildMedalsByWorkoutId', () => {
     const result = buildMedalsByWorkoutId(rows)
     expect(result.w1.allTime).toHaveLength(2)
     expect(result.w1.allTime).toEqual(expect.arrayContaining([
-      { category: 'biggest_climb', subKey: '', rank: 1 },
-      { category: 'power', subKey: '300', rank: 2 },
+      { category: 'biggest_climb', subKey: '', rank: 1, isIndoor: false },
+      { category: 'power', subKey: '300', rank: 2, isIndoor: false },
     ]))
   })
 
@@ -104,8 +104,23 @@ describe('buildMedalsByWorkoutId', () => {
       row({ workoutId: 'w2', period: '2025', category: 'longest_climb', rank: 3 }),
     ]
     expect(buildMedalsByWorkoutId(rows)).toEqual({
-      w1: { allTime: [{ category: 'max_speed', subKey: '', rank: 1 }], year: [] },
-      w2: { allTime: [], year: [{ category: 'longest_climb', subKey: '', rank: 3 }] },
+      w1: { allTime: [{ category: 'max_speed', subKey: '', rank: 1, isIndoor: false }], year: [] },
+      w2: { allTime: [], year: [{ category: 'longest_climb', subKey: '', rank: 3, isIndoor: false }] },
+    })
+  })
+})
+
+describe('buildMedalsByWorkoutId surface', () => {
+  it('carries is_indoor through as isIndoor on every entry', () => {
+    const rows = [
+      row({ workoutId: 'w1', period: 'all', category: 'power', sub_key: '300', rank: 1, is_indoor: true }),
+      row({ workoutId: 'w1', period: '2026', category: 'power', sub_key: '60', rank: 2, is_indoor: true }),
+    ]
+    expect(buildMedalsByWorkoutId(rows)).toEqual({
+      w1: {
+        allTime: [{ category: 'power', subKey: '300', rank: 1, isIndoor: true }],
+        year: [{ category: 'power', subKey: '60', rank: 2, isIndoor: true }],
+      },
     })
   })
 })

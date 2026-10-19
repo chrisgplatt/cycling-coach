@@ -25,7 +25,7 @@ describe('RideHighlightsTab', () => {
     expect(screen.getByText(/5s · 890W/)).toBeInTheDocument()
 
     expect(screen.getByText(/Personal best/)).toBeInTheDocument()
-    expect(screen.getByText(/5min power: 312W \(90-day best\)/)).toBeInTheDocument()
+    expect(screen.getByText(/5min power: 312W \(90-day best across indoor and outdoor rides\)/)).toBeInTheDocument()
   })
 
   it('renders nothing when there are no highlights', () => {
