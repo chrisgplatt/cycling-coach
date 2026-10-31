@@ -43,11 +43,14 @@ const nextWeekWorkout = makeWorkout({ id: 'w-next', date: nextWeekStart, name: '
 // "0/1" to "0/2" after clicking Next.
 const nextWeekWorkout2 = makeWorkout({ id: 'w-next-2', date: shiftDateStr(nextWeekStart, 1), name: 'Next week ride 2' })
 
-function mockFetch() {
+function mockFetch(planBody?: unknown) {
   global.fetch = jest.fn((url: string) => {
     const u = String(url)
     if (u === '/api/sync') {
       return Promise.resolve({ ok: true, json: async () => ({ activities: [], wellness: [], athlete_ftp: null, athlete_weight: null }) })
+    }
+    if (u === '/api/plan' && planBody !== undefined) {
+      return Promise.resolve({ ok: true, json: async () => planBody })
     }
     if (u === '/api/plan') {
       return Promise.resolve({
@@ -285,5 +288,30 @@ describe('DashboardPage wellness save refreshes recovery', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(chartsCallCount).toBe(2))
+  })
+})
+
+describe('DashboardPage weekly review banner', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('does not show the banner when there is no active plan, only the completed-rides shell from /api/plan', async () => {
+    // GET /api/plan with no active plan returns just { workouts } so rides still render —
+    // no id, status or last_reviewed_week.
+    mockFetch({ workouts: [makeWorkout({ id: 'ride-1', date: lastWeekStart, name: 'Unplanned ride', status: 'completed', plan_id: null })] })
+    render(<DashboardPage />)
+    await screen.findByText(/Hi,|Sync/i)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith('/api/plan'))
+    await new Promise(r => setTimeout(r, 50))
+    expect(screen.queryByText('Weekly plan review')).not.toBeInTheDocument()
+  })
+
+  it('shows the banner for an active plan whose last review is before the current week', async () => {
+    mockFetch({
+      id: 'plan-1', status: 'active', name: 'Plan', last_reviewed_week: '2000-W01',
+      created_at: shiftDateStr(todayStr, -35), plan_weeks: 12, week_phases: [],
+      workouts: [lastWeekWorkout, currentWeekWorkout],
+    })
+    render(<DashboardPage />)
+    expect(await screen.findByText('Weekly plan review')).toBeInTheDocument()
   })
 })

@@ -89,12 +89,18 @@ export async function POST(req: NextRequest) {
   const coachNotePromise = assessSession(w, feedbackText, { ...signals, mood: mood ?? null }, rideExecution)
     .catch(() => null)
 
+  // Adaptation only makes sense when there are planned sessions coming up. With no live
+  // plan there is nothing to adapt, so neither propose changes nor tell the athlete their
+  // upcoming sessions "may benefit from adjustment" (the coach note has no view of the plan).
+  const today = new Date().toISOString().split('T')[0]
+  const next7 = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
+  const { data: upcomingWorkouts } = await supabase
+    .from('workouts').select('*').eq('status', 'planned').gte('date', today).lte('date', next7).order('date')
+  const hasUpcoming = (upcomingWorkouts?.length ?? 0) > 0
+
   let proposed: ProposedAdjustment | null = null
-  if (shouldAdapt) {
-    const today = new Date().toISOString().split('T')[0]
-    const next7 = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0]
-    const [{ data: upcomingWorkouts }, { data: profileData }, dossier] = await Promise.all([
-      supabase.from('workouts').select('*').eq('status', 'planned').gte('date', today).lte('date', next7).order('date'),
+  if (shouldAdapt && hasUpcoming) {
+    const [{ data: profileData }, dossier] = await Promise.all([
       supabase.from('user_profile').select('events').maybeSingle(),
       fetchDossier(supabase, user.id),
     ])
@@ -131,7 +137,7 @@ export async function POST(req: NextRequest) {
       tags: tags ?? null,
       mood: mood ?? null,
       coach_note: coachNoteResult?.note ?? null,
-      recommend_adaptations: coachNoteResult?.recommendAdaptations ?? null,
+      recommend_adaptations: hasUpcoming ? (coachNoteResult?.recommendAdaptations ?? null) : false,
       proposed_adjustment: proposed,
       approved: null,
       user_id: user.id,

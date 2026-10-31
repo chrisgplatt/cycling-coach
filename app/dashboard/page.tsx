@@ -261,9 +261,13 @@ export default function DashboardPage() {
     if (plan.target_event_name) setPlanTargetEvent(plan.target_event_name)
     if (plan.target_event_date) setPlanTargetDate(plan.target_event_date)
 
-    // Show review banner if current ISO week exceeds last reviewed week
+    // Show review banner if current ISO week exceeds last reviewed week — but only for a
+    // real active plan. With no active plan /api/plan returns a bare { workouts } shell
+    // (so rides still render) that has no status or last_reviewed_week; treating that as
+    // "never reviewed" showed the banner every day, and it could never be dismissed
+    // because the dismiss PATCH needs an active plan.
     const week = isoWeek(new Date())
-    if (!plan.last_reviewed_week || plan.last_reviewed_week < week) {
+    if (plan.status === 'active' && (!plan.last_reviewed_week || plan.last_reviewed_week < week)) {
       setShowReviewBanner(true)
     } else {
       setShowReviewBanner(false)
